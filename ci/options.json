@@ -1,0 +1,9 @@
+{
+    "Name": "ip-intelligence-php",
+    "PackageName": "51degrees/fiftyone.ipintelligence",
+    "Language": "php",
+    "Packages": ["FiftyOne.IpIntelligence"],
+    "DefaultLanguageVersion": "8.2",
+    "LanguageVersions": ["8.0", "8.1", "8.2", "8.3"],
+    "TestPackages": false
+}

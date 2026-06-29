@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheResult="false">
+  <php>
+    <env name="resource_key" value="!!YOUR_RESOURCE_KEY!!"/>
+    <env name="FOD_CLOUD_API_URL" value=""/>
+    <env name="IPINTELLIGENCEDATAFILE" value=""/>
+  </php>
+  <testsuites>
+    <testsuite name="Integration">
+      <file>tests/IpIntelligenceCloudTests.php</file>
+      <file>tests/IpIntelligenceOnPremiseTests.php</file>
+      <file>tests/ExampleTests.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

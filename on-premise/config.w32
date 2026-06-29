@@ -1,0 +1,43 @@
+// $Id$
+// vim:ft=javascript
+//
+// Windows build configuration for the 51Degrees on-premise IP intelligence
+// PHP extension. This mirrors device-detection-php-onpremise and the
+// config.m4 used on Linux/macOS. Building a PHP extension on Windows requires
+// the matching PHP development pack (php-sdk) plus SWIG 4.1+ on the PATH.
+//
+// 51Degrees build the on-premise PHP extension for Windows under the PHP SDK
+// (see OnPremise.md); on developer machines without the SDK, WSL is the
+// supported route.
+
+ARG_ENABLE("FiftyOneDegreesIpIntelligenceEngine", "enable 51Degrees on-premise IP Intelligence", "no");
+
+if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
+
+    if (CHECK_HEADER_ADD_INCLUDE("EngineIpi.hpp", "CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE", "ip-intelligence-cxx\\src")) {
+
+        // Common compile defines - must match the cxx CMake build and config.m4.
+        ADD_FLAG("CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE",
+            "/DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 " +
+            "/D_CRT_SECURE_NO_WARNINGS /D_UNICODE /DUNICODE /std:c++17 /EHsc " +
+            "/wd4127 /wd4456 /wd4701 /wd4703 /wd4706");
+
+        // Generate the SWIG wrapper. SWIG must be on the PATH.
+        var swig_cmd = "swig -c++ -php -module FiftyOneDegreesIpIntelligenceEngine " +
+            "-outdir " + configure_module_dirname + "\\src\\php8 " +
+            "-o " + configure_module_dirname + "\\src\\php8\\ipi_wrap.cxx " +
+            configure_module_dirname + "\\ipi-php.i";
+        STDOUT.WriteLine("  Running SWIG: " + swig_cmd);
+        WScript.CreateObject("WScript.Shell").Run("cmd /c " + swig_cmd, 0, true);
+
+        EXTENSION("FiftyOneDegreesIpIntelligenceEngine", "src\\php8\\ipi_wrap.cxx", true);
+
+        ADD_SOURCES(configure_module_dirname + "\\ip-intelligence-cxx\\src", "*.c *.cpp", "FiftyOneDegreesIpIntelligenceEngine");
+        ADD_SOURCES(configure_module_dirname + "\\ip-intelligence-cxx\\src\\common-cxx", "*.c *.cpp", "FiftyOneDegreesIpIntelligenceEngine");
+        ADD_SOURCES(configure_module_dirname + "\\ip-intelligence-cxx\\src\\ip-graph-cxx", "*.c", "FiftyOneDegreesIpIntelligenceEngine");
+
+        AC_DEFINE("HAVE_FIFTYONEDEGREESIPINTELLIGENCEENGINE", 1, "Whether you have 51Degrees IP Intelligence engine Enabled");
+    } else {
+        WARNING("FiftyOneDegreesIpIntelligenceEngine not enabled; EngineIpi.hpp not found (is the ip-intelligence-cxx submodule initialised?)");
+    }
+}

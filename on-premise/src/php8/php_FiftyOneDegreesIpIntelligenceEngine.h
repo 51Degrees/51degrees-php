@@ -443,6 +443,8 @@ static PHP_METHOD(EngineIpiSwig,processBase);
 PHP_METHOD(EngineIpiSwig,__set);
 PHP_METHOD(EngineIpiSwig,__get);
 PHP_METHOD(EngineIpiSwig,__isset);
+static PHP_FUNCTION(ipi_engine_get);
 PHP_MINIT_FUNCTION(FiftyOneDegreesIpIntelligenceEngine);
+PHP_MSHUTDOWN_FUNCTION(FiftyOneDegreesIpIntelligenceEngine);
 
 #endif /* PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE_H */

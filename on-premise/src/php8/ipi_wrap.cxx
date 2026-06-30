@@ -1438,6 +1438,20 @@ SWIGINTERN void std_vector_Sl_WeightedValue_Sl_double_Sg__Sg__set(std::vector< W
         else
           throw std::out_of_range("vector index out of range");
       }
+
+    #include <string.h>
+    #include <sys/stat.h>
+
+    EngineIpi *ipi_engine = NULL;
+    ConfigIpi *ipi_engine_config = NULL;
+    RequiredPropertiesConfig *ipi_engine_properties = NULL;
+
+    PHP_INI_BEGIN()
+    PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.data_file", "", PHP_INI_ALL, NULL)
+    PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.performance_profile", "LowMemory", PHP_INI_ALL, NULL)
+    PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.required_properties", "", PHP_INI_ALL, NULL)
+    PHP_INI_END()
+
 static zend_object_handlers Swig_Php_base_object_handlers;
 
 static zend_class_entry *SWIG_Php_ce_MapStringStringSwig;
@@ -24296,6 +24310,26 @@ fail:
 
 
 
+static PHP_METHOD(FiftyOneDegreesIpIntelligenceEngine,ipi_engine_get) {
+  PHP_FN(ipi_engine_get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+static PHP_FUNCTION(ipi_engine_get) {
+  EngineIpi *result = 0 ;
+  
+  if(ZEND_NUM_ARGS() != 0) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  result = (EngineIpi *)ipi_engine;
+  
+  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_EngineIpi, 0);
+  
+fail:
+  return;
+}
+
+
 /* class object handlers for pointer wrappers */
 static zend_object_handlers swig_ptr_object_handlers;
 
@@ -24334,6 +24368,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_magic_arginfo_set, 0, 1, MAY_BE_VOI
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_magic_arginfo_isset, 0, 1, MAY_BE_BOOL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ipi_engine_get, 0, 0, EngineIpiSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_BoolValueSwig, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -25432,10 +25468,12 @@ static const zend_function_entry class_EngineIpiSwig_functions[] = {
 /* entry subsection */
 /* Every non-class user visible function must have an entry here */
 static const zend_function_entry module_FiftyOneDegreesIpIntelligenceEngine_functions[] = {
+ PHP_FE(ipi_engine_get,swig_arginfo_ipi_engine_get)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_FiftyOneDegreesIpIntelligenceEngine_functions[] = {
+ PHP_ME(FiftyOneDegreesIpIntelligenceEngine,ipi_engine_get,swig_arginfo_ipi_engine_get,ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
  ZEND_FE_END
 };
 
@@ -25445,7 +25483,7 @@ zend_module_entry FiftyOneDegreesIpIntelligenceEngine_module_entry = {
     "FiftyOneDegreesIpIntelligenceEngine",
     module_FiftyOneDegreesIpIntelligenceEngine_functions,
     PHP_MINIT(FiftyOneDegreesIpIntelligenceEngine),
-    NULL, /* No MSHUTDOWN code */
+    PHP_MSHUTDOWN(FiftyOneDegreesIpIntelligenceEngine),
     NULL, /* No RINIT code */
     NULL, /* No RSHUTDOWN code */
     NULL, /* No MINFO code */
@@ -25705,6 +25743,34 @@ SWIG_php_minit {
   /* This hack is needed to avoid segfaults. */
   EG(class_table) = CG(class_table);
 #endif
+
+
+    REGISTER_INI_ENTRIES();
+    char *filePath = INI_STR("FiftyOneDegreesIpIntelligenceEngine.data_file");
+    struct stat sb;
+    if (filePath != NULL && strlen(filePath) > 0 && stat(filePath, &sb) == 0) {
+        char *profile = INI_STR("FiftyOneDegreesIpIntelligenceEngine.performance_profile");
+        char *propertyList = INI_STR("FiftyOneDegreesIpIntelligenceEngine.required_properties");
+        ipi_engine_config = new ConfigIpi();
+        if (profile != NULL && strcmp(profile, "MaxPerformance") == 0) {
+            ipi_engine_config->setMaxPerformance();
+        } else if (profile != NULL && strcmp(profile, "HighPerformance") == 0) {
+            ipi_engine_config->setHighPerformance();
+        } else if (profile != NULL && strcmp(profile, "Balanced") == 0) {
+            ipi_engine_config->setBalanced();
+        } else if (profile != NULL && strcmp(profile, "BalancedTemp") == 0) {
+            ipi_engine_config->setBalancedTemp();
+        } else {
+            ipi_engine_config->setLowMemory();
+        }
+        ipi_engine_config->setUseUpperPrefixHeaders(false);
+        if (propertyList != NULL && strlen(propertyList) > 0) {
+            ipi_engine_properties = new RequiredPropertiesConfig(propertyList);
+        } else {
+            ipi_engine_properties = new RequiredPropertiesConfig();
+        }
+        ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+    }
 
   /* oinit subsection */
   INIT_CLASS_ENTRY(internal_ce, "MapStringStringSwig", class_MapStringStringSwig_functions);
@@ -26442,6 +26508,17 @@ SWIG_LONG_CONSTANT(FIFTYONE_DEGREES_IP_TYPE_IPV6, (int)(FIFTYONE_DEGREES_IP_TYPE
   zend_declare_class_constant_long(SWIG_Php_ce_FiftyOneDegreesIpIntelligenceEngine, "FIFTYONE_DEGREES_IP_TYPE_IPV6", sizeof("FIFTYONE_DEGREES_IP_TYPE_IPV6") - 1, (int)(FIFTYONE_DEGREES_IP_TYPE_IPV6));
 
   /* end cinit subsection */
+
+  return SUCCESS;
+}
+
+PHP_MSHUTDOWN_FUNCTION(FiftyOneDegreesIpIntelligenceEngine)
+/* shutdown section */
+{
+
+    if (ipi_engine != NULL) { delete ipi_engine; ipi_engine = NULL; }
+    if (ipi_engine_properties != NULL) { delete ipi_engine_properties; ipi_engine_properties = NULL; }
+    if (ipi_engine_config != NULL) { delete ipi_engine_config; ipi_engine_config = NULL; }
 
   return SUCCESS;
 }

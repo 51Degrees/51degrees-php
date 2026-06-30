@@ -15,7 +15,7 @@ dnl define must NOT be set, otherwise the C++ fails to compile (profile has no
 dnl member profileId). When the submodule is bumped to a commit that defaults
 dnl ReducedFile ON, add -DFIFTYONE_DEGREES_REDUCED_FILE=1 here. All native
 dnl objects (wrapper, C++ and C) must be compiled with the same settings.
-COMMON_DEFINES="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64"
+COMMON_DEFINES="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -DFIFTYONE_DEGREES_REDUCED_FILE=1 -D_FILE_OFFSET_BITS=64"
 CFLAGS="$CFLAGS $COMMON_DEFINES -std=gnu11 -Wall -Wno-strict-prototypes -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
 CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES -std=gnu++17 -fpermissive -Wall -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
 case "$host_os" in

@@ -22,12 +22,23 @@
     ],
     "license": "EUPL-1.2",
     "type": "library",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories":
+    [
+        {
+            "type": "path",
+            "url": "../pipeline-php-translation",
+            "options": { "symlink": true }
+        }
+    ],
     "require":
     {
         "php": ">=8.0",
         "51degrees/fiftyone.pipeline.core": "4.*",
         "51degrees/fiftyone.pipeline.engines": "4.*",
-        "51degrees/fiftyone.pipeline.cloudrequestengine": "4.*"
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "4.*",
+        "51degrees/fiftyone.pipeline.translation": "*"
     },
     "require-dev":
     {

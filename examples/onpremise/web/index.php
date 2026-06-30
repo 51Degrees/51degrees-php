@@ -12,103 +12,107 @@
  * ********************************************************************* */
 
 /*
- * IP intelligence web integration example (on-premise).
- * Mirrors ip-intelligence-dotnet-examples OnPremise/GettingStarted-Web: the
- * same 51Degrees examples-main.min.css template, IP lookup form, results
- * table, evidence table and location map.
+ * IP intelligence web integration example (on-premise), with the ordered
+ * country dropdown. Mirrors ip-intelligence-dotnet-examples
+ * OnPremise/GettingStarted-Web: a pipeline of the IP intelligence engine
+ * followed by the two country translation engines, rendered with the
+ * 51Degrees template. The dropdown lists countries most probable first, then
+ * every other country alphabetically, localized by the request's
+ * Accept-Language header.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
 
-use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
+use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
+use fiftyone\pipeline\ipintelligence\translation\CountriesTranslationEngine;
+use fiftyone\pipeline\ipintelligence\translation\CountryCodeTranslationEngine;
 
 $ip = isset($_GET['client-ip']) && $_GET['client-ip'] !== '' ? trim((string) $_GET['client-ip']) : '8.8.8.8';
-$ipiDataFile = ExampleUtils::getDataFile();
+$acceptLanguage = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
 
 $error = null;
 $rows = [];
-$geographical = [];
-$population = [];
+$dropdown = [];
 $areas = '';
 $latitude = '';
 $longitude = '';
 
-function valStr($value): string
-{
-    try {
-        if ($value->hasValue()) {
-            $v = $value->getValue();
-            return is_bool($v) ? ($v ? 'True' : 'False') : (string) $v;
-        }
-    } catch (\Throwable $e) {
-    }
-    return 'Unknown';
-}
+$displayProperties = [
+    'Registered Name' => 'registeredname',
+    'Registered Owner' => 'registeredowner',
+    'Registered Country' => 'registeredcountry',
+    'IP Range Start' => 'iprangestart',
+    'IP Range End' => 'iprangeend',
+    'Country' => 'country',
+    'Country Code' => 'countrycode',
+    'Country Code 3' => 'countrycode3',
+    'Region' => 'region',
+    'State' => 'state',
+    'Town' => 'town',
+    'Latitude' => 'latitude',
+    'Longitude' => 'longitude',
+    'Areas' => 'areas',
+    'Accuracy Radius' => 'accuracyradiusmin',
+    'Time Zone Offset' => 'timezoneoffset',
+];
 
-/**
- * Convert a SWIG weighted string list to an array of "value (weighting)" strings.
- *
- * @return array<string>
- */
-function weightedList($value): array
+function apvStr($data, string $key): string
 {
-    $out = [];
     try {
-        if ($value->hasValue()) {
-            $list = $value->getValue();
-            for ($i = 0; $i < $list->size(); ++$i) {
-                $item = $list->get($i);
-                $out[] = $item->getValue() . ' (' . $item->getWeight() . ')';
-            }
+        $apv = $data->get($key);
+        if (!($apv instanceof \fiftyone\pipeline\core\AspectPropertyValue) || !$apv->hasValue) {
+            return 'Unknown';
         }
+        $v = $apv->value;
+        if (is_bool($v)) {
+            return $v ? 'True' : 'False';
+        }
+
+        return is_array($v) ? '' : (string) $v;
     } catch (\Throwable $e) {
+        return 'Unknown';
     }
-    return $out;
 }
 
 if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
     $error = 'The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.';
 } else {
     try {
-        if (function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
-            $engine = \ipi_engine_get();
-        } else {
-            if (!$ipiDataFile) {
-                throw new \Exception('No .ipi data file found.');
-            }
-            $config = new \ConfigIpiSwig();
-            $config->setLowMemory();
-            $config->setUseUpperPrefixHeaders(false);
-            $engine = new \EngineIpiSwig($ipiDataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
+        $pipeline = (new PipelineBuilder([]))
+            ->add(new IpIntelligenceOnPremise([]))
+            ->add(new CountryCodeTranslationEngine())
+            ->add(new CountriesTranslationEngine())
+            ->build();
+
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->set('query.client-ip', $ip);
+        if ($acceptLanguage !== '') {
+            $flowData->evidence->set('header.accept-language', $acceptLanguage);
         }
+        $result = $flowData->process();
 
-        $results = $engine->process($ip);
+        $ipData = $result->ip;
+        foreach ($displayProperties as $label => $key) {
+            $rows[$label] = apvStr($ipData, $key);
+        }
+        $areas = ($rows['Areas'] === 'Unknown') ? '' : $rows['Areas'];
+        $latitude = ($rows['Latitude'] === 'Unknown') ? '' : $rows['Latitude'];
+        $longitude = ($rows['Longitude'] === 'Unknown') ? '' : $rows['Longitude'];
 
-        $rows = [
-            'Registered Name' => valStr($results->getValueAsString('RegisteredName')),
-            'Registered Owner' => valStr($results->getValueAsString('RegisteredOwner')),
-            'Registered Country' => valStr($results->getValueAsString('RegisteredCountry')),
-            'IP Range Start' => valStr($results->getValueAsString('IpRangeStart')),
-            'IP Range End' => valStr($results->getValueAsString('IpRangeEnd')),
-            'Country' => valStr($results->getValueAsString('Country')),
-            'Country Code' => valStr($results->getValueAsString('CountryCode')),
-            'Country Code 3' => valStr($results->getValueAsString('CountryCode3')),
-            'Region' => valStr($results->getValueAsString('Region')),
-            'State' => valStr($results->getValueAsString('State')),
-            'Town' => valStr($results->getValueAsString('Town')),
-            'Latitude' => valStr($results->getValueAsString('Latitude')),
-            'Longitude' => valStr($results->getValueAsString('Longitude')),
-            'Areas' => valStr($results->getValueAsString('Areas')),
-            'Accuracy Radius' => valStr($results->getValueAsString('AccuracyRadiusMin')),
-            'Time Zone Offset' => valStr($results->getValueAsString('TimeZoneOffset')),
-        ];
-        $geographical = weightedList($results->getValuesAsWeightedStringList('CountryCodesGeographical'));
-        $population = weightedList($results->getValuesAsWeightedStringList('CountryCodesPopulation'));
-        $areas = $rows['Areas'] === 'Unknown' ? '' : $rows['Areas'];
-        $latitude = $rows['Latitude'] === 'Unknown' ? '' : $rows['Latitude'];
-        $longitude = $rows['Longitude'] === 'Unknown' ? '' : $rows['Longitude'];
+        // The ordered dropdown, built by the countries translation engine.
+        $translated = $result->countrynamestranslated;
+        $names = $translated->get('countrynamesgeographicalalltranslated');
+        $codes = $translated->get('countrycodesgeographicalall');
+        if ($names->hasValue && $codes->hasValue) {
+            $nameList = $names->value;
+            $codeList = $codes->value;
+            for ($i = 0, $n = min(count($nameList), count($codeList)); $i < $n; ++$i) {
+                $dropdown[] = ['code' => $codeList[$i], 'name' => $nameList[$i]];
+            }
+        }
     } catch (\Throwable $e) {
         $error = $e->getMessage();
     }
@@ -130,19 +134,8 @@ function renderRows(array $rows): string
             . '<td class="c-eg-table__cell">' . h($value) . '</td></tr>';
         ++$i;
     }
-    return $out;
-}
 
-function renderList(array $items): string
-{
-    if (empty($items)) {
-        return 'Unknown';
-    }
-    $out = '<ul>';
-    foreach ($items as $item) {
-        $out .= '<li>' . h($item) . '</li>';
-    }
-    return $out . '</ul>';
+    return $out;
 }
 ?>
 <!DOCTYPE html>
@@ -159,7 +152,8 @@ function renderList(array $items): string
         <h2 class="c-eg-page__title">IP intelligence web integration example</h2>
         <p class="c-eg-page__lead">
             This example demonstrates the use of the Pipeline API to perform IP intelligence lookups
-            within a simple PHP web project, on-premise from a local data file.
+            within a simple PHP web project, on-premise from a local data file. The country dropdown
+            is ordered most probable first and localized using your browser's Accept-Language header.
         </p>
 
         <?php if ($error): ?>
@@ -176,8 +170,18 @@ function renderList(array $items): string
                 </div>
             </form>
 
+            <h3 class="c-eg-page__heading">Country (most probable first)</h3>
+            <p class="c-eg-page__lead">
+                Geographical countries ordered by probability, then every other country alphabetically.
+            </p>
+            <select id="CountryNamesGeographicalAllTranslated"
+                    name="CountryNamesGeographicalAllTranslated" class="b-input">
+                <?php foreach ($dropdown as $entry): ?>
+                    <option value="<?= h($entry['code']) ?>"><?= h($entry['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+
             <h3 class="c-eg-page__heading">Detection results</h3>
-            <p class="c-eg-page__lead">The following values are determined by IP intelligence analysis.</p>
             <table class="c-eg-table">
                 <thead class="c-eg-table__head">
                     <tr class="c-eg-table__row">
@@ -185,17 +189,7 @@ function renderList(array $items): string
                         <th class="c-eg-table__cell">Value</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <?= renderRows($rows) ?>
-                    <tr class="c-eg-table__row c-eg-table__row--alt">
-                        <td class="c-eg-table__cell c-eg-table__cell--key">Country Codes Geographical:</td>
-                        <td class="c-eg-table__cell"><?= renderList($geographical) ?></td>
-                    </tr>
-                    <tr class="c-eg-table__row">
-                        <td class="c-eg-table__cell c-eg-table__cell--key">Country Codes Population:</td>
-                        <td class="c-eg-table__cell"><?= renderList($population) ?></td>
-                    </tr>
-                </tbody>
+                <tbody><?= renderRows($rows) ?></tbody>
             </table>
 
             <h3 class="c-eg-page__heading">Evidence used</h3>
@@ -210,6 +204,10 @@ function renderList(array $items): string
                     <tr class="c-eg-table__row c-eg-table__row--used">
                         <td class="c-eg-table__cell c-eg-table__cell--key">query.client-ip</td>
                         <td class="c-eg-table__cell"><?= h($ip) ?></td>
+                    </tr>
+                    <tr class="c-eg-table__row c-eg-table__row--used">
+                        <td class="c-eg-table__cell c-eg-table__cell--key">header.accept-language</td>
+                        <td class="c-eg-table__cell"><?= h($acceptLanguage) ?></td>
                     </tr>
                 </tbody>
             </table>

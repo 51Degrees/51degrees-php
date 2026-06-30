@@ -1,0 +1,10 @@
+parameters:
+    phpVersion: 80000
+    level: 6
+    paths:
+        - src
+    ignoreErrors:
+        # Translated values flow through as mixed (string, list, or weighted
+        # list), so some parameters and returns are intentionally untyped.
+        - '#with no type specified#'
+        - '#has no type specified#'

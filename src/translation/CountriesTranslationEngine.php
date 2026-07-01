@@ -111,8 +111,11 @@ class CountriesTranslationEngine extends TranslationEngine
         // The base engine produces the weighted translated names.
         $result = $this->buildTranslatedProperties($flowData, $translator);
 
-        $comparer = $this->makeComparer();
-        $result['sortingcultureused'] = new AspectPropertyValue(null, $locale ?? '');
+        $comparer = $this->makeComparer($locale);
+        // Report the culture in hyphenated form (fr-FR), as the .NET engine
+        // does, rather than the underscore locale form used by the files.
+        $culture = $locale === null ? '' : str_replace('_', '-', $locale);
+        $result['sortingcultureused'] = new AspectPropertyValue(null, $culture);
 
         // The weighted codes are read directly from the IP intelligence engine.
         $ip = $flowData->get(Constants::IP_INTELLIGENCE_KEY);
@@ -155,7 +158,7 @@ class CountriesTranslationEngine extends TranslationEngine
             $weighted[] = [
                 'code' => $code,
                 'name' => (string) ($translatedWeightedNames[$i]['value'] ?? ''),
-                'weight' => $translatedWeightedNames[$i]['weighting'] ?? 0,
+                'weight' => $translatedWeightedNames[$i]['rawweighting'] ?? 0,
             ];
         }
         usort($weighted, static function ($a, $b) use ($comparer) {
@@ -197,13 +200,25 @@ class CountriesTranslationEngine extends TranslationEngine
     }
 
     /**
-     * A locale-aware-ish string comparer. ext-intl (Collator) is not assumed
-     * to be present, so diacritics are transliterated to ASCII and the
-     * comparison is case-insensitive. This orders accented Latin names close
-     * to their unaccented form, which is sufficient for the dropdown.
+     * Build a locale-aware string comparer.
+     *
+     * When the intl extension is available a Collator for the resolved locale
+     * is used, which matches .NET's culture-aware ordering (correct for
+     * languages such as Turkish, Swedish and Polish). When intl is not
+     * available the comparer falls back to transliterating diacritics to
+     * ASCII and comparing case-insensitively, which orders accented Latin
+     * names close to their unaccented form but is not fully locale-correct.
+     *
+     * @param null|string $locale resolved locale (e.g. fr_FR) or null
      */
-    private function makeComparer(): callable
+    private function makeComparer(?string $locale): callable
     {
+        if (class_exists(\Collator::class)) {
+            $collator = new \Collator($locale !== null ? str_replace('_', '-', $locale) : 'en-US');
+
+            return static fn (string $a, string $b): int => $collator->compare($a, $b);
+        }
+
         return static function (string $a, string $b): int {
             $normalize = static function (string $s): string {
                 $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);

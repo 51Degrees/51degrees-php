@@ -161,9 +161,13 @@ class SwigData extends AspectData
         $list = $value->getValue();
         for ($i = 0; $i < $list->size(); ++$i) {
             $weighted = $list->get($i);
+            // Emit the raw 0-65535 integer weighting under "rawweighting", the
+            // same representation and key the cloud service returns (matching
+            // .NET's IWeightedValue.RawWeighting). The native getWeight()
+            // returns the normalised 0-1 float, so scale it back.
             $items[] = [
                 'value' => $weighted->getValue(),
-                'weighting' => $weighted->getWeight()
+                'rawweighting' => (int) round($weighted->getWeight() * 65535),
             ];
         }
 

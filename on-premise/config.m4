@@ -9,11 +9,11 @@ dnl when reading them (FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT / _FILE_OFFSET_B
 dnl
 dnl NOTE on FIFTYONE_DEGREES_REDUCED_FILE: this define changes on-disk struct
 dnl layouts and must match the ip-intelligence-cxx commit the submodule is
-dnl pinned to. The current pin (7394ca7) predates the reduced-file format
-dnl (cxx PR #118), so profileId and other fields are still present and the
-dnl define must NOT be set, otherwise the C++ fails to compile (profile has no
-dnl member profileId). When the submodule is bumped to a commit that defaults
-dnl ReducedFile ON, add -DFIFTYONE_DEGREES_REDUCED_FILE=1 here. All native
+dnl pinned to. The current pin (073edb8, main) is the reduced-file format
+dnl (cxx PR #118 and later), which is what the 4.5 enterprise .ipi files use,
+dnl so the define MUST be set. If the submodule is moved back to a pre-#118
+dnl commit (where profileId is still present), remove this define, otherwise
+dnl the C++ fails to compile (profile has no member profileId). All native
 dnl objects (wrapper, C++ and C) must be compiled with the same settings.
 COMMON_DEFINES="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -DFIFTYONE_DEGREES_REDUCED_FILE=1 -D_FILE_OFFSET_BITS=64"
 CFLAGS="$CFLAGS $COMMON_DEFINES -std=gnu11 -Wall -Wno-strict-prototypes -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"

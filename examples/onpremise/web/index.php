@@ -81,6 +81,11 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
     $error = 'The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.';
 } else {
     try {
+        // IpIntelligenceOnPremise([]) reuses the engine built once at module
+        // load, so this example requires the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting to
+        // point at an .ipi file (see OnPremise.md). Pass ['dataFile' => ...]
+        // instead to build a per-request engine.
         $pipeline = (new PipelineBuilder([]))
             ->add(new IpIntelligenceOnPremise([]))
             ->add(new CountryCodeTranslationEngine())

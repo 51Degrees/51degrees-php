@@ -139,6 +139,13 @@ class IpIntelligenceOnPremise extends Engine
         parent::__construct();
     }
 
+    /**
+     * The accepted evidence keys (query.client-ip, server.client-ip,
+     * query.client-ip-51d, ...). Note that this engine performs a single-IP
+     * lookup: only the first parseable IPv4/IPv6 value from the evidence (in
+     * the priority order used by getClientIps) actually drives the lookup.
+     * This is not multi-evidence detection.
+     */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
         return new BasicListEvidenceKeyFilter($this->evidenceKeys);
@@ -311,17 +318,17 @@ class IpIntelligenceOnPremise extends Engine
         return [
             'ip' => [
                 'name' => 'Ip',
-                'type' => 'string',
-                'category' => 'IP Metrics',
+                'type' => 'IpAddress',
+                'category' => 'Network',
                 'description' => Constants::IP_DESCRIPTION,
-                'component' => 'IP Metrics'
+                'component' => 'Network'
             ],
             'ipv6' => [
                 'name' => 'IpV6',
-                'type' => 'string',
-                'category' => 'IP Metrics',
+                'type' => 'IpAddress',
+                'category' => 'Network',
                 'description' => Constants::IPV6_DESCRIPTION,
-                'component' => 'IP Metrics'
+                'component' => 'Network'
             ]
         ];
     }

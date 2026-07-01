@@ -86,7 +86,7 @@ class IpIntelligenceCloudTests extends TestCase
         $this->assertIsArray($weighted);
         $this->assertCount(2, $weighted);
         $this->assertSame('234', $weighted[0]['value']);
-        $this->assertEqualsWithDelta(0.8, $weighted[0]['weighting'], 0.0001);
+        $this->assertSame(52428, $weighted[0]['rawweighting']);
         $this->assertSame('235', $weighted[1]['value']);
     }
 

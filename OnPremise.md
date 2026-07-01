@@ -33,10 +33,12 @@ CI builds the Windows binary under the PHP SDK.
 git submodule update --init --recursive
 ```
 
-The `ip-intelligence-cxx` submodule is pinned to a commit (`7394ca7`) whose data
-format matches the publicly available 4.4 Lite/Enterprise `.ipi` files. Its own
-nested submodules (`common-cxx`, `ip-graph-cxx`) must also be initialised, which
-the `--recursive` flag does.
+The `ip-intelligence-cxx` submodule is pinned to `073edb8` (main), the
+reduced-file data format used by the current 4.5 enterprise `.ipi` files. The
+build therefore sets `FIFTYONE_DEGREES_REDUCED_FILE=1` (see `config.m4`). Its
+own nested submodules (`common-cxx`, `ip-graph-cxx`) must also be initialised,
+which the `--recursive` flag does. (For an older pre-#118 commit, which reads
+the 4.4 format, that define must be removed.)
 
 ## Build
 

@@ -47,7 +47,7 @@ class IpIntelligenceTranslationTests extends TestCase
         $n = count($codes);
         $out = [];
         foreach ($codes as $i => $code) {
-            $out[] = ['value' => $code, 'weighting' => $n - $i];
+            $out[] = ['value' => $code, 'rawweighting' => $n - $i];
         }
 
         return $out;
@@ -61,7 +61,7 @@ class IpIntelligenceTranslationTests extends TestCase
      */
     private static function weightedExplicit(array $pairs): array
     {
-        return array_map(static fn ($p) => ['value' => $p[0], 'weighting' => $p[1]], $pairs);
+        return array_map(static fn ($p) => ['value' => $p[0], 'rawweighting' => $p[1]], $pairs);
     }
 
     /**
@@ -180,7 +180,7 @@ class IpIntelligenceTranslationTests extends TestCase
             ['Alemania'],
             $this->weightedValues($translated->get('countrynamesgeographicaltranslated'))
         );
-        $this->assertSame('es_ES', $translated->get('sortingcultureused')->value);
+        $this->assertSame('es-ES', $translated->get('sortingcultureused')->value);
     }
 
     // ---- tests (10b: gap tests) ----------------------------------------
@@ -195,9 +195,9 @@ class IpIntelligenceTranslationTests extends TestCase
 
         // Names changed, weights unchanged.
         $this->assertSame('Royaume-Uni', $items[0]['value']);
-        $this->assertSame(35535, $items[0]['weighting']);
+        $this->assertSame(35535, $items[0]['rawweighting']);
         $this->assertSame('France', $items[1]['value']);
-        $this->assertSame(30000, $items[1]['weighting']);
+        $this->assertSame(30000, $items[1]['rawweighting']);
     }
 
     public function testEvidencePrecedenceQueryTranslationOverrides(): void
@@ -214,7 +214,7 @@ class IpIntelligenceTranslationTests extends TestCase
             ['Deutschland'],
             $this->weightedValues($translated->get('countrynamesgeographicaltranslated'))
         );
-        $this->assertSame('de_DE', $translated->get('sortingcultureused')->value);
+        $this->assertSame('de-DE', $translated->get('sortingcultureused')->value);
     }
 
     // ---- remaining 10a ports -------------------------------------------
@@ -302,7 +302,7 @@ class IpIntelligenceTranslationTests extends TestCase
             ['Royaume-Uni', 'France'],
             $this->weightedValues($translated->get('countrynamesgeographicaltranslated'))
         );
-        $this->assertSame('fr_FR', $translated->get('sortingcultureused')->value);
+        $this->assertSame('fr-FR', $translated->get('sortingcultureused')->value);
     }
 
     public function testEnglishPreferredOverOtherLanguages(): void
@@ -398,7 +398,7 @@ class IpIntelligenceTranslationTests extends TestCase
     {
         $weighted = self::weightify(['FR']);
         $french = $this->process($weighted, $weighted, ['header.accept-language' => 'fr_FR']);
-        $this->assertSame('fr_FR', $french->get('countrynamestranslated')->get('sortingcultureused')->value);
+        $this->assertSame('fr-FR', $french->get('countrynamestranslated')->get('sortingcultureused')->value);
 
         $english = $this->process($weighted, $weighted, ['header.accept-language' => 'en-GB']);
         $this->assertSame('', $english->get('countrynamestranslated')->get('sortingcultureused')->value);

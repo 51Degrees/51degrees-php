@@ -132,14 +132,19 @@ class IpIntelligenceOnPremiseTests extends TestCase
         $this->assertTrue($ip->ip->hasValue);
         $this->assertSame(Constants::IPV4_ADDRESS, $ip->ip->value);
 
-        // RegisteredName is a core IP intelligence property; it either has a
-        // value or a no-value message.
-        $registeredName = $ip->get('registeredname');
-        $this->assertNotNull($registeredName);
-        if ($registeredName->hasValue) {
-            $this->assertNotNull($registeredName->value);
-        } else {
-            $this->assertNotNull($registeredName->noValueMessage);
+        // RegisteredName is a core IP intelligence property. It is only
+        // present in some data files (for example it is absent from the ASN
+        // file), and get() throws for a property the data file does not
+        // contain, so only assert on it when the engine actually exposes it.
+        $properties = $pipeline->getElement('ip')->getProperties();
+        if (array_key_exists('registeredname', $properties)) {
+            $registeredName = $ip->get('registeredname');
+            $this->assertNotNull($registeredName);
+            if ($registeredName->hasValue) {
+                $this->assertNotNull($registeredName->value);
+            } else {
+                $this->assertNotNull($registeredName->noValueMessage);
+            }
         }
     }
 

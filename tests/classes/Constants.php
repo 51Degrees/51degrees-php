@@ -51,8 +51,8 @@ class Constants
         "accuracyradiusmin": 25,
         "iseu": false,
         "mcc": [
-            { "value": "234", "weighting": 0.8 },
-            { "value": "235", "weighting": 0.2 }
+            { "value": "234", "rawweighting": 52428 },
+            { "value": "235", "rawweighting": 13107 }
         ],
         "ip": null,
         "ipnullreason": "The results are empty. This is probably because we don't have this data in our database."

@@ -75,9 +75,21 @@ class IpIntelligenceOnPremise extends Engine
             throw new \Exception(Messages::EXTENSION_NOT_LOADED);
         }
 
+        // Reuse the global engine built once at module load when it is
+        // available (FiftyOneDegreesIpIntelligenceEngine.data_file ini set),
+        // unless a caller explicitly requests a specific data file. This lets
+        // a long-running SAPI avoid re-opening the data file on each request.
         $dataFile = $settings['dataFile'] ?? null;
+        if ($dataFile === null && function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
+            $this->engine = \ipi_engine_get();
+            $this->initEngineMetaData();
+            parent::__construct();
+
+            return;
+        }
+
         if (!$dataFile) {
-            throw new \Exception('A "dataFile" setting is required for the on-premise IP intelligence engine.');
+            throw new \Exception('A "dataFile" setting is required for the on-premise IP intelligence engine, or set the FiftyOneDegreesIpIntelligenceEngine.data_file ini to build a shared global engine.');
         }
 
         if (substr($dataFile, -strlen(Constants::DATA_FILE_EXTENSION)) !== Constants::DATA_FILE_EXTENSION) {
@@ -127,6 +139,13 @@ class IpIntelligenceOnPremise extends Engine
         parent::__construct();
     }
 
+    /**
+     * The accepted evidence keys (query.client-ip, server.client-ip,
+     * query.client-ip-51d, ...). Note that this engine performs a single-IP
+     * lookup: only the first parseable IPv4/IPv6 value from the evidence (in
+     * the priority order used by getClientIps) actually drives the lookup.
+     * This is not multi-evidence detection.
+     */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
         return new BasicListEvidenceKeyFilter($this->evidenceKeys);
@@ -299,17 +318,17 @@ class IpIntelligenceOnPremise extends Engine
         return [
             'ip' => [
                 'name' => 'Ip',
-                'type' => 'string',
-                'category' => 'IP Metrics',
+                'type' => 'IpAddress',
+                'category' => 'Network',
                 'description' => Constants::IP_DESCRIPTION,
-                'component' => 'IP Metrics'
+                'component' => 'Network'
             ],
             'ipv6' => [
                 'name' => 'IpV6',
-                'type' => 'string',
-                'category' => 'IP Metrics',
+                'type' => 'IpAddress',
+                'category' => 'Network',
                 'description' => Constants::IPV6_DESCRIPTION,
-                'component' => 'IP Metrics'
+                'component' => 'Network'
             ]
         ];
     }

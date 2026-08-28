@@ -108,7 +108,7 @@ class ExampleUtils
             return $value ? 'true' : 'false';
         }
         if (is_array($value)) {
-            // Weighted values are arrays of ['value' => ..., 'weighting' => ...].
+            // Weighted values are arrays of ['value' => ..., 'rawweighting' => ...].
             $parts = [];
             foreach ($value as $item) {
                 if (is_array($item) && array_key_exists('value', $item)) {

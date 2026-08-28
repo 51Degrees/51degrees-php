@@ -9,6 +9,10 @@
     <env name="IPINTELLIGENCEDATAFILE" value=""/>
   </php>
   <testsuites>
+    <!-- Runs everywhere: no native extension, data file or network needed. -->
+    <testsuite name="Unit">
+      <file>tests/SwigDataTests.php</file>
+    </testsuite>
     <testsuite name="Integration">
       <file>tests/IpIntelligenceCloudTests.php</file>
       <file>tests/IpIntelligenceOnPremiseTests.php</file>

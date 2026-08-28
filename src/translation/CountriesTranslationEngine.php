@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\ipintelligence\translation;
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\engines\AspectDataDictionary;
+use fiftyone\pipeline\ipintelligence\Constants as IpIntelligenceConstants;
 use fiftyone\pipeline\translation\MissingTranslationBehavior;
 use fiftyone\pipeline\translation\TranslationEngine;
 
@@ -151,18 +152,18 @@ class CountriesTranslationEngine extends TranslationEngine
         $count = min(count($translatedWeightedNames), count($weightedCodes));
         $weighted = [];
         for ($i = 0; $i < $count; ++$i) {
-            $code = (string) ($weightedCodes[$i]['value'] ?? '');
+            $code = (string) ($weightedCodes[$i][IpIntelligenceConstants::WEIGHTED_VALUE_KEY] ?? '');
             if (!isset($this->validCodes[strtolower($code)])) {
                 continue;
             }
             $weighted[] = [
                 'code' => $code,
-                'name' => (string) ($translatedWeightedNames[$i]['value'] ?? ''),
-                'weight' => $translatedWeightedNames[$i]['rawweighting'] ?? 0,
+                'name' => (string) ($translatedWeightedNames[$i][IpIntelligenceConstants::WEIGHTED_VALUE_KEY] ?? ''),
+                'weight' => $translatedWeightedNames[$i][IpIntelligenceConstants::WEIGHTED_RAW_WEIGHTING_KEY] ?? 0,
             ];
         }
         usort($weighted, static function ($a, $b) use ($comparer) {
-            if ($a['weight'] == $b['weight']) {
+            if ($a['weight'] === $b['weight']) {
                 return $comparer($a['name'], $b['name']);
             }
 
@@ -231,8 +232,8 @@ class CountriesTranslationEngine extends TranslationEngine
     }
 
     /**
-     * Extract a weighted list ([['value'=>.., 'weighting'=>..], ...]) from an
-     * AspectPropertyValue, or an empty array if there is no value.
+     * Extract a weighted list ([['value'=>.., 'rawweighting'=>..], ...]) from
+     * an AspectPropertyValue, or an empty array if there is no value.
      *
      * @param mixed $apv
      * @return array<array<string, mixed>>

@@ -25,11 +25,15 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\translation;
 
+use fiftyone\pipeline\ipintelligence\Constants as IpIntelligenceConstants;
+
 class Constants
 {
     // Element data key of the IP intelligence engine that emits the weighted
-    // country codes. Matches IpIntelligenceCloud / IpIntelligenceOnPremise.
-    public const IP_INTELLIGENCE_KEY = 'ip';
+    // country codes. Resolved from the engines' own constant rather than
+    // repeated, so IpIntelligenceCloud, IpIntelligenceOnPremise and the
+    // translation engines cannot drift apart.
+    public const IP_INTELLIGENCE_KEY = IpIntelligenceConstants::ELEMENT_DATA_KEY;
 
     // Element data key produced by the country code translation engine.
     public const COUNTRY_NAMES_KEY = 'countrynames';

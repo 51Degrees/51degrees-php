@@ -39,17 +39,6 @@ use fiftyone\pipeline\core\PipelineBuilder;
 class IpIntelligencePipelineBuilder extends PipelineBuilder
 {
     /**
-     * @var array<string>
-     */
-    public array $restrictedProperties;
-
-    public $cache;
-
-    public string $resourceKey;
-
-    public string $licenseKey;
-
-    /**
      * @param array<string, mixed> $settings
      *   resourceKey         - (required) 51Degrees cloud resource key.
      *   cloudEndPoint       - (optional) override the cloud service base URL.

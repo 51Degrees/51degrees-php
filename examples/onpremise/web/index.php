@@ -119,13 +119,32 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             }
         }
     } catch (\Throwable $e) {
-        $error = $e->getMessage();
+        // Do not render the exception message: it can carry server side
+        // detail such as data file paths. Log it and show a generic message,
+        // the same convention as the cloud examples.
+        error_log('IP intelligence example failed: ' . $e->getMessage());
+        $error = 'The lookup could not be completed. See the server log for details.';
     }
 }
 
 function h(?string $s): string
 {
     return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Escape a value for interpolation into a <script> block as a JavaScript
+ * literal. json_encode emits its own quotes, so the call site must not add
+ * any. The JSON_HEX_* flags neutralise the sequences that would otherwise
+ * break out of the script element or the string, which addslashes does not
+ * cover (it leaves "</script>" and U+2028/U+2029 intact).
+ */
+function js(?string $s): string
+{
+    return json_encode(
+        (string) $s,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
+    );
 }
 
 function renderRows(array $rows): string
@@ -232,9 +251,9 @@ function renderRows(array $rows): string
         window.onload = function () {
             if (window.fodExamples && fodExamples.initLocationMap) {
                 fodExamples.initLocationMap({
-                    areasWkt: '<?= addslashes($areas) ?>',
-                    latitude: '<?= addslashes($latitude) ?>',
-                    longitude: '<?= addslashes($longitude) ?>'
+                    areasWkt: <?= js($areas) ?>,
+                    latitude: <?= js($latitude) ?>,
+                    longitude: <?= js($longitude) ?>
                 });
             }
         };

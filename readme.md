@@ -37,6 +37,20 @@ and [ip-intelligence-dotnet](https://github.com/51Degrees/ip-intelligence-dotnet
 composer require 51degrees/fiftyone.ipintelligence
 ```
 
+> **Not installable from Packagist yet.** The country translation engines depend
+> on `51degrees/fiftyone.pipeline.translation`, which has not been published.
+> Until it is, `composer.json` resolves that package through a `path` repository
+> pointing at a sibling checkout, so clone it next to this repository first:
+>
+> ```bash
+> git clone https://github.com/51Degrees/pipeline-php-translation
+> ```
+>
+> Without it `composer install` fails with "The `url` supplied for the path
+> (../pipeline-php-translation) repository does not exist". Once the package is
+> on Packagist, the `path` repository can be dropped and the requirement pinned
+> to a real constraint (`4.*`) like the other pipeline packages.
+
 ## Cloud
 
 ```php
@@ -60,7 +74,9 @@ if ($country->hasValue) {
 
 Weighted properties (for example `mcc`, `countrycodesgeographical` and
 `countrycodespopulation`) are returned as an array of
-`['value' => ..., 'weighting' => ...]` entries.
+`['value' => ..., 'rawweighting' => ...]` entries, where `rawweighting` is the
+0 to 65535 integer that the cloud service returns and that
+ip-intelligence-dotnet exposes as `IWeightedValue.RawWeighting`.
 
 ## On-premise
 

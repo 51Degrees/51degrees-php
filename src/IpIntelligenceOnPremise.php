@@ -48,7 +48,16 @@ use fiftyone\pipeline\engines\Engine;
  */
 class IpIntelligenceOnPremise extends Engine
 {
-    public string $dataKey = 'ip';
+    /**
+     * Settings that configure the native engine itself. They can only be
+     * honoured when this class builds its own engine - the shared global
+     * engine is already built by the time the constructor runs.
+     *
+     * @var array<string>
+     */
+    private const ENGINE_SETTINGS = ['performanceProfile', 'restrictedProperties', 'concurrency'];
+
+    public string $dataKey = Constants::ELEMENT_DATA_KEY;
 
     public $engine;
 
@@ -61,10 +70,19 @@ class IpIntelligenceOnPremise extends Engine
 
     /**
      * @param array<string, mixed> $settings
-     *   dataFile            - (required) path to the .ipi data file.
-     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES.
+     *   dataFile            - (required, unless the global engine is used)
+     *                         path to the .ipi data file.
+     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES,
+     *                         defaulting to Constants::DEFAULT_PERFORMANCE_PROFILE.
      *   restrictedProperties- (optional) list of properties to populate.
      *   concurrency         - (optional) expected concurrent accesses.
+     *
+     * When "dataFile" is omitted and the extension has built a shared global
+     * engine (see the FiftyOneDegreesIpIntelligenceEngine.* ini settings in
+     * on-premise/ipi-php.i), that engine is reused instead of opening the data
+     * file again. It is configured entirely by the ini settings, so any of the
+     * ENGINE_SETTINGS above are rejected on that path rather than being
+     * silently discarded.
      * @throws \Exception
      */
     public function __construct(array $settings = [])
@@ -81,6 +99,15 @@ class IpIntelligenceOnPremise extends Engine
         // a long-running SAPI avoid re-opening the data file on each request.
         $dataFile = $settings['dataFile'] ?? null;
         if ($dataFile === null && function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
+            // The global engine was configured from php.ini at module load, so
+            // engine settings passed here could not be applied to it. Say so
+            // rather than accepting them and behaving differently to the
+            // dedicated engine path.
+            $ignored = array_values(array_intersect(self::ENGINE_SETTINGS, array_keys($settings)));
+            if ($ignored !== []) {
+                throw new \Exception(sprintf(Messages::GLOBAL_ENGINE_SETTINGS_IGNORED, implode(', ', $ignored)));
+            }
+
             $this->engine = \ipi_engine_get();
             $this->initEngineMetaData();
             parent::__construct();
@@ -100,7 +127,7 @@ class IpIntelligenceOnPremise extends Engine
             throw new \Exception(sprintf(Messages::DATA_FILE_NOT_FOUND, $dataFile));
         }
 
-        $performanceProfile = $settings['performanceProfile'] ?? 'MaxPerformance';
+        $performanceProfile = $settings['performanceProfile'] ?? Constants::DEFAULT_PERFORMANCE_PROFILE;
         if (!in_array($performanceProfile, Constants::PERFORMANCE_PROFILES, true)) {
             throw new \Exception(sprintf(
                 Messages::INVALID_PERFORMANCE_PROFILE,

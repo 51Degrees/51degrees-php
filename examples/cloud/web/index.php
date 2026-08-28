@@ -80,8 +80,8 @@ function apvStr($data, string $key): string
 }
 
 /**
- * Read a weighted cloud property (array of ['value'=>..,'weighting'=>..]) as a
- * list of "value (weighting)" strings.
+ * Read a weighted cloud property (array of ['value'=>..,'rawweighting'=>..])
+ * as a list of "value (rawweighting)" strings.
  *
  * @return array<string>
  */
@@ -93,7 +93,7 @@ function apvWeighted($data, string $key): array
             $out = [];
             foreach ($apv->value as $item) {
                 if (is_array($item) && array_key_exists('value', $item)) {
-                    $w = $item['weighting'] ?? $item['rawweighting'] ?? '';
+                    $w = $item['rawweighting'] ?? '';
                     $out[] = $item['value'] . ' (' . $w . ')';
                 }
             }
@@ -122,13 +122,33 @@ if (!$resourceKey) {
         $latitude = ($rows['Latitude'] === 'Unknown') ? '' : $rows['Latitude'];
         $longitude = ($rows['Longitude'] === 'Unknown') ? '' : $rows['Longitude'];
     } catch (\Throwable $e) {
-        $error = $e->getMessage();
+        // Do not render the exception message: the cloud request engine puts
+        // the request URL in its error text ("Cloud service at '%s' returned
+        // status code ..."), and that URL contains the resource key. Log the
+        // detail server side and show the visitor a generic message.
+        error_log('IP intelligence example failed: ' . $e->getMessage());
+        $error = 'The lookup could not be completed. See the server log for details.';
     }
 }
 
 function h(?string $s): string
 {
     return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Escape a value for interpolation into a <script> block as a JavaScript
+ * literal. json_encode emits its own quotes, so the call site must not add
+ * any. The JSON_HEX_* flags neutralise the sequences that would otherwise
+ * break out of the script element or the string, which addslashes does not
+ * cover (it leaves "</script>" and U+2028/U+2029 intact).
+ */
+function js(?string $s): string
+{
+    return json_encode(
+        (string) $s,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
+    );
 }
 
 function renderRows(array $rows): string
@@ -241,9 +261,9 @@ function renderList(array $items): string
         window.onload = function () {
             if (window.fodExamples && fodExamples.initLocationMap) {
                 fodExamples.initLocationMap({
-                    areasWkt: '<?= addslashes($areas) ?>',
-                    latitude: '<?= addslashes($latitude) ?>',
-                    longitude: '<?= addslashes($longitude) ?>'
+                    areasWkt: <?= js($areas) ?>,
+                    latitude: <?= js($latitude) ?>,
+                    longitude: <?= js($longitude) ?>
                 });
             }
         };

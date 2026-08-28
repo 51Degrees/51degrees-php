@@ -34,7 +34,7 @@ use fiftyone\pipeline\engines\AspectData;
  *
  * Property values (or the lack of one) are returned in an
  * AspectPropertyValue. Weighted properties (for example Mcc) are returned
- * as a list of ['value' => ..., 'weighting' => ...] arrays, matching the
+ * as a list of ['value' => ..., 'rawweighting' => ...] arrays, matching the
  * shape returned by the cloud engine.
  */
 class SwigData extends AspectData
@@ -146,7 +146,7 @@ class SwigData extends AspectData
 
     /**
      * Convert a SWIG wrapped weighted value list to a list of
-     * ['value' => ..., 'weighting' => ...] arrays wrapped in an
+     * ['value' => ..., 'rawweighting' => ...] arrays wrapped in an
      * AspectPropertyValue.
      *
      * @param object $value SWIG Value wrapper holding a weighted value list
@@ -161,16 +161,39 @@ class SwigData extends AspectData
         $list = $value->getValue();
         for ($i = 0; $i < $list->size(); ++$i) {
             $weighted = $list->get($i);
-            // Emit the raw 0-65535 integer weighting under "rawweighting", the
-            // same representation and key the cloud service returns (matching
-            // .NET's IWeightedValue.RawWeighting). The native getWeight()
-            // returns the normalised 0-1 float, so scale it back.
             $items[] = [
-                'value' => $weighted->getValue(),
-                'rawweighting' => (int) round($weighted->getWeight() * 65535),
+                Constants::WEIGHTED_VALUE_KEY => $weighted->getValue(),
+                Constants::WEIGHTED_RAW_WEIGHTING_KEY => self::rawWeighting($weighted),
             ];
         }
 
         return new AspectPropertyValue(null, $items);
+    }
+
+    /**
+     * Read the 0-65535 raw weighting from a SWIG wrapped weighted value,
+     * under the key "rawweighting" the cloud service also uses.
+     *
+     * Natively the weight is a uint32 in the 0 to 65535^2 range (the product
+     * of the profile group weight and the value weight). getShortRawWeight()
+     * narrows it to the 0-65535 ushort that .NET's IWeightedValue.RawWeighting
+     * exposes, so calling it keeps PHP byte for byte identical to
+     * ip-intelligence-dotnet.
+     *
+     * The getWeight() branch is only a fallback for a wrapper generated before
+     * getShortRawWeight() was added to WeightedValue.i. getWeight() returns
+     * rawWeight / 65535^2 as a float, so scaling by 65535 recovers the same
+     * ushort - but it round trips through a 32 bit float, so it is not used
+     * when the exact accessor is available.
+     *
+     * @param object $weighted SWIG WeightedValue*Swig wrapper
+     */
+    private static function rawWeighting($weighted): int
+    {
+        if (method_exists($weighted, 'getShortRawWeight')) {
+            return (int) $weighted->getShortRawWeight();
+        }
+
+        return (int) round($weighted->getWeight() * 65535);
     }
 }

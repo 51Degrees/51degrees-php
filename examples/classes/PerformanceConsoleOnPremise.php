@@ -65,6 +65,14 @@ class PerformanceConsoleOnPremise
             $ipAddresses[] = $evidence['query.client-ip'];
         }
 
+        // The timed loop below only reaches its exit conditions from inside the
+        // inner foreach, so an empty list would spin forever.
+        if ($ipAddresses === []) {
+            fwrite($output, "No IP addresses to benchmark.\n");
+
+            return;
+        }
+
         // Build the engine once and time how long that takes.
         $startupStart = microtime(true);
         $config = new \ConfigIpiSwig();

@@ -40,6 +40,14 @@ class Messages
     public const DATA_FILE_EXTENSION_ERROR =
         'The IP intelligence data file name must end in %s';
 
+    public const GLOBAL_ENGINE_SETTINGS_IGNORED =
+        'The shared global IP intelligence engine is built once at module ' .
+        'load from the FiftyOneDegreesIpIntelligenceEngine.* php.ini ' .
+        'settings and cannot be reconfigured per instance, so these ' .
+        'setting(s) would have no effect: %s. Either configure them through ' .
+        'php.ini (data_file, performance_profile, required_properties) or ' .
+        'supply a "dataFile" setting to build a dedicated engine.';
+
     public const EXTENSION_NOT_LOADED =
         'The FiftyOneDegreesIpIntelligenceEngine extension is not loaded. The ' .
         'on-premise IP intelligence engine requires the native extension to be ' .

@@ -1,9 +1,34 @@
-{
-    "Name": "ip-intelligence-php",
-    "PackageName": "51degrees/fiftyone.ipintelligence",
-    "Language": "php",
-    "Packages": ["FiftyOne.IpIntelligence"],
-    "DefaultLanguageVersion": "8.2",
-    "LanguageVersions": ["8.0", "8.1", "8.2", "8.3"],
-    "TestPackages": false
-}
+[
+    {
+      "Name": "Ubuntu_PHP_8.3",
+      "Image": "ubuntu-latest",
+      "Language": "php",
+      "LanguageVersion": "8.3",
+      "RunPerformance": false,
+      "PackageRequirement": false
+    },
+    {
+      "Name": "Ubuntu_PHP_8.2",
+      "Image": "ubuntu-latest",
+      "Language": "php",
+      "LanguageVersion": "8.2",
+      "RunPerformance": false,
+      "PackageRequirement": false
+    },
+    {
+      "Name": "Ubuntu_PHP_8.1",
+      "Image": "ubuntu-latest",
+      "Language": "php",
+      "LanguageVersion": "8.1",
+      "RunPerformance": false,
+      "PackageRequirement": false
+    },
+    {
+      "Name": "Ubuntu_PHP_8.0",
+      "Image": "ubuntu-latest",
+      "Language": "php",
+      "LanguageVersion": "8.0",
+      "RunPerformance": false,
+      "PackageRequirement": false
+    }
+]

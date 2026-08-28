@@ -1,53 +1,58 @@
 param (
-    [Parameter(Mandatory=$true)]
-    [string]$RepoName,
-    # Passed by the nightly-pipeline / pull-requests workflows as secrets.
+    # Only parameters that common-ci can actually supply may be declared here,
+    # and they must be named after the workflow secrets.
+    #
+    # This script has two callers. On the build-and-test path it is invoked
+    # through steps/run-script.ps1, which passes every matching option. But the
+    # Configure job reaches it first, through the prefetch_assets composite
+    # action, and that builds its parameter set from the workflow secrets and
+    # nothing else:
+    #
+    #   $accepted = (Get-Command "$env:repo/ci/fetch-assets.ps1").Parameters
+    #   ($env:secrets | ConvertFrom-Json -AsHashtable).GetEnumerator()
+    #       .Where({$accepted.ContainsKey($_.Key)})...
+    #
+    # So a mandatory parameter it cannot supply - RepoName used to be one - makes
+    # PowerShell prompt for a value, hit EOF on the runner and fail Configure,
+    # which skips Build and Test for the whole matrix. Use $PSScriptRoot to reach
+    # the repository instead of taking its name as a parameter, the same as
+    # device-detection-php, device-detection-php-onpremise, ip-intelligence-java
+    # and ip-intelligence-dotnet.
     [string]$IpIntelligenceUrl,
     [string]$DeviceDetection,
     [string]$DeviceDetectionUrl
 )
 $ErrorActionPreference = 'Stop'
 
-# Download the IP intelligence data file used by the on-premise tests and
-# examples. Mirrors device-detection-php-onpremise/ci/fetch-assets.ps1.
-#
-# When an IpIntelligenceUrl (the enterprise data file distributor URL) is
-# provided by CI it is used via the shared common-ci fetch step; otherwise the
-# freely available Lite file is downloaded so the on-premise tests and examples
-# can still run.
-
+# PreBuild is a job from the nightly-publish-main workflow
 if ($env:GITHUB_JOB -eq "PreBuild") {
     Write-Host "Skipping assets fetching"
     exit 0
 }
 
-$assetsDir = [IO.Path]::Combine($RepoName, "assets")
-New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
+# The Lite file is public, and is the one ci/run-unit-tests.ps1 points
+# IPINTELLIGENCEDATAFILE at, so it is always fetched. The Enterprise file needs
+# the distributor URL, so it is only requested when CI supplies that secret.
+$assets = @('51Degrees-LiteIpiV41.ipi')
+if ($IpIntelligenceUrl) {
+    $assets += '51Degrees-EnterpriseIpiV41.ipi'
+}
 
-# Prefer the enterprise data file from the distributor when CI supplies its
-# URL (delegating to the shared common-ci fetch step, as device-detection
-# does). Fall back to the public Lite file otherwise.
-if ($IpIntelligenceUrl -and (Test-Path "./steps/fetch-assets.ps1")) {
-    ./steps/fetch-assets.ps1 -IpIntelligenceUrl:$IpIntelligenceUrl -Assets @("51Degrees-EnterpriseIpiV41.ipi")
-    if (Test-Path ([IO.Path]::Combine($assetsDir, "51Degrees-EnterpriseIpiV41.ipi"))) {
-        Write-Host "IP intelligence enterprise data file fetched."
-        exit 0
+# The shared step writes into ./assets relative to the working directory, which
+# is also the path prefetch_assets caches, so both callers agree on one location.
+./steps/fetch-assets.ps1 -IpIntelligenceUrl:$IpIntelligenceUrl -Assets $assets
+
+# The tests and examples resolve the data file relative to the repository
+# (IpIntelligenceOnPremiseTests::locateDataFile looks in ./assets first), so link
+# the fetched copies into the working tree rather than copying them - the
+# Enterprise file is several GB.
+$repoAssets = New-Item -ItemType Directory -Force -Path "$PSScriptRoot/../assets"
+foreach ($asset in $assets) {
+    $fetched = Join-Path $PWD "assets/$asset"
+    if (Test-Path $fetched) {
+        New-Item -ItemType SymbolicLink -Force -Target $fetched -Path (Join-Path $repoAssets $asset) | Out-Null
+        Write-Host "Linked '$asset' into $repoAssets"
+    } else {
+        Write-Warning "Asset '$asset' was not fetched into $fetched"
     }
 }
-
-$liteFile = [IO.Path]::Combine($assetsDir, "51Degrees-LiteIpiV41.ipi")
-if (!(Test-Path $liteFile)) {
-    $url = "https://51ddatafiles.blob.core.windows.net/enterpriseipi/51Degrees-LiteIpiV41.ipi.gz"
-    $gz = "$liteFile.gz"
-    Write-Host "Downloading Lite IP intelligence data file..."
-    Invoke-WebRequest -Uri $url -OutFile $gz
-    # Decompress
-    $input = [IO.File]::OpenRead($gz)
-    $output = [IO.File]::Create($liteFile)
-    $gzip = New-Object System.IO.Compression.GzipStream($input, [IO.Compression.CompressionMode]::Decompress)
-    $gzip.CopyTo($output)
-    $gzip.Dispose(); $output.Dispose(); $input.Dispose()
-    Remove-Item $gz
-}
-
-Write-Host "IP intelligence data file is at $liteFile"

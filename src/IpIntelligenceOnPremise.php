@@ -103,9 +103,15 @@ class IpIntelligenceOnPremise extends Engine
             // engine settings passed here could not be applied to it. Say so
             // rather than accepting them and behaving differently to the
             // dedicated engine path.
-            $ignored = array_values(array_intersect(self::ENGINE_SETTINGS, array_keys($settings)));
-            if ($ignored !== []) {
-                throw new \Exception(sprintf(Messages::GLOBAL_ENGINE_SETTINGS_IGNORED, implode(', ', $ignored)));
+            //
+            // Only a setting with an actual value counts. Callers commonly build
+            // the array by passing options straight through - ['performanceProfile'
+            // => $profile ?? null] - and a null there supplies nothing to apply,
+            // so rejecting on the bare presence of the key would be wrong.
+            $supplied = array_keys(array_filter($settings, static fn ($value) => $value !== null));
+            $rejected = array_values(array_intersect(self::ENGINE_SETTINGS, $supplied));
+            if ($rejected !== []) {
+                throw new \Exception(sprintf(Messages::GLOBAL_ENGINE_SETTINGS_REJECTED, implode(', ', $rejected)));
             }
 
             $this->engine = \ipi_engine_get();

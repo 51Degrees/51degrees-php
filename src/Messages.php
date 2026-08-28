@@ -40,7 +40,7 @@ class Messages
     public const DATA_FILE_EXTENSION_ERROR =
         'The IP intelligence data file name must end in %s';
 
-    public const GLOBAL_ENGINE_SETTINGS_IGNORED =
+    public const GLOBAL_ENGINE_SETTINGS_REJECTED =
         'The shared global IP intelligence engine is built once at module ' .
         'load from the FiftyOneDegreesIpIntelligenceEngine.* php.ini ' .
         'settings and cannot be reconfigured per instance, so these ' .

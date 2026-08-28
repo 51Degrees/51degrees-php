@@ -37,11 +37,22 @@ use fiftyone\pipeline\core\PipelineBuilder;
 class IpIntelligenceOnPremisePipelineBuilder extends PipelineBuilder
 {
     /**
+     * The settings are passed straight through to IpIntelligenceOnPremise, so
+     * they are that engine's settings and behave exactly as documented there.
+     *
      * @param array<string, mixed> $settings
-     *   dataFile            - (required) path to the .ipi data file.
-     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES.
+     *   dataFile            - (required, unless the global engine is used)
+     *                         path to the .ipi data file.
+     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES,
+     *                         defaulting to Constants::DEFAULT_PERFORMANCE_PROFILE.
      *   restrictedProperties- (optional) list of properties to populate.
      *   concurrency         - (optional) expected concurrent accesses.
+     *
+     * Omitting "dataFile" reuses the shared global engine when the extension
+     * has built one from the FiftyOneDegreesIpIntelligenceEngine.* ini settings.
+     * That engine is configured entirely by those ini settings, so supplying
+     * performanceProfile, restrictedProperties or concurrency alongside it is
+     * rejected rather than silently discarded - see IpIntelligenceOnPremise.
      * @throws \Exception
      */
     public function __construct(array $settings)

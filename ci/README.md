@@ -5,14 +5,31 @@ These scripts mirror the CI used by
 and [device-detection-php](https://github.com/51Degrees/device-detection-php). They
 delegate to the shared `common-ci` PHP steps (checked out under `php/` in CI).
 
-| Script | Purpose |
-|---|---|
-| `setup-environment.ps1` | Set up the PHP version for the build. |
-| `fetch-assets.ps1` | Download the Lite `.ipi` data file used by the on-premise tests. |
-| `build-project.ps1` | Generate the SWIG wrapper, build the native on-premise extension, then run the standard PHP build. |
-| `run-unit-tests.ps1` | Run PHPUnit; on-premise tests skip when no extension/data file is present. |
-| `run-integration-tests.ps1` | Run the cloud integration tests with a resource key. |
-| `options.json` | Repository CI options (package name, supported PHP versions). |
+**Every script `common-ci` names must exist, even when it has nothing to do.**
+`steps/run-script.ps1` resolves the path with `Get-Command` under
+`$ErrorActionPreference = 'Stop'`, so a missing file throws "The term ... is not
+recognized" and fails the whole job rather than being skipped. Several of the
+scripts below are therefore deliberate no-ops.
+
+| Script | Called by | Purpose |
+|---|---|---|
+| `setup-environment.ps1` | build-and-test, publish prebuild/test | Set up the PHP version for the build. |
+| `fetch-assets.ps1` | Configure (prefetch), build-and-test, publish test | Download the `.ipi` data files. Must declare **only** parameters named after workflow secrets - the `prefetch_assets` action passes nothing else. |
+| `build-project.ps1` | build-and-test | Generate the SWIG wrapper, build the native on-premise extension, clone the translation package, then run the standard PHP build. |
+| `run-unit-tests.ps1` | build-and-test | Run the PHPUnit `Unit` suite. |
+| `run-integration-tests.ps1` | build-and-test, publish test | Run the PHPUnit `Integration` suite with a resource key. |
+| `run-performance-tests.ps1` | build-and-test, publish test | Only invoked when a matrix entry sets `RunPerformance`. Not yet implemented - see the note in the script. |
+| `get-next-package-version.ps1` | publish configure | Resolve the next semantic version via GitVersion. |
+| `build-package-requirements.ps1` | publish prebuild | No-op: nothing to prepare before packaging a Composer library. |
+| `build-package.ps1` | publish build | Write the placeholder artifact the publish workflow expects. |
+| `install-package.ps1` | publish package/test | Rebuild the project in place; there is no package to install. |
+| `publish-package.ps1` | publish package | No-op: Packagist picks the new tag up via webhook. |
+| `update-packages.ps1` | package update | No-op: dependencies are Composer constraints and no `composer.lock` is committed. |
+| `options.json` | Configure | The build matrix, as an **array** of entries - `common-ci` feeds it to `strategy.matrix.options` and reads `Image`, `Language` and `LanguageVersion` from each. |
+
+`generate-accessors.ps1` is deliberately absent: it is only invoked by
+`nightly-data-file-change`, and this repository has no such workflow because PHP
+reads properties by name and has no generated accessor classes.
 
 ## Required secrets / keys
 

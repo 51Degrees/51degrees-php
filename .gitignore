@@ -1,0 +1,62 @@
+vendor/
+composer.lock
+composer.phar
+.phpunit.result.cache
+.phpunit.cache/
+.php-cs-fixer.cache
+phpstan.neon
+
+# Native on-premise build artefacts
+on-premise/modules/
+on-premise/.libs/
+on-premise/.deps
+on-premise/Makefile
+on-premise/configure
+on-premise/config.h
+on-premise/config.h.in
+on-premise/config.log
+on-premise/config.status
+on-premise/config.nice
+on-premise/libtool
+on-premise/autom4te.cache/
+on-premise/build/
+on-premise/run-tests.php
+on-premise/*.o
+on-premise/*.lo
+on-premise/*.la
+on-premise/acinclude.m4
+on-premise/aclocal.m4
+on-premise/conftest*
+on-premise/install-sh
+on-premise/missing
+on-premise/mkinstalldirs
+on-premise/ltmain.sh
+on-premise/configure.ac
+on-premise/configure.in
+on-premise/Makefile.fragments
+on-premise/Makefile.objects
+on-premise/Makefile.global
+on-premise/*.dep
+on-premise/config.guess
+on-premise/config.sub
+on-premise/depcomp
+on-premise/.deps/
+on-premise/*.so
+on-premise/*.dll
+on-premise/*.dylib
+
+# Build-time copies of the generated SWIG wrapper at the on-premise root
+# (the canonical, committed copies live under on-premise/src/php8/).
+on-premise/ipi_wrap.cxx
+on-premise/php_FiftyOneDegreesIpIntelligenceEngine.h
+on-premise/ipi-php_wrap.cxx
+
+# Data / assets
+assets/
+*.ipi
+*.ipi.gz
+!ip-intelligence-data/*.ipi
+php.ini
+
+# Local testing artefacts
+.cacert.pem

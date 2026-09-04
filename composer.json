@@ -1,0 +1,72 @@
+{
+    "name": "51degrees/fiftyone.ipintelligence",
+    "description": "IP intelligence engines for the 51Degrees Pipeline API. Identify the country, region, network and approximate location of an IP address, both via the 51Degrees cloud service and on-premise using a local data file.",
+    "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=ip-intelligence-php&utm_content=composer.json&utm_term=homepage",
+    "keywords":
+    [
+        "ip",
+        "ip intelligence",
+        "geolocation",
+        "geoip",
+        "country",
+        "asn",
+        "network",
+        "51degrees"
+    ],
+    "authors":
+    [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2",
+    "type": "library",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories":
+    [
+        {
+            "type": "path",
+            "url": "../pipeline-php-translation",
+            "options": { "symlink": true }
+        }
+    ],
+    "require":
+    {
+        "php": ">=8.0",
+        "51degrees/fiftyone.pipeline.core": "4.*",
+        "51degrees/fiftyone.pipeline.engines": "4.*",
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "4.*",
+        "51degrees/fiftyone.pipeline.translation": "*"
+    },
+    "require-dev":
+    {
+        "phpunit/phpunit": "*",
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10",
+        "51degrees/fiftyone.devicedetection": "4.*"
+    },
+    "autoload":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\ipintelligence\\": "src/"
+        }
+    },
+    "autoload-dev":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\ipintelligence\\tests\\": "tests/",
+            "fiftyone\\pipeline\\ipintelligence\\examples\\classes\\": "examples/classes/"
+        }
+    },
+    "config":
+    {
+        "allow-plugins":
+        {
+            "nodejs-php-fallback/nodejs-php-fallback": false
+        }
+    }
+}

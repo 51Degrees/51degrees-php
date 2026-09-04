@@ -26,12 +26,8 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests\classes;
 
 /**
- * Stands in for a SWIG wrapped WeightedValue as generated from the current
- * ip-intelligence-cxx WeightedValue.i, which exposes getShortRawWeight() as
- * the 0 to 65535 ushort alongside the normalised getWeight() float.
- *
- * Natively the two are two views of the same uint32 raw weight, so the stub
- * derives getWeight() from the ushort in the same proportion.
+ * Stands in for a SWIG wrapped WeightedValue exposing getShortRawWeight().
+ * Both accessors are views of the same weight, so getWeight() is derived.
  */
 class StubWeightedValue
 {

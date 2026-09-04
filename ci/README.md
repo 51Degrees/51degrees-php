@@ -25,11 +25,10 @@ scripts below are therefore deliberate no-ops.
 | `install-package.ps1` | publish package/test | Rebuild the project in place; there is no package to install. |
 | `publish-package.ps1` | publish package | No-op: Packagist picks the new tag up via webhook. |
 | `update-packages.ps1` | package update | No-op: dependencies are Composer constraints and no `composer.lock` is committed. |
-| `options.json` | Configure | The build matrix, as an **array** of entries - `common-ci` feeds it to `strategy.matrix.options` and reads `Image`, `Language` and `LanguageVersion` from each. Ubuntu and macOS across PHP 8.0-8.5, mirroring device-detection-php-onpremise. `RunPerformance` is `false` everywhere until the benchmark emits a machine readable summary; setting it would enable the ComparePerformance job, which would then find no results. |
+| `options.json` | Configure | The build matrix, as an **array** of entries - `common-ci` feeds it to `strategy.matrix.options` and reads `Image`, `Language` and `LanguageVersion` from each. `RunPerformance` is `false` everywhere: enabling it turns on ComparePerformance, which would find no results. |
 
-`generate-accessors.ps1` is deliberately absent: it is only invoked by
-`nightly-data-file-change`, and this repository has no such workflow because PHP
-reads properties by name and has no generated accessor classes.
+`generate-accessors.ps1` is absent because there is no `nightly-data-file-change`
+workflow here - PHP reads properties by name and generates no accessor classes.
 
 ## Required secrets / keys
 

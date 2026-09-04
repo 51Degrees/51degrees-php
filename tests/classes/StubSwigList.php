@@ -27,8 +27,7 @@ namespace fiftyone\pipeline\ipintelligence\tests\classes;
 
 /**
  * Stands in for a SWIG wrapped std::vector, which exposes size() and get()
- * rather than being iterable. Used both for weighted value lists and for the
- * plain string vectors behind String[] properties.
+ * rather than being iterable.
  */
 class StubSwigList
 {

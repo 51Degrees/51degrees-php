@@ -65,8 +65,7 @@ class PerformanceConsoleOnPremise
             $ipAddresses[] = $evidence['query.client-ip'];
         }
 
-        // The timed loop below only reaches its exit conditions from inside the
-        // inner foreach, so an empty list would spin forever.
+        // The timed loop below only exits from inside the inner foreach.
         if ($ipAddresses === []) {
             fwrite($output, "No IP addresses to benchmark.\n");
 

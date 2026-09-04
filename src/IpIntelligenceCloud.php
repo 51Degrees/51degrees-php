@@ -37,12 +37,9 @@ use fiftyone\pipeline\core\FlowData;
  * service JSON.
  *
  * Weighted properties (for example Mcc, CountryCodesGeographical and
- * CountryCodesPopulation) are returned by the cloud service as a list of
- * {"value": ..., "rawweighting": ...} objects, where "rawweighting" is the
- * 0 to 65535 integer that .NET exposes as IWeightedValue.RawWeighting. The
- * base CloudEngine wraps these nested structures verbatim in an
- * AspectPropertyValue, so callers receive a plain PHP array of those
- * objects, the same shape the on-premise engine produces (see SwigData).
+ * CountryCodesPopulation) are returned as a list of
+ * {"value": ..., "rawweighting": ...} objects, wrapped verbatim in an
+ * AspectPropertyValue by the base CloudEngine.
  */
 class IpIntelligenceCloud extends CloudEngine
 {
@@ -51,18 +48,10 @@ class IpIntelligenceCloud extends CloudEngine
     /**
      * Process the cloud response for IP intelligence.
      *
-     * Guards against a pipeline assembled without a CloudRequestEngine, and
-     * against a resource key that has not been authorised for IP intelligence
-     * data, before delegating to the base implementation.
-     *
      * @throws \Exception
      */
     public function processInternal(FlowData $flowData): void
     {
-        // IpIntelligencePipelineBuilder always places a CloudRequestEngine
-        // first, but a manually assembled pipeline need not, and dereferencing
-        // a missing 'cloud' element would raise a bare Error instead of this
-        // message.
         $cloudRequestEngine = $flowData->pipeline->flowElementsList['cloud'] ?? null;
         if ($cloudRequestEngine === null) {
             throw new \Exception('IP intelligence data was not available. The IP intelligence cloud engine requires a CloudRequestEngine to be placed in the pipeline before it.');

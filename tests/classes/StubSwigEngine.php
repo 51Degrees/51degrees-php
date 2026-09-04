@@ -30,9 +30,8 @@ use fiftyone\pipeline\engines\Engine;
 use fiftyone\pipeline\ipintelligence\Constants;
 
 /**
- * A stand-in for IpIntelligenceOnPremise that carries nothing but the
- * property metadata SwigData reads. It lets SwigData be constructed without
- * the native extension, since AspectData requires an Engine.
+ * A stand-in for IpIntelligenceOnPremise carrying only the property metadata
+ * SwigData reads, so SwigData can be built without the native extension.
  */
 class StubSwigEngine extends Engine
 {

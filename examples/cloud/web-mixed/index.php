@@ -97,10 +97,8 @@ if (!$resourceKey) {
             'Time Zone Offset' => apvStr($ipData, 'timezoneoffset'),
         ];
     } catch (\Throwable $e) {
-        // Do not render the exception message: the cloud request engine puts
-        // the request URL in its error text ("Cloud service at '%s' returned
-        // status code ..."), and that URL contains the resource key. Log the
-        // detail server side and show the visitor a generic message.
+        // The cloud request engine puts the request URL, which carries the
+        // resource key, in its error text - so never render it.
         error_log('IP intelligence example failed: ' . $e->getMessage());
         $error = 'The lookup could not be completed. See the server log for details.';
     }

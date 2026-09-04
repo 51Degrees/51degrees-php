@@ -26,10 +26,9 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests\classes;
 
 /**
- * Stands in for a SWIG wrapped ResultsIpi. Every accessor returns the
- * StubSwigValue registered under the requested property name, and records
- * which accessor family was used so a test can assert that a metadata type
- * routed to the intended one.
+ * Stands in for a SWIG wrapped ResultsIpi. Each accessor returns the
+ * StubSwigValue registered under the property name, and records which
+ * accessor family was used.
  */
 class StubSwigResult
 {

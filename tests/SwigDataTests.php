@@ -39,20 +39,12 @@ use PHPUnit\Framework\TestCase;
  * Unit tests for SwigData's conversion of native results into
  * AspectPropertyValues.
  *
- * The on-premise integration tests only run when the native extension and a
- * data file are both present, which leaves the weighted list conversion and
- * the getInternal type switch - the data integrity paths that decide the
- * country dropdown ordering - uncovered on the default CI path. The stubs
- * under tests/classes stand in for the SWIG wrapped objects so that these
- * paths are exercised everywhere.
+ * The stubs under tests/classes stand in for the SWIG wrapped objects, so
+ * these paths run without the native extension or a data file - which the
+ * on-premise integration tests both require.
  */
 class SwigDataTests extends TestCase
 {
-    /**
-     * The raw weighting must be the native 0 to 65535 ushort, read straight
-     * from getShortRawWeight() so that it matches ip-intelligence-dotnet's
-     * IWeightedValue.RawWeighting exactly.
-     */
     public function testWeightedListUsesNativeShortRawWeight(): void
     {
         $data = $this->buildData(
@@ -74,11 +66,8 @@ class SwigDataTests extends TestCase
     }
 
     /**
-     * A wrapper generated before getShortRawWeight() was added to
-     * WeightedValue.i exposes only the normalised 0 to 1 float, so the
-     * fallback has to scale it back to the same ushort. The cases are inlined
-     * rather than supplied by a data provider so that the test behaves the
-     * same on every PHPUnit major version the suite may run against.
+     * Cases are inlined rather than supplied by a data provider so the test
+     * behaves the same on every PHPUnit major version.
      */
     public function testWeightedListFallsBackToScaledNormalisedWeight(): void
     {
@@ -120,8 +109,7 @@ class SwigDataTests extends TestCase
     }
 
     /**
-     * Every weighted metadata type must route to the matching native weighted
-     * list accessor, and every scalar type to its own accessor.
+     * Every metadata type must route to its matching native accessor.
      */
     public function testGetInternalRoutesEachTypeToItsAccessor(): void
     {
@@ -167,9 +155,8 @@ class SwigDataTests extends TestCase
         $this->assertSame('POLYGON((0 0,1 0,1 1,0 0))', $data->getInternal('areas')->value);
         $this->assertSame(['GB', 'FR'], $data->getInternal('countries')->value);
 
-        // Mcc aside, only the Weighted* metadata types may take the weighted
-        // list accessors - a scalar type reaching them would silently change
-        // the returned shape.
+        // A scalar type reaching a weighted accessor would silently change the
+        // returned shape.
         $this->assertSame(
             ['CountryCodesGeographical', 'AverageLocation', 'AccuracyRadiusMin', 'Latitude', 'IsProxy'],
             $result->weightedRequests
@@ -177,8 +164,7 @@ class SwigDataTests extends TestCase
     }
 
     /**
-     * Mcc is weighted even though its metadata type is "string"
-     * (ip-intelligence-dotnet parity).
+     * Mcc is weighted even though its metadata type is "string".
      */
     public function testMccIsTreatedAsWeightedDespiteItsStringType(): void
     {
@@ -197,7 +183,7 @@ class SwigDataTests extends TestCase
 
     /**
      * The IP addresses supplied as evidence are echoed back rather than read
-     * from the results (ip-intelligence-dotnet parity).
+     * from the results.
      */
     public function testEchoPropertiesComeFromTheEvidence(): void
     {

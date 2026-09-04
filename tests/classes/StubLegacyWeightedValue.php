@@ -26,9 +26,8 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests\classes;
 
 /**
- * Stands in for a SWIG wrapped WeightedValue generated before
- * getShortRawWeight() was added to ip-intelligence-cxx's WeightedValue.i,
- * so that SwigData's normalised weight fallback can be exercised.
+ * Stands in for a SWIG wrapped WeightedValue without getShortRawWeight(),
+ * exercising SwigData's normalised weight fallback.
  */
 class StubLegacyWeightedValue
 {

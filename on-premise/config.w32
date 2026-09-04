@@ -17,14 +17,8 @@ if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
     if (CHECK_HEADER_ADD_INCLUDE("EngineIpi.hpp", "CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE", "ip-intelligence-cxx\\src")) {
 
         // Common compile defines - must match the cxx CMake build and config.m4.
-        //
-        // FIFTYONE_DEGREES_REDUCED_FILE changes on-disk struct layouts and must
-        // match the ip-intelligence-cxx commit the submodule is pinned to, so it
-        // is kept in lockstep with COMMON_DEFINES in config.m4. Dropping it here
-        // would either fail to compile (profile has no member profileId) or
-        // build a Windows extension that misreads the .ipi file.
-        // _FILE_OFFSET_BITS has no MSVC equivalent - the CRT is already 64 bit
-        // offset capable - so it is deliberately absent from this list.
+        // REDUCED_FILE changes on-disk struct layouts, so it has to match the
+        // ip-intelligence-cxx revision the submodule is pinned to.
         ADD_FLAG("CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE",
             "/DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 " +
             "/DFIFTYONE_DEGREES_REDUCED_FILE=1 " +
@@ -37,8 +31,6 @@ if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
             "-o " + configure_module_dirname + "\\src\\php8\\ipi_wrap.cxx " +
             configure_module_dirname + "\\ipi-php.i";
         STDOUT.WriteLine("  Running SWIG: " + swig_cmd);
-        // Abort on a SWIG failure rather than silently building against a stale
-        // or absent ipi_wrap.cxx.
         var swig_exit_code = WScript.CreateObject("WScript.Shell").Run("cmd /c " + swig_cmd, 0, true);
         if (swig_exit_code != 0) {
             ERROR("SWIG failed with exit code " + swig_exit_code + " (is SWIG 4.1+ on the PATH?)");

@@ -27,8 +27,7 @@ namespace fiftyone\pipeline\ipintelligence\tests\classes;
 
 /**
  * Stands in for a SWIG wrapped Value, which is what every ResultsIpi
- * accessor returns. SwigData uses only hasValue(), getValue() and
- * getNoValueMessage().
+ * accessor returns.
  */
 class StubSwigValue
 {

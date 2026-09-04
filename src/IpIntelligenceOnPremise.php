@@ -49,9 +49,7 @@ use fiftyone\pipeline\engines\Engine;
 class IpIntelligenceOnPremise extends Engine
 {
     /**
-     * Settings that configure the native engine itself. They can only be
-     * honoured when this class builds its own engine - the shared global
-     * engine is already built by the time the constructor runs.
+     * Settings that only apply when this class builds its own engine.
      *
      * @var array<string>
      */
@@ -77,12 +75,9 @@ class IpIntelligenceOnPremise extends Engine
      *   restrictedProperties- (optional) list of properties to populate.
      *   concurrency         - (optional) expected concurrent accesses.
      *
-     * When "dataFile" is omitted and the extension has built a shared global
-     * engine (see the FiftyOneDegreesIpIntelligenceEngine.* ini settings in
-     * on-premise/ipi-php.i), that engine is reused instead of opening the data
-     * file again. It is configured entirely by the ini settings, so any of the
-     * ENGINE_SETTINGS above are rejected on that path rather than being
-     * silently discarded.
+     * Omitting "dataFile" reuses the shared global engine when one exists.
+     * That engine comes from the FiftyOneDegreesIpIntelligenceEngine.* ini
+     * settings, so ENGINE_SETTINGS are rejected on that path.
      * @throws \Exception
      */
     public function __construct(array $settings = [])
@@ -93,21 +88,13 @@ class IpIntelligenceOnPremise extends Engine
             throw new \Exception(Messages::EXTENSION_NOT_LOADED);
         }
 
-        // Reuse the global engine built once at module load when it is
-        // available (FiftyOneDegreesIpIntelligenceEngine.data_file ini set),
-        // unless a caller explicitly requests a specific data file. This lets
-        // a long-running SAPI avoid re-opening the data file on each request.
+        // Reusing the global engine lets a long-running SAPI avoid re-opening
+        // a multi-gigabyte data file on every request.
         $dataFile = $settings['dataFile'] ?? null;
         if ($dataFile === null && function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
-            // The global engine was configured from php.ini at module load, so
-            // engine settings passed here could not be applied to it. Say so
-            // rather than accepting them and behaving differently to the
-            // dedicated engine path.
-            //
-            // Only a setting with an actual value counts. Callers commonly build
-            // the array by passing options straight through - ['performanceProfile'
-            // => $profile ?? null] - and a null there supplies nothing to apply,
-            // so rejecting on the bare presence of the key would be wrong.
+            // Only a setting with an actual value counts: callers commonly pass
+            // options straight through as ['performanceProfile' => $profile ?? null],
+            // where a null supplies nothing to apply.
             $supplied = array_keys(array_filter($settings, static fn ($value) => $value !== null));
             $rejected = array_values(array_intersect(self::ENGINE_SETTINGS, $supplied));
             if ($rejected !== []) {

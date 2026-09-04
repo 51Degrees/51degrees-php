@@ -122,10 +122,8 @@ if (!$resourceKey) {
         $latitude = ($rows['Latitude'] === 'Unknown') ? '' : $rows['Latitude'];
         $longitude = ($rows['Longitude'] === 'Unknown') ? '' : $rows['Longitude'];
     } catch (\Throwable $e) {
-        // Do not render the exception message: the cloud request engine puts
-        // the request URL in its error text ("Cloud service at '%s' returned
-        // status code ..."), and that URL contains the resource key. Log the
-        // detail server side and show the visitor a generic message.
+        // The cloud request engine puts the request URL, which carries the
+        // resource key, in its error text - so never render it.
         error_log('IP intelligence example failed: ' . $e->getMessage());
         $error = 'The lookup could not be completed. See the server log for details.';
     }
@@ -137,11 +135,8 @@ function h(?string $s): string
 }
 
 /**
- * Escape a value for interpolation into a <script> block as a JavaScript
- * literal. json_encode emits its own quotes, so the call site must not add
- * any. The JSON_HEX_* flags neutralise the sequences that would otherwise
- * break out of the script element or the string, which addslashes does not
- * cover (it leaves "</script>" and U+2028/U+2029 intact).
+ * Escape a value for a <script> block. json_encode emits its own quotes, so
+ * the call site must not add any.
  */
 function js(?string $s): string
 {

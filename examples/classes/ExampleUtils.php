@@ -112,8 +112,6 @@ class ExampleUtils
             $parts = [];
             foreach ($value as $item) {
                 if (is_array($item) && array_key_exists('value', $item)) {
-                    // Both the cloud service and the on-premise engine express
-                    // the weight as "rawweighting" (a 0-65535 ushort).
                     $weight = $item['rawweighting'] ?? '';
                     $parts[] = $item['value'] . ' (' . $weight . ')';
                 } else {

@@ -119,9 +119,7 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             }
         }
     } catch (\Throwable $e) {
-        // Do not render the exception message: it can carry server side
-        // detail such as data file paths. Log it and show a generic message,
-        // the same convention as the cloud examples.
+        // The message can carry server side detail such as data file paths.
         error_log('IP intelligence example failed: ' . $e->getMessage());
         $error = 'The lookup could not be completed. See the server log for details.';
     }
@@ -133,11 +131,8 @@ function h(?string $s): string
 }
 
 /**
- * Escape a value for interpolation into a <script> block as a JavaScript
- * literal. json_encode emits its own quotes, so the call site must not add
- * any. The JSON_HEX_* flags neutralise the sequences that would otherwise
- * break out of the script element or the string, which addslashes does not
- * cover (it leaves "</script>" and U+2028/U+2029 intact).
+ * Escape a value for a <script> block. json_encode emits its own quotes, so
+ * the call site must not add any.
  */
 function js(?string $s): string
 {

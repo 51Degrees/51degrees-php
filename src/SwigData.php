@@ -171,20 +171,11 @@ class SwigData extends AspectData
     }
 
     /**
-     * Read the 0-65535 raw weighting from a SWIG wrapped weighted value,
-     * under the key "rawweighting" the cloud service also uses.
+     * The 0-65535 raw weighting.
      *
-     * Natively the weight is a uint32 in the 0 to 65535^2 range (the product
-     * of the profile group weight and the value weight). getShortRawWeight()
-     * narrows it to the 0-65535 ushort that .NET's IWeightedValue.RawWeighting
-     * exposes, so calling it keeps PHP byte for byte identical to
-     * ip-intelligence-dotnet.
-     *
-     * The getWeight() branch is only a fallback for a wrapper generated before
-     * getShortRawWeight() was added to WeightedValue.i. getWeight() returns
-     * rawWeight / 65535^2 as a float, so scaling by 65535 recovers the same
-     * ushort - but it round trips through a 32 bit float, so it is not used
-     * when the exact accessor is available.
+     * The fallback covers a wrapper generated before getShortRawWeight()
+     * existed: getWeight() is normalised against 65535^2, not 65535, so
+     * scaling by 65535 is what recovers the ushort.
      *
      * @param object $weighted SWIG WeightedValue*Swig wrapper
      */

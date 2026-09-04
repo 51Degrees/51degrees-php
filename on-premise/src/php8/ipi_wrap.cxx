@@ -1448,10 +1448,7 @@ SWIGINTERN void std_vector_Sl_WeightedValue_Sl_double_Sg__Sg__set(std::vector< W
 
     PHP_INI_BEGIN()
     PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.data_file", "", PHP_INI_ALL, NULL)
-    /* Keep this default in step with Constants::DEFAULT_PERFORMANCE_PROFILE in
-       src/Constants.php - the PHP layer applies that default when it builds its
-       own engine, and this one governs the shared global engine, so they must
-       agree for an identical configuration to behave the same either way. */
+    /* Keep in step with Constants::DEFAULT_PERFORMANCE_PROFILE. */
     PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.performance_profile", "Balanced", PHP_INI_ALL, NULL)
     PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.required_properties", "", PHP_INI_ALL, NULL)
     PHP_INI_END()
@@ -25765,7 +25762,7 @@ SWIG_php_minit {
         } else if (profile != NULL && strcmp(profile, "LowMemory") == 0) {
             ipi_engine_config->setLowMemory();
         } else {
-            /* "Balanced" and anything unrecognised - the documented default. */
+            /* "Balanced" and anything unrecognised. */
             ipi_engine_config->setBalanced();
         }
         ipi_engine_config->setUseUpperPrefixHeaders(false);

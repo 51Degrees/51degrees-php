@@ -1,7 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [string]$ProjectDir = ".",
     [string]$OrgName = "51Degrees",
     [string]$TranslationRepoName = "pipeline-php-translation"
 )

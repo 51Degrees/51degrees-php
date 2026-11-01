@@ -1,0 +1,15 @@
+{
+  "PipelineOptions": {
+    "Elements": [
+      {
+        "BuilderName": "fiftyone\\pipeline\\cloudrequestengine\\CloudRequestEngine",
+        "BuildParameters": {
+          "resourceKey": "!!YOUR_RESOURCE_KEY!!"
+        }
+      },
+      {
+        "BuilderName": "fiftyone\\pipeline\\geolocation\\GeoLocationCloud"
+      }
+    ]
+  }
+}

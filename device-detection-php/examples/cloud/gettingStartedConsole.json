@@ -1,0 +1,16 @@
+{
+  "PipelineOptions": {
+    "Elements": [
+      {
+        "BuilderName": "fiftyone\\pipeline\\cloudrequestengine\\CloudRequestEngine",
+        "BuildParameters": {
+          "resourceKey": "!!YOUR_RESOURCE_KEY!!",
+          "cloudRequestOrigin": "51Degrees.example.com"
+        }
+      },
+      {
+        "BuilderName": "fiftyone\\pipeline\\devicedetection\\DeviceDetectionCloud"
+      }
+    ]
+  }
+}

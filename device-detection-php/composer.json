@@ -1,0 +1,63 @@
+{
+    "name": "51degrees/fiftyone.devicedetection",
+    "description": "High-performance device detection engines for the 51Degrees Pipeline API. Accurately identify devices, operating systems, browsers, and crawlers from HTTP headers.",
+    "keywords":
+    [
+        "user agent",
+        "mobile",
+        "device",
+        "browser",
+        "platform",
+        "crawler",
+        "desktop",
+        "parser",
+        "devicedetection",
+        "51degrees",
+        "wurfl",
+        "deviceatlas"
+    ],
+    "authors":
+    [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2",
+    "type": "library",
+    "require":
+    {
+        "php": ">=7.4",
+        "51degrees/fiftyone.pipeline.core": "4.*",
+        "51degrees/fiftyone.pipeline.engines": "4.*",
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "4.*"
+    },
+    "require-dev":
+    {
+        "phpunit/phpunit": "*",
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\devicedetection\\": "src/"
+        }
+    },
+    "autoload-dev":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\devicedetection\\tests\\": "tests/",
+            "fiftyone\\pipeline\\devicedetection\\examples\\cloud\\classes\\": "examples/cloud/classes"
+        }
+    },
+    "config":
+    {
+        "allow-plugins":
+        {
+            "nodejs-php-fallback/nodejs-php-fallback": false
+        }
+    }
+}

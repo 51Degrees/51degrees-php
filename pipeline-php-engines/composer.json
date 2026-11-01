@@ -1,0 +1,34 @@
+{
+    "name": "51degrees/fiftyone.pipeline.engines",
+    "description": "Engines shared functionality library for 51Degrees Pipeline API.",
+    "keywords": [ 
+        "51degrees" 
+    ],
+    "authors" : [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2", 
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "fiftyone\\pipeline\\engines\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "fiftyone\\pipeline\\engines\\tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": ">=7.4",
+        "51degrees/fiftyone.pipeline.core": "4.*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "*",
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10"
+    }
+}

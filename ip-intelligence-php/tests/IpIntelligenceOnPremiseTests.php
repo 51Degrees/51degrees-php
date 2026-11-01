@@ -54,7 +54,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
             $this->markTestSkipped('The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.');
         }
         if (self::$dataFile === null) {
-            $this->markTestSkipped('No .ipi data file found (set IPINTELLIGENCEDATAFILE or place a file under ip-intelligence-data).');
+            $this->markTestSkipped('No .ipi data file found (set IPINTELLIGENCEDATAFILE or place a file under assets or cxx/ip-intelligence-data).');
         }
     }
 
@@ -67,8 +67,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
 
         $candidates = array_merge(
             glob(__DIR__ . '/../assets/*.ipi') ?: [],
-            glob(__DIR__ . '/../ip-intelligence-data/*.ipi') ?: [],
-            glob(__DIR__ . '/../on-premise/ip-intelligence-cxx/ip-intelligence-data/*.ipi') ?: []
+            glob(__DIR__ . '/../../cxx/ip-intelligence-data/*.ipi') ?: []
         );
 
         foreach ($candidates as $candidate) {

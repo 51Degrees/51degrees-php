@@ -63,5 +63,5 @@ if test "$PHP_FIFTYONEDEGREESHASHENGINE" = "yes"; then
   fi
   AC_CONFIG_COMMANDS_PRE(cp src/php$PHP_MAJOR_VERSION/* .)
 
-  PHP_NEW_EXTENSION(FiftyOneDegreesHashEngine, hash_wrap.cxx device-detection-cxx/src/*.c device-detection-cxx/src/*.cpp device-detection-cxx/src/common-cxx/*.c device-detection-cxx/src/common-cxx/*.cpp device-detection-cxx/src/hash/*.c device-detection-cxx/src/hash/*.cpp, $ext_shared, ,,"yes")
+  PHP_NEW_EXTENSION(FiftyOneDegreesHashEngine, hash_wrap.cxx cxx/src/dd/*.c cxx/src/dd/*.cpp cxx/src/common/*.c cxx/src/common/*.cpp cxx/src/dd/hash/*.c cxx/src/dd/hash/*.cpp, $ext_shared, ,,"yes")
 fi

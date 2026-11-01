@@ -28,7 +28,7 @@ and [ip-intelligence-dotnet](https://github.com/51Degrees/ip-intelligence-dotnet
   [configure.51degrees.com](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=ip-intelligence-php&utm_content=readme.md&utm_term=cloud), authorised for IP
   intelligence (`ip.*`) properties.
 - For **on-premise** operation: the native `FiftyOneDegreesIpIntelligenceEngine`
-  extension (built from the bundled `ip-intelligence-cxx` submodule via SWIG) and
+  extension (built from the `cxx` submodule at the root of the repository via SWIG) and
   an `.ipi` data file. See [OnPremise.md](OnPremise.md).
 
 ## Installation
@@ -123,5 +123,6 @@ vendor/bin/phpunit
 Cloud tests run offline against a mocked HTTP client. A live cloud test runs when
 the `resource_key` environment variable is set. On-premise tests run when the
 native extension is built and an `.ipi` data file is available (set
-`IPINTELLIGENCEDATAFILE` or place a file under `ip-intelligence-data/` or
-`assets/`); otherwise they are skipped.
+`IPINTELLIGENCEDATAFILE`, place a file under `assets/`, or initialise
+`cxx/ip-intelligence-data` at the root of the repository); otherwise they are
+skipped.

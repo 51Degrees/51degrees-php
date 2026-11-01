@@ -45,6 +45,9 @@ on-premise/*.so
 on-premise/*.dll
 on-premise/*.dylib
 
+# Build-time copy of the C sources from the cxx submodule.
+on-premise/cxx/
+
 # Build-time copies of the generated SWIG wrapper at the on-premise root
 # (the canonical, committed copies live under on-premise/src/php8/).
 on-premise/ipi_wrap.cxx
@@ -55,7 +58,6 @@ on-premise/ipi-php_wrap.cxx
 assets/
 *.ipi
 *.ipi.gz
-!ip-intelligence-data/*.ipi
 php.ini
 
 # Local testing artefacts

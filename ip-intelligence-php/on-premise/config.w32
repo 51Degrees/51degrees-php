@@ -14,11 +14,11 @@ ARG_ENABLE("FiftyOneDegreesIpIntelligenceEngine", "enable 51Degrees on-premise I
 
 if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
 
-    if (CHECK_HEADER_ADD_INCLUDE("EngineIpi.hpp", "CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE", "ip-intelligence-cxx\\src")) {
+    if (CHECK_HEADER_ADD_INCLUDE("EngineIpi.hpp", "CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE", "cxx\\src\\ipi")) {
 
         // Common compile defines - must match the cxx CMake build and config.m4.
         // REDUCED_FILE changes on-disk struct layouts, so it has to match the
-        // ip-intelligence-cxx revision the submodule is pinned to.
+        // cxx submodule's build of the IP intelligence copy of common.
         ADD_FLAG("CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE",
             "/DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 " +
             "/DFIFTYONE_DEGREES_REDUCED_FILE=1 " +
@@ -38,12 +38,12 @@ if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
 
         EXTENSION("FiftyOneDegreesIpIntelligenceEngine", "src\\php8\\ipi_wrap.cxx", true);
 
-        ADD_SOURCES(configure_module_dirname + "\\ip-intelligence-cxx\\src", "*.c *.cpp", "FiftyOneDegreesIpIntelligenceEngine");
-        ADD_SOURCES(configure_module_dirname + "\\ip-intelligence-cxx\\src\\common-cxx", "*.c *.cpp", "FiftyOneDegreesIpIntelligenceEngine");
-        ADD_SOURCES(configure_module_dirname + "\\ip-intelligence-cxx\\src\\ip-graph-cxx", "*.c", "FiftyOneDegreesIpIntelligenceEngine");
+        ADD_SOURCES(configure_module_dirname + "\\cxx\\src\\ipi", "*.c *.cpp", "FiftyOneDegreesIpIntelligenceEngine");
+        ADD_SOURCES(configure_module_dirname + "\\cxx\\src\\common", "*.c *.cpp", "FiftyOneDegreesIpIntelligenceEngine");
+        ADD_SOURCES(configure_module_dirname + "\\cxx\\src\\ipi\\graph", "*.c", "FiftyOneDegreesIpIntelligenceEngine");
 
         AC_DEFINE("HAVE_FIFTYONEDEGREESIPINTELLIGENCEENGINE", 1, "Whether you have 51Degrees IP Intelligence engine Enabled");
     } else {
-        WARNING("FiftyOneDegreesIpIntelligenceEngine not enabled; EngineIpi.hpp not found (is the ip-intelligence-cxx submodule initialised?)");
+        WARNING("FiftyOneDegreesIpIntelligenceEngine not enabled; EngineIpi.hpp not found (was cxx/src copied into on-premise? See ci/build-project.ps1)");
     }
 }

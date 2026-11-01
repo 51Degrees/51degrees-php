@@ -41,7 +41,7 @@ use fiftyone\pipeline\engines\Engine;
  * The on-premise IP intelligence engine uses a local data file (.ipi) to
  * generate a set of properties about an IP address supplied as evidence.
  * It wraps the native IpIntelligenceEngineModule produced by SWIG from
- * ip-intelligence-cxx.
+ * 51degrees-cxx.
  *
  * Mirrors device-detection-php-onpremise's DeviceDetectionOnPremise and
  * ip-intelligence-python's IpIntelligenceOnPremise.

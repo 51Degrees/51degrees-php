@@ -68,8 +68,7 @@ class ExampleUtils
 
         $searchDirs = [
             __DIR__ . '/../../assets',
-            __DIR__ . '/../../ip-intelligence-data',
-            __DIR__ . '/../../on-premise/ip-intelligence-cxx/ip-intelligence-data'
+            __DIR__ . '/../../../cxx/ip-intelligence-data'
         ];
 
         foreach ($searchDirs as $dir) {

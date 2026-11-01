@@ -1140,7 +1140,7 @@ extern "C" {
 #endif
 
 
-#include "device-detection-cxx/src/hash/EngineHash.hpp"
+#include "cxx/src/dd/hash/EngineHash.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::DeviceDetection;

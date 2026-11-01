@@ -16,10 +16,14 @@
 set -euo pipefail
 
 PHP_VERSION="${1:-8.3}"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PACKAGE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PACKAGE="$(basename "${PACKAGE_ROOT}")"
+# The C sources and the Lite data file are in the cxx submodule at the root
+# of the repository, one level above this package.
+REPO_ROOT="$(dirname "${PACKAGE_ROOT}")"
 IMAGE="php:${PHP_VERSION}-cli"
-DATA_REL="on-premise/device-detection-cxx/device-detection-data/51Degrees-LiteV4.1.hash"
-CSV_REL="on-premise/device-detection-cxx/device-detection-data/20000 User Agents.csv"
+DATA_REL="cxx/device-detection-data/51Degrees-LiteV4.1.hash"
+CSV_REL="cxx/device-detection-data/20000 User Agents.csv"
 
 if [ ! -f "${REPO_ROOT}/${DATA_REL}" ]; then
     echo "Lite data file not found at ${DATA_REL}." >&2
@@ -31,8 +35,9 @@ echo "Building and testing with ${IMAGE} ..."
 
 docker run --rm \
     -v "${REPO_ROOT}:/repo:ro" \
-    -e DATA="/build/${DATA_REL}" \
-    -e CSV="/build/${CSV_REL}" \
+    -e DATA="/repo/${DATA_REL}" \
+    -e CSV="/repo/${CSV_REL}" \
+    -e PACKAGE="${PACKAGE}" \
     "${IMAGE}" bash -euo pipefail -c '
         echo "==> Installing build tools"
         apt-get update -qq
@@ -41,7 +46,9 @@ docker run --rm \
         docker-php-ext-install pcntl >/dev/null
 
         echo "==> Building the extension"
-        cp -a /repo /build
+        cp -a "/repo/${PACKAGE}" /build
+        rm -rf /build/on-premise/cxx && mkdir -p /build/on-premise/cxx
+        cp -a /repo/cxx/src /build/on-premise/cxx/src
         cd /build/on-premise
         phpize >/dev/null
         ./configure >/dev/null

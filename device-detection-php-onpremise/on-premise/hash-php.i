@@ -20,7 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-%include "device-detection-cxx/src/hash/hash.i"
+%include "cxx/src/dd/hash/hash.i"
 
 // Add a void constructor. This is not to be used, but a workaround for a bug
 // in SWIG's PHP 5 generation (PHP 7 does not have this issue).

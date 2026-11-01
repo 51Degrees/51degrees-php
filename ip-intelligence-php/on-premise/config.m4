@@ -8,13 +8,12 @@ dnl IP intelligence data files are large, so 64 bit file offsets must be used
 dnl when reading them (FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT / _FILE_OFFSET_BITS).
 dnl
 dnl NOTE on FIFTYONE_DEGREES_REDUCED_FILE: this define changes on-disk struct
-dnl layouts and must match the ip-intelligence-cxx commit the submodule is
-dnl pinned to. The current pin (073edb8, main) is the reduced-file format
-dnl (cxx PR #118 and later), which is what the 4.5 enterprise .ipi files use,
-dnl so the define MUST be set. If the submodule is moved back to a pre-#118
-dnl commit (where profileId is still present), remove this define, otherwise
-dnl the C++ fails to compile (profile has no member profileId). All native
-dnl objects (wrapper, C++ and C) must be compiled with the same settings.
+dnl layouts. The cxx submodule builds the IP intelligence copy of common with
+dnl it and with large file support (src/common/CMakeLists.txt there), which is
+dnl the format the 4.5 .ipi files use, so both MUST be set here. All native
+dnl objects (wrapper, C++ and C) must be compiled with the same settings, so
+dnl this extension cannot share compiled common objects with device detection,
+dnl which builds common without these defines.
 COMMON_DEFINES="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -DFIFTYONE_DEGREES_REDUCED_FILE=1 -D_FILE_OFFSET_BITS=64"
 CFLAGS="$CFLAGS $COMMON_DEFINES -std=gnu11 -Wall -Wno-strict-prototypes -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
 CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES -std=gnu++17 -fpermissive -Wall -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
@@ -75,5 +74,5 @@ if test "$PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE" = "yes"; then
   fi
   AC_CONFIG_COMMANDS_PRE(cp src/php$PHP_MAJOR_VERSION/* .)
 
-  PHP_NEW_EXTENSION(FiftyOneDegreesIpIntelligenceEngine, ipi_wrap.cxx ip-intelligence-cxx/src/*.c ip-intelligence-cxx/src/*.cpp ip-intelligence-cxx/src/common-cxx/*.c ip-intelligence-cxx/src/common-cxx/*.cpp ip-intelligence-cxx/src/ip-graph-cxx/*.c, $ext_shared, ,,"yes")
+  PHP_NEW_EXTENSION(FiftyOneDegreesIpIntelligenceEngine, ipi_wrap.cxx cxx/src/ipi/*.c cxx/src/ipi/*.cpp cxx/src/common/*.c cxx/src/common/*.cpp cxx/src/ipi/graph/*.c, $ext_shared, ,,"yes")
 fi

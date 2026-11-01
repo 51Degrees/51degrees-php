@@ -23,7 +23,7 @@
 /*
  * PHP entry point for the SWIG interface to the IP intelligence on-premise
  * engine. It simply includes the language-agnostic interface shipped in the
- * ip-intelligence-cxx submodule (src/ipi.i). The generated module is named
+ * cxx submodule (src/ipi/ipi.i). The generated module is named
  * FiftyOneDegreesIpIntelligenceEngine via the -module flag passed to SWIG by
  * config.m4 / config.w32, mirroring device-detection-php-onpremise.
  *
@@ -34,7 +34,7 @@
  * data file path, a ConfigIpiSwig and a RequiredPropertiesConfigSwig.
  */
 
-%include "ip-intelligence-cxx/src/ipi.i"
+%include "cxx/src/ipi/ipi.i"
 
 /*
  * Optional global engine.

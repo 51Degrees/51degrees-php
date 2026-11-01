@@ -12,3 +12,4 @@ libtool
 ltmain.sh
 mkinstalldirs
 missing
+/cxx/

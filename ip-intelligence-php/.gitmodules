@@ -1,6 +1,0 @@
-[submodule "ip-intelligence-data"]
-	path = ip-intelligence-data
-	url = https://github.com/51Degrees/ip-intelligence-data.git
-[submodule "on-premise/ip-intelligence-cxx"]
-	path = on-premise/ip-intelligence-cxx
-	url = https://github.com/51Degrees/Ip-Intelligence-cxx.git

@@ -2,8 +2,8 @@
 
 The on-premise IP intelligence engine is a native PHP extension
 (`FiftyOneDegreesIpIntelligenceEngine`) generated with [SWIG](https://www.swig.org/)
-from the `ip-intelligence-cxx` C/C++ library (included as a submodule under
-`on-premise/ip-intelligence-cxx`).
+from the IP intelligence C/C++ sources in 51degrees-cxx (included as the `cxx`
+submodule at the root of the repository).
 
 The **cloud** engine does **not** require this extension - only the on-premise
 engine does.
@@ -33,17 +33,19 @@ CI builds the Windows binary under the PHP SDK.
 git submodule update --init --recursive
 ```
 
-The `ip-intelligence-cxx` submodule is pinned to `073edb8` (main), the
-reduced-file data format used by the current 4.5 enterprise `.ipi` files. The
-build therefore sets `FIFTYONE_DEGREES_REDUCED_FILE=1` (see `config.m4`). Its
-own nested submodules (`common-cxx`, `ip-graph-cxx`) must also be initialised,
-which the `--recursive` flag does. (For an older pre-#118 commit, which reads
-the 4.4 format, that define must be removed.)
+The `cxx` submodule reads the reduced-file data format used by the current 4.5
+`.ipi` files, so the build sets `FIFTYONE_DEGREES_REDUCED_FILE=1` (see
+`config.m4`). Its own data submodules (`ip-intelligence-data` and
+`device-detection-data`) are initialised by the `--recursive` flag.
 
 ## Build
 
 ```bash
 cd on-premise
+
+# The build looks for the C sources under on-premise/cxx/src, so copy them from
+# the cxx submodule first. ci/build-project.ps1 does the same.
+mkdir -p cxx && cp -R ../../cxx/src cxx/
 
 # Generate the SWIG wrapper (committed for releases, regenerate after changing
 # ipi-php.i or bumping the submodule):
@@ -60,8 +62,8 @@ This produces `on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so`.
 
 The C/C++ sources are compiled with `FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1`,
 `FIFTYONE_DEGREES_REDUCED_FILE=1` and `_FILE_OFFSET_BITS=64`. These must match the
-`ip-intelligence-cxx` CMake build (the `.NET` and Java bindings inherit them via
-CMake); building without them reads modern data files with the wrong struct
+`cxx` CMake build of the IP intelligence copy of common (the `.NET` and Java
+bindings inherit them via CMake); building without them reads modern data files with the wrong struct
 layout.
 
 ## Enable the extension
@@ -87,4 +89,6 @@ gzip -d assets/51Degrees-LiteIpiV41.ipi.gz
 ```
 
 Point the engine at it via the `dataFile` setting, the `IPINTELLIGENCEDATAFILE`
-environment variable, or by placing it under `assets/` or `ip-intelligence-data/`.
+environment variable, or by placing it under `assets/`. The tests and examples
+also fall back to the files in `cxx/ip-intelligence-data` at the root of the
+repository.

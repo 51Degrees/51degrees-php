@@ -35,14 +35,14 @@ use fiftyone\pipeline\translation\YamlMap;
 class TranslationPaths
 {
     /**
-     * Find the Translations directory. Searches the in-repo data submodule
-     * locations, then the IPINTELLIGENCEDATAFILE directory as a fallback.
+     * Find the Translations directory. Searches the data submodule inside the
+     * cxx submodule at the repository root, then the IPINTELLIGENCEDATAFILE
+     * directory as a fallback.
      */
     public static function resolveTranslationsDir(): string
     {
         $candidates = [
-            __DIR__ . '/../../ip-intelligence-data/Translations',
-            __DIR__ . '/../../on-premise/ip-intelligence-cxx/ip-intelligence-data/Translations',
+            __DIR__ . '/../../../cxx/ip-intelligence-data/Translations',
         ];
 
         $env = getenv('IPINTELLIGENCEDATAFILE');

@@ -19,7 +19,7 @@ but additional caution should be applied.
 ### Data file
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' sub-module, which has 
+This repository includes a free, 'lite' file in the 'device-detection-data' sub-module of 'cxx', which has 
 a significantly reduced set of properties. To obtain a file with a more complete set of device 
 properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=device-detection-php-onpremise&utm_content=readme.md&utm_term=data-file). 
 If you want to use the lite file, you will need to install [GitLFS](https://git-lfs.github.com/):
@@ -29,7 +29,7 @@ sudo apt-get install git-lfs
 git lfs install
 ```
 
-Then, navigate to 'on-premise/device-detection-cxx/device-detection-data' and execute:
+Then, navigate to 'cxx/device-detection-data' at the root of the repository and execute:
 
 ```
 git lfs pull
@@ -57,9 +57,12 @@ extension that uses it.
 
 ### Build Steps
 
-Now, we can create the extension. Navigate to the `on-premise` directory and install it with:
+Now, we can create the extension. The build looks for the C sources under `on-premise/cxx/src`,
+so copy them there from the `cxx` submodule at the root of the repository first.
+`ci/build-project.ps1` does the same. Navigate to the `on-premise` directory and install it with:
 
 ``` bash
+mkdir -p cxx && cp -R ../../cxx/src cxx/
 phpize
 ./configure
 make
@@ -74,7 +77,7 @@ then be added to the active php.ini file.
 **Note** - this step should not normally need to be performed outside 51Degrees. 
 We include the instructions here for the rare case where it is necessary.
 
-If the SWIG wrapper files need to be regenerated due to new code in the 'device-detection-cxx'
+If the SWIG wrapper files need to be regenerated due to new code in the 'cxx'
  submodule, add `SWIG=1` to the `./configure` step. Note that for backwards compatibility with
  PHP 5, SWIG 3.0.12 is used for the pregenerated files in this repository. Newer versions of
  SWIG can be used, provided the extension is being built only for PHP 7.

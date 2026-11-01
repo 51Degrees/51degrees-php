@@ -1,0 +1,16 @@
+<phpunit bootstrap="vendor/autoload.php">
+  <php>
+    <env name="resource_key" value="!!YOUR_RESOURCE_KEY!!"/>
+  </php>
+  <testsuites>
+    <testsuite name="Unit">
+      <file>tests/CloudResponse.php</file>
+      <file>tests/CloudRequestEngineTests.php</file>
+      <file>tests/MissingPropertyHandling.php</file>
+      <file>tests/HttpClientFailureTests.php</file>
+    </testsuite>
+    <testsuite name="Integration">
+      <file>tests/CloudRequestTests.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

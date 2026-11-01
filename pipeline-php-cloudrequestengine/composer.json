@@ -1,0 +1,35 @@
+{
+    "name": "51degrees/fiftyone.pipeline.cloudrequestengine",
+    "description": "Cloud request engine for 51Degrees Pipeline API. Used to send requests to the 51Degrees cloud service.",
+    "keywords": [ 
+        "51degrees" 
+    ],
+    "authors" : [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2", 
+    "type": "library",
+    "require": {
+        "php": ">=7.4",
+        "51degrees/fiftyone.pipeline.engines": "4.*",
+        "51degrees/fiftyone.pipeline.core": "4.*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "*",
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "fiftyone\\pipeline\\cloudrequestengine\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "fiftyone\\pipeline\\cloudrequestengine\\tests\\": "tests/"
+        }
+    }
+}

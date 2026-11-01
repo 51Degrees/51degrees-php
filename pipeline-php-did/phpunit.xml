@@ -1,0 +1,12 @@
+<phpunit bootstrap="vendor/autoload.php">
+  <testsuites>
+    <testsuite name="Unit">
+      <file>tests/FodIdTest.php</file>
+      <file>tests/DidClientTest.php</file>
+      <file>tests/CreatorContextPageTest.php</file>
+    </testsuite>
+    <testsuite name="Live">
+      <file>tests/DidClientLiveTest.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

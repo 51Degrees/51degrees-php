@@ -1,0 +1,663 @@
+# 51Degrees Pipeline 51Did (PHP)
+
+Strongly typed PHP reader for the 51Did (51Degrees Identifier) returned by the
+51Degrees Cloud service, and a client for the cloud's 51Did endpoints so a
+server never hand-writes HTTP or key handling. Mirrors the .NET `FiftyOne.Did`
+package. Composer package `51degrees/fiftyone.pipeline.did`, namespace
+`fiftyone\pipeline\did`.
+
+## Terminology
+
+- The **51Did** (51Degrees Identifier) is the identifier as a whole.
+- The **envelope** is the data model that carries it: a signed OWID holding the
+  version, domain, date, payload and signature. It changes byte-for-byte every
+  time the cloud issues one.
+- The **match key** is the stable, comparable part of the payload after the
+  Flags and License Id, a 32-byte SHA-256 for Probabilistic and HashedEmail
+  identifiers, or 16 GUID bytes for Random. Two 51Dids for the same inputs
+  share the same match key even though their envelopes differ. The name
+  follows the Model Terms for Marketing, which call that part of a 51Did the
+  match key.
+
+**Comparing two 51Dids means comparing their match keys, never their
+envelopes.**
+
+## Payload layout
+
+The byte structure of a 51Did is specified once for every language at
+[identifier layout](https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md), which is the authority for
+what each byte holds, and what every 51Did package offers a caller is listed
+at [package surface](https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md).
+
+One byte after the match key holds the terms index, read through
+`getTerms()`, which answers with the address of the document the
+identifier was created under.
+
+The package reads the payload for you and offers a named accessor for each
+field, so the offsets are not part of its surface. What a caller needs to
+know is that the flags byte names the identifier type, which decides the
+length of the match key that follows.
+
+| `IdType`        | Match key length | Minimum payload |
+|-----------------|-----------------:|----------------:|
+| `Probabilistic` |               32 |              37 |
+| `Random`        |               16 |              21 |
+| `HashedEmail`   |               32 |              37 |
+| `Reserved`      |        remainder |               5 |
+
+Identifiers issued before the type tag existed decode as `Probabilistic`.
+
+The minimum payload is the only length rule this package applies. There is
+no upper bound here, because anything after the terms byte is a creator
+context section whose lengths belong to the cloud, and an older reader has
+to keep accepting an identifier a newer cloud issues.
+
+### Terms
+
+The terms byte says which terms document the identifier was created under,
+so the terms travel with the identifier rather than alongside it. It is an
+index into the table below and is **not** a version number, so that a later
+document can live at any address rather than only at one composed from a
+number. An index is never reused or repointed once published, because an
+identifier issued under it has to stay readable years later.
+
+`getTerms()` answers with the address of the document. The package turns
+the index into the address, so a caller never handles the byte.
+
+| Index | Document                             | `getTerms()`                |
+|------:|--------------------------------------|-----------------------------|
+|     0 | Not stated in the identifier         | `null`                      |
+|     1 | Model Terms for Marketing, version 2 | `https://m4ow.uk/mtm/2.txt` |
+| other | One this package cannot name         | `null`                      |
+
+An identifier whose payload ends at the match key carries no Terms byte,
+and it reads as index 0, so absence and a byte holding zero mean the same
+thing and no presence flag exists.
+
+No address does not mean the identifier is unrestricted. It means only that
+this identifier does not carry the answer, so the answer has to come from
+the surrounding protocol, being the Terms Document Locator in an OpenRTB
+request or whatever else is provided. Carrying the terms here does not
+remove the need to carry that locator where a protocol has one, and where
+the two disagree, take the identifier's own value as the one that describes
+it, because it is inside the signature and the accompanying data is not.
+
+An index added after this release also answers with no address, and this
+package never fetches an address and never builds one from an index it
+cannot name, because that would name a document nobody wrote and a receiver
+would record having accepted terms that do not exist. A caller therefore
+cannot tell an index of zero from an index this package cannot name, which
+is deliberate, since both lead to the same place.
+
+The `Reserved` identifier type reads every byte after the header as the
+match key, so no byte is left to hold the terms and such an identifier
+answers with no address.
+
+### The payload version
+
+Bits 4 and 5 of the flags byte say which payload layout the identifier
+follows, and this package reads version 0. A payload naming version 1, 2 or
+3 is refused with `FodIdParseStatus::UnsupportedPayloadVersion`, and the
+raising readers name the version they found in the message.
+
+No field is read under the layout this package knows once the version says
+otherwise. A later version exists precisely because a field moved, so
+reading such a payload here would answer with values that are wrong rather
+than absent, which is worse than refusing. A version that nothing checks
+protects nothing.
+
+The version is not exposed. Either this package read the layout, in which
+case the accessors are the answer, or it did not, in which case there is no
+identifier to read fields from.
+
+On an identifier carrying a creator context the four LicenseId bytes hold an
+encrypted value that only 51Degrees can turn back into a licence identifier,
+so `getLicenseId()` is the field's raw value and identifies nothing outside
+51Degrees. Such an identifier also carries a context section after the
+match key, which the reader keeps in the payload and does not interpret.
+
+## Requirements & OWID dependency
+
+PHP **>= 8.1**, because the OWID library requires it and 7.4 is end of life.
+`FodId` builds on the OWID envelope library
+([SWAN-community/owid-php](https://github.com/SWAN-community/owid-php), package
+`swan-community/owid`). `Owid` is `final`, so `FodId` **composes** it rather
+than subclassing.
+
+That library is not on Packagist, so it reaches you one of two ways.
+
+- **Installing the package.** A published release carries a copy of the OWID
+  source under `third-party/swan-community/owid`, unchanged, under its own
+  Apache-2.0 licence and autoloaded under its `SwanCommunity\Owid` namespace,
+  so there is nothing extra to install and no custom repository to configure.
+- **Working in this repository.** main keeps the library as the `owid-php` git
+  submodule and consumes it through a Composer `path` repository, because the
+  library is maintained upstream and not here.
+
+[How a release is assembled](https://github.com/51Degrees/pipeline-php-did/blob/main/ci/README.md)
+covers how the published tree is built and why the two arrangements
+differ.
+
+## Install
+
+```bash
+composer require 51degrees/fiftyone.pipeline.did
+```
+
+## Build from a checkout
+
+```bash
+git submodule update --init   # fetches owid-php into ./owid-php
+composer install
+```
+
+## Usage
+
+```php
+use fiftyone\pipeline\did\FodId;
+use fiftyone\pipeline\did\IdType;
+
+// A value from outside may be anything at all, so reading answers rather
+// than raising. Either base64 alphabet is accepted, standard as the cloud
+// issues it or URL-safe as a page puts it in a link, with or without
+// padding, and surrounding whitespace such as a trailing newline is
+// ignored. A null, an empty string or an array is reported, not raised.
+$result = FodId::tryFromBase64($_GET['51did'] ?? null);
+if (!$result->ok) {
+    // $result->status names the reason and is safe to log.
+    return;
+}
+$fodId = $result->fodId;
+
+$type      = $fodId->getType();        // IdType::Probabilistic / Random / HashedEmail
+$usage     = $fodId->getUsage();       // Usage::NonMarketing / Standard / Personalized, the highest granted
+$usage->idUsage();                     // 'non-marketing' / 'standard' / 'personalized', the cloud's id.usage value
+$indirect  = $fodId->isUsageIndirect(); // whether the issuer worked the usage out rather than the caller stating it
+$licenseId = $fodId->getLicenseId();
+$matchKey  = $fodId->getMatchKey();    // SHA-256 or GUID bytes, see type
+$terms     = $fodId->getTerms();       // address of the terms document it
+                                       // was created under, null where it
+                                       // names none this package knows
+
+// Delegated OWID-level fields and operations. Reading never verifies.
+$domain   = $fodId->getDomain();
+$verified = $fodId->verify($publicKeyPem);
+$status   = $fodId->signatureStatus($publicKeyPem); // SignatureStatus
+$date     = $fodId->getDate();
+$base64   = $fodId->asBase64();
+$urlSafe  = $fodId->asBase64Url();    // for a URL, no padding
+```
+
+`FodId::fromBase64()`, `FodId::fromByteArray()`, `FodId::fromOwid()` and the
+constructor remain and raise for the same inputs the `try` factories
+report, so code written against them keeps working.
+
+## What the identifier says it may be used for
+
+`getUsage()` answers the usage the 51Did was created for, which decides
+where the identifier may go. One created for `Usage::NonMarketing` must
+never be passed to a demand source, and one created for `Usage::Standard`
+or `Usage::Personalized` may be passed only to a recipient that has
+accepted the applicable terms. There are exactly three usages. A payload
+with no usage bit set at all is not a fourth one. The cloud never issues
+such an identifier, so it is damaged or forged, and reading it is refused
+with `FodIdParseStatus::NoUsage`. `idUsage()` gives the cloud's
+`id.usage` value for the same answer, being `non-marketing`, `standard`
+or `personalized`.
+
+Read the usage only through `getUsage()`. The three usages are cumulative
+in the flags byte rather than exclusive, as non-marketing sets bit 0,
+standard sets bits 0 and 1, and personalized sets bits 0, 1 and 2, so
+every marketing identifier also carries the non-marketing bit. Code that
+masked the byte for that bit alone would read every marketing identifier
+as non-marketing, which is the wrong way round for a data protection
+decision. `getUsage()` answers with the highest usage granted, so that
+mistake cannot be made, and this is why the raw flags byte, the byte
+offsets and the raw count of minutes in the date are no longer offered.
+
+`isUsageIndirect()` says whether the usage is indirect, being worked out
+by the issuer from a signal other than the caller stating it, or direct,
+being stated by the caller. A consent string is the only indirect signal
+today, so today the answer is true only when the usage was derived from an
+IAB consent string the caller sent. Both are legitimate ways to arrive at a
+usage and the answer says nothing about which usage it is. The method was
+called `isUsageFromConsent()` in earlier releases and was renamed with no
+alias, following
+[specifications pull request 30](https://github.com/51Degrees/specifications/pull/30).
+
+## Reading versus verifying
+
+Reading a 51Did and verifying one are separate questions with separate
+answers. Reading asks whether the bytes are a 51Did at all, and a successful
+read says nothing about the signature. A parsed 51Did is not necessarily
+genuine. Verifying asks whether the signature is genuine for a key, and only
+makes sense once there is a 51Did to ask about.
+
+### Reading
+
+Every read through `tryFromBase64()`, `tryFromByteArray()` or
+`tryFromOwid()` reports the same three facts in a `FodIdParseResult`.
+
+1. `$result->ok`, whether the value was a 51Did.
+2. `$result->fodId`, the `FodId` on success and `null` otherwise, never a
+   half read one.
+3. `$result->status`, `ParseStatus::Parsed` on success and the specific
+   reason otherwise.
+
+Reading is two steps and the status says which step failed. The OWID
+library reads the envelope first, and when the envelope cannot be read the
+result carries the library's own `SwanCommunity\Owid\ParseStatus` exactly
+as reported, with nothing mapped down to a generic value. Only when the
+envelope is sound does this package look inside the payload, and the two
+things the payload can get wrong are this package's own
+`FodIdParseStatus`.
+
+| Status | From | Meaning |
+| --- | --- | --- |
+| `Parsed` | OWID | A 51Did in a sound envelope. Says nothing about the signature |
+| `MissingInput` | OWID | Nothing was given, being null, an empty string or whitespace only |
+| `InvalidInputType` | OWID | Not a string, for example the array PHP builds when a query parameter repeats with brackets |
+| `InvalidBase64` | OWID | The text is not base64, so there are no bytes to read |
+| `UnsupportedVersion` | OWID | The first byte names an envelope version the library does not know |
+| `UnexpectedEnd` | OWID | The bytes stop part way through a field, before the payload length was read |
+| `InvalidDomainEncoding` | OWID | The creator domain has no terminator within the length a domain name can hold |
+| `ByteCountMismatch` | OWID | The declared payload length disagrees with the bytes present, whichever way they fall short |
+| `AbsentNode` | OWID | The marker for an absent OWID, a single zero byte, which is well formed and is not an identifier |
+| `PayloadTooShort` | this package | The payload holds fewer than the 5 header bytes, so the type cannot be read |
+| `InvalidTypePayloadLength` | this package | The header names a type whose match key the payload is too short to hold, being 16 bytes after the header for Random and 32 for Probabilistic or HashedEmail |
+| `UnsupportedPayloadVersion` | this package | Bits 4 and 5 of the flags byte name a payload layout version other than 0, so no field is read |
+| `NoUsage` | this package | Bits 0 to 2 of the flags byte are all clear, so the identifier states no usage. The cloud never writes that, so the identifier is damaged or forged |
+
+Both enums are string backed with the cross language name of the status,
+so `$result->status->value` can be logged or carried between services
+whichever kind it is, and a status never carries the input that produced
+it.
+
+Every one of these is an expected outcome of reading external data rather
+than a fault in the program, which is why the `try` factories report them.
+The exceptional cases are the ones that remain exceptions. A key that
+cannot be read, a cloud that cannot be reached, a key endpoint that answers
+with an error, and a transport that answers in the wrong shape are all
+faults in the operation rather than in the identifier, and `verify()` and
+`DidClient` raise for them as they always have.
+
+### Verifying
+
+`verify($publicKeyPem)` answers `true` or `false` and raises an
+`OwidException` when the key itself cannot be read. Where the difference
+between a signature that does not match and a check that could not be made
+changes what your code does, ask `signatureStatus($publicKeyPem)` instead,
+which answers a `SwanCommunity\Owid\SignatureStatus`.
+`SignatureStatus::SignatureInvalid` is the only answer that means the
+identifier should be distrusted, and a key that cannot be read is
+`SignatureStatus::InvalidKey`, so an operational fault is never reported as
+a forgery. `DidClient::verifySignature()` fetches the published keys, and
+when the keys cannot be fetched it raises rather than answering `false`,
+for the same reason.
+
+### Before and after
+
+A caller who reached the OWID library through this package before this
+release used its throwing factories or built an OWID directly. Both are
+gone from the library, and the package now reads like this.
+
+```php
+// Before. The OWID was built or parsed directly and raised on bad input,
+// and the exception text was the only account of what was wrong.
+try {
+    $fodId = FodId::fromOwid(Owid::fromBase64($value));
+} catch (OwidException $e) {
+    error_log('not a 51Did: ' . $e->getMessage());
+}
+
+// After. The read answers with a named reason and nothing is raised for
+// data that merely fails to be a 51Did.
+$result = FodId::tryFromBase64($value);
+if (!$result->ok) {
+    error_log('not a 51Did: ' . $result->status->value);
+    return;
+}
+$fodId = $result->fodId;
+```
+
+`FodId::fromBase64($value)` still works and still raises `OwidException`
+when the envelope cannot be read (the message now names the library's
+status) and `InvalidArgumentException` when the envelope is sound and the
+payload does not fit, so a catch block written against either keeps
+working. An `Owid` reaches your code only from a successful read or from
+the library's `Creator::create`, so `new Owid(...)` and `Owid::fromBase64()`
+no longer exist to call.
+
+## Comparing two 51Dids
+
+```php
+$a = FodId::fromBase64($idprobglobalA);
+$b = FodId::fromBase64($idprobglobalB);
+
+// The envelope (date, signature, base64) differs across reissues.
+// The match key inside the payload is stable, so that is what you compare.
+$sameMatchKey = $a->getMatchKey() === $b->getMatchKey();
+```
+
+Use `getMatchKey()` as the cache and dedup key. The same match key means
+the same browser instance under the same usage policy on the same licence
+key (for `idproblic`) or across all callers (for `idprobglobal`).
+
+## Verifying on your server
+
+`DidClient` handles every manipulation of a 51Did a server needs against
+the cloud. Build one at start-up with the page's resource key, the
+account's licence key (server side only, needed to redeem where the
+account holds licence keys) and, optionally, the API base. When the base
+is not given the client reads `FOD_CLOUD_API_URL`, the same variable the
+cloud request engine honours, and falls back to
+`https://cloud.51degrees.com/api/v4/`. A value with or without a trailing
+slash is accepted. Credentials never travel in a URL. The key list and
+verify calls carry the resource key in the route, and redeem is a POST
+whose form body carries the resource key, the identifier, the sealed
+result, the challenge and the licence key. A fourth constructor argument
+takes an HTTP transport callable so tests can run without the network.
+
+```php
+use fiftyone\pipeline\did\ContextOutcome;
+use fiftyone\pipeline\did\DidClient;
+use fiftyone\pipeline\did\FodId;
+use fiftyone\pipeline\did\NotSupportedException;
+
+$client = new DidClient($resourceKey, $licenceKey);
+
+// 1. Read. The identifier arrives from a page in the URL-safe alphabet,
+//    and a value that is not a 51Did is an answer rather than an error.
+$read = FodId::tryFromBase64($fromThePage);
+if (!$read->ok) {
+    return;   // $read->status says why
+}
+$fodId = $read->fodId;
+
+// 2. Verify the signature offline. The client fetches the published
+//    signing keys, refreshes them at least once a day, and tries the key
+//    in force when the identifier was created plus a neighbouring key
+//    where the date sits close to a key boundary. Version 3 envelopes
+//    only.
+$genuine = $client->verifySignature($fodId);
+$key = $client->publicKeyFor($fodId);   // null when no key covers the date
+
+//    verifySignatureDetailed() answers which of the five things happened
+//    rather than only whether the identifier is genuine. Only Verified
+//    says a key matched, and only Invalid says a key was tried and did
+//    not. The other three say the check never ran, so treating them as
+//    forged would report your own outage as an attack.
+$outcome = $client->verifySignatureDetailed($fodId);
+//    SignatureCheck::Verified | Invalid | NoKeyForDate
+//                  | UnsupportedVersion | InvalidLength
+
+// 3. Verify the signature through the cloud (one use, no licence key).
+$valid = $client->verify($fodId);
+
+// 4. Redeem a sealed creator context result the page relayed (one use).
+try {
+    $redeemed = $client->redeem($fodId, $sealedResult, $challenge);
+    if ($redeemed->context === ContextOutcome::Verified) {
+        // Presented from the browser and connection it was created on.
+    }
+    $redeemed->signature;            // SignatureOutcome
+    $redeemed->factors;              // name => FactorOutcome, Verified,
+                                     // Mismatch, Misconfigured or
+                                     // NotRecorded, when the cloud sends
+                                     // them (see below), for
+                                     // transport, device, browserip,
+                                     // connectionip, asn, platformname,
+                                     // platformversion, browsername,
+                                     // browserversion
+    $redeemed->verifiedAt;           // DateTimeImmutable or null
+    $redeemed->secondsSinceVerified; // int or null
+    $redeemed->statusCode;           // 200, or 503 for Unconfirmed
+} catch (NotSupportedException $e) {
+    // The host does not offer the creator context.
+}
+```
+
+The cloud publishes a signing key only once its period has started or is
+within fifteen minutes of starting, and each entry in the key list carries
+`startsAt` and `endsAt`, the moment the next key takes over, the newest
+entry included although the next key is not yet published. The client
+verifies offline until a 51Did is dated close to the end of the newest key
+it holds, then fetches the list again, at most once a minute, asking only
+for entries from the newest start it holds and keeping the older ones.
+Where a service sends no `endsAt`, the newest start held counts as the
+end. A key may be replaced before its
+`endsAt`, and the client picks up the replacement on the first signature
+that fails with the keys it holds, or at the next daily refresh, which
+fetches the whole list.
+`PublicKey::$endsAt` carries the end, or null where the cloud sent none.
+
+`redeem()` returns a `RedeemResult` for a 200 and for a 503 (context
+`Unconfirmed`, so retry). It throws `InvalidArgumentException` with the
+cloud's message when the 51Did was malformed (400),
+`NotSupportedException` when the host does not offer the creator context
+(404), `CloudException` carrying the status and body for any other
+status, and `RuntimeException` when the cloud cannot be reached. A
+`context` string the package does not know maps to
+`ContextOutcome::Unreadable` and the raw value stays on `rawContext`.
+Every cryptographic failure comes back as the one word `unreadable`, by
+design, so the client does not try to distinguish them either.
+
+`factors` arrives on a mismatch, on a misconfigured result where the
+transport was compared, and whenever any factor is `NotRecorded`, whatever
+the overall result. Neither `FactorOutcome::Misconfigured` nor
+`FactorOutcome::NotRecorded` is a mismatch, and neither must ever be read
+as one, but they say different things, because `Misconfigured` means the
+checking service could not determine the factor whilst `NotRecorded` means
+the creating service recorded no value for it, so the identifier says
+nothing about it. A `NotRecorded` factor is left out of the overall result,
+so `ContextOutcome::Verified` can arrive beside factors that are
+`NotRecorded`, and the factors then say how many the verdict rests on.
+
+`verify()` and `redeem()` also take the identifier as a string, in either
+alphabet. The client reads the string with `FodId::tryFromBase64()` first
+and refuses one that is not a 51Did with an `InvalidArgumentException`
+naming the status, before any key fetch or request, so a malformed value
+costs no use. A string that reads is sent exactly as given. Separately, and
+before the read, the client refuses any string longer than 4096 characters
+with the same exception type. That figure is client policy, deliberately
+arbitrary and generous, chosen so that obviously hostile input is dropped
+before it is even decoded, and it says nothing about how long a 51Did is or
+may be. It is not a limit of the format and the reader applies no such
+limit.
+
+The verify-context and verify-full endpoints are browser calls rather
+than client methods, because the context describes the browser's own
+connection, and creation is the cloud `json` endpoint for the same
+reason. The demo below shows both.
+
+## Non-goals
+
+- **No signature verification on reading.** A parsed 51Did is not
+  necessarily genuine. Call `verify($publicKeyPem)`,
+  `signatureStatus($publicKeyPem)` or `DidClient::verifySignature()` when
+  needed.
+- **No upper bound on the payload.** The type minimums in the table above
+  are the only length rule this package applies. The 4096 character figure in `DidClient` is
+  that client's own guard on what it will send and not a property of the
+  format.
+- **No creation of new 51Dids.** `FodId` is a parser and `DidClient`
+  verifies and redeems; new 51Dids are issued by the 51Degrees cloud /
+  on-premise hashing engines.
+
+## Tests
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
+The `Live` suite calls the cloud and is skipped unless
+`_51DEGREES_RESOURCE_KEY` (or the legacy `RESOURCE_KEY`) is set, with
+`_51DEGREES_LICENSE_KEY` and `FOD_CLOUD_API_URL` read as the demo reads
+them. Each live test costs uses against the subscription behind the key.
+
+## Creator context demo
+
+Every 51Did the 51Degrees cloud issues carries a creator context, which
+binds the identifier to the browser and connection it was created on.
+The demo under `examples/creator-context-web/` shows the flow against the
+cloud from a real browser, which is the only place the check makes sense,
+since a program verifying its own connection checks itself against
+itself. The demo's server uses `DidClient` from this package, so run
+`composer install` at the repository root first.
+
+### What the demo shows
+
+The flow has three steps.
+
+1. **Create** a 51Did by loading the 51Degrees client script, which runs
+   the snippets the service asks for, sends what they collected, and
+   hands the page the answer with the identifier in it. The browser does
+   all of that, so the identifier is created for the browser's own
+   connection. The service issues an identifier only once those values
+   are in, so a page asking for one by itself is told the page has not
+   finished and is given nothing.
+2. **Verify** it with `verify-full`, which returns everything the cloud
+   concluded, the signature outcome and the creator context verdict, only
+   as an encrypted `result` that the caller cannot read or forge. The
+   page sends what the snippets collected with this call as well, because
+   the service compares this browser against the creator from those
+   values and gives no verdict without them.
+3. **Redeem** the encrypted result with `redeem`, presenting the 51Did,
+   the encrypted result and the account's licence key, and receive the
+   signature outcome, the true creator context verdict, when the
+   verification happened (`verifiedAt`) and how long ago that was
+   (`secondsSinceVerified`).
+
+In production step 2 runs in the visitor's browser (the page relays the
+encrypted result to your server) and step 3 runs on your server, which is
+the party holding the licence key. The demo passes a single-use
+`challenge`, binding the encrypted result to one transaction.
+
+A verdict of `nocontext` is a normal outcome rather than an error,
+because a self-hosted service may be configured not to emit the creator
+context, so an identifier it issued has none to check. A 404 from
+`verify-full` or `redeem` means the host answering does not offer the
+creator context at all, which is a service without the feature rather
+than a failed check, so the page shows `not supported by this host` and
+the sentence `The service at <api base> does not support the creator
+context. Point the demo at a service that does.` Only a transport
+failure, another status outside the 2xx range, a body that is not JSON or
+an `errors` answer from the service is an error. The server relays the
+service's status and body to the page, which shows the failure naming the
+status and the start of the body.
+
+`examples/creator-context-web/` is a small demo web app, `server.php`
+serving `page.html`, that runs the flow the way production does. The
+browser creates the 51Did and calls `verify-full`, so the cloud observes
+the browser's live connection, then the page hands the encrypted result
+to its own server, which redeems it with the licence key. A fresh
+challenge is issued per page load and bound through both steps by the
+cloud. A production server would also remember the value it issued and
+reject a redemption carrying any other, which the demo keeps out of
+scope. The creation call requests every 51Did identifier in one request
+and the page shows all six in a table, the probabilistic pair
+(`IdProbGlobal` and `IdProbLic`) derived from the connection, the
+deterministic hashed-email pair (`IdHemGlobal` and `IdHemLic`) derived
+from the `id.email` evidence (the demo sends `demo@51did.example`), and
+the random pair (`IdRandGlobal` and `IdRandLic`). Global identifiers are
+shared across customers, licensed ones are scoped to the licence key.
+
+### The server-side step, which you copy into your own server
+
+The one part of the demo that belongs on your server is the redeem call,
+because it adds the licence key the browser never sees. The `/redeem`
+branch of `examples/creator-context-web/server.php` is that call, and
+these are its essential lines. The 51Did, the encrypted result and the
+challenge arrive from the page, the licence key is the client's, and the
+answer goes back to the page in the cloud's own shape with one extra
+field, `serverSignature`, from the offline signature check.
+
+```php
+$client = new DidClient($resource, $licence);   // once, at start-up
+
+$read = FodId::tryFromBase64($_GET['51did'] ?? null);
+if (!$read->ok) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode(['errors' => [
+        'The 51did is not a valid 51Did (' . $read->status->value . ').',
+    ]]);
+    return;
+}
+$fodId = $read->fodId;
+$serverSignature = $client->verifySignature($fodId) ? 'verified' : 'invalid';
+$redeemed = $client->redeem(
+    $fodId,
+    $_GET['result'] ?? '',
+    $_GET['challenge'] ?? ''
+);
+$answer = $redeemed->toArray();
+$answer['serverSignature'] = $serverSignature;
+http_response_code($redeemed->statusCode);
+header('Content-Type: application/json');
+echo json_encode($answer);
+```
+
+The branch answers a value that does not read as a 51Did with a 400 naming
+the status, a `NotSupportedException` with a 404 and a text body, which the
+page reports as not supported by this host, an `InvalidArgumentException`
+with a 400 and the cloud's `errors`, and an unreachable cloud with a 502
+and `{ "error": ... }`. A production server
+would also remember the challenge it issued and reject a redemption
+carrying any other.
+
+### Environment variables
+
+| Variable | Meaning |
+| --- | --- |
+| `_51DEGREES_RESOURCE_KEY` | Required. The resource key of your account, public by nature. The legacy `RESOURCE_KEY` is read when the aligned name is not set |
+| `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, server side only. The legacy `LICENSE_KEY` is read when the aligned name is not set. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
+| `FOD_CLOUD_API_URL` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than `cloud.51degrees.com` would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons. This is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
+
+### How to run
+
+Run `composer install` at the repository root once, then from the
+`examples/creator-context-web` folder start the built-in server and open
+`http://localhost:5100/` in a browser. The port is the `php -S` argument.
+
+```bash
+php -S localhost:5100 server.php
+```
+
+To demonstrate across two devices, serve on an address both can reach and
+open the copied link on the second device.
+
+### What a run costs
+
+Every call the demo makes to the cloud is one use against the
+subscription behind the resource key. Checking a 51Did from the browser
+makes two, verify-full from the page and redeem from the server, so a
+browser-based context check is two uses every time. Checking only the
+signature with `verify` is one use. The offline signature check in the
+demo's `/redeem` fetches the public key list, one more use each time, and
+under PHP's built-in server that is every redemption because each request
+starts afresh, whereas an application server keeping one `DidClient`
+alive fetches the list once a day, once as each key nears its end, and at
+most once a minute while 51Dids arrive that fail their signature or are
+dated past the keys it holds.
+
+### The copy-and-paste proof
+
+Once the 51Did has fully validated, the page shows a **copy-and-paste
+section** with a link carrying the same 51Did, and an explanation of what
+will happen next. Open that link in a **different browser** and the same
+page loads with the same identifier. The signature still verifies and the
+identifier unpacks, because it is genuine, but the creator context does
+**not** validate, because the context binds the identifier to the browser
+and connection it was created on. That visible failure is the
+demonstration that matters, a copied or stolen identifier caught at
+presentation with nothing stored server side. Opening the link in the
+same browser is not the demonstration, since the same browser presents
+the same context and may still verify.
+
+### Stylesheet
+
+The `examples-main.min.css` vendored beside `page.html` is the 51Degrees
+examples design system build and is refreshed by common-ci's
+`update-example-assets` step.

@@ -1,0 +1,646 @@
+<?php
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+declare(strict_types=1);
+
+namespace fiftyone\pipeline\did;
+
+use DateTimeImmutable;
+use InvalidArgumentException;
+use SwanCommunity\Owid\Owid;
+use SwanCommunity\Owid\OwidException;
+use SwanCommunity\Owid\ParseResult;
+use SwanCommunity\Owid\SignatureStatus;
+use SwanCommunity\Owid\Version;
+
+/**
+ * A strongly typed reader for the 51Did (51Degrees Identifier) returned by
+ * the 51Degrees Cloud service.
+ *
+ * A 51Did is described at three levels. The **51Did** is the identifier as a
+ * whole. The **envelope** is the signed {@see Owid} that carries it (version,
+ * domain, date, payload, signature), re-issued fresh on every call. The
+ * **match key** is the stable, comparable part of the payload after the Flags
+ * and License Id, exposed via {@see FodId::getMatchKey()}. Two 51Dids for the
+ * same inputs share the same match key even though their envelopes differ.
+ * *Compare match keys, never envelopes.* The name follows the Model Terms for
+ * Marketing, which call that part of a 51Did the match key.
+ *
+ * Payload layout. The header (offsets 0-4) is shared by every identifier
+ * type, and bits 6-7 of Flags select the {@see IdType} and the length of the
+ * match key that follows. An identifier carrying a creator context has a
+ * further section after the match key, which the reader keeps in the payload
+ * and does not interpret. There is no upper bound on the payload here,
+ * because the lengths of that section belong to the cloud and an older
+ * reader has to keep accepting an identifier from a newer one. The byte
+ * structure is specified at
+ * https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md
+ * which is the authority for it, and the surface every 51Did package offers
+ * is listed at
+ * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md
+ *
+ * Every field is read through a named accessor, being {@see FodId::getType()},
+ * {@see FodId::getUsage()}, {@see FodId::isUsageIndirect()},
+ * {@see FodId::getLicenseId()} and {@see FodId::getMatchKey()}. The raw flags
+ * byte and the byte offsets are not offered, because reading the usage bits
+ * by hand gets the answer backwards, as {@see Usage} explains.
+ *
+ * One byte after the match key holds the {@see Terms} the identifier was
+ * created under, read through {@see FodId::getTerms()}. A payload that
+ * ends at the match key carries no Terms byte and reads as a Terms of
+ * zero, so nothing has to tell an absent byte from a zero one and no
+ * presence flag exists.
+ *
+ * Bits 4 and 5 of the flags byte say which payload layout the identifier
+ * follows, and this package reads version 0. A payload naming any other
+ * version is refused with
+ * {@see FodIdParseStatus::UnsupportedPayloadVersion} rather than read
+ * under the layout this package knows, because a later version exists
+ * precisely because a field moved, so reading one here would answer with
+ * values that are wrong rather than absent. The version is not exposed,
+ * because a caller has nothing to decide with it.
+ *
+ * Reading is two steps. The OWID library reads the envelope and this class
+ * then reads the payload inside it. The `try` factories,
+ * {@see FodId::tryFromBase64()}, {@see FodId::tryFromByteArray()} and
+ * {@see FodId::tryFromOwid()}, answer with a {@see FodIdParseResult} rather
+ * than raising, because the text arrives from outside and failing to be a
+ * 51Did is an ordinary outcome, and whoever sends the text chooses how often
+ * that happens. The older factories, {@see FodId::fromBase64()},
+ * {@see FodId::fromByteArray()}, {@see FodId::fromOwid()} and the
+ * constructor, raise for the same inputs and are kept for callers written
+ * against them. Both run the same checks.
+ *
+ * The cloud issues a 51Did in standard base64 with padding, and a page puts
+ * one in a link in the URL-safe alphabet without padding, so the base64
+ * factories accept either form and {@see FodId::asBase64Url()} produces the
+ * URL-safe one.
+ *
+ * The owid-php {@see Owid} is `final`, so this type **composes** an OWID
+ * (holds the envelope and delegates OWID-level concerns to it) rather than
+ * inheriting from it. An OWID only exists once it has been read or signed
+ * and its fields are read only, so the one handed in is held as it is.
+ * Reading a {@see FodId} does **not** verify the signature, and a parsed
+ * 51Did is not necessarily genuine. Call {@see FodId::verify()} or
+ * {@see FodId::signatureStatus()} explicitly.
+ */
+final class FodId
+{
+    /**
+     * The payload layout version this package reads, carried in bits 4 and
+     * 5 of the flags byte. Any other version is refused rather than read
+     * under this layout.
+     */
+    private const SUPPORTED_PAYLOAD_VERSION = 0;
+
+    /**
+     * Bits 0 to 2 of the flags byte, which carry the usage. A payload with
+     * all three clear is refused.
+     */
+    private const USAGE_MASK = 0b111;
+
+    /** Bit 3 of the flags byte, set when the usage is indirect. */
+    private const USAGE_IS_INDIRECT_MASK = 0b1000;
+
+    private Owid $owid;
+    private int $flags;
+    private int $licenseId;
+    private string $matchKey;
+    private int $termsIndex;
+
+    /**
+     * Promotes an already-read {@see Owid} into a 51Did by unpacking its
+     * payload.
+     *
+     * A payload must be at least the base length for its identifier type.
+     * Anything beyond the base is a creator context section, whose exact
+     * lengths belong to the cloud, so any longer payload is accepted here.
+     * {@see FodId::tryFromOwid()} answers with a status where this raises.
+     *
+     * @throws InvalidArgumentException when the payload is shorter than the
+     *                                  header, or than the minimum for its
+     *                                  identifier type, names a payload
+     *                                  version this package does not know,
+     *                                  or has usage bits 000.
+     */
+    public function __construct(Owid $owid)
+    {
+        $read = self::readPayload($owid->payload);
+        if ($read instanceof FodIdParseStatus) {
+            throw new InvalidArgumentException(
+                self::describe($read, $owid->payload)
+            );
+        }
+        $this->owid = $owid;
+        [
+            $this->flags,
+            $this->licenseId,
+            $this->matchKey,
+            $this->termsIndex,
+        ] = $read;
+    }
+
+    /**
+     * Reads a 51Did from its base64-encoded OWID string, answering rather
+     * than raising when the value is not one.
+     *
+     * The value may be anything at all, because it is external data, so a
+     * null, an empty string or a value of another type (for example the
+     * array PHP builds when a query string repeats a parameter with
+     * brackets) is reported by status rather than raised. A string in
+     * either alphabet is accepted, standard (`+` and `/`, as the cloud
+     * issues it) or URL-safe (`-` and `_`, as a page puts it in a link),
+     * with or without padding, and surrounding whitespace is removed, as
+     * the cloud's endpoints normalise the alphabet and the padding.
+     *
+     * The result carries the OWID library's own status when the envelope
+     * could not be read, and a {@see FodIdParseStatus} when the envelope
+     * was sound and the payload does not fit a 51Did. Success says nothing
+     * about the signature.
+     *
+     * @param mixed $value the base64 text, or anything a caller was handed
+     */
+    public static function tryFromBase64(mixed $value): FodIdParseResult
+    {
+        if (is_string($value)) {
+            $value = self::toStandardBase64($value);
+        }
+        return self::fromEnvelope(Owid::tryFromBase64($value));
+    }
+
+    /**
+     * Reads a 51Did from the raw bytes of an OWID envelope, answering
+     * rather than raising when the bytes are not one. The buffer must be
+     * one whole envelope and nothing else. The statuses are those of
+     * {@see FodId::tryFromBase64()} less the base64 one.
+     *
+     * @param mixed $buffer the raw bytes, or anything a caller was handed
+     */
+    public static function tryFromByteArray(mixed $buffer): FodIdParseResult
+    {
+        return self::fromEnvelope(Owid::tryFromByteArray($buffer));
+    }
+
+    /**
+     * Reads a 51Did from an already-read {@see Owid}, answering with a
+     * {@see FodIdParseStatus} rather than raising when the payload does not
+     * fit.
+     */
+    public static function tryFromOwid(Owid $owid): FodIdParseResult
+    {
+        $read = self::readPayload($owid->payload);
+        if ($read instanceof FodIdParseStatus) {
+            return FodIdParseResult::failed($read);
+        }
+        return FodIdParseResult::parsed(new self($owid));
+    }
+
+    /**
+     * Parses a 51Did from its base64-encoded OWID string, in either
+     * alphabet, with or without padding, and raises when the value is not
+     * one. {@see FodId::tryFromBase64()} answers with a status for the same
+     * inputs and is the surface to use for values arriving from outside.
+     *
+     * @throws OwidException when the string is not valid base64 or not a
+     *                       valid OWID, with the message naming the OWID
+     *                       library's status.
+     * @throws InvalidArgumentException when the envelope is sound and the
+     *                                  payload does not fit a 51Did.
+     */
+    public static function fromBase64(string $base64): self
+    {
+        return new self(self::envelopeOrThrow(
+            Owid::tryFromBase64(self::toStandardBase64($base64))
+        ));
+    }
+
+    /**
+     * Restores a string in either base64 alphabet to the standard alphabet
+     * with padding. Leading and trailing whitespace is removed first, since
+     * a value read from a header, a file or a form often carries a newline
+     * and the padding has to be counted from the characters that remain.
+     * Then `-` becomes `+`, `_` becomes `/`, and `==` or `=` is added when
+     * the length modulo 4 is 2 or 3. A string already in the standard
+     * padded form is returned unchanged.
+     */
+    public static function toStandardBase64(string $value): string
+    {
+        $standard = strtr(trim($value), '-_', '+/');
+        switch (strlen($standard) % 4) {
+            case 2:
+                return $standard . '==';
+            case 3:
+                return $standard . '=';
+            default:
+                return $standard;
+        }
+    }
+
+    /**
+     * Parses a 51Did from the raw bytes of an OWID envelope and raises when
+     * the bytes are not one. {@see FodId::tryFromByteArray()} answers with a
+     * status for the same inputs.
+     *
+     * @throws OwidException when the bytes are not a valid OWID, with the
+     *                       message naming the OWID library's status.
+     * @throws InvalidArgumentException when the envelope is sound and the
+     *                                  payload does not fit a 51Did.
+     */
+    public static function fromByteArray(string $buffer): self
+    {
+        return new self(self::envelopeOrThrow(Owid::tryFromByteArray($buffer)));
+    }
+
+    /**
+     * Promotes an already-read OWID into a 51Did, raising when its payload
+     * does not fit. The same as the constructor, kept as the named form.
+     *
+     * @throws InvalidArgumentException when the payload is shorter than the
+     *                                  header, or than the minimum for its
+     *                                  identifier type, names a payload
+     *                                  version this package does not know,
+     *                                  or has usage bits 000.
+     */
+    public static function fromOwid(Owid $owid): self
+    {
+        return new self($owid);
+    }
+
+    /**
+     * Continues a read from the OWID library's answer. A failed envelope
+     * read is passed on with the library's status exactly as reported, so
+     * nothing about it is mapped down or renamed, and only a sound envelope
+     * goes on to the payload checks.
+     */
+    private static function fromEnvelope(ParseResult $result): FodIdParseResult
+    {
+        if (!$result->ok) {
+            return FodIdParseResult::failed($result->status);
+        }
+        return self::tryFromOwid($result->owid);
+    }
+
+    /**
+     * The OWID from the library's answer, or the exception the throwing
+     * factories have always documented. The library itself no longer raises
+     * on reading, so the exception is made here, carrying the library's
+     * status name, to keep the catch blocks of existing callers working.
+     *
+     * @throws OwidException when the envelope could not be read.
+     */
+    private static function envelopeOrThrow(ParseResult $result): Owid
+    {
+        if (!$result->ok) {
+            throw new OwidException(
+                'The value is not a valid OWID envelope ('
+                . $result->status->value . ').'
+            );
+        }
+        return $result->owid;
+    }
+
+    /**
+     * Reads the header and the match key from a payload, or names why the
+     * payload does not fit a 51Did. This is the one place the payload rules
+     * live, so the raising and the answering surfaces cannot drift apart.
+     *
+     * The header must be present before the type can be read, and the type
+     * then says how many match key bytes must follow. A Reserved identifier
+     * takes whatever follows the header, which is the existing best-effort
+     * reading of a type not yet assigned. One byte after the match key is
+     * the terms index, and anything after that is a creator context section
+     * and is left in the payload unread.
+     *
+     * The terms index is the only field that may be absent, because a
+     * payload may end at the match key. A payload with no byte there reads
+     * as zero, which is the same answer as a byte holding zero, so a
+     * shorter payload is not a failure and no length rule turns on it.
+     *
+     * @return array{int, int, string, int}|FodIdParseStatus the flags, the
+     *     licence id, the match key bytes and the terms index, or the reason
+     *     the payload does not fit
+     */
+    private static function readPayload(string $payload): array|FodIdParseStatus
+    {
+        $length = strlen($payload);
+        if ($length < FodIdLayout::HEADER_LENGTH) {
+            return FodIdParseStatus::PayloadTooShort;
+        }
+        $flags = ord($payload[FodIdLayout::FLAGS_OFFSET]);
+        // The version is read before any field, because a later version
+        // exists precisely because a field moved. Reading a payload of a
+        // version this package does not know under the layout it does know
+        // would answer with values that are wrong rather than absent,
+        // which is worse than refusing, and a version that nothing checks
+        // protects nothing.
+        if (self::payloadVersion($flags) !== self::SUPPORTED_PAYLOAD_VERSION) {
+            return FodIdParseStatus::UnsupportedPayloadVersion;
+        }
+        // A payload with no usage bit set states no usage at all. The cloud
+        // never writes one, so it is damaged or forged, and it is refused
+        // rather than read, because the only safe answer to it is not to
+        // pass the identifier on. Only 000 is refused. Every other pattern
+        // is read as the highest usage granted.
+        if (($flags & self::USAGE_MASK) === 0) {
+            return FodIdParseStatus::NoUsage;
+        }
+        $matchKeyLength = self::matchKeyLength(
+            IdType::fromFlags($flags),
+            $length
+        );
+        if ($length < FodIdLayout::HEADER_LENGTH + $matchKeyLength) {
+            return FodIdParseStatus::InvalidTypePayloadLength;
+        }
+        // Little-endian unsigned 32-bit. 'V' yields a non-negative int on
+        // 64-bit PHP (max 4294967295 < PHP_INT_MAX), so the high bit never
+        // becomes negative.
+        $licenseId = unpack(
+            'V',
+            substr(
+                $payload,
+                FodIdLayout::LICENSE_ID_OFFSET,
+                FodIdLayout::LICENSE_ID_LENGTH
+            )
+        )[1];
+        // The terms index is the byte after the match key, so where it
+        // sits follows the match key length the type selects. A payload
+        // with no byte there reads as zero. A Reserved identifier always
+        // reads as zero too, and that is correct rather than a defect,
+        // because the match key length for that type is not defined, so
+        // every byte after the header is the match key and none is left
+        // for a package to find the terms in.
+        $termsOffset = FodIdLayout::HEADER_LENGTH + $matchKeyLength;
+        return [
+            $flags,
+            $licenseId,
+            substr($payload, FodIdLayout::MATCH_KEY_OFFSET, $matchKeyLength),
+            $length > $termsOffset ? ord($payload[$termsOffset]) : 0,
+        ];
+    }
+
+    /**
+     * The number of match key bytes the type requires after the header,
+     * given the payload length for the Reserved case, which takes the
+     * remainder.
+     */
+    private static function matchKeyLength(
+        IdType $type,
+        int $payloadLength
+    ): int {
+        return match ($type) {
+            IdType::Random => FodIdLayout::GUID_LENGTH,
+            IdType::Reserved => $payloadLength - FodIdLayout::HEADER_LENGTH,
+            default => FodIdLayout::MATCH_KEY_LENGTH,
+        };
+    }
+
+    /**
+     * Bits 4 and 5 of the flags byte, being the version of the payload
+     * layout the identifier follows. The envelope carries a version of its
+     * own at its first byte, which versions the envelope, whilst this one
+     * versions the payload.
+     */
+    private static function payloadVersion(int $flags): int
+    {
+        return ($flags >> 4) & 0b11;
+    }
+
+    /**
+     * The message for the exception the raising surfaces carry when a
+     * payload does not fit, naming the status and the byte counts.
+     */
+    private static function describe(
+        FodIdParseStatus $status,
+        string $payload
+    ): string {
+        $length = strlen($payload);
+        if ($status === FodIdParseStatus::UnsupportedPayloadVersion) {
+            return sprintf(
+                '51Did payload version %d is not one this package can read '
+                . '(%s).',
+                self::payloadVersion(ord($payload[FodIdLayout::FLAGS_OFFSET])),
+                $status->value
+            );
+        }
+        if ($status === FodIdParseStatus::NoUsage) {
+            return sprintf(
+                '51Did usage bits are %03b, which is not a usage, so the '
+                . 'payload is refused (%s).',
+                ord($payload[FodIdLayout::FLAGS_OFFSET]) & self::USAGE_MASK,
+                $status->value
+            );
+        }
+        if ($status === FodIdParseStatus::PayloadTooShort) {
+            return sprintf(
+                '51Did payload must be at least %d bytes and %d were given '
+                . '(%s).',
+                FodIdLayout::HEADER_LENGTH,
+                $length,
+                $status->value
+            );
+        }
+        $type = IdType::fromFlags(ord($payload[FodIdLayout::FLAGS_OFFSET]));
+        return sprintf(
+            '51Did payload for the %s type must be at least %d bytes and %d '
+            . 'were given (%s).',
+            $type->name,
+            FodIdLayout::HEADER_LENGTH + self::matchKeyLength($type, $length),
+            $length,
+            $status->value
+        );
+    }
+
+    /** The identifier type carried in bits 6-7 of the flags byte. */
+    public function getType(): IdType
+    {
+        return IdType::fromFlags($this->flags);
+    }
+
+    /**
+     * The usage carried in bits 0-2 of the flags byte, as the highest
+     * usage granted. See {@see Usage} for why it is read that way.
+     */
+    public function getUsage(): Usage
+    {
+        return Usage::fromFlags($this->flags);
+    }
+
+    /**
+     * Whether the usage is indirect, being worked out by the issuer from a
+     * signal other than the caller stating it, rather than direct, being
+     * stated by the caller. Bit 3 of the flags byte.
+     *
+     * A consent string is the only indirect signal today, so today this is
+     * true only when the usage was derived from one. The bit records direct
+     * against indirect rather than consent strings as such, so a later
+     * signal of another kind sets it too. Both are legitimate ways to
+     * arrive at a usage, and this says nothing about which usage it is.
+     */
+    public function isUsageIndirect(): bool
+    {
+        return ($this->flags & self::USAGE_IS_INDIRECT_MASK) !== 0;
+    }
+
+    /**
+     * The 4-byte little-endian License Id field (0 to 4294967295).
+     *
+     * On an identifier carrying a creator context the four bytes at offset
+     * 1 hold an encrypted value that only 51Degrees can turn back into a
+     * licence identifier, so this is the field's raw value and identifies
+     * nothing outside 51Degrees.
+     */
+    public function getLicenseId(): int
+    {
+        return $this->licenseId;
+    }
+
+    /**
+     * The match key from the payload (a 32-byte SHA-256 for Probabilistic and
+     * HashedEmail identifiers, or 16 GUID bytes for Random) as a binary
+     * string. This is the stable, comparable part of the envelope. Two
+     * 51Dids for the same inputs share the same match key even though their
+     * envelopes (date, signature) differ on every issue, so use the match
+     * key as the cache and dedup key.
+     */
+    public function getMatchKey(): string
+    {
+        return $this->matchKey;
+    }
+
+    /**
+     * The address of the terms document this identifier was created under,
+     * read from the byte after the match key, or null where the identifier
+     * names no document this package knows.
+     *
+     * The byte is an index into a table in the specification and this
+     * package turns the index into the address, so a caller never handles
+     * the byte. The address is answered and never fetched, so what to do
+     * with the document is the caller's decision.
+     *
+     * Null covers both an index of zero, which says the terms are not
+     * stated in the identifier, and an index added to the table after this
+     * package was released, which it cannot name. A caller cannot tell
+     * those two apart, which is deliberate, because both lead to the same
+     * place, being that the identifier does not say which terms it was
+     * created under and the answer has to come from somewhere else. No
+     * address is ever built from an index, since that would name a
+     * document nobody wrote.
+     *
+     * No address does not mean the identifier is unrestricted. Where an
+     * identifier may go is a separate question the usage answers.
+     */
+    public function getTerms(): ?string
+    {
+        return Terms::fromIndex($this->termsIndex)->url();
+    }
+    /** The OWID version. */
+    public function getVersion(): Version
+    {
+        return $this->owid->version;
+    }
+
+    /** The domain of the OWID creator. */
+    public function getDomain(): string
+    {
+        return $this->owid->domain;
+    }
+
+    /** The OWID creation date. */
+    public function getDate(): DateTimeImmutable
+    {
+        return $this->owid->date;
+    }
+
+    /** The OWID payload bytes. */
+    public function getPayload(): string
+    {
+        return $this->owid->payload;
+    }
+
+    /** The 64-byte OWID signature. */
+    public function getSignature(): string
+    {
+        return $this->owid->signature;
+    }
+
+    /**
+     * Returns the OWID as a base64 string in the standard alphabet with
+     * padding, as the cloud issues it.
+     *
+     * @throws OwidException
+     */
+    public function asBase64(): string
+    {
+        return $this->owid->asBase64();
+    }
+
+    /**
+     * Returns the OWID as a base64 string in the URL-safe alphabet (`-` and
+     * `_`) without padding, so it can go in a URL without further encoding.
+     * {@see FodId::fromBase64()} and {@see FodId::tryFromBase64()} read this
+     * form back.
+     *
+     * @throws OwidException
+     */
+    public function asBase64Url(): string
+    {
+        return rtrim(strtr($this->owid->asBase64(), '+/', '-_'), '=');
+    }
+
+    /**
+     * Returns the OWID as a byte array including the signature.
+     *
+     * @throws OwidException
+     */
+    public function asByteArray(): string
+    {
+        return $this->owid->asByteArray();
+    }
+
+    /**
+     * Verifies the OWID signature against the supplied public key. This is
+     * an explicit, separate step, as reading never verifies. False means
+     * the signature does not match this key, and a key that cannot be read
+     * is raised rather than reported as a mismatch. Where the difference
+     * between the two changes what the caller does, use
+     * {@see FodId::signatureStatus()}.
+     *
+     * @throws OwidException when the PEM is not a valid public key.
+     */
+    public function verify(string $publicPem): bool
+    {
+        return $this->owid->verifyWithPublicKey($publicPem);
+    }
+
+    /**
+     * Says whether the signature is genuine for the public key given, and
+     * where the question could not be answered, says that instead of
+     * reporting a forgery. {@see SignatureStatus::SignatureInvalid} is the
+     * only answer that means the identifier should be distrusted, and a key
+     * that cannot be read is {@see SignatureStatus::InvalidKey}.
+     */
+    public function signatureStatus(string $publicPem): SignatureStatus
+    {
+        return $this->owid->signatureStatus($publicPem);
+    }
+}

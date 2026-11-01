@@ -1,0 +1,70 @@
+<?php
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+declare(strict_types=1);
+
+namespace fiftyone\pipeline\did;
+
+/**
+ * The outcome of one creator context factor, mapped from the value under
+ * that factor's name in the `factors` object the cloud sends on a mismatch
+ * or on a partly misconfigured result.
+ *
+ * Factor names are `transport`, `device`, `browserip`, `connectionip`,
+ * `asn`, `platformname`, `platformversion`, `browsername` and
+ * `browserversion`. Cloud release 4.4.38 split the earlier single
+ * `browser` factor into the last four, and no longer sends `browser`. A
+ * version mismatch beside a verified name means an upgrade, whilst a
+ * mismatched name means a different operating system or browser.
+ */
+enum FactorOutcome: string
+{
+    case Verified = 'verified';
+    case Mismatch = 'mismatch';
+
+    /**
+     * The service that checked the identifier is not configured to
+     * determine this factor, so it could not have checked it for any
+     * request. This is NOT a mismatch and must not be read as one, since
+     * the identifier says nothing about it either way.
+     */
+    case Misconfigured = 'misconfigured';
+
+    /**
+     * The service that created the identifier recorded no value for this
+     * factor, so the identifier says nothing about it and there was nothing
+     * to compare. This is neither a mismatch nor
+     * {@see FactorOutcome::Misconfigured}, which says the checking service
+     * could not determine the factor.
+     */
+    case NotRecorded = 'notrecorded';
+
+    /**
+     * Maps the cloud's factor string, answering
+     * {@see FactorOutcome::Mismatch} for anything not known (fail closed).
+     */
+    public static function fromCloud(?string $value): self
+    {
+        return self::tryFrom((string) $value) ?? self::Mismatch;
+    }
+}

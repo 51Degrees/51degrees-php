@@ -1,0 +1,3 @@
+[submodule "on-premise/device-detection-cxx"]
+	path = on-premise/device-detection-cxx
+	url=../device-detection-cxx

@@ -1,0 +1,9 @@
+vendor/
+composer.lock
+# Written by the CI scripts on a leg that leaves a package out.
+composer.leg.json
+composer.leg.lock
+# The CI scripts write test results under each package and gather them here,
+# and link the shared assets folder here for the on-premise benchmark.
+test-results/
+/assets

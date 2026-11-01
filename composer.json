@@ -1,0 +1,48 @@
+{
+    "name": "51degrees/php-monorepo-dev",
+    "type": "project",
+    "license": "EUPL-1.2",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories": [
+        { "type": "path", "url": "./pipeline-php-core", "options": { "symlink": true, "versions": { "51degrees/fiftyone.pipeline.core": "4.x-dev" } } },
+        { "type": "path", "url": "./pipeline-php-engines", "options": { "symlink": true, "versions": { "51degrees/fiftyone.pipeline.engines": "4.x-dev" } } },
+        { "type": "path", "url": "./pipeline-php-cloudrequestengine", "options": { "symlink": true, "versions": { "51degrees/fiftyone.pipeline.cloudrequestengine": "4.x-dev" } } },
+        { "type": "path", "url": "./pipeline-php-did", "options": { "symlink": true } },
+        { "type": "path", "url": "./pipeline-php-did/owid-php", "options": { "symlink": true } },
+        { "type": "path", "url": "./pipeline-php-translation", "options": { "symlink": true } },
+        { "type": "path", "url": "./device-detection-php", "options": { "symlink": true } },
+        { "type": "path", "url": "./location-php", "options": { "symlink": true } },
+        { "type": "path", "url": "./ip-intelligence-php", "options": { "symlink": true } }
+    ],
+    "require": {
+        "51degrees/fiftyone.pipeline.core": "@dev",
+        "51degrees/fiftyone.pipeline.engines": "@dev",
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "@dev",
+        "51degrees/fiftyone.pipeline.did": "@dev",
+        "51degrees/fiftyone.pipeline.translation": "@dev",
+        "51degrees/fiftyone.devicedetection": "@dev",
+        "51degrees/fiftyone.geolocation": "@dev",
+        "51degrees/fiftyone.ipintelligence": "@dev",
+        "phpunit/phpunit": "*"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "fiftyone\\pipeline\\core\\tests\\": "pipeline-php-core/tests/",
+            "fiftyone\\pipeline\\engines\\tests\\": "pipeline-php-engines/tests/",
+            "fiftyone\\pipeline\\cloudrequestengine\\tests\\": "pipeline-php-cloudrequestengine/tests/",
+            "fiftyone\\pipeline\\did\\tests\\": "pipeline-php-did/tests/",
+            "fiftyone\\pipeline\\translation\\tests\\": "pipeline-php-translation/tests/",
+            "fiftyone\\pipeline\\devicedetection\\tests\\": "device-detection-php/tests/",
+            "fiftyone\\pipeline\\devicedetection\\examples\\cloud\\classes\\": "device-detection-php/examples/cloud/classes",
+            "fiftyone\\pipeline\\geolocation\\tests\\": "location-php/tests/",
+            "fiftyone\\pipeline\\geolocation\\examples\\cloud\\classes\\": "location-php/examples/cloud/classes/",
+            "fiftyone\\pipeline\\ipintelligence\\tests\\": "ip-intelligence-php/tests/",
+            "fiftyone\\pipeline\\ipintelligence\\examples\\classes\\": "ip-intelligence-php/examples/classes/"
+        }
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10"
+    }
+}

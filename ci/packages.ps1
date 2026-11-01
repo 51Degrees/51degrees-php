@@ -1,0 +1,252 @@
+# Shared by the scripts in this folder, which dot-source it. Paths are
+# relative to the repository root.
+#
+# common-ci calls the scripts in this folder once for the whole repository,
+# from the root of its own checkout, with -RepoName set to the folder this
+# repository is cloned into. Most of them run the script of the same name in
+# each package's own ci folder, with -RepoName set to "<repository>/<package>".
+# The package scripts were written for the old repositories and are
+# published through the mirrors as they are, so they are run unchanged.
+#
+# Scripts that are the same in every package (setup-environment,
+# build-package-requirements, build-package, publish-package) are not run per
+# package. The root script calls common-ci once instead.
+#
+# Fields:
+#   Path     The package directory.
+#   Mirror   The old repository Packagist reads, now a read-only mirror of
+#            this directory, kept equal to it by .github/workflows/mirror.yml.
+#            $null for a package that has no mirror.
+#   Vendor   Where the package's tests get their dependencies.
+#            Root: from the root vendor folder, which the root composer.json
+#            fills through path repositories, so the tests run against the
+#            source of the other packages here and not against the copies on
+#            Packagist. build-project.ps1 gives the package a vendor/autoload.php
+#            that loads the root one, which is what its phpunit.xml bootstraps.
+#            The package's own build-project.ps1 and install-package.ps1 are
+#            not run, as they would run composer install in the package.
+#            Own: the package's own build-project.ps1 runs composer install in
+#            the package directory, so its tests use the versions on Packagist
+#            for the other 51Degrees packages. Used where the package is not in
+#            the root composer.json, or where its build script also compiles a
+#            native extension and cannot be split from its composer install.
+#   Ci       Whether the package has a ci folder to run scripts from.
+#   Assembled  The mirror's version tags go on a commit that
+#            .github/workflows/did-publish.yml assembles, not on the plain
+#            split that mirror.yml tags. The mirror's main is the plain split
+#            either way.
+#   Native   The package builds a PHP extension, which its scripts build
+#            with phpize, configure and make. Their old matrices never had a
+#            Windows image, so the package is skipped on Windows.
+#
+# A package is also skipped on a leg whose PHP is below the "php" constraint
+# in the package's composer.json. On such a leg it is left out of the root
+# composer install too, so the rest can install. For example, on PHP 7.4
+# pipeline-php-did (>=8.1), pipeline-php-translation, ip-intelligence-php and
+# device-detection-php-onpremise (>=8.0) are skipped.
+#
+# Per package:
+#   pipeline-php-core, -engines, -cloudrequestengine: Unit suite. Only
+#     cloudrequestengine has integration tests, which need TestResourceKey.
+#     No performance tests.
+#   pipeline-php-did: Unit suite with its own vendor/bin/phpunit, which here
+#     is the root one. Its Live suite is not run by its CI, and its tags are
+#     published by .github/workflows/did-publish.yml, because the published
+#     tree has the OWID source copied in.
+#   pipeline-php-translation: no tests, no ci folder and no mirror. Its code is
+#     tested through ip-intelligence-php, which requires it.
+#   device-detection-php: Unit suite without keys, Integration suite and the
+#     Selenium contract tests against the cloud example when TestResourceKey
+#     and the CSV file are present.
+#   device-detection-php-onpremise: Own. Not in the root composer.json, as it
+#     has the same package name as device-detection-php. Builds the native
+#     extension, needs the TAC data file for its tests, and is the only
+#     package with real performance tests. No mirror.
+#   location-php: Integration suite only, which needs TestResourceKey.
+#   ip-intelligence-php: Own, because its build-project.ps1 compiles the
+#     native extension and then runs composer install. No mirror yet.
+#
+# Own packages test against the Packagist releases of the pipeline packages,
+# so a change to pipeline-php-core reaches their tests only after it is
+# released. Moving them to Root needs their native build split from their
+# composer install.
+$Packages = @(
+    @{ Path = 'pipeline-php-core'; Mirror = 'pipeline-php-core'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline-php-engines'; Mirror = 'pipeline-php-engines'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline-php-cloudrequestengine'; Mirror = 'pipeline-php-cloudrequestengine'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline-php-did'; Mirror = 'pipeline-php-did'; Vendor = 'Root'; Ci = $true; Assembled = $true }
+    @{ Path = 'pipeline-php-translation'; Mirror = $null; Vendor = 'Root'; Ci = $false }
+    @{ Path = 'device-detection-php'; Mirror = 'device-detection-php'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'device-detection-php-onpremise'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
+    @{ Path = 'location-php'; Mirror = 'location-php'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'ip-intelligence-php'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
+)
+
+# The PHP version of this leg, read from the php on the PATH rather than from
+# the options, because the version the runner really has is what the
+# packages run on. $null when there is no php, as in the job that prefetches
+# assets, and then no package is skipped for its PHP version.
+function Get-PhpVersion {
+    if ($null -eq $script:PhpVersion) {
+        $script:PhpVersion = ''
+        if (Get-Command php -ErrorAction SilentlyContinue) {
+            $text = php -r 'echo PHP_VERSION;'
+            if ($text -match '^(\d+)\.(\d+)\.(\d+)') {
+                $script:PhpVersion = [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])"
+            }
+        }
+    }
+    return $script:PhpVersion ? $script:PhpVersion : $null
+}
+
+# Why the package cannot run on this leg, or $null when it can.
+#
+# Only a constraint of the form ">=X.Y" or ">=X.Y.Z" is understood, which is
+# what every package declares. Any other form throws rather than guessing, so
+# a package that adopts one fails loudly and this is extended then.
+function Get-SkipReason ([string]$RepoName, $Package) {
+    if ($Package.Native -and $IsWindows) {
+        return 'it builds a PHP extension, which is not built on Windows'
+    }
+    $composer = Join-Path $RepoName $Package.Path 'composer.json'
+    $constraint = (Get-Content -Raw $composer | ConvertFrom-Json).require.php
+    $php = Get-PhpVersion
+    if (-not $constraint -or -not $php) { return $null }
+    if ($constraint -notmatch '^>=\s*(\d+\.\d+(\.\d+)?)$') {
+        throw "$composer requires php '$constraint', and ci/packages.ps1 only understands '>=X.Y'"
+    }
+    if ($php -lt [version]$Matches[1]) {
+        return "it requires php $constraint and this leg has $php"
+    }
+    return $null
+}
+
+# The root composer install. On a leg where a package in the root
+# composer.json is skipped, it installs from composer.leg.json instead, which
+# is composer.json without that package in require. The path repositories
+# stay, so a package that is still installed and requires a skipped one still
+# resolves it.
+function Install-RootComposer ([string]$RepoName) {
+    $root = Get-Content -Raw (Join-Path $RepoName 'composer.json') | ConvertFrom-Json -AsHashtable
+    $inRoot = @($root.repositories | ForEach-Object { $_.url -replace '^\./', '' })
+    $left = @()
+    foreach ($package in $Packages) {
+        if ($package.Path -notin $inRoot) { continue }
+        $reason = Get-SkipReason $RepoName $package
+        if (-not $reason) { continue }
+        $name = (Get-Content -Raw (Join-Path $RepoName $package.Path 'composer.json') | ConvertFrom-Json).name
+        if ($root.require.ContainsKey($name)) {
+            $root.require.Remove($name)
+            $left += $package.Path
+            Write-Host "Leaving $($package.Path) out of the root composer install: $reason"
+        }
+    }
+    if (-not $left) {
+        ./php/build-project.ps1 -RepoName $RepoName
+        return
+    }
+    $root | ConvertTo-Json -Depth 20 | Set-Content (Join-Path $RepoName 'composer.leg.json')
+    $env:COMPOSER = 'composer.leg.json'
+    try {
+        ./php/build-project.ps1 -RepoName $RepoName
+    } finally {
+        Remove-Item env:COMPOSER
+    }
+}
+
+$RootAutoloadMarker = 'Loads the root autoloader'
+
+# Gives each Root package a vendor folder whose autoload.php and bin/phpunit
+# load the root ones. A link to the root vendor folder would be shorter, but
+# the device-detection-php Selenium step runs composer install in its package,
+# and through a link that would replace the root install for every package
+# tested after it. A folder holding only these two files is replaced by a full
+# install and leaves the root alone.
+function Set-RootAutoload ([string]$RepoName) {
+    foreach ($package in $Packages | Where-Object { $_.Vendor -eq 'Root' -and $_.Ci }) {
+        if (Get-SkipReason $RepoName $package) { continue }
+        $vendor = Join-Path $RepoName $package.Path 'vendor'
+        $autoload = Join-Path $vendor 'autoload.php'
+        if ((Test-Path $vendor) -and -not ((Test-Path $autoload) -and
+            (Select-String -Quiet -SimpleMatch $RootAutoloadMarker $autoload))) {
+            throw "$vendor is a composer install of its own. Remove it, or the tests of $($package.Path) use it instead of the packages in this repository."
+        }
+        New-Item -ItemType Directory -Force -Path (Join-Path $vendor 'bin') | Out-Null
+        "<?php`n// $RootAutoloadMarker, written by ci/build-project.ps1.`nreturn require __DIR__ . '/../../vendor/autoload.php';`n" |
+            Set-Content -NoNewline $autoload
+        "<?php`n// $RootAutoloadMarker, written by ci/build-project.ps1.`nrequire __DIR__ . '/../../../vendor/bin/phpunit';`n" |
+            Set-Content -NoNewline (Join-Path $vendor 'bin' 'phpunit')
+    }
+}
+
+# Runs ci/<Script>.ps1 of each package that has it, with -RepoName set to the
+# package directory and any of $Parameters the script accepts, the way
+# common-ci's steps/run-script.ps1 does. Every package runs even when one
+# fails, so one run shows all the failures, and this throws at the end.
+#
+# The package scripts write their test results under the package directory.
+# common-ci collects them from <repository>/test-results, so they are moved
+# there after each script.
+function Invoke-PackageScript {
+    param (
+        [Parameter(Mandatory)][string]$RepoName,
+        [Parameter(Mandatory)][string]$Script,
+        [hashtable]$Parameters = @{},
+        [string]$Vendor
+    )
+    $failed = @()
+    foreach ($package in $Packages) {
+        if ($Vendor -and $package.Vendor -ne $Vendor) { continue }
+        $reason = Get-SkipReason $RepoName $package
+        if ($reason) {
+            Write-Host "Skipping $($package.Path) for $Script, because $reason"
+            continue
+        }
+        $path = Join-Path $RepoName $package.Path 'ci' "$Script.ps1"
+        if (-not (Test-Path $path)) {
+            Write-Host "$($package.Path) has no ci/$Script.ps1, skipping"
+            continue
+        }
+        $path = (Resolve-Path $path).Path
+        $accepted = (Get-Command $path).Parameters
+        $arguments = @{}
+        foreach ($parameter in $Parameters.GetEnumerator()) {
+            if ($accepted.ContainsKey($parameter.Key) -and $null -ne $parameter.Value) {
+                $arguments[$parameter.Key] = $parameter.Value
+            }
+        }
+        if ($accepted.ContainsKey('RepoName')) {
+            $arguments.RepoName = "$RepoName/$($package.Path)"
+        }
+
+        Write-Host "::group::$($package.Path): $Script"
+        try {
+            $global:LASTEXITCODE = 0
+            & $path @arguments
+            if ($LASTEXITCODE -ne 0) {
+                throw "exited with code $LASTEXITCODE"
+            }
+        } catch {
+            Write-Host "::error title=$Script failed::$($package.Path): $_"
+            $failed += $package.Path
+        } finally {
+            Move-TestResults -RepoName $RepoName -Package $package.Path
+            Write-Host "::endgroup::"
+        }
+    }
+    if ($failed) {
+        throw "$Script failed for $($failed -join ', ')"
+    }
+}
+
+function Move-TestResults ([string]$RepoName, [string]$Package) {
+    $from = Join-Path $RepoName $Package 'test-results'
+    if (-not (Test-Path $from)) { return }
+    $from = (Resolve-Path $from).Path
+    $to = Join-Path $RepoName 'test-results'
+    foreach ($file in Get-ChildItem -Recurse -File $from) {
+        $target = Join-Path $to ([IO.Path]::GetRelativePath($from, $file.FullName))
+        New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+        Move-Item -Force $file.FullName $target
+    }
+}

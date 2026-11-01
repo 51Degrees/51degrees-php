@@ -1,0 +1,46 @@
+{
+    "name": "51degrees/fiftyone.pipeline.translation",
+    "description": "Generic translation engine for the 51Degrees Pipeline API. Translates upstream property values (plain, list or weighted-list) using locale keyed translation maps, resolving the locale from request evidence.",
+    "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=pipeline-php-translation&utm_content=composer.json&utm_term=homepage",
+    "keywords":
+    [
+        "51degrees",
+        "pipeline",
+        "translation",
+        "localization"
+    ],
+    "authors":
+    [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2",
+    "type": "library",
+    "require":
+    {
+        "php": ">=8.0",
+        "51degrees/fiftyone.pipeline.core": "4.*",
+        "51degrees/fiftyone.pipeline.engines": "4.*"
+    },
+    "require-dev":
+    {
+        "phpunit/phpunit": "*",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\translation\\": "src/"
+        }
+    },
+    "autoload-dev":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\translation\\tests\\": "tests/"
+        }
+    }
+}

@@ -56,8 +56,12 @@
  *   FIFTYONE_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
  */
 
-const CHILDREN = 4;     // forked workers that all share the inherited handles
+const CHILDREN = 8;     // forked workers that all share the inherited handles
 const ITERATIONS = 40;  // passes over the User-Agent list per worker
+// The streaming corruption is a race between the workers. On a runner with
+// few cores one round sometimes passes without a collision, so the streaming
+// round is repeated until corruption is seen, up to this many times.
+const STREAMING_ROUNDS = 6;
 const CRASH_WEIGHT = 250; // a worker killed by a signal is the strongest possible corruption signal
 
 function fail(string $message, int $code = 2): void
@@ -239,10 +243,15 @@ echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterat
 // --- Streaming (non in-memory) profile: expected to be unsafe across a fork ---
 $streaming = buildEngine($dataFile, 'Balanced');
 $streamingHandles = openDataFileHandles($dataFile);
-$streamingCorruption = runForkedWorkers($streaming, $userAgents);
+$streamingCorruption = 0;
+$streamingRounds = 0;
+while ($streamingCorruption < 1 && $streamingRounds < STREAMING_ROUNDS) {
+    $streamingCorruption += runForkedWorkers($streaming, $userAgents);
+    $streamingRounds++;
+}
 echo "Streaming (Balanced):\n";
 echo '  open data-file handles: ' . handlesLabel($streamingHandles) . "\n";
-echo "  corruption events across fork: {$streamingCorruption}\n\n";
+echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s))\n\n";
 unset($streaming);
 gc_collect_cycles();
 
@@ -267,7 +276,7 @@ if ($inMemoryHandles > 0) {
 }
 // The corruption checks work on every platform and are the core proof.
 if ($streamingCorruption < 1) {
-    $failures[] = 'expected the streaming profile to corrupt under fork, but no corruption was observed';
+    $failures[] = 'expected the streaming profile to corrupt under fork, but no corruption was observed in ' . STREAMING_ROUNDS . ' rounds';
 }
 if ($inMemoryCorruption !== 0) {
     $failures[] = "expected the in-memory profile to be fork-safe, but observed {$inMemoryCorruption} corruption events";

@@ -147,6 +147,40 @@ class IpIntelligenceOnPremiseTests extends TestCase
         }
     }
 
+    /**
+     * An IPv4-mapped IPv6 address is the IPv4 address it carries: it is
+     * reported as Ip, IpV6 has no value, and every property reads the same
+     * as for the plain IPv4 address.
+     */
+    public function testMappedAddressGivesTheIpv4Answers(): void
+    {
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'MaxPerformance'
+        ]))->build();
+
+        $plain = $pipeline->createFlowData();
+        $plain->evidence->set('query.client-ip', '8.8.8.8');
+        $expected = $plain->process()->ip;
+
+        foreach (['::ffff:8.8.8.8', '::FFFF:8.8.8.8', '::ffff:808:808', '0:0:0:0:0:ffff:808:808'] as $form) {
+            $flowData = $pipeline->createFlowData();
+            $flowData->evidence->set('query.client-ip', $form);
+            $actual = $flowData->process()->ip;
+
+            $this->assertTrue($actual->ip->hasValue, $form);
+            $this->assertSame('8.8.8.8', $actual->ip->value, $form);
+            $this->assertFalse($actual->ipv6->hasValue, $form);
+
+            foreach (array_keys($pipeline->getElement('ip')->getProperties()) as $key) {
+                if ($key === 'ip' || $key === 'ipv6') {
+                    continue;
+                }
+                $this->assertEquals($expected->get($key), $actual->get($key), "$form: $key");
+            }
+        }
+    }
+
     public function testInvalidPerformanceProfileRejected(): void
     {
         $this->expectException(\Exception::class);

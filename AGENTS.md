@@ -2,23 +2,23 @@
 
 ## Directories
 
-- `pipeline-php-core`: `51degrees/fiftyone.pipeline.core`
-- `pipeline-php-engines`: `51degrees/fiftyone.pipeline.engines`
-- `pipeline-php-cloudrequestengine`: `51degrees/fiftyone.pipeline.cloudrequestengine`
-- `pipeline-php-did`: `51degrees/fiftyone.pipeline.did`
-- `pipeline-php-translation`: `51degrees/fiftyone.pipeline.translation`
-- `device-detection-php`: `51degrees/fiftyone.devicedetection`
-- `device-detection-php-onpremise`: `51degrees/fiftyone.devicedetection` (same name, path repository only)
-- `location-php`: `51degrees/fiftyone.geolocation`
-- `ip-intelligence-php`: `51degrees/fiftyone.ipintelligence`
+- `pipeline/core`: `51degrees/fiftyone.pipeline.core`
+- `pipeline/engines`: `51degrees/fiftyone.pipeline.engines`
+- `pipeline/cloudrequestengine`: `51degrees/fiftyone.pipeline.cloudrequestengine`
+- `pipeline/did`: `51degrees/fiftyone.pipeline.did`
+- `pipeline/translation`: `51degrees/fiftyone.pipeline.translation`
+- `device-detection/cloud`: `51degrees/fiftyone.devicedetection`
+- `device-detection/onpremise`: `51degrees/fiftyone.devicedetection` (same name, path repository only)
+- `location`: `51degrees/fiftyone.geolocation`
+- `ip-intelligence`: `51degrees/fiftyone.ipintelligence`
 - `cxx`: submodule with the C and C++ code and the data files that the two
   on-premise extensions build from and test with.
 
 ## Dependency order
 
-core -> engines -> cloudrequestengine -> device-detection-php, location-php, ip-intelligence-php.
-ip-intelligence-php also requires translation.
-translation and device-detection-php-onpremise require core and engines.
+core -> engines -> cloudrequestengine -> device-detection/cloud, location, ip-intelligence.
+ip-intelligence also requires translation.
+translation and device-detection/onpremise require core and engines.
 did requires no other 51Degrees package.
 The `require` section of each package `composer.json` is the source of truth.
 
@@ -36,13 +36,16 @@ The `require` section of each package `composer.json` is the source of truth.
 ```bash
 git submodule update --init --recursive
 composer install
-cd <directory>
-../vendor/bin/phpunit --bootstrap ../vendor/autoload.php --testsuite Unit
+cd pipeline/core
+../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit
 ```
 
-Check the suite names in the package's `phpunit.xml`. `location-php` has
-only `Integration`. `pipeline-php-translation` has `Translation`.
-`device-detection-php-onpremise` is not in the root `composer.json`, so the
+`location` and `ip-intelligence` sit one level higher, so there the root
+`vendor` is `../vendor`.
+
+Check the suite names in the package's `phpunit.xml`. `location` has
+only `Integration`. `pipeline/translation` has `Translation`.
+`device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 
 ## CI
@@ -63,7 +66,7 @@ use that copy.
 The repository has one version, tagged as a plain version such as `4.5.203`,
 and every package is released with it. `ci/get-next-package-version.ps1`
 moves only the patch number. `mirror.yml` puts the tag on every mirror, and
-`did-publish.yml` on the `pipeline-php-did` mirror.
+`did-publish.yml` on the mirror of `pipeline/did`.
 
 ## More
 

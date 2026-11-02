@@ -6,13 +6,13 @@ param (
 Push-Location $RepoName/on-premise
 try {
     # PHP names each object after the path of its source, so the C sources
-    # must sit under on-premise rather than be listed as ../../cxx. They are
+    # must sit under on-premise rather than be listed as ../../../cxx. They are
     # copied, not linked: a link would put this extension's objects in the
     # shared cxx folder, where the other extension, which builds common with
     # different defines, would pick them up.
     Remove-Item -Recurse -Force cxx -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force -Path cxx | Out-Null
-    Copy-Item -Recurse -Path "$PSScriptRoot/../../cxx/src" -Destination cxx/src -ErrorAction Stop
+    Copy-Item -Recurse -Path "$PSScriptRoot/../../../cxx/src" -Destination cxx/src -ErrorAction Stop
 
     phpize || $(throw "phpize failed")
     ./configure || $(throw "configure failed")

@@ -28,7 +28,7 @@
     [
         {
             "type": "path",
-            "url": "../pipeline-php-translation",
+            "url": "../pipeline/translation",
             "options": { "symlink": true }
         }
     ],

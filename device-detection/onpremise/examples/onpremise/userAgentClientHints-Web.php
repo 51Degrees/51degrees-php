@@ -108,7 +108,7 @@ $device = $flowData->device;
 // requested. So set whatever headers are required by the browser in
 // order to return the evidence needed by the pipeline.
 // More info on this can be found at
-// https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=top
+// https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=top
 Utils::setResponseHeader($flowData);
 
 // Determine whether the free 'Lite' data file is in use so that the
@@ -197,8 +197,8 @@ $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('
 
     <?php if ($showContactUs) { ?>
     <div class="c-eg-message">
-      <p class="c-eg-message__text">The paid data file adds daily automatic updates, non-human identification and IP intelligence. <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=paid-data-file">Contact us</a> to explore the options.</p>
-      <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=paid-data-file">Contact us</a>
+      <p class="c-eg-message__text">The paid data file adds daily automatic updates, non-human identification and IP intelligence. <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=paid-data-file">Contact us</a> to explore the options.</p>
+      <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=paid-data-file">Contact us</a>
     </div>
     <?php } ?>
 </div>

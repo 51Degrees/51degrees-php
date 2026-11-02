@@ -32,7 +32,7 @@
  * The resource key is used as short-hand to store the particular set of
  * properties you are interested in as well as any associated license keys
  * that entitle you to increased request limits and/or paid-for properties.
- * You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-gettingstarted.php&utm_term=header).
+ * You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=header).
  * 
  * This example uses the 'Country' property, which is pre-populated 
  * when creating a key using the link above.
@@ -65,7 +65,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
     $message .= '"' . Constants::RESOURCE_KEY_ENV_VAR . '"' . '<br/>';
     $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-gettingstarted.php&utm_term=resource-key-required' . '<br/>';
+    $message .= 'at https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=resource-key-required' . '<br/>';
     $message .= 'Once complete, populate the environment variable ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
     echo $message;
@@ -79,7 +79,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
 // * The location provider: "digitalelement" or "fiftyonedegrees" 
 // (If digital element is used, you will need a resource key that allows you 
 // access to the appropriate property. You can do this via the following
-// link https://configure.51degrees.com/QMWqcX9n?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-gettingstarted.php&utm_term=top)
+// link https://configure.51degrees.com/QMWqcX9n?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=top)
 $settings = array(
     "resourceKey" => $resourceKey,
     "locationProvider" => "fiftyonedegrees"

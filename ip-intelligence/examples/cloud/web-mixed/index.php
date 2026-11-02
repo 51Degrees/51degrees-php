@@ -249,10 +249,10 @@ foreach ($evidence as $k => $v) {
 
         <h3 class="c-eg-page__heading">Find out more</h3>
         <ul>
-            <li><a href="https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-device-detection">Device detection</a></li>
-            <li><a href="https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-ip-intelligence">IP intelligence</a></li>
-            <li><a href="https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-resource-keys">Resource keys</a></li>
-            <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-pricing">Pricing</a></li>
+            <li><a href="https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-device-detection">Device detection</a></li>
+            <li><a href="https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-ip-intelligence">IP intelligence</a></li>
+            <li><a href="https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-resource-keys">Resource keys</a></li>
+            <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-pricing">Pricing</a></li>
             <li>IP intelligence engine: <a href="https://github.com/51Degrees/ip-intelligence-cxx">https://github.com/51Degrees/ip-intelligence-cxx</a></li>
             <li>Device detection for PHP: <a href="https://github.com/51Degrees/device-detection-php">https://github.com/51Degrees/device-detection-php</a></li>
         </ul>

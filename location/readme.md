@@ -1,8 +1,8 @@
 # 51Degrees Geo-Location Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=location-php&utm_content=readme.md&utm_term=51degrees-geo-location-engines "Data rewards the curious") **Pipeline API**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-geo-location-engines "Data rewards the curious") **Pipeline API**
 
-[Developer Documentation](https://51degrees.com/location-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=location-php&utm_content=readme.md&utm_term=51degrees-geo-location-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/location-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-geo-location-engines "developer documentation")
 
 ## Introduction
 
@@ -31,7 +31,7 @@ Make sure to select the latest version from [Composer.][composer]
 #### Configuration Options
 
  - String ``type`` - The name of the type of geolocation service to use.
- - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=location-php&utm_content=readme.md&utm_term=configuration-options).
+ - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=configuration-options).
  - Array ``restrictedProperties`` - The properties to populate values for in the result (all are populated by default).
 
 ## Examples
@@ -69,5 +69,5 @@ To run the tests, then call:
 
 For complete documentation on the Pipeline API and associated engines, see the [51Degrees documentation site][Documentation].
 
-[Documentation]: https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=location-php&utm_content=readme.md&utm_term=project-documentation
+[Documentation]: https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=project-documentation
 [composer]: https://packagist.org/packages/51degrees/fiftyone.geolocation

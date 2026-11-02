@@ -1,6 +1,6 @@
 # 51Degrees IP Intelligence Engines (PHP)
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=ip-intelligence-php&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious")
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious")
 
 **IP Intelligence in PHP**: Identify the country, region, network, and approximate
 location associated with an IP address, either via the 51Degrees cloud service or
@@ -25,7 +25,7 @@ and [ip-intelligence-dotnet](https://github.com/51Degrees/ip-intelligence-dotnet
 
 - PHP 8.0 or above with the `curl`, `json` and `mbstring` extensions.
 - For **cloud** operation: a 51Degrees resource key, obtained from
-  [configure.51degrees.com](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=ip-intelligence-php&utm_content=readme.md&utm_term=cloud), authorised for IP
+  [configure.51degrees.com](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=cloud), authorised for IP
   intelligence (`ip.*`) properties.
 - For **on-premise** operation: the native `FiftyOneDegreesIpIntelligenceEngine`
   extension (built from the `cxx` submodule at the root of the repository via SWIG) and

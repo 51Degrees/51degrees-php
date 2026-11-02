@@ -34,7 +34,7 @@ $params = array(
 
 if ($params["resourceKey"] === "!!YOUR_RESOURCE_KEY!!") {
     $this->fail("You need to create a resource key at " .
-    "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-index.php&utm_term=resource-key-required and paste it into the " .
+    "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-index.php&utm_term=resource-key-required and paste it into the " .
     "phpunit.xml config file, " .
     "replacing !!YOUR_RESOURCE_KEY!!.");
 }

@@ -1,0 +1,28 @@
+name: Pull Requests
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        type: boolean
+        default: false
+
+jobs:
+  PullRequests:
+    name: Pull Requests
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      cache-assets: true
+      # The on-premise packages compile native extensions and load
+      # multi-gigabyte data files, and every package runs in each leg.
+      build-test-timeout-minutes: 300
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
+      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
+      CsvUrl: ${{ secrets.CSV_URL }}
+      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}

@@ -1,0 +1,23 @@
+name: Nightly Package Update
+
+# common-ci runs ci/update-packages.ps1 once for the whole repository. That
+# runs the update script of each package that has one, which today means the
+# javascript-templates refresh of pipeline/core.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        type: boolean
+        default: false
+
+jobs:
+  PackageUpdate:
+    name: Nightly Package Update
+    uses: 51Degrees/common-ci/.github/workflows/nightly-package-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}

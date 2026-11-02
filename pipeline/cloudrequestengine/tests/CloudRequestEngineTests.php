@@ -26,6 +26,8 @@ namespace fiftyone\pipeline\cloudrequestengine\tests;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\Constants;
 use fiftyone\pipeline\core\PipelineBuilder;
+use PHPUnit\Framework\Attributes\After;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class CloudRequestEngineTests extends CloudRequestEngineTestsBase
 {
@@ -140,6 +142,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
      * @param mixed $type
      * @param mixed $expectedValue
      */
+    #[DataProvider('provider_testGetSelectedEvidence')]
     public function testGetSelectedEvidence($evidence, $type, $expectedValue)
     {
         $httpClient = $this->mockHttp();
@@ -190,6 +193,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
      * @param mixed $evidence
      * @param mixed $expectedValue
      */
+    #[DataProvider('provider_testGetContent_nowarning')]
     public function testGetContent_nowarning($evidence, $expectedValue)
     {
         $httpClient = $this->mockHttp();
@@ -254,6 +258,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
      * @param mixed $evidence
      * @param mixed $expectedValue
      */
+    #[DataProvider('provider_testGetContent_warnings')]
     public function testGetContent_warnings($evidence, $expectedValue)
     {
         $httpClient = $this->mockHttp();
@@ -317,6 +322,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
      * @param mixed $evidence
      * @param mixed $expectedValue
      */
+    #[DataProvider('provider_testGetContent_case_insensitive')]
     public function testGetContent_case_insensitive($evidence, $expectedValue)
     {
         $httpClient = $this->mockHttp();
@@ -437,6 +443,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     /**
      * @after
      */
+    #[After]
     protected function tearDowniCloudEndPoint()
     {
         $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL));

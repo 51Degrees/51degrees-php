@@ -42,44 +42,44 @@
 # A package is also skipped on a leg whose PHP is below the "php" constraint
 # in the package's composer.json. On such a leg it is left out of the root
 # composer install too, so the rest can install. For example, on PHP 7.4
-# pipeline-php-did (>=8.1), pipeline-php-translation, ip-intelligence-php and
-# device-detection-php-onpremise (>=8.0) are skipped.
+# pipeline/did (>=8.1), pipeline/translation, ip-intelligence and
+# device-detection/onpremise (>=8.0) are skipped.
 #
 # Per package:
-#   pipeline-php-core, -engines, -cloudrequestengine: Unit suite. Only
+#   pipeline/core, engines and cloudrequestengine: Unit suite. Only
 #     cloudrequestengine has integration tests, which need TestResourceKey.
 #     No performance tests.
-#   pipeline-php-did: Unit suite with its own vendor/bin/phpunit, which here
+#   pipeline/did: Unit suite with its own vendor/bin/phpunit, which here
 #     is the root one. Its Live suite is not run by its CI, and its tags are
 #     published by .github/workflows/did-publish.yml, because the published
 #     tree has the OWID source copied in.
-#   pipeline-php-translation: no tests, no ci folder and no mirror. Its code is
-#     tested through ip-intelligence-php, which requires it.
-#   device-detection-php: Unit suite without keys, Integration suite and the
+#   pipeline/translation: no tests, no ci folder and no mirror. Its code is
+#     tested through ip-intelligence, which requires it.
+#   device-detection/cloud: Unit suite without keys, Integration suite and the
 #     Selenium contract tests against the cloud example when TestResourceKey
 #     and the CSV file are present.
-#   device-detection-php-onpremise: Own. Not in the root composer.json, as it
-#     has the same package name as device-detection-php. Builds the native
+#   device-detection/onpremise: Own. Not in the root composer.json, as it
+#     has the same package name as device-detection/cloud. Builds the native
 #     extension, needs the TAC data file for its tests, and is the only
 #     package with real performance tests. No mirror.
-#   location-php: Integration suite only, which needs TestResourceKey.
-#   ip-intelligence-php: Own, because its build-project.ps1 compiles the
+#   location: Integration suite only, which needs TestResourceKey.
+#   ip-intelligence: Own, because its build-project.ps1 compiles the
 #     native extension and then runs composer install. No mirror yet.
 #
 # Own packages test against the Packagist releases of the pipeline packages,
-# so a change to pipeline-php-core reaches their tests only after it is
+# so a change to pipeline/core reaches their tests only after it is
 # released. Moving them to Root needs their native build split from their
 # composer install.
 $Packages = @(
-    @{ Path = 'pipeline-php-core'; Mirror = 'pipeline-php-core'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'pipeline-php-engines'; Mirror = 'pipeline-php-engines'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'pipeline-php-cloudrequestengine'; Mirror = 'pipeline-php-cloudrequestengine'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'pipeline-php-did'; Mirror = 'pipeline-php-did'; Vendor = 'Root'; Ci = $true; Assembled = $true }
-    @{ Path = 'pipeline-php-translation'; Mirror = $null; Vendor = 'Root'; Ci = $false }
-    @{ Path = 'device-detection-php'; Mirror = 'device-detection-php'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'device-detection-php-onpremise'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
-    @{ Path = 'location-php'; Mirror = 'location-php'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'ip-intelligence-php'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
+    @{ Path = 'pipeline/core'; Mirror = 'pipeline-php-core'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline/engines'; Mirror = 'pipeline-php-engines'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline/cloudrequestengine'; Mirror = 'pipeline-php-cloudrequestengine'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline/did'; Mirror = 'pipeline-php-did'; Vendor = 'Root'; Ci = $true; Assembled = $true }
+    @{ Path = 'pipeline/translation'; Mirror = $null; Vendor = 'Root'; Ci = $false }
+    @{ Path = 'device-detection/cloud'; Mirror = 'device-detection-php'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'device-detection/onpremise'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
+    @{ Path = 'location'; Mirror = 'location-php'; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'ip-intelligence'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
 )
 
 # The PHP version of this leg, read from the php on the PATH rather than from
@@ -158,7 +158,7 @@ $RootAutoloadMarker = 'Loads the root autoloader'
 
 # Gives each Root package a vendor folder whose autoload.php and bin/phpunit
 # load the root ones. A link to the root vendor folder would be shorter, but
-# the device-detection-php Selenium step runs composer install in its package,
+# the device-detection/cloud Selenium step runs composer install in its package,
 # and through a link that would replace the root install for every package
 # tested after it. A folder holding only these two files is replaced by a full
 # install and leaves the root alone.
@@ -172,9 +172,12 @@ function Set-RootAutoload ([string]$RepoName) {
             throw "$vendor is a composer install of its own. Remove it, or the tests of $($package.Path) use it instead of the packages in this repository."
         }
         New-Item -ItemType Directory -Force -Path (Join-Path $vendor 'bin') | Out-Null
-        "<?php`n// $RootAutoloadMarker, written by ci/build-project.ps1.`nreturn require __DIR__ . '/../../vendor/autoload.php';`n" |
+        # The package sits one or two folders below the root, so the way up
+        # from its vendor folder depends on its path.
+        $up = '../' * ($package.Path.Split('/').Count + 1)
+        "<?php`n// $RootAutoloadMarker, written by ci/build-project.ps1.`nreturn require __DIR__ . '/$($up)vendor/autoload.php';`n" |
             Set-Content -NoNewline $autoload
-        "<?php`n// $RootAutoloadMarker, written by ci/build-project.ps1.`nrequire __DIR__ . '/../../../vendor/bin/phpunit';`n" |
+        "<?php`n// $RootAutoloadMarker, written by ci/build-project.ps1.`nrequire __DIR__ . '/$($up)../vendor/bin/phpunit';`n" |
             Set-Content -NoNewline (Join-Path $vendor 'bin' 'phpunit')
     }
 }

@@ -16,24 +16,28 @@
  * Mirrors ip-intelligence-dotnet-examples Cloud/Mixed/GettingStarted-Web: one
  * cloud pipeline (a single CloudRequestEngine) feeds both the device detection
  * and IP intelligence cloud engines, rendered with the 51Degrees template.
+ * The built-in PHP server sends every request for a path that is not a file
+ * to this script, so it also serves the client-side script at
+ * /51Degrees.core.js and answers that script's callback at /json.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
 
+use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\devicedetection\DeviceDetectionPipelineBuilder;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceCloud;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 
 $ip = isset($_GET['client-ip']) && $_GET['client-ip'] !== '' ? trim((string) $_GET['client-ip']) : '8.8.8.8';
-$userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 $resourceKey = ExampleUtils::getResourceKey();
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 $error = null;
 $dd = [];
 $ipi = [];
-$evidence = ['header.user-agent' => $userAgent, 'query.client-ip' => $ip];
+$evidence = [];
 
 function apvStr($data, string $key): string
 {
@@ -56,13 +60,42 @@ if (!$resourceKey) {
     $error = 'No resource key configured. Set the resource_key environment variable before starting the server. It must be authorised for both device detection and IP intelligence.';
 } else {
     try {
-        $builder = new DeviceDetectionPipelineBuilder(['resourceKey' => $resourceKey]);
+        $builder = new DeviceDetectionPipelineBuilder([
+            'resourceKey' => $resourceKey,
+            'javascriptBuilderSettings' => [
+                // The client-side script posts the evidence it gathers here.
+                'endpoint' => '/json',
+                // Store the client-side results as cookies, so that later
+                // requests carry them to server-side detection.
+                'enableCookies' => true,
+            ],
+        ]);
         $builder->add(new IpIntelligenceCloud());
         $pipeline = $builder->build();
 
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->setArray($evidence);
+        // Headers, cookies, the query string and the form fields the
+        // client-side script posts. The address to look up is query
+        // evidence, which the cloud request prefers to the address the
+        // request came from.
+        $flowData->evidence->setFromWebRequest();
+        $flowData->evidence->set('query.client-ip', $ip);
         $result = $flowData->process();
+
+        // Ask the browser for the User-Agent Client Hints detection uses.
+        Utils::setResponseHeader($flowData);
+
+        if ($path === '/51Degrees.core.js') {
+            header('Content-Type: application/x-javascript');
+            echo $flowData->javascriptbuilder->javascript;
+            exit;
+        }
+
+        if ($path === '/json') {
+            header('Content-Type: application/json');
+            echo json_encode($flowData->jsonbundler->json);
+            exit;
+        }
 
         $device = $result->device;
         $dd = [
@@ -96,12 +129,21 @@ if (!$resourceKey) {
             'Accuracy Radius' => apvStr($ipData, 'accuracyradiusmin'),
             'Time Zone Offset' => apvStr($ipData, 'timezoneoffset'),
         ];
+
+        $evidence = $flowData->evidence->getAll();
     } catch (\Throwable $e) {
         // The cloud request engine puts the request URL, which carries the
         // resource key, in its error text - so never render it.
         error_log('IP intelligence example failed: ' . $e->getMessage());
         $error = 'The lookup could not be completed. See the server log for details.';
     }
+}
+
+// The script and its callback answer a failed lookup with an error status,
+// not with the page.
+if ($path === '/51Degrees.core.js' || $path === '/json') {
+    http_response_code(500);
+    exit;
 }
 
 function h(?string $s): string
@@ -127,6 +169,8 @@ $evidenceRows = '';
 $ei = 0;
 foreach ($evidence as $k => $v) {
     $alt = ($ei % 2 === 0) ? ' c-eg-table__row--alt' : '';
+    // Evidence values are not all strings, for example query.sequence.
+    $v = is_scalar($v) ? (string) $v : (string) json_encode($v);
     $evidenceRows .= '<tr class="c-eg-table__row' . $alt . '"><td class="c-eg-table__cell c-eg-table__cell--key">' . h($k) . '</td><td class="c-eg-table__cell">' . h($v) . '</td></tr>';
     ++$ei;
 }
@@ -202,6 +246,30 @@ foreach ($evidence as $k => $v) {
             </details>
         </div>
         <?php endif; ?>
+
+        <h3 class="c-eg-page__heading">Find out more</h3>
+        <ul>
+            <li><a href="https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-device-detection">Device detection</a></li>
+            <li><a href="https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-ip-intelligence">IP intelligence</a></li>
+            <li><a href="https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-resource-keys">Resource keys</a></li>
+            <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-pricing">Pricing</a></li>
+            <li>IP intelligence engine: <a href="https://github.com/51Degrees/ip-intelligence-cxx">https://github.com/51Degrees/ip-intelligence-cxx</a></li>
+            <li>Device detection for PHP: <a href="https://github.com/51Degrees/device-detection-php">https://github.com/51Degrees/device-detection-php</a></li>
+        </ul>
     </div>
+
+    <!--
+        51Degrees.core.js carries the results as JSON, gathers evidence in the
+        browser, posts it to /json and raises the 'complete' event with the
+        refined results. The shared helper in js/examples.min.js subscribes to
+        that event and appends a table of the client-side results to #content.
+    -->
+    <script src="/51Degrees.core.js"></script>
+    <script src="js/examples.min.js"></script>
+    <script>
+        window.onload = function () {
+            fodExamples.bindDeviceCallback({ targetId: "content" });
+        };
+    </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 [submodule "cxx"]
 	path = cxx
 	url = ../51degrees-cxx
-[submodule "pipeline-php-did/owid-php"]
-	path = pipeline-php-did/owid-php
+[submodule "pipeline/did/owid-php"]
+	path = pipeline/did/owid-php
 	url = https://github.com/SWAN-community/owid-php.git

@@ -62,7 +62,7 @@ so copy them there from the `cxx` submodule at the root of the repository first.
 `ci/build-project.ps1` does the same. Navigate to the `on-premise` directory and install it with:
 
 ``` bash
-mkdir -p cxx && cp -R ../../cxx/src cxx/
+mkdir -p cxx && cp -R ../../../cxx/src cxx/
 phpize
 ./configure
 make

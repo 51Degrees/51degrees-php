@@ -1,7 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [string]$ProjectDir = ".",
     [string]$OrgName = "51Degrees",
     [string]$TranslationRepoName = "pipeline-php-translation"
 )
@@ -34,10 +33,10 @@ extension = "$PWD/$RepoName/on-premise/modules/FiftyOneDegreesIpIntelligenceEngi
 "@ | Out-File $RepoName/php.ini
 
 # composer.json resolves 51degrees/fiftyone.pipeline.translation through a path
-# repository pointing at a sibling checkout, and nothing else provides it.
-# The path is relative to this package, so it finds the sibling folder both in
-# a standalone checkout and in the monorepo.
-$translationPath = "$RepoName/../$TranslationRepoName"
+# repository pointing at pipeline/translation beside this package, and nothing
+# else provides it. A standalone checkout has no such folder, so the
+# translation repository is cloned there.
+$translationPath = "$RepoName/../pipeline/translation"
 if (-not (Test-Path $translationPath)) {
     Write-Output "Cloning $OrgName/$TranslationRepoName (translation base package)"
     git clone --depth 1 "https://github.com/$OrgName/$TranslationRepoName" $translationPath || $(throw "failed to clone $OrgName/$TranslationRepoName")

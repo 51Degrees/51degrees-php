@@ -1,7 +1,7 @@
 {
     "name": "51degrees/fiftyone.pipeline.translation",
     "description": "Generic translation engine for the 51Degrees Pipeline API. Translates upstream property values (plain, list or weighted-list) using locale keyed translation maps, resolving the locale from request evidence.",
-    "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=pipeline-php-translation&utm_content=composer.json&utm_term=homepage",
+    "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=composer.json&utm_term=homepage",
     "keywords":
     [
         "51degrees",

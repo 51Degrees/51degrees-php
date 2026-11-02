@@ -1,8 +1,8 @@
 # 51Degrees PHP Pipeline Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=pipeline-php-engines&utm_content=readme.md&utm_term=51degrees-php-pipeline-engines "Data rewards the curious") **PHP Pipeline API**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-pipeline-engines "Data rewards the curious") **PHP Pipeline API**
 
-[Developer Documentation](https://51degrees.com/pipeline-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=pipeline-php-engines&utm_content=readme.md&utm_term=51degrees-php-pipeline-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/pipeline-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-pipeline-engines "developer documentation")
 
 ## Introduction
 This project contains the source code for the 'engines' functionality for the PHP implementation of the 51Degrees Pipeline API.

@@ -38,7 +38,7 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
             from the
             <a href="https://github.com/51Degrees/device-detection-data">device-detection-data</a>
             repository on GitHub. Find out about the Enterprise data file, which includes automatic
-            daily updates, on our <a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-static-page.php&utm_term=data-file-age-warning">pricing page</a>.
+            daily updates, on our <a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=data-file-age-warning">pricing page</a>.
         </div>
     <?php } ?>
 
@@ -209,8 +209,8 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
     <?php $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('device')) === 'Lite'; ?>
     <?php if ($showContactUs) { ?>
         <?php $output('<div class="c-eg-message">'); ?>
-        <?php $output('  <p class="c-eg-message__text">The paid data file adds daily automatic updates, non-human identification and IP intelligence. <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-static-page.php&utm_term=paid-data-file">Contact us</a> to explore the options.</p>'); ?>
-        <?php $output('  <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-static-page.php&utm_term=paid-data-file">Contact us</a>'); ?>
+        <?php $output('  <p class="c-eg-message__text">The paid data file adds daily automatic updates, non-human identification and IP intelligence. <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=paid-data-file">Contact us</a> to explore the options.</p>'); ?>
+        <?php $output('  <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=paid-data-file">Contact us</a>'); ?>
         <?php $output('</div>'); ?>
     <?php } ?>
 
@@ -220,8 +220,8 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
             <li>This example: https://github.com/51Degrees/device-detection-php-onpremise</li>
             <li>The device detection engine: https://github.com/51Degrees/device-detection-cxx</li>
             <li>The free Lite data file: https://github.com/51Degrees/device-detection-data</li>
-            <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-pricing">Data files and pricing</a></li>
-            <li><a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=device-detection-php-onpremise&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-contact">Contact us</a></li>
+            <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-pricing">Data files and pricing</a></li>
+            <li><a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-contact">Contact us</a></li>
         </ul>
     </div>
 </div>

@@ -36,7 +36,7 @@
  * The resource key is used as short-hand to store the particular set of
  * properties you are interested in as well as any associated license keys
  * that entitle you to increased request limits and/or paid-for properties.
- * You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-combiningservices.php&utm_term=header).
+ * You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=header).
  * 
  * This example uses the 'Country' and 'IsMobile' properties, which are
  * pre-populated when creating a key using the link above.
@@ -72,7 +72,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
     $message .= '"' . Constants::RESOURCE_KEY_ENV_VAR . '"' . '<br/>';
     $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://configure.51degrees.com/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-combiningservices.php&utm_term=resource-key-required' . '<br/>';
+    $message .= 'at https://configure.51degrees.com/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=resource-key-required' . '<br/>';
     $message .= 'Once complete, populate the environment variable ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
     echo $message;

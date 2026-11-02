@@ -47,7 +47,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
     $message .= '"' . Constants::RESOURCE_KEY_ENV_VAR . '"' . '<br/>';
     $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://configure.51degrees.com/v399y42f?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-webintegration.php&utm_term=resource-key-required' . '<br/>';
+    $message .= 'at https://configure.51degrees.com/v399y42f?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-webintegration.php&utm_term=resource-key-required' . '<br/>';
     $message .= 'Once complete, populate the environment variable ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
     $message .= "Make sure to include the Country, State, County, Town and ";

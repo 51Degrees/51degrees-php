@@ -31,7 +31,7 @@
 * The resource key is used as short-hand to store the particular set of
 * properties you are interested in as well as any associated license keys
 * that entitle you to increased request limits and/or paid-for properties.
-* You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-configurefromfile.php&utm_term=header). 
+* You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-configurefromfile.php&utm_term=header). 
 * 
 * This example uses the 'Country' property, which is pre-populated 
 * when creating a key using the link above.
@@ -83,7 +83,7 @@ $configFileJSON = json_decode(file_get_contents($configFile), true);
 $resourceKey = $configFileJSON["PipelineOptions"]["Elements"][0]["BuildParameters"]["resourceKey"];
 if (substr($resourceKey, 0, 2) === "!!") {
     echo "You need to create a resource key at " .
-    "https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=location-php&utm_content=examples-cloud-configurefromfile.php&utm_term=resource-key-required and paste it into " . 
+    "https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-configurefromfile.php&utm_term=resource-key-required and paste it into " . 
     "your config file, replacing !!YOUR_RESOURCE_KEY!!.";
     return;
 }

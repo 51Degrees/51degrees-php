@@ -21,7 +21,7 @@ use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleCloud;
 $resourceKey = ExampleUtils::getResourceKey(array_slice($argv, 1));
 
 if (!$resourceKey) {
-    fwrite(STDERR, "A resource key is required. Supply it as the first argument or via the resource_key environment variable. Obtain one from https://configure.51degrees.com/?utm_source=github&utm_medium=example&utm_campaign=ip-intelligence-php&utm_content=metadata-console.php&utm_term=resource-key\n");
+    fwrite(STDERR, "A resource key is required. Supply it as the first argument or via the resource_key environment variable. Obtain one from https://configure.51degrees.com/?utm_source=github&utm_medium=example&utm_campaign=51degrees-php&utm_content=metadata-console.php&utm_term=resource-key\n");
     exit(1);
 }
 

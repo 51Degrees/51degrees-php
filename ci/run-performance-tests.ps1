@@ -11,10 +11,18 @@ $ErrorActionPreference = 'Stop'
 
 # device-detection/onpremise reads its user agents from ../assets, relative
 # to its own folder. That is the shared assets folder when the package is the
-# repository, and the folder beside the packages here, so link it there.
-$assets = Join-Path $RepoName 'assets'
-if ((Test-Path assets) -and -not (Test-Path $assets)) {
-    New-Item -ItemType SymbolicLink -Path $assets -Target (Resolve-Path assets).Path | Out-Null
+# repository. Here it is the folder beside the package, device-detection, so
+# the shared folder is linked there, and beside the root for the packages
+# that sit directly under it.
+if (Test-Path assets) {
+    $target = (Resolve-Path assets).Path
+    $parents = @('') + @($Packages | ForEach-Object { Split-Path $_.Path -Parent } | Where-Object { $_ })
+    foreach ($parent in $parents | Sort-Object -Unique) {
+        $assets = Join-Path $RepoName $parent 'assets'
+        if (-not (Test-Path $assets)) {
+            New-Item -ItemType SymbolicLink -Path $assets -Target $target | Out-Null
+        }
+    }
 }
 
 # Only device-detection/onpremise measures anything. It writes

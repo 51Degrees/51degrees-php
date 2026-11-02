@@ -445,9 +445,18 @@ class IpIntelligenceTranslationTests extends TestCase
     {
         $comparer = static function (string $a, string $b): int {
             $normalize = static function (string $s): string {
-                $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+                // Drop the accents and keep everything else, so a hyphen or
+                // an apostrophe still counts as the collator counts it.
+                // iconv is not used for this: on macOS it writes an accent
+                // as a mark in front of the letter, "Osterreich with a quote.
+                if (class_exists(\Normalizer::class)) {
+                    $t = preg_replace('/\p{Mn}/u', '', \Normalizer::normalize($s, \Normalizer::FORM_D));
+                    $t = strtr($t, ['ß' => 'ss', 'æ' => 'ae', 'Æ' => 'AE', 'ø' => 'o', 'Ø' => 'O', 'đ' => 'd', 'Đ' => 'D']);
+                } else {
+                    $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+                }
 
-                return strtolower($t === false ? $s : $t);
+                return mb_strtolower($t === false || $t === null ? $s : $t);
             };
 
             return strcmp($normalize($a), $normalize($b));

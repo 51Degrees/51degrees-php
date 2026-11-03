@@ -299,8 +299,22 @@ class IpIntelligenceOnPremise extends Engine
      */
     private function getClientIps(FlowData $flowData): array
     {
-        $evidence = $flowData->evidence->getAll();
+        return self::clientIpsFromEvidence($flowData->evidence->getAll());
+    }
 
+    /**
+     * Picks the first IPv4 and the first IPv6 address out of the evidence,
+     * query.client-ip and server.client-ip first.
+     *
+     * An IPv4-mapped IPv6 address such as ::ffff:8.8.8.8 counts as the IPv4
+     * address it carries, so it is reported as Ip and looked up as 8.8.8.8.
+     * See the Address forms section of the IP Intelligence specification.
+     *
+     * @param array<string, mixed> $evidence
+     * @return array{0: ?string, 1: ?string} [ipv4, ipv6]
+     */
+    private static function clientIpsFromEvidence(array $evidence): array
+    {
         $ordered = [];
         foreach (['query.client-ip', 'server.client-ip'] as $key) {
             if (isset($evidence[$key])) {
@@ -317,14 +331,39 @@ class IpIntelligenceOnPremise extends Engine
         $ipv6 = null;
         foreach ($ordered as $value) {
             $candidate = trim((string) $value);
-            if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false && $ipv4 === null) {
-                $ipv4 = $candidate;
-            } elseif (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false && $ipv6 === null) {
-                $ipv6 = $candidate;
+            if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+                $ipv4 ??= $candidate;
+            } elseif (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+                $mapped = self::ipv4MappedAddress($candidate);
+                if ($mapped !== null) {
+                    $ipv4 ??= $mapped;
+                } else {
+                    $ipv6 ??= $candidate;
+                }
             }
         }
 
         return [$ipv4, $ipv6];
+    }
+
+    /**
+     * The IPv4 address inside an IPv4-mapped IPv6 address, or null when the
+     * address is not one. PHP has no call for this, so the 16 bytes are
+     * checked by hand: ten zero bytes, two 0xff bytes, then the IPv4 address
+     * (RFC 4291 section 2.5.5.2). The deprecated ::a.b.c.d form and the
+     * 64:ff9b::/96 translation prefix are not mapped addresses and stay IPv6.
+     */
+    private static function ipv4MappedAddress(string $ipv6): ?string
+    {
+        $bytes = inet_pton($ipv6);
+        if ($bytes === false || strlen($bytes) !== 16) {
+            return null;
+        }
+        if (substr($bytes, 0, 12) !== "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff") {
+            return null;
+        }
+        $ipv4 = inet_ntop(substr($bytes, 12));
+        return $ipv4 === false ? null : $ipv4;
     }
 
     /**

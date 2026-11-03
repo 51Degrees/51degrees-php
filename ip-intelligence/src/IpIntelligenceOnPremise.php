@@ -43,8 +43,8 @@ use fiftyone\pipeline\engines\Engine;
  * It wraps the native IpIntelligenceEngineModule produced by SWIG from
  * 51degrees-cxx.
  *
- * Mirrors device-detection-php-onpremise's DeviceDetectionOnPremise and
- * ip-intelligence-python's IpIntelligenceOnPremise.
+ * Mirrors DeviceDetectionOnPremise in device-detection/onpremise and
+ * IpIntelligenceOnPremise in 51degrees-python.
  */
 class IpIntelligenceOnPremise extends Engine
 {

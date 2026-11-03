@@ -27,7 +27,7 @@ namespace fiftyone\pipeline\ipintelligence\tests\classes;
 
 /**
  * Shared constants and canned cloud responses used by the IP intelligence
- * tests. The fixtures mirror the equivalent ones in ip-intelligence-python
+ * tests. The fixtures mirror the equivalent ones in 51degrees-python
  * so that the PHP cloud engine is exercised against the same JSON shapes.
  */
 class Constants

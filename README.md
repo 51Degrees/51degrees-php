@@ -1,9 +1,30 @@
-# 51Degrees PHP
+# 51Degrees Device Detection and IP Intelligence for PHP
 
-This repository holds the source of all 51Degrees PHP packages for the
-Pipeline API. The packages are grouped by product: `pipeline`,
+<img src=".github/images/logo.png" alt="51Degrees" title="Data rewards the curious" width="160">
+
+Our User-Agent parser for PHP supports Device Detection, browser detection, mobile detection, and crawler detection on-premise or in the cloud. IP Intelligence adds IP geolocation, including IP to country data.
+
+It reads User-Agent and User-Agent Client Hints, HTTP request headers that carry browser and device information. For cloud bot detection, Human Confidence reports confidence that a person is viewing the page.
+
+## Install
+
+Install the development workspace below. The directory map explains the separate Composer packages and mirrors.
+
+```bash
+git clone --recurse-submodules https://github.com/51Degrees/51degrees-php.git
+cd 51degrees-php
+composer install
+```
+
+Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install). For cloud use, [create a Resource Key](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install).
+
+Created from `pipeline-php-core`, `pipeline-php-engines`, `pipeline-php-cloudrequestengine`, `pipeline-php-did`, `device-detection-php`, `device-detection-php-onpremise`, and `location-php`, this repository continues their work.
+
+The folder table and product guides below show where to find usage examples and how to build and test the source.
+
+Our PHP packages use the Pipeline API, which combines data services in one processing flow. The packages are grouped by product: `pipeline`,
 `device-detection`, `location` and `ip-intelligence`. Each package keeps its
-own `composer.json`, `readme.md` and licence, and is still published to
+own `composer.json`, `readme.md` and license, and is still published to
 Composer as a separate package.
 
 ## Directory map
@@ -16,9 +37,9 @@ Composer as a separate package.
 | [pipeline/did](pipeline/did) | `51degrees/fiftyone.pipeline.did` | pipeline-php-did | Strongly typed reader for the 51Did (51Degrees Identifier) returned by the 51Degrees Cloud service, and a client for the cloud's 51Did endpoints. |
 | [pipeline/translation](pipeline/translation) | `51degrees/fiftyone.pipeline.translation` | None | Generic translation engine for the 51Degrees Pipeline API. |
 | [device-detection/cloud](device-detection/cloud) | `51degrees/fiftyone.devicedetection` | device-detection-php | Device detection engines for the 51Degrees Pipeline API. Identify devices, operating systems, browsers, and crawlers from HTTP headers. |
-| [device-detection/onpremise](device-detection/onpremise) | `51degrees/fiftyone.devicedetection` | None | On-premise device detection engines for PHP built for the 51Degrees Pipeline API. Parse HTTP headers locally. |
+| [device-detection/onpremise](device-detection/onpremise) | `51degrees/fiftyone.devicedetection` | None | On-premise Device Detection engines for PHP built for the 51Degrees Pipeline API. Parse HTTP headers locally. |
 | [location](location) | `51degrees/fiftyone.geolocation` | location-php | Geolocation engines for 51Degrees Pipeline API. Perform reverse geocoding using longitude and latitude to populate postal addresses. |
-| [ip-intelligence](ip-intelligence) | `51degrees/fiftyone.ipintelligence` | None yet | IP intelligence engines for the 51Degrees Pipeline API. Identify the country, region, network and approximate location of an IP address, via the cloud service or on-premise with a local data file. |
+| [ip-intelligence](ip-intelligence) | `51degrees/fiftyone.ipintelligence` | None yet | IP Intelligence engines for the 51Degrees Pipeline API. Identify the country, region, network and approximate location of an IP address, via the cloud service or on-premise with a local data file. |
 
 `device-detection/onpremise` uses the same package name as
 `device-detection/cloud`. It is not on Packagist. Projects use it through a
@@ -117,7 +138,7 @@ Each package's `phpunit.xml` names its test suites. Some packages differ:
 - `device-detection/onpremise` is not in the root `composer.json`. The
   root autoloader maps its namespace to `device-detection/cloud`.
 
-The tests that use the cloud need a resource key. See each package's readme
+The tests that use the cloud need a Resource Key. See each package's readme
 for the keys and data files its tests use.
 
 ## Building the on-premise extensions
@@ -159,11 +180,32 @@ Put monorepo glue in root files only, for example the root `composer.json`.
 
 ## History
 
+The PHP repositories listed below continue as package mirrors where shown in the directory map.
+
+| Earlier repository | What it held |
+| --- | --- |
+| [pipeline-php-core](https://github.com/51Degrees/pipeline-php-core) | The Pipeline API core |
+| [pipeline-php-engines](https://github.com/51Degrees/pipeline-php-engines) | Pipeline engines |
+| [pipeline-php-cloudrequestengine](https://github.com/51Degrees/pipeline-php-cloudrequestengine) | The cloud request engine |
+| [pipeline-php-did](https://github.com/51Degrees/pipeline-php-did) | 51Did |
+| [device-detection-php](https://github.com/51Degrees/device-detection-php) | Device Detection |
+| [device-detection-php-onpremise](https://github.com/51Degrees/device-detection-php-onpremise) | On-premise Device Detection |
+| [location-php](https://github.com/51Degrees/location-php) | Location |
+
+
 The old repositories were brought in with `git subtree add`, without
 `--squash`, so commit SHAs match the originals. Use `git log --follow` to trace
 a file back through the import.
 
-## Licence
+## License
 
 The packages are licensed under the European Union Public Licence 1.2
 (EUPL-1.2). Each package directory has its own `LICENSE` file.
+
+## Find out more
+
+- [Device Detection](https://51degrees.com/device-detection?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=find-out-more)
+- [IP Intelligence](https://51degrees.com/ip-intelligence?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=find-out-more)
+- [Bots and humans](https://51degrees.com/bots-and-humans?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=find-out-more)
+- [Documentation](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=find-out-more)
+- https://github.com/51Degrees/51degrees-cxx

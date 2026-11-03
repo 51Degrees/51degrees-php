@@ -1,6 +1,6 @@
 {
     "name": "51degrees/fiftyone.ipintelligence",
-    "description": "IP Intelligence and IP geolocation for PHP, built on the 51Degrees Pipeline API. Finds an IP address's likely location (country, region, town, and coordinates), connection type, and network, using the 51Degrees cloud service or a data file on your server.",
+    "description": "IP Intelligence and IP geolocation for PHP, built on the 51Degrees Pipeline API. Finds an IP address's likely location (country, region, town, and coordinates), connection type, and network, using the 51Degrees cloud service or a data file on your server. An alternative to MaxMind and IPinfo.",
     "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=composer.json&utm_term=homepage",
     "keywords":
     [
@@ -15,7 +15,9 @@
         "ip-intelligence",
         "ip-geolocation",
         "ip-lookup",
-        "ip-to-country"
+        "ip-to-country",
+        "maxmind",
+        "ipinfo"
     ],
     "authors":
     [

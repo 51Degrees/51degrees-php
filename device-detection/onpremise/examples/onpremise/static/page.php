@@ -217,8 +217,8 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
     <div id="find-out-more">
         <h3 class="c-eg-page__heading">Find out more</h3>
         <ul>
-            <li>This example: https://github.com/51Degrees/device-detection-php-onpremise</li>
-            <li>The device detection engine: https://github.com/51Degrees/device-detection-cxx</li>
+            <li>This example: https://github.com/51Degrees/51degrees-php/tree/main/device-detection/onpremise</li>
+            <li>The device detection engine: https://github.com/51Degrees/51degrees-cxx</li>
             <li>The free Lite data file: https://github.com/51Degrees/device-detection-data</li>
             <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-pricing">Data files and pricing</a></li>
             <li><a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-contact">Contact us</a></li>

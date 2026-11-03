@@ -1,8 +1,8 @@
 # CI scripts
 
 These scripts mirror the CI used by
-[device-detection-php-onpremise](https://github.com/51Degrees/device-detection-php-onpremise)
-and [device-detection-php](https://github.com/51Degrees/device-detection-php). They
+[device-detection-php-onpremise](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/onpremise)
+and [device-detection-php](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud). They
 delegate to the shared `common-ci` PHP steps (checked out under `php/` in CI).
 
 **Every script `common-ci` names must exist, even when it has nothing to do.**

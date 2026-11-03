@@ -7,9 +7,9 @@ location associated with an IP address, either via the 51Degrees cloud service o
 on-premise using a local data file.
 
 This package is built on the
-[51Degrees Pipeline API](https://github.com/51Degrees/pipeline-php-core) and mirrors
-the structure of [device-detection-php](https://github.com/51Degrees/device-detection-php)
-and [ip-intelligence-dotnet](https://github.com/51Degrees/ip-intelligence-dotnet).
+[51Degrees Pipeline API](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/core) and mirrors
+the structure of [device-detection-php](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud)
+and [ip-intelligence-dotnet](https://github.com/51Degrees/51degrees-dotnet/tree/main/ip-intelligence).
 
 ## Contents
 
@@ -95,7 +95,7 @@ The on-premise engine requires the native extension. See
 ## Mixed
 
 IP intelligence can be combined with
-[device detection](https://github.com/51Degrees/device-detection-php) in a single
+[device detection](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud) in a single
 pipeline. See `examples/cloud/mixed/` and `examples/onpremise/mixed/`.
 
 ## Examples

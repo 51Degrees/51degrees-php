@@ -7,9 +7,8 @@ on:
         default: false
         type: boolean
         description: Dry Run
-  # Off until this repository takes over from the separate PHP repositories it replaces.
-  # schedule:
-  #   - cron: '0 0 1 * *'
+  schedule:
+    - cron: '0 0 1 * *'
 
 jobs:
   Monthly_Copyright_Update:

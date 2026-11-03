@@ -14,9 +14,8 @@ on:
         description: 'Publish even though the version moves the major or minor place'
         type: boolean
         default: false
-  # Off until this repository takes over from the separate PHP repositories it replaces.
-  # schedule:
-  #   - cron: '0 1 * * *'
+  schedule:
+    - cron: '0 1 * * *'
 
 jobs:
   SubmoduleUpdate:

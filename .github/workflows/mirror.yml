@@ -126,7 +126,9 @@ jobs:
             echo "::error::tag $version is not on main"
             exit 1
           }
-          highest=$(git tag --list | grep -E "$pattern" | grep -vxF "$version" | sort -V | tail -1)
+          # The run shell has -e, so a grep with no match must not end the
+          # step: on the first release there is no other version tag.
+          highest=$(git tag --list | { grep -E "$pattern" || true; } | { grep -vxF "$version" || true; } | sort -V | tail -1)
           if [ -n "$highest" ] && [ "$(printf '%s\n' "$highest" "$version" | sort -V | tail -1)" != "$version" ]; then
             echo "::error::$version is not above $highest, the highest other version tag here"
             exit 1
@@ -173,7 +175,7 @@ jobs:
               fi
               continue
             fi
-            top=$(awk '{ print $2 }' <<< "$refs" | sed -e 's|^refs/tags/||' -e 's|\^{}$||' | grep -E "$pattern" | sort -V | tail -1)
+            top=$(awk '{ print $2 }' <<< "$refs" | sed -e 's|^refs/tags/||' -e 's|\^{}$||' | { grep -E "$pattern" || true; } | sort -V | tail -1)
             if [ -n "$top" ] && [ "$(printf '%s\n' "$top" "$version" | sort -V | tail -1)" != "$version" ]; then
               echo "::error::$version is below $top, the highest version on $mirror"
               failed=1

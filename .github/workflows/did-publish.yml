@@ -45,6 +45,8 @@ concurrency:
 
 env:
   PACKAGE_DIR: pipeline/did
+  # The old repository that Packagist reads, which is not the directory name.
+  MIRROR_REPO: pipeline-php-did
 
 jobs:
   Publish:
@@ -110,12 +112,12 @@ jobs:
             echo "::error::tag $VERSION is not on main"
             exit 1
           }
-          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${PACKAGE_DIR}.git"
+          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${MIRROR_REPO}.git"
           pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
           top=$(git ls-remote --tags "$mirror" | awk '{ print $2 }' |
             sed -e 's|^refs/tags/||' -e 's|\^{}$||' | { grep -E "$pattern" || true; } | sort -V | tail -1)
           if [ -n "$top" ] && [ "$(printf '%s\n' "$top" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]; then
-            echo "::error::$VERSION is below $top, the highest version on $PACKAGE_DIR"
+            echo "::error::$VERSION is below $top, the highest version on $MIRROR_REPO"
             exit 1
           fi
 
@@ -211,15 +213,15 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${PACKAGE_DIR}.git"
+          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${MIRROR_REPO}.git"
           if git ls-remote --exit-code --tags "$mirror" "refs/tags/$VERSION" > /dev/null; then
             git fetch --no-tags "$mirror" "refs/tags/$VERSION"
             published="$(git rev-parse 'FETCH_HEAD^{tree}')"
             if [ "$published" = "$TREE" ]; then
-              echo "$PACKAGE_DIR already has $VERSION with this tree"
+              echo "$MIRROR_REPO already has $VERSION with this tree"
               exit 0
             fi
-            echo "::error::$PACKAGE_DIR already has $VERSION with tree $published, not $TREE. A published version is never moved."
+            echo "::error::$MIRROR_REPO already has $VERSION with tree $published, not $TREE. A published version is never moved."
             exit 1
           fi
           git push "$mirror" "refs/tags/$VERSION"

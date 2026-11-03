@@ -26,7 +26,7 @@
  * This example shows how a simple location pipeline can be built
  * that looks up an address from longitude and latitude
  *
- * This example is available in full on [GitHub](https://github.com/51Degrees/location-php/blob/main/examples/cloud/gettingstarted.php).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/location/examples/cloud/gettingstarted.php).
  *
  * To run this example, you will need to create a **resource key**.
  * The resource key is used as short-hand to store the particular set of

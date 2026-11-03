@@ -25,7 +25,7 @@
  *
  * @include{doc} example-web-integration-location.txt
  *
- * This example is available in full on [GitHub](https://github.com/51Degrees/location-php/blob/main/examples/cloud/webIntegration.php).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/location/examples/cloud/webIntegration.php).
  *
  * @include{doc} example-require-resourcekey.txt
 */

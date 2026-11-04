@@ -30,6 +30,11 @@ The `require` section of each package `composer.json` is the source of truth.
 2. After a change in a package, run that package's unit tests with the root
    autoloader. After a change in core, engines or cloudrequestengine, also
    run the tests of every package that depends on it.
+3. Pull requests go to `rc`, not `main`, and stay drafts until they have
+   been reviewed, because the nightly merges any pull request into `rc` that
+   is not a draft and has no review requested. When a release is wanted, one
+   pull request merges `rc` into `main`, and the "Only rc into main" check
+   fails a pull request into `main` from any other branch.
 
 ## Running tests
 

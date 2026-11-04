@@ -174,6 +174,9 @@ each is built and tested.
 Open issues and pull requests in this repository only. Do not open them on the
 mirrors.
 
+Pull requests go to the `rc` branch, not `main`. When a release is wanted, one
+pull request merges `rc` into `main`.
+
 Do not edit a package's `composer.json` or `ci/` directory to make the
 monorepo work. CI publishes each package directory to its mirror as it is.
 Put monorepo glue in root files only, for example the root `composer.json`.

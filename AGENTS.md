@@ -22,8 +22,7 @@ use the Linux commands below.
 
 ### Prerequisites
 
-- Git, and [Git LFS](https://git-lfs.github.com/) for the Device Detection
-  data file.
+- Git.
 - PHP 8.0 or later, which the two on-premise packages require, with
   `phpize` and `php-config`, and [Composer](https://getcomposer.org/). CI
   tests PHP 8.0 to 8.5 on Linux and 8.1 to 8.5 on macOS (`ci/options.json`).
@@ -32,8 +31,9 @@ use the Linux commands below.
   and `device-detection/onpremise/readme.md` adds `libatomic1`.
 - SWIG 4.1 or later for IP Intelligence, which generates its wrapper when it
   builds. On macOS, CI installs it with `brew install swig`.
-- For the IP Intelligence data file, PowerShell 7 (`pwsh`), or `curl`,
-  `gunzip` and `md5sum` (`md5` on macOS) for the shell script.
+- For the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS), which the
+  data repository's shell script needs, and network access to
+  `distributor.51degrees.com`.
 
 Clone the repository with its submodules.
 
@@ -50,67 +50,25 @@ git submodule update --init --recursive
 
 ### Data files
 
-The examples use the free Lite data files, which need no licence key. They
-come from the `cxx` submodule, and two layouts exist. Read the "Getting the
-code" section of `README.md` in your checkout to find out which one applies.
-
-- **The README says to run `git lfs pull`.** This is the layout on `rc` and
-  `main` today. The files are in `cxx/device-detection-data` and
-  `cxx/ip-intelligence-data`. Follow "Without cxx/data".
-- **The README says to run `cxx/data/get-data-files.sh`.** The draft pull
-  request [#23](https://github.com/51Degrees/51degrees-php/pull/23) moves the
-  examples to the [data](https://github.com/51Degrees/data) repository, which
-  cxx carries as `cxx/data`. Once it is merged, follow "With cxx/data".
-
-Go by the README rather than by whether `cxx/data` exists, because the folder
-can arrive with a newer `cxx` before the examples here read it.
-
-#### Without cxx/data
-
-The Device Detection Lite file is stored with Git LFS. Install Git LFS, for
-example with `sudo apt-get install git-lfs` on Ubuntu, then pull the file in
-its submodule.
-
-```bash
-git lfs install
-cd cxx/device-detection-data
-git lfs pull
-cd ../..
-```
-
-A script in `cxx/ip-intelligence-data` downloads the IP Intelligence Lite
-file. Run it from inside that folder, because it saves the file in the folder
-it runs from.
-
-```bash
-cd cxx/ip-intelligence-data
-./get-lite-file-from-azure.sh
-cd ../..
-```
-
-`pwsh ./get-lite-file-from-azure.ps1` does the same. Either script also
-downloads the Asn file over the copy committed in the submodule, so
-`git status` then shows the submodule as modified, which is expected.
-
-#### With cxx/data
+The examples use the free Lite data files, which need no licence key. They are
+not stored in this repository. The `cxx` submodule holds the
+[data](https://github.com/51Degrees/data) repository as `cxx/data`, which has a
+link to each file, and a script downloads them into `cxx/data/device-detection`
+and `cxx/data/ip-intelligence`. Download the two Lite files.
 
 ```bash
 sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
 ```
 
-The script downloads the two Lite files into `cxx/data/device-detection` and
-`cxx/data/ip-intelligence`, and keeps a file that is already there.
+The script keeps a file that is already there, and with no names it downloads
+every free file. The Device Detection engine reads its file when PHP starts and
+never downloads it, so download it first. The IP Intelligence example downloads
+the Lite file itself when it finds no data file.
 
 #### Check the files
 
-- `cxx/device-detection-data/51Degrees-LiteV4.1.hash` is more than 10 MB. A
-  file of about 130 bytes that starts with
-  `version https://git-lfs.github.com/spec/v1` is a Git LFS pointer, which
-  means Git LFS has not pulled the file.
-- `cxx/ip-intelligence-data/51Degrees-LiteV41.ipi` is more than 100 MB.
-
-With `cxx/data`, the same files are in `cxx/data/device-detection` and
-`cxx/data/ip-intelligence`. Use those paths in the steps below.
+- `cxx/data/device-detection/51Degrees-LiteV4.1.hash` is more than 10 MB.
+- `cxx/data/ip-intelligence/51Degrees-LiteV41.ipi` is more than 100 MB.
 
 ### Device Detection
 
@@ -135,7 +93,7 @@ dependencies, as CI does for this package.
 ```bash
 cat > php.ini <<EOF
 extension = "$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so"
-FiftyOneDegreesHashEngine.data_file = "$PWD/../../cxx/device-detection-data/51Degrees-LiteV4.1.hash"
+FiftyOneDegreesHashEngine.data_file = "$PWD/../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 FiftyOneDegreesHashEngine.allow_unmatched = false
 EOF
 composer install
@@ -170,19 +128,24 @@ Load the extension with `-d`, as `ip-intelligence/OnPremise.md` shows, and
 give the Lite file as the first argument.
 
 ```bash
-php -d extension="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" examples/onpremise/gettingstarted-console.php "$PWD/../cxx/ip-intelligence-data/51Degrees-LiteV41.ipi"
+php -d extension="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" examples/onpremise/gettingstarted-console.php "$PWD/../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
 cd ..
 ```
 
-Give the path, because without one the example searches
-`ip-intelligence/assets` and then `cxx/ip-intelligence-data` for the names in
-`IPI_DATA_FILE_NAMES` in `examples/classes/ExampleConstants.php`. The Lite
-file's name, `51Degrees-LiteV41.ipi`, is not one of them, and the Asn file
-committed in `cxx/ip-intelligence-data` is, so the example would use the Asn
-file. The `IPINTELLIGENCEDATAFILE` environment variable can name the file
-instead.
+The example uses the argument when that file is there. Otherwise it takes the
+file the `IPINTELLIGENCEDATAFILE` environment variable names, then any `.ipi`
+file in `ip-intelligence/assets`, then a file in `cxx/data/ip-intelligence`
+with a name in `IPI_DATA_FILE_NAMES` in `examples/classes/ExampleConstants.php`.
+When it finds none, it downloads the Lite file into `cxx/data/ip-intelligence`
+(`getDataFile` in `examples/classes/ExampleUtils.php`).
 
 ### Correct output
+
+When the IP Intelligence example downloads its data file, it first writes two
+lines to standard error, being
+`51Degrees-LiteV41.ipi is missing, so it is being downloaded by running` and
+the command. The script's `Downloading` and `Saved` lines follow when the
+download ends.
 
 The Device Detection example processes three sets of evidence. For each it
 prints `Input values:` and the evidence, then `Results:` with `Mobile Device`,
@@ -244,24 +207,19 @@ its first argument or from `resource_key`, after a `composer install` in
   with `PHP_INI_SCAN_DIR` as above, and keep the data file where `php.ini`
   says. Without its `-d extension=...`, the IP Intelligence example stops
   with `The FiftyOneDegreesIpIntelligenceEngine extension is not loaded`.
-- **A Git LFS pointer instead of the data file.** The engine cannot load it,
-  so the example fails before it prints any results. Check the file sizes as
-  above.
-- **The Asn file in place of the Lite file.** The IP Intelligence example uses
-  the Asn file when it is given no path, as "IP Intelligence" above explains,
-  and then every property line reads `(not available - ...)`.
+- **A data file that is not there.** `cxx/data` holds a `.link` for each file
+  rather than the file. The Device Detection engine cannot start without its
+  file, so download it before running the example. The IP Intelligence
+  example downloads its file, so it needs the network and the tools under
+  "Prerequisites". Check the file sizes as above.
 - **SWIG older than 4.1.** `ip-intelligence/OnPremise.md` says SWIG 4.1 or
   newer is needed for PHP 8. Regenerating the wrapper also rewrites the
   committed `src/php8` files, which `git status` then shows as modified.
 - **A checkout made on Windows.** Git for Windows usually checks files out
-  with `core.autocrlf=true`, and neither this repository nor
-  `cxx/ip-intelligence-data` has a `.gitattributes`, so the shell scripts get
-  Windows line endings and the shell cannot run them. Clone inside WSL rather
+  with `core.autocrlf=true`, and this repository has no `.gitattributes`, so
+  its shell scripts and the `config.m4` files that `phpize` reads get Windows
+  line endings, which a Linux shell does not expect. Clone inside WSL rather
   than using a Windows checkout from WSL.
-- **The old IP Intelligence download in `ip-intelligence/OnPremise.md`.** Its
-  `curl` address, `.../enterpriseipi/51Degrees-LiteIpiV41.ipi.gz`, answered
-  404 on 4 November 2026. Use the script in `cxx/ip-intelligence-data`, which
-  downloads `51Degrees-IPIV4LiteIpiV41.ipi.gz`.
 - **What CI does not test.** CI runs the examples' classes through PHPUnit
   (the packages' `tests/ExampleTests.php`), not the example scripts. It
   tests Device Detection with a paid data file (`ci/run-unit-tests.ps1` skips

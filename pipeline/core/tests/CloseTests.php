@@ -27,6 +27,8 @@ use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\tests\classes\BrokenElement;
+use fiftyone\pipeline\core\tests\classes\RecordedElement;
 use PHPUnit\Framework\TestCase;
 
 class CloseTests extends TestCase
@@ -186,5 +188,28 @@ class CloseTests extends TestCase
 
         $this->assertSame('close failed', $message);
         $this->assertSame(1, $element->closes);
+    }
+
+    /**
+     * When an element in a configuration fails to build, the elements built
+     * before it are closed, and the error that stopped the build is thrown.
+     */
+    public function testFailedConfigurationClosesBuiltElements()
+    {
+        RecordedElement::$closed = [];
+        $config = ['PipelineOptions' => ['Elements' => [
+            ['BuilderName' => RecordedElement::class],
+            ['BuilderName' => BrokenElement::class]
+        ]]];
+
+        $message = null;
+        try {
+            (new PipelineBuilder())->buildFromConfig($config);
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+        }
+
+        $this->assertSame('element failed to build', $message);
+        $this->assertCount(1, RecordedElement::$closed);
     }
 }

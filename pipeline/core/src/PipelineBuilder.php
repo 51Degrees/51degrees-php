@@ -124,6 +124,9 @@ class PipelineBuilder
      *  }]
      * }`.
      *
+     * If an element fails to build, the elements already built from the
+     * configuration are closed and the error is thrown.
+     *
      * @param array<string, mixed>|string $fileOrConfig Filename of the config file to load config or associative array of config values
      */
     public function buildFromConfig($fileOrConfig): Pipeline
@@ -134,20 +137,57 @@ class PipelineBuilder
             $config = $fileOrConfig;
         }
 
-        foreach ($config['PipelineOptions']['Elements'] as $element) {
-            /** @phpstan-var \fiftyone\pipeline\core\FlowElement $builder */
-            $builder = $element['BuilderName'];
+        $built = [];
 
-            if (isset($element['BuildParameters'])) {
-                $flowElement = new $builder($element['BuildParameters']);
-            } else {
-                $flowElement = new $builder();
+        try {
+            foreach ($config['PipelineOptions']['Elements'] as $element) {
+                /** @phpstan-var \fiftyone\pipeline\core\FlowElement $builder */
+                $builder = $element['BuilderName'];
+
+                if (isset($element['BuildParameters'])) {
+                    $flowElement = new $builder($element['BuildParameters']);
+                } else {
+                    $flowElement = new $builder();
+                }
+
+                $built[] = $flowElement;
+                $this->flowElements[] = $flowElement;
             }
 
-            $this->flowElements[] = $flowElement;
-        }
+            return new Pipeline($this->flowElements, $this->settings);
+        } catch (\Throwable $e) {
+            $this->closeBuilt($built);
 
-        return new Pipeline($this->flowElements, $this->settings);
+            throw $e;
+        }
+    }
+
+    /**
+     * Closes the elements built from a configuration that failed. A failure
+     * to close is logged rather than thrown, so the caller gets the error
+     * that stopped the build.
+     *
+     * @param array<\fiftyone\pipeline\core\FlowElement> $flowElements
+     */
+    private function closeBuilt(array $flowElements): void
+    {
+        foreach ($flowElements as $flowElement) {
+            if (!method_exists($flowElement, 'close')) {
+                continue;
+            }
+
+            try {
+                $flowElement->close();
+            } catch (\Throwable $e) {
+                if (isset($this->settings['logger'])) {
+                    $this->settings['logger']->log('error', sprintf(
+                        'Could not close %s after the pipeline failed to build: %s',
+                        get_class($flowElement),
+                        $e->getMessage()
+                    ));
+                }
+            }
+        }
     }
 
     /**

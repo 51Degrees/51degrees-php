@@ -65,6 +65,11 @@ class PipelineBuilder
         $this->addJavaScriptBuilder = (bool) ($settings['addJavaScriptBuilder'] ?? true);
         $this->javascriptBuilderSettings = $settings['javascriptBuilderSettings'] ?? [];
         $this->useSetHeaderProperties = (bool) ($settings['useSetHeaderProperties'] ?? true);
+
+        // Passed on to the Pipeline, which reads it when it is closed.
+        if (array_key_exists('autoCloseElements', $settings)) {
+            $this->settings['autoCloseElements'] = $settings['autoCloseElements'];
+        }
     }
 
     /**

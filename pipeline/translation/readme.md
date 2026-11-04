@@ -38,3 +38,10 @@ first available locale that starts with it (`fr` matches `fr_FR`).
 - `Languages` - Accept-Language parsing and locale resolution.
 - `MissingTranslationBehavior` - Original, EmptyString or FlowError.
 - `YamlMap` - minimal parser for the flat `key: value` translation files.
+
+## Find out more
+
+- [Build your own](https://51degrees.com/build-your-own?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.translation&utm_term=find-out-more-build-your-own)
+- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.translation&utm_term=find-out-more-documentation)
+- [Pipeline API examples](https://51degrees.com/documentation/_pipeline_api__examples__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.translation&utm_term=find-out-more-examples)
+- https://github.com/51Degrees/51degrees-php

@@ -58,7 +58,7 @@ class MissingPropertyMessages
         'This is because your resource key does not include access to ' .
         "any properties under '%s'. For more details on resource keys, " .
         'see our explainer: ' .
-        'https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=product_not_in_cloud_resource';
+        'https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=product_not_in_cloud_resource';
     /**
      * The engine was a cloud engine, and the resource key does not contain the
      * required property (e.g. hardwarename). This takes the name of the product
@@ -69,7 +69,7 @@ class MissingPropertyMessages
         'this property. Properties that are included for this key under ' .
         "'%s' are %s. For more details on resource keys, see our " .
         'explainer: ' .
-        'https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=property_not_in_cloud_resource';
+        'https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=property_not_in_cloud_resource';
     /**
      * The reason for the missing property is none of the above. This takes no
      * format arguments.

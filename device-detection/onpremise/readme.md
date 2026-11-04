@@ -19,21 +19,19 @@ but additional caution should be applied.
 ### Data file
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' sub-module of 'cxx', which has 
+The 'data' sub-module of 'cxx' has a script that downloads a free, 'lite' file. That file has 
 a significantly reduced set of properties. To obtain a file with a more complete set of device 
 properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=data-file). 
-If you want to use the lite file, you will need to install [GitLFS](https://git-lfs.github.com/):
+To download the lite file into 'cxx/data/device-detection', run this from the root of the repository:
 
 ```
-sudo apt-get install git-lfs
-git lfs install
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ```
 
-Then, navigate to 'cxx/device-detection-data' at the root of the repository and execute:
-
-```
-git lfs pull
-```
+On Windows, run `cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash` in PowerShell instead.
+Then set `FiftyOneDegreesHashEngine.data_file` in php.ini to that file, as
+[Configuration](#configuration) describes. The engine loads the file when PHP starts, so the
+file must be there first.
 
 ## Install
 
@@ -162,6 +160,11 @@ To reload the data file, *refreshData()* needs to be called as described in this
 
 Before running the examples, the configuration for the native module MUST be
 added to the php.ini file. See [Configuration](#configuration).
+
+The gettingStartedWeb example uses the data file named by the `51DEGREES_DD_PATH`
+environment variable in place of the php.ini one, when it is set. If that is a
+free file in `cxx/data` that has not been downloaded yet, the example runs the
+download script for it first.
 
 To run the examples, you will need PHP and composer installed.
 Once these are available, install the dependencies required by the examples. 

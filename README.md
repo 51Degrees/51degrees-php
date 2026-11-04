@@ -50,7 +50,7 @@ Composer path repository.
 | Path | Contents |
 | --- | --- |
 | The package directories above | One Composer package each, published to its mirror as it is |
-| `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code and the data file submodules |
+| `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code, and the [data](https://github.com/51Degrees/data) repository as its `data` submodule |
 | `pipeline/did/owid-php` | Submodule of [owid-php](https://github.com/SWAN-community/owid-php), the OWID library `pipeline/did` uses |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 | `.github/workflows` | The CI workflows, and the ones that keep the mirrors up to date |
@@ -114,9 +114,23 @@ package resolves to its directory in this repository, not to a copy from
 Packagist. A change in `pipeline/core` is seen at once by every package
 that uses it.
 
-The data files in `cxx/device-detection-data` are stored with
-[Git LFS](https://git-lfs.github.com/). Run `git lfs pull` in that folder to
-fetch them.
+The free data files go in `cxx/data`, which is the
+[data](https://github.com/51Degrees/data) repository. Each one is listed there
+as a `<file>.link` holding the address the file is downloaded from, and the
+repository's scripts save the file beside its link. From the root of the
+repository, download the Device Detection and IP Intelligence Lite files with
+
+```bash
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
+```
+
+or with `cxx/data/get-data-files.ps1` and the same names in PowerShell. With
+no names, the scripts download every file. The IP Intelligence examples
+download the Lite file themselves when they find no data file.
+
+Git leaves the folder of a removed submodule on disk. When `cxx` no longer
+includes its old `device-detection-data` and `ip-intelligence-data`
+submodules, delete those two folders from `cxx` in an existing clone.
 
 ## Tests
 

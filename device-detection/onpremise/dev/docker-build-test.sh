@@ -5,7 +5,7 @@
 # On Windows, run it from a WSL shell (the project asks for WSL because the
 # extension is a Linux/macOS build). It compiles the FiftyOneDegreesHashEngine
 # extension in a clean PHP image and runs the fork-safety reproduction for
-# issue #38 against the bundled Lite data file, so no licensed data file or host
+# issue #38 against the free Lite data file, so no licensed data file or host
 # toolchain is required.
 #
 # Usage:
@@ -17,17 +17,19 @@ set -euo pipefail
 
 PHP_VERSION="${1:-8.3}"
 PACKAGE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PACKAGE="$(basename "${PACKAGE_ROOT}")"
 # The C sources and the Lite data file are in the cxx submodule at the root
-# of the repository, one level above this package.
-REPO_ROOT="$(dirname "${PACKAGE_ROOT}")"
+# of the repository, two levels above this package.
+REPO_ROOT="$(cd "${PACKAGE_ROOT}/../.." && pwd)"
+PACKAGE="${PACKAGE_ROOT#"${REPO_ROOT}"/}"
 IMAGE="php:${PHP_VERSION}-cli"
-DATA_REL="cxx/device-detection-data/51Degrees-LiteV4.1.hash"
-CSV_REL="cxx/device-detection-data/20000 User Agents.csv"
+DATA_REL="cxx/data/device-detection/51Degrees-LiteV4.1.hash"
+CSV_REL="cxx/data/device-detection/20000 User Agents.csv"
 
 if [ ! -f "${REPO_ROOT}/${DATA_REL}" ]; then
     echo "Lite data file not found at ${DATA_REL}." >&2
-    echo "Run: git submodule update --init --recursive" >&2
+    echo "Run these from the root of the repository to get it." >&2
+    echo "  git submodule update --init --recursive" >&2
+    echo "  sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash" >&2
     exit 1
 fi
 

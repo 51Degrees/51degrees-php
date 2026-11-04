@@ -12,7 +12,10 @@
 - `location`: `51degrees/fiftyone.geolocation`
 - `ip-intelligence`: `51degrees/fiftyone.ipintelligence`
 - `cxx`: submodule with the C and C++ code and the data files that the two
-  on-premise extensions build from and test with.
+  on-premise extensions build from and test with. The data files are in
+  `cxx/data/device-detection` and `cxx/data/ip-intelligence`, where each free
+  file is a `<file>.link` until `cxx/data/get-data-files.sh` or `.ps1`
+  downloads it beside the link.
 
 ## Dependency order
 

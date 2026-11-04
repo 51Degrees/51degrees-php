@@ -122,7 +122,7 @@ vendor/bin/phpunit
 
 Cloud tests run offline against a mocked HTTP client. A live cloud test runs when
 the `resource_key` environment variable is set. On-premise tests run when the
-native extension is built and an `.ipi` data file is available (set
-`IPINTELLIGENCEDATAFILE`, place a file under `assets/`, or initialise
-`cxx/ip-intelligence-data` at the root of the repository); otherwise they are
-skipped.
+native extension is built and an `.ipi` data file is available, and are
+skipped otherwise. Set `IPINTELLIGENCEDATAFILE`, place a file under `assets/`,
+or download the Lite file into `cxx/data/ip-intelligence` at the root of the
+repository with `sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi`.

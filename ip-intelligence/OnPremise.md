@@ -35,8 +35,8 @@ git submodule update --init --recursive
 
 The `cxx` submodule reads the reduced-file data format used by the current 4.5
 `.ipi` files, so the build sets `FIFTYONE_DEGREES_REDUCED_FILE=1` (see
-`config.m4`). Its own data submodules (`ip-intelligence-data` and
-`device-detection-data`) are initialised by the `--recursive` flag.
+`config.m4`). Its `data` submodule, which holds the translations and the
+links to the free data files, is initialised by the `--recursive` flag.
 
 ## Build
 
@@ -80,15 +80,23 @@ extension=/full/path/to/FiftyOneDegreesIpIntelligenceEngine.so
 
 ## Data file
 
-Download a Lite `.ipi` data file (used by the tests and examples):
+The tests and examples use the free Lite `.ipi` data file. Download it into
+`cxx/data/ip-intelligence` with the
+[data](https://github.com/51Degrees/data) repository's script, from the root
+of the repository:
 
 ```bash
-curl -L -o assets/51Degrees-LiteIpiV41.ipi.gz \
-  https://51ddatafiles.blob.core.windows.net/enterpriseipi/51Degrees-LiteIpiV41.ipi.gz
-gzip -d assets/51Degrees-LiteIpiV41.ipi.gz
+sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi
 ```
 
-Point the engine at it via the `dataFile` setting, the `IPINTELLIGENCEDATAFILE`
-environment variable, or by placing it under `assets/`. The tests and examples
-also fall back to the files in `cxx/ip-intelligence-data` at the root of the
-repository.
+On Windows, run `cxx/data/get-data-files.ps1 51Degrees-LiteV41.ipi` in
+PowerShell instead. The script downloads the file from the 51Degrees
+Distributor, https://distributor.51degrees.com/api/v2/free/ipi-lite-v41,
+which always serves the latest Lite file and needs no License Key.
+
+Give the engine a data file with the `dataFile` setting. The on-premise
+examples take the file from their first argument, the
+`IPINTELLIGENCEDATAFILE` environment variable, `assets/` or
+`cxx/data/ip-intelligence`, in that order. When they find none, they run the
+script to download the Lite file. The tests look in the same places, apart
+from the argument, and skip when they find no file.

@@ -78,7 +78,7 @@ class ExampleTests extends TestCase
         }
         $candidates = array_merge(
             glob(__DIR__ . '/../assets/*.ipi') ?: [],
-            glob(__DIR__ . '/../../cxx/ip-intelligence-data/*.ipi') ?: []
+            glob(__DIR__ . '/../../cxx/data/ip-intelligence/*.ipi') ?: []
         );
 
         return $candidates[0] ?? null;

@@ -1,6 +1,6 @@
 # 51Degrees IP Intelligence Engines (PHP)
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious")
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious")
 
 **IP Intelligence in PHP**: Identify the country, region, network, and approximate
 location associated with an IP address, either via the 51Degrees cloud service or
@@ -25,7 +25,7 @@ and [ip-intelligence-dotnet](https://github.com/51Degrees/51degrees-dotnet/tree/
 
 - PHP 8.0 or above with the `curl`, `json` and `mbstring` extensions.
 - For **cloud** operation: a 51Degrees resource key, obtained from
-  [configure.51degrees.com](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=cloud), authorised for IP
+  [configure.51degrees.com](https://configure.51degrees.com/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=cloud), authorised for IP
   intelligence (`ip.*`) properties.
 - For **on-premise** operation: the native `FiftyOneDegreesIpIntelligenceEngine`
   extension (built from the `cxx` submodule at the root of the repository via SWIG) and
@@ -38,12 +38,8 @@ composer require 51degrees/fiftyone.ipintelligence
 ```
 
 > `51degrees/fiftyone.pipeline.translation` is not on Packagist yet, so
-> `composer.json` resolves it from a sibling checkout. Clone it next to this
-> repository before installing:
->
-> ```bash
-> git clone https://github.com/51Degrees/pipeline-php-translation
-> ```
+> `composer.json` resolves it from [`pipeline/translation`](../pipeline/translation)
+> in this repository, through a Composer path repository.
 
 ## Cloud
 
@@ -122,7 +118,7 @@ vendor/bin/phpunit
 
 Cloud tests run offline against a mocked HTTP client. A live cloud test runs when
 the `resource_key` environment variable is set. On-premise tests run when the
-native extension is built and an `.ipi` data file is available (set
-`IPINTELLIGENCEDATAFILE`, place a file under `assets/`, or initialise
-`cxx/ip-intelligence-data` at the root of the repository); otherwise they are
-skipped.
+native extension is built and an `.ipi` data file is available, and are
+skipped otherwise. Set `IPINTELLIGENCEDATAFILE`, place a file under `assets/`,
+or download the Lite file into `cxx/data/ip-intelligence` at the root of the
+repository with `sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi`.

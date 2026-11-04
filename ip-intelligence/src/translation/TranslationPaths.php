@@ -29,26 +29,26 @@ use fiftyone\pipeline\translation\Languages;
 use fiftyone\pipeline\translation\YamlMap;
 
 /**
- * Locates the country translation YAML files, which ship with the IP
- * intelligence data submodule, and loads them.
+ * Locates the country translation YAML files, which ship in the
+ * ip-intelligence folder of the data repository, and loads them.
  */
 class TranslationPaths
 {
     /**
-     * Find the Translations directory. Searches the data submodule inside the
-     * cxx submodule at the repository root, then the IPINTELLIGENCEDATAFILE
-     * directory as a fallback.
+     * Find the Translations directory. Searches the ip-intelligence folder of
+     * the data submodule inside the cxx submodule at the repository root,
+     * then the IPINTELLIGENCEDATAFILE directory as a fallback.
      */
     public static function resolveTranslationsDir(): string
     {
         $candidates = [
-            __DIR__ . '/../../../cxx/ip-intelligence-data/Translations',
+            __DIR__ . '/../../../cxx/data/ip-intelligence/Translations',
         ];
 
         $env = getenv('IPINTELLIGENCEDATAFILE');
         if ($env) {
             $candidates[] = dirname($env) . '/Translations';
-            $candidates[] = dirname($env) . '/ip-intelligence-data/Translations';
+            $candidates[] = dirname($env) . '/data/ip-intelligence/Translations';
         }
 
         foreach ($candidates as $candidate) {
@@ -58,9 +58,10 @@ class TranslationPaths
         }
 
         throw new \Exception(
-            'Could not find the Translations directory. It ships with the ' .
-            'ip-intelligence-data submodule; initialise submodules or pass an ' .
-            'explicit path to the translation engines.'
+            'Could not find the Translations directory. It is in ' .
+            'cxx/data/ip-intelligence once the submodules are initialised ' .
+            'with "git submodule update --init --recursive". Otherwise pass ' .
+            'its path to the translation engines.'
         );
     }
 

@@ -87,25 +87,29 @@ class DeviceDetectionTests extends TestCase
         $pipeline = $builder->add($deviceDetection)->build();
 
         $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
 
-        $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $result = $flowData->process();
 
-        $result = $flowData->process();
+            $properties = $pipeline->getElement('device')->getProperties();
 
-        $properties = $pipeline->getElement('device')->getProperties();
+            foreach ($properties as &$property) {
+                $key = strtolower($property['name']);
 
-        foreach ($properties as &$property) {
-            $key = strtolower($property['name']);
+                $apv = $result->device->getInternal($key);
 
-            $apv = $result->device->getInternal($key);
+                $this->assertNotNull($apv, $key);
 
-            $this->assertNotNull($apv, $key);
-
-            if ($apv->hasValue) {
-                $this->assertNotNull($apv->value, $key);
-            } else {
-                $this->assertNotNull($apv->noValueMessage, $key);
+                if ($apv->hasValue) {
+                    $this->assertNotNull($apv->value, $key);
+                } else {
+                    $this->assertNotNull($apv->noValueMessage, $key);
+                }
             }
+        } finally {
+            $flowData->close();
+            $pipeline->close();
         }
     }
 
@@ -119,78 +123,82 @@ class DeviceDetectionTests extends TestCase
         $pipeline = $builder->add($deviceDetection)->build();
 
         $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
 
-        $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $result = $flowData->process();
 
-        $result = $flowData->process();
+            $properties = $pipeline->getElement('device')->getProperties();
 
-        $properties = $pipeline->getElement('device')->getProperties();
+            foreach ($properties as &$property) {
+                $key = strtolower($property['name']);
 
-        foreach ($properties as &$property) {
-            $key = strtolower($property['name']);
+                // TODO: Skip 'useragents' and 'method' property. These are returned
+                // as an int() by the SWIG interface but should be an Array and a
+                // String respectively.
+                if ($key == 'useragents' || $key == 'method') {
+                    continue;
+                }
 
-            // TODO: Skip 'useragents' and 'method' property. These are returned
-            // as an int() by the SWIG interface but should be an Array and a
-            // String respectively.
-            if ($key == 'useragents' || $key == 'method') {
-                continue;
+                $apv = $result->device->getInternal($key);
+
+                $expectedType = $property['type'];
+
+                $this->assertNotNull($apv, $key);
+
+                $value = $apv->value;
+
+                switch ($expectedType) {
+                    case 'Boolean':
+                        if (method_exists($this, 'assertIsBool')) {
+                            $this->assertIsBool($value, $key);
+                        } else {
+                            $this->assertInternalType('boolean', $value, $key);
+                        }
+                        break;
+                    case 'String':
+                        if (method_exists($this, 'assertIsString')) {
+                            $this->assertIsString($value, $key);
+                        } else {
+                            $this->assertInternalType('string', $value, $key);
+                        }
+                        break;
+                    case 'JavaScript':
+                        if (method_exists($this, 'assertIsString')) {
+                            $this->assertIsString($value, $key);
+                        } else {
+                            $this->assertInternalType('string', $value, $key);
+                        }
+                        break;
+                    case 'Integer':
+                        if (method_exists($this, 'assertIsInt')) {
+                            $this->assertIsInt($value, $key);
+                        } else {
+                            $this->assertInternalType('integer', $value, $key);
+                        }
+                        break;
+                    case 'Double':
+                        if (method_exists($this, 'assertIsFloat')) {
+                            $this->assertIsFloat($value, $key);
+                        } else {
+                            $this->assertInternalType('double', $value, $key);
+                        }
+                        break;
+                    case 'Array':
+                        if (method_exists($this, 'assertIsArray')) {
+                            $this->assertIsArray($value, $key);
+                        } else {
+                            $this->assertInternalType('array', $value, $key);
+                        }
+                        break;
+                    default:
+                        $this->fail('expected type for ' . $key . ' was ' . $expectedType);
+                        break;
+                }
             }
-
-            $apv = $result->device->getInternal($key);
-
-            $expectedType = $property['type'];
-
-            $this->assertNotNull($apv, $key);
-
-            $value = $apv->value;
-
-            switch ($expectedType) {
-                case 'Boolean':
-                    if (method_exists($this, 'assertIsBool')) {
-                        $this->assertIsBool($value, $key);
-                    } else {
-                        $this->assertInternalType('boolean', $value, $key);
-                    }
-                    break;
-                case 'String':
-                    if (method_exists($this, 'assertIsString')) {
-                        $this->assertIsString($value, $key);
-                    } else {
-                        $this->assertInternalType('string', $value, $key);
-                    }
-                    break;
-                case 'JavaScript':
-                    if (method_exists($this, 'assertIsString')) {
-                        $this->assertIsString($value, $key);
-                    } else {
-                        $this->assertInternalType('string', $value, $key);
-                    }
-                    break;
-                case 'Integer':
-                    if (method_exists($this, 'assertIsInt')) {
-                        $this->assertIsInt($value, $key);
-                    } else {
-                        $this->assertInternalType('integer', $value, $key);
-                    }
-                    break;
-                case 'Double':
-                    if (method_exists($this, 'assertIsFloat')) {
-                        $this->assertIsFloat($value, $key);
-                    } else {
-                        $this->assertInternalType('double', $value, $key);
-                    }
-                    break;
-                case 'Array':
-                    if (method_exists($this, 'assertIsArray')) {
-                        $this->assertIsArray($value, $key);
-                    } else {
-                        $this->assertInternalType('array', $value, $key);
-                    }
-                    break;
-                default:
-                    $this->fail('expected type for ' . $key . ' was ' . $expectedType);
-                    break;
-            }
+        } finally {
+            $flowData->close();
+            $pipeline->close();
         }
     }
 
@@ -205,18 +213,22 @@ class DeviceDetectionTests extends TestCase
         $pipeline1 = $builder1->add($deviceDetection)->build();
 
         $flowData1 = $pipeline1->createFlowData();
+        try {
+            $flowData1->evidence->set('header.user-agent', $badUA);
 
-        $flowData1->evidence->set('header.user-agent', $badUA);
+            $result = $flowData1->process();
 
-        $result = $flowData1->process();
-
-        $this->assertFalse($result->device->ismobile->hasValue);
-        $this->assertStringStartsWith(
-            'No matching profiles could be found for the supplied evidence. '
-                . "A 'best guess' can be returned by configuring more lenient "
-                . 'matching rules. See https://51degrees.com/documentation/',
-            $result->device->ismobile->noValueMessage
-        );
+            $this->assertFalse($result->device->ismobile->hasValue);
+            $this->assertStringStartsWith(
+                'No matching profiles could be found for the supplied evidence. '
+                    . "A 'best guess' can be returned by configuring more lenient "
+                    . 'matching rules. See https://51degrees.com/documentation/',
+                $result->device->ismobile->noValueMessage
+            );
+        } finally {
+            $flowData1->close();
+            $pipeline1->close();
+        }
     }
 
     public function testPropertyValueGood()
@@ -228,12 +240,16 @@ class DeviceDetectionTests extends TestCase
         $pipeline = $builder->add($deviceDetection)->build();
 
         $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
 
-        $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $result = $flowData->process();
 
-        $result = $flowData->process();
-
-        $this->assertTrue($result->device->ismobile->value);
+            $this->assertTrue($result->device->ismobile->value);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
     }
 
     public function testGetProperties()
@@ -245,16 +261,20 @@ class DeviceDetectionTests extends TestCase
         $pipeline = $builder->add($deviceDetection)->build();
 
         $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
 
-        $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $result = $flowData->process();
 
-        $result = $flowData->process();
+            $properties = $pipeline->getElement('device')->getProperties();
 
-        $properties = $pipeline->getElement('device')->getProperties();
-
-        $this->assertSame('IsMobile', $properties['ismobile']['name']);
-        $this->assertSame('Boolean', $properties['ismobile']['type']);
-        $this->assertSame('Device', $properties['ismobile']['category']);
+            $this->assertSame('IsMobile', $properties['ismobile']['name']);
+            $this->assertSame('Boolean', $properties['ismobile']['type']);
+            $this->assertSame('Device', $properties['ismobile']['category']);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
     }
 
     public function testMatchMetricsDescription()
@@ -266,20 +286,45 @@ class DeviceDetectionTests extends TestCase
         $pipeline = $builder->add($deviceDetection)->build();
 
         $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
 
-        $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $result = $flowData->process();
 
-        $result = $flowData->process();
+            $properties = $pipeline->getElement('device')->getProperties();
 
-        $properties = $pipeline->getElement('device')->getProperties();
+            $this->assertSame(Constants::MATCHED_NODES_DESCRIPTION, $properties['matchednodes']['description']);
+            $this->assertSame(Constants::DIFFERENCE_DESCRIPTION, $properties['difference']['description']);
+            $this->assertSame(Constants::DRIFT_DESCRIPTION, $properties['drift']['description']);
+            $this->assertSame(Constants::DEVICE_ID_DESCRIPTION, $properties['deviceid']['description']);
+            $this->assertSame(Constants::USER_AGENTS_DESCRIPTION, $properties['useragents']['description']);
+            $this->assertSame(Constants::ITERATIONS_DESCRIPTION, $properties['iterations']['description']);
+            $this->assertSame(Constants::METHOD_DESCRIPTION, $properties['method']['description']);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
 
-        $this->assertSame(Constants::MATCHED_NODES_DESCRIPTION, $properties['matchednodes']['description']);
-        $this->assertSame(Constants::DIFFERENCE_DESCRIPTION, $properties['difference']['description']);
-        $this->assertSame(Constants::DRIFT_DESCRIPTION, $properties['drift']['description']);
-        $this->assertSame(Constants::DEVICE_ID_DESCRIPTION, $properties['deviceid']['description']);
-        $this->assertSame(Constants::USER_AGENTS_DESCRIPTION, $properties['useragents']['description']);
-        $this->assertSame(Constants::ITERATIONS_DESCRIPTION, $properties['iterations']['description']);
-        $this->assertSame(Constants::METHOD_DESCRIPTION, $properties['method']['description']);
+    /**
+     * Closing the FlowData releases its results, and reading a property
+     * afterwards throws an exception.
+     */
+    public function testCloseReleasesResults()
+    {
+        $pipeline = (new PipelineBuilder())->add(new DeviceDetectionOnPremise())->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $isMobile = $flowData->process()->device->ismobile->value;
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+
+        $this->assertTrue($isMobile);
+        $this->expectExceptionMessage(Messages::RESULTS_CLOSED);
+        $flowData->device->get('ismobile');
     }
 
     public function testFailureToMatch()

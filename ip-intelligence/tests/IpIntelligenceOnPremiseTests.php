@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
+use fiftyone\pipeline\ipintelligence\Messages;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use PHPUnit\Framework\TestCase;
 
@@ -54,7 +55,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
             $this->markTestSkipped('The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.');
         }
         if (self::$dataFile === null) {
-            $this->markTestSkipped('No .ipi data file found (set IPINTELLIGENCEDATAFILE or place a file under assets or cxx/ip-intelligence-data).');
+            $this->markTestSkipped('No .ipi data file found (set IPINTELLIGENCEDATAFILE or place a file under assets or cxx/data/ip-intelligence).');
         }
     }
 
@@ -67,7 +68,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
 
         $candidates = array_merge(
             glob(__DIR__ . '/../assets/*.ipi') ?: [],
-            glob(__DIR__ . '/../../cxx/ip-intelligence-data/*.ipi') ?: []
+            glob(__DIR__ . '/../../cxx/data/ip-intelligence/*.ipi') ?: []
         );
 
         foreach ($candidates as $candidate) {
@@ -90,28 +91,40 @@ class IpIntelligenceOnPremiseTests extends TestCase
     public function testElementDataKey(): void
     {
         $engine = $this->buildEngine();
-        $this->assertSame('ip', $engine->dataKey);
+        try {
+            $this->assertSame('ip', $engine->dataKey);
+        } finally {
+            $engine->close();
+        }
     }
 
     public function testPropertiesPopulated(): void
     {
         $engine = $this->buildEngine();
-        $properties = $engine->getProperties();
-        $this->assertNotEmpty($properties);
-        // The synthetic echo properties are always present.
-        $this->assertArrayHasKey('ip', $properties);
-        $this->assertArrayHasKey('ipv6', $properties);
+        try {
+            $properties = $engine->getProperties();
+            $this->assertNotEmpty($properties);
+            // The synthetic echo properties are always present.
+            $this->assertArrayHasKey('ip', $properties);
+            $this->assertArrayHasKey('ipv6', $properties);
+        } finally {
+            $engine->close();
+        }
     }
 
     public function testEvidenceKeyFilter(): void
     {
         $engine = $this->buildEngine();
-        $filter = $engine->getEvidenceKeyFilter();
-        // The engine should accept at least one client-ip evidence key.
-        $accepts = $filter->filterEvidenceKey('query.client-ip')
-            || $filter->filterEvidenceKey('server.client-ip')
-            || $filter->filterEvidenceKey('query.client-ip-51d');
-        $this->assertTrue($accepts);
+        try {
+            $filter = $engine->getEvidenceKeyFilter();
+            // The engine should accept at least one client-ip evidence key.
+            $accepts = $filter->filterEvidenceKey('query.client-ip')
+                || $filter->filterEvidenceKey('server.client-ip')
+                || $filter->filterEvidenceKey('query.client-ip-51d');
+            $this->assertTrue($accepts);
+        } finally {
+            $engine->close();
+        }
     }
 
     public function testProcessIpv4(): void
@@ -122,28 +135,33 @@ class IpIntelligenceOnPremiseTests extends TestCase
         ]))->build();
 
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
-        $result = $flowData->process();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $result = $flowData->process();
 
-        $ip = $result->ip;
+            $ip = $result->ip;
 
-        // The supplied IP is echoed back.
-        $this->assertTrue($ip->ip->hasValue);
-        $this->assertSame(Constants::IPV4_ADDRESS, $ip->ip->value);
+            // The supplied IP is echoed back.
+            $this->assertTrue($ip->ip->hasValue);
+            $this->assertSame(Constants::IPV4_ADDRESS, $ip->ip->value);
 
-        // RegisteredName is a core IP intelligence property. It is only
-        // present in some data files (for example it is absent from the ASN
-        // file), and get() throws for a property the data file does not
-        // contain, so only assert on it when the engine actually exposes it.
-        $properties = $pipeline->getElement('ip')->getProperties();
-        if (array_key_exists('registeredname', $properties)) {
-            $registeredName = $ip->get('registeredname');
-            $this->assertNotNull($registeredName);
-            if ($registeredName->hasValue) {
-                $this->assertNotNull($registeredName->value);
-            } else {
-                $this->assertNotNull($registeredName->noValueMessage);
+            // RegisteredName is a core IP intelligence property. It is only
+            // present in some data files (for example it is absent from the ASN
+            // file), and get() throws for a property the data file does not
+            // contain, so only assert on it when the engine actually exposes it.
+            $properties = $pipeline->getElement('ip')->getProperties();
+            if (array_key_exists('registeredname', $properties)) {
+                $registeredName = $ip->get('registeredname');
+                $this->assertNotNull($registeredName);
+                if ($registeredName->hasValue) {
+                    $this->assertNotNull($registeredName->value);
+                } else {
+                    $this->assertNotNull($registeredName->noValueMessage);
+                }
             }
+        } finally {
+            $flowData->close();
+            $pipeline->close();
         }
     }
 
@@ -160,24 +178,74 @@ class IpIntelligenceOnPremiseTests extends TestCase
         ]))->build();
 
         $plain = $pipeline->createFlowData();
-        $plain->evidence->set('query.client-ip', '8.8.8.8');
-        $expected = $plain->process()->ip;
+        try {
+            $plain->evidence->set('query.client-ip', '8.8.8.8');
+            $expected = $plain->process()->ip;
 
-        foreach (['::ffff:8.8.8.8', '::FFFF:8.8.8.8', '::ffff:808:808', '0:0:0:0:0:ffff:808:808'] as $form) {
-            $flowData = $pipeline->createFlowData();
-            $flowData->evidence->set('query.client-ip', $form);
-            $actual = $flowData->process()->ip;
+            foreach (['::ffff:8.8.8.8', '::FFFF:8.8.8.8', '::ffff:808:808', '0:0:0:0:0:ffff:808:808'] as $form) {
+                $flowData = $pipeline->createFlowData();
+                try {
+                    $flowData->evidence->set('query.client-ip', $form);
+                    $actual = $flowData->process()->ip;
 
-            $this->assertTrue($actual->ip->hasValue, $form);
-            $this->assertSame('8.8.8.8', $actual->ip->value, $form);
-            $this->assertFalse($actual->ipv6->hasValue, $form);
+                    $this->assertTrue($actual->ip->hasValue, $form);
+                    $this->assertSame('8.8.8.8', $actual->ip->value, $form);
+                    $this->assertFalse($actual->ipv6->hasValue, $form);
 
-            foreach (array_keys($pipeline->getElement('ip')->getProperties()) as $key) {
-                if ($key === 'ip' || $key === 'ipv6') {
-                    continue;
+                    foreach (array_keys($pipeline->getElement('ip')->getProperties()) as $key) {
+                        if ($key === 'ip' || $key === 'ipv6') {
+                            continue;
+                        }
+                        $this->assertEquals($expected->get($key), $actual->get($key), "$form: $key");
+                    }
+                } finally {
+                    $flowData->close();
                 }
-                $this->assertEquals($expected->get($key), $actual->get($key), "$form: $key");
             }
+        } finally {
+            $plain->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
+     * Closing the FlowData releases its results and closing the pipeline
+     * releases the engine, and each throws an exception if used afterwards.
+     */
+    public function testCloseReleasesResultsAndEngine(): void
+    {
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'MaxPerformance'
+        ]))->build();
+
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $echo = $flowData->process()->ip->ip->value;
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+
+        $this->assertSame(Constants::IPV4_ADDRESS, $echo);
+        $this->assertNull($pipeline->getElement('ip')->engine);
+
+        $message = null;
+        try {
+            $flowData->ip->get('ip');
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+        }
+        $this->assertSame(Messages::RESULTS_CLOSED, $message);
+
+        $after = $pipeline->createFlowData();
+        try {
+            $after->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $this->expectExceptionMessage(Messages::ENGINE_CLOSED);
+            $after->process();
+        } finally {
+            $after->close();
         }
     }
 

@@ -52,4 +52,13 @@ class Messages
         "corrupts detection. Remove the " .
         "'FiftyOneDegreesHashEngine.performance_profile' setting, or set it to " .
         "'MaxPerformance'.";
+
+    /**
+     * Error message thrown when a property is read from results that have
+     * been closed.
+     */
+    public const RESULTS_CLOSED =
+        'These device detection results have been closed, so their ' .
+        'properties cannot be read. Read the values needed before closing ' .
+        'the FlowData.';
 }

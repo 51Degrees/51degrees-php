@@ -33,12 +33,22 @@ class ExampleConstants
     // Environment variable holding the path to an on-premise .ipi data file.
     public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = 'IPINTELLIGENCEDATAFILE';
 
+    // The free Lite data file, as the data repository names it. The examples
+    // download it into cxx/data/ip-intelligence when no other file is found.
+    public const LITE_DATA_FILE_NAME = '51Degrees-LiteV41.ipi';
+
     // The default on-premise data file names searched for, in priority order.
+    // The Asn file is left out, because it has only the Asn and AsnName
+    // properties and the examples are written for the Lite or Enterprise file.
     public const IPI_DATA_FILE_NAMES = [
         '51Degrees-EnterpriseIpiV41.ipi',
         '51Degrees-LiteIpiV41.ipi',
-        '51Degrees-IPIV4AsnIpiV41.ipi'
+        self::LITE_DATA_FILE_NAME
     ];
+
+    // Sent with each download of a data file, so that downloads can be
+    // counted by where they come from.
+    public const DATA_DOWNLOAD_SOURCE = 'examples-51degrees-php';
 
     // Evidence (IP addresses) used by the getting started examples. These
     // match the values used by ip-intelligence-dotnet-examples.

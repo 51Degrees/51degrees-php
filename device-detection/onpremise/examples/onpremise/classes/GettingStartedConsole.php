@@ -58,7 +58,7 @@ class GettingStartedConsole
      * In this example, we use the DeviceDetectionPipelineBuilder
      * and configure it in code. For more information about
      * pipelines in general see the documentation at
-     * https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run.
+     * https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run.
      *
      * @param \fiftyone\pipeline\core\Logger $logger
      */
@@ -69,8 +69,8 @@ class GettingStartedConsole
             // sufficient for this example. See the documentation for
             // more detail on this and other configuration options:
             // https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
-            // https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
-            // https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+            // https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+            // https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
             'performanceProfile' => 'LowMemory',
         ]);
         $pipeline = (new PipelineBuilder())
@@ -78,11 +78,18 @@ class GettingStartedConsole
             ->addLogger($logger)
             ->build();
 
-        ExampleUtils::checkDataFile($pipeline->getElement('device'), $logger);
+        // The pipeline is closed in the finally block. An application
+        // normally builds one pipeline, uses it for every detection, and
+        // closes it when it stops.
+        try {
+            ExampleUtils::checkDataFile($pipeline->getElement('device'), $logger);
 
-        // carry out some sample detections
-        foreach ($this->evidenceValues as &$values) {
-            $this->analyseEvidence($values, $pipeline, $output);
+            // carry out some sample detections
+            foreach ($this->evidenceValues as &$values) {
+                $this->analyseEvidence($values, $pipeline, $output);
+            }
+        } finally {
+            $pipeline->close();
         }
     }
 
@@ -111,42 +118,48 @@ class GettingStartedConsole
         // and usually consists of a number of HTTP Header field
         // values, in this case represented by a dictionary of header
         // name/value entries.
+        // Closing the FlowData, which the finally block does, releases the
+        // results of the detection straight away, rather than when the
+        // garbage collector next runs.
         $data = $pipeline->createFlowData();
+        try {
+            $message = [];
 
-        $message = [];
+            // List the evidence
+            $message[] = 'Input values:';
+            foreach ($evidence as $key => $value) {
+                $message[] = "\t{$key}: {$value}";
+            }
 
-        // List the evidence
-        $message[] = 'Input values:';
-        foreach ($evidence as $key => $value) {
-            $message[] = "\t{$key}: {$value}";
+            $output(implode("\n", $message));
+
+            // Add the evidence values to the flow data
+            $data->evidence->setArray($evidence);
+
+            // Process the flow data.
+            $data->process();
+
+            $message = [];
+            $message[] = 'Results:';
+
+            // Now that it's been processed, the flow data will have
+            // been populated with the result. In this case, we want
+            // information about the device, which we can get by
+            // asking for a result matching named "device"
+            $device = $data->device;
+
+            // Display the results of the detection, which are called
+            // device properties. See the property dictionary at
+            // https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=analyseevidence
+            // for details of all available properties.
+            $this->outputValue('Mobile Device', $device->ismobile, $message);
+            $this->outputValue('Platform Name', $device->platformname, $message);
+            $this->outputValue('Platform Version', $device->platformversion, $message);
+            $this->outputValue('Browser Name', $device->browsername, $message);
+            $this->outputValue('Browser Version', $device->browserversion, $message);
+            $output(implode("\n", $message));
+        } finally {
+            $data->close();
         }
-
-        $output(implode("\n", $message));
-
-        // Add the evidence values to the flow data
-        $data->evidence->setArray($evidence);
-
-        // Process the flow data.
-        $data->process();
-
-        $message = [];
-        $message[] = 'Results:';
-
-        // Now that it's been processed, the flow data will have
-        // been populated with the result. In this case, we want
-        // information about the device, which we can get by
-        // asking for a result matching named "device"
-        $device = $data->device;
-
-        // Display the results of the detection, which are called
-        // device properties. See the property dictionary at
-        // https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=analyseevidence
-        // for details of all available properties.
-        $this->outputValue('Mobile Device', $device->ismobile, $message);
-        $this->outputValue('Platform Name', $device->platformname, $message);
-        $this->outputValue('Platform Version', $device->platformversion, $message);
-        $this->outputValue('Browser Name', $device->browsername, $message);
-        $this->outputValue('Browser Version', $device->browserversion, $message);
-        $output(implode("\n", $message));
     }
 }

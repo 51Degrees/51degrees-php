@@ -43,25 +43,31 @@ class MetadataConsoleOnPremise
             'performanceProfile' => 'MaxPerformance'
         ]);
 
-        $properties = $engine->getProperties();
+        // The engine is closed in the finally block, which releases the
+        // native data it loaded from the data file.
+        try {
+            $properties = $engine->getProperties();
 
-        fwrite($output, sprintf("IP intelligence properties (%d):\n", count($properties)));
-        foreach ($properties as $property) {
-            fwrite($output, sprintf(
-                "\t%s [%s] (%s / %s)\n",
-                $property['name'],
-                $property['type'] ?? 'Unknown',
-                $property['component'] ?? '',
-                $property['category'] ?? ''
-            ));
-        }
-
-        fwrite($output, "\nAccepted evidence keys:\n");
-        $filter = $engine->getEvidenceKeyFilter();
-        foreach (['query.client-ip', 'server.client-ip', 'query.client-ip-51d', 'server.client-ip-51d'] as $key) {
-            if ($filter->filterEvidenceKey($key)) {
-                fwrite($output, sprintf("\t%s\n", $key));
+            fwrite($output, sprintf("IP intelligence properties (%d):\n", count($properties)));
+            foreach ($properties as $property) {
+                fwrite($output, sprintf(
+                    "\t%s [%s] (%s / %s)\n",
+                    $property['name'],
+                    $property['type'] ?? 'Unknown',
+                    $property['component'] ?? '',
+                    $property['category'] ?? ''
+                ));
             }
+
+            fwrite($output, "\nAccepted evidence keys:\n");
+            $filter = $engine->getEvidenceKeyFilter();
+            foreach (['query.client-ip', 'server.client-ip', 'query.client-ip-51d', 'server.client-ip-51d'] as $key) {
+                if ($filter->filterEvidenceKey($key)) {
+                    fwrite($output, sprintf("\t%s\n", $key));
+                }
+            }
+        } finally {
+            $engine->close();
         }
     }
 }

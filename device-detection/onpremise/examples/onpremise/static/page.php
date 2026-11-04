@@ -34,9 +34,10 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
             WARNING: This example is using a data file that is more than
             <?php echo ExampleUtils::DATA_FILE_AGE_WARNING; ?>
             days old. A more recent data file may be needed to
-            correctly detect the latest devices, browsers, etc. The latest lite data file is available
-            from the
-            <a href="https://github.com/51Degrees/device-detection-data">device-detection-data</a>
+            correctly detect the latest devices, browsers, etc. Get the latest lite data file by
+            running <code>cxx/data/get-data-files.sh -u 51Degrees-LiteV4.1.hash</code>, or
+            <code>cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash -Update</code> on Windows.
+            The scripts are in the <a href="https://github.com/51Degrees/data">data</a>
             repository on GitHub. Find out about the Enterprise data file, which includes automatic
             daily updates, on our <a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=data-file-age-warning">pricing page</a>.
         </div>
@@ -219,7 +220,7 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
         <ul>
             <li>This example: https://github.com/51Degrees/51degrees-php/tree/main/device-detection/onpremise</li>
             <li>The device detection engine: https://github.com/51Degrees/51degrees-cxx</li>
-            <li>The free Lite data file: https://github.com/51Degrees/device-detection-data</li>
+            <li>The free Lite data file: https://github.com/51Degrees/data</li>
             <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-pricing">Data files and pricing</a></li>
             <li><a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=find-out-more-contact">Contact us</a></li>
         </ul>

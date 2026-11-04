@@ -22,6 +22,11 @@
     ],
     "license": "EUPL-1.2",
     "type": "library",
+    "support":
+    {
+        "source": "https://github.com/51Degrees/51degrees-php",
+        "docs": "https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=documentation"
+    },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "repositories":
@@ -35,7 +40,7 @@
     "require":
     {
         "php": ">=8.0",
-        "51degrees/fiftyone.pipeline.core": "4.*",
+        "51degrees/fiftyone.pipeline.core": "^4.5.206",
         "51degrees/fiftyone.pipeline.engines": "4.*",
         "51degrees/fiftyone.pipeline.cloudrequestengine": "4.*",
         "51degrees/fiftyone.pipeline.translation": "*"

@@ -122,6 +122,15 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
         // The message can carry server side detail such as data file paths.
         error_log('IP intelligence example failed: ' . $e->getMessage());
         $error = 'The lookup could not be completed. See the server log for details.';
+    } finally {
+        // Closing the FlowData, once the values needed have been read, and
+        // then the pipeline releases the results of the lookup straight away.
+        if (isset($flowData)) {
+            $flowData->close();
+        }
+        if (isset($pipeline)) {
+            $pipeline->close();
+        }
     }
 }
 

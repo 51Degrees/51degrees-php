@@ -7,6 +7,7 @@
       <file>tests/JavaScriptBuilderParametersTests.php</file>
       <file>tests/JavaScriptBuilderObjectNameTests.php</file>
       <file>tests/JavaScriptBuilderSequenceTests.php</file>
+      <file>tests/CallbackUrlTests.php</file>
       <file>tests/EnableCookiesTests.php</file>
       <file>tests/FlowDataTests.php</file>
       <file>tests/CloseTests.php</file>

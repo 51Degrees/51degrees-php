@@ -43,8 +43,14 @@ class GettingStartedConsoleOnPremise
             'performanceProfile' => 'MaxPerformance'
         ]))->build();
 
-        foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
-            $this->analyseEvidence($evidence, $pipeline, $output);
+        // The pipeline is closed in the finally block, which releases the
+        // native data it holds.
+        try {
+            foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
+                $this->analyseEvidence($evidence, $pipeline, $output);
+            }
+        } finally {
+            $pipeline->close();
         }
     }
 
@@ -54,20 +60,27 @@ class GettingStartedConsoleOnPremise
      */
     private function analyseEvidence(array $evidence, $pipeline, $output): void
     {
+        // The FlowData is closed in the finally block, which releases the
+        // results of the lookup straight away, rather than when the garbage
+        // collector next runs.
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->setArray($evidence);
-        $result = $flowData->process();
+        try {
+            $flowData->evidence->setArray($evidence);
+            $result = $flowData->process();
 
-        fwrite($output, "Input values:\n");
-        foreach ($evidence as $key => $value) {
-            fwrite($output, sprintf("\t%s: %s\n", $key, $value));
-        }
+            fwrite($output, "Input values:\n");
+            foreach ($evidence as $key => $value) {
+                fwrite($output, sprintf("\t%s: %s\n", $key, $value));
+            }
 
-        fwrite($output, "Results:\n");
-        $ip = $result->ip;
-        foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
-            ExampleUtils::outputProperty($ip, $name, $output);
+            fwrite($output, "Results:\n");
+            $ip = $result->ip;
+            foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
+                ExampleUtils::outputProperty($ip, $name, $output);
+            }
+            fwrite($output, "\n");
+        } finally {
+            $flowData->close();
         }
-        fwrite($output, "\n");
     }
 }

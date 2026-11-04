@@ -39,11 +39,17 @@ class GettingStartedWeb
             ->addLogger($logger)
             ->buildFromConfig($configFile);
 
-        // Use the data file named by the 51DEGREES_DD_PATH environment
-        // variable, when it is set, in place of the one set in php.ini.
-        ExampleUtils::useDataFileFromEnv($pipeline->getElement('device'), $logger);
+        // The pipeline is closed in the finally block, once the request has
+        // been handled.
+        try {
+            // Use the data file named by the 51DEGREES_DD_PATH environment
+            // variable, when it is set, in place of the one set in php.ini.
+            ExampleUtils::useDataFileFromEnv($pipeline->getElement('device'), $logger);
 
-        $this->processRequest($pipeline, $output);
+            $this->processRequest($pipeline, $output);
+        } finally {
+            $pipeline->close();
+        }
     }
 
     private function processRequest($pipeline, $output)
@@ -57,51 +63,56 @@ class GettingStartedWeb
             return;
         }
 
-        // Create the flowdata object.
+        // Create the flowdata object. It is closed in the finally block, once
+        // the response has been written, which releases the results of the
+        // detection straight away.
         $flowData = $pipeline->createFlowData();
+        try {
+            // Add any information from the request (headers, cookies and additional
+            // client side provided information)
+            $flowData->evidence->setFromWebRequest();
 
-        // Add any information from the request (headers, cookies and additional
-        // client side provided information)
-        $flowData->evidence->setFromWebRequest();
+            // Process the flowdata
+            $flowData->process();
 
-        // Process the flowdata
-        $flowData->process();
+            // Some browsers require that extra HTTP headers are explicitly
+            // requested. So set whatever headers are required by the browser in
+            // order to return the evidence needed by the pipeline.
+            // More info on this can be found at
+            // https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedweb.php&utm_term=processrequest
+            Utils::setResponseHeader($flowData);
 
-        // Some browsers require that extra HTTP headers are explicitly
-        // requested. So set whatever headers are required by the browser in
-        // order to return the evidence needed by the pipeline.
-        // More info on this can be found at
-        // https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedweb.php&utm_term=processrequest
-        Utils::setResponseHeader($flowData);
+            // The .NET and Java APIs have web integration packages which intercept
+            // requests for the pipeline resources. There is no equivalent for PHP,
+            // so the example dispatches on the request path itself, in the same
+            // way as the PHP cloud example.
+            $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-        // The .NET and Java APIs have web integration packages which intercept
-        // requests for the pipeline resources. There is no equivalent for PHP,
-        // so the example dispatches on the request path itself, in the same
-        // way as the PHP cloud example.
-        $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            // Serve the client-side JavaScript built by the JavaScriptBuilder
+            // element. The path matches the one used by the other 51Degrees
+            // examples, so the page references the script by name instead of
+            // inlining it.
+            if ($path === '/51Degrees.core.js') {
+                header('Content-Type: application/x-javascript');
+                $output($flowData->javascriptbuilder->javascript);
 
-        // Serve the client-side JavaScript built by the JavaScriptBuilder
-        // element. The path matches the one used by the other 51Degrees
-        // examples, so the page references the script by name instead of
-        // inlining it.
-        if ($path === '/51Degrees.core.js') {
-            header('Content-Type: application/x-javascript');
-            $output($flowData->javascriptbuilder->javascript);
+                return;
+            }
 
-            return;
+            // Next we make a JSON route that will be called from the client side
+            // and will return a JSON encoded property database using any additional
+            // evidence provided by the client.
+            if ($path === '/json') {
+                header('Content-Type: application/json');
+                $output(json_encode($flowData->jsonbundler->json));
+
+                return;
+            }
+
+            include_once __DIR__ . '/../static/page.php';
+        } finally {
+            $flowData->close();
         }
-
-        // Next we make a JSON route that will be called from the client side
-        // and will return a JSON encoded property database using any additional
-        // evidence provided by the client.
-        if ($path === '/json') {
-            header('Content-Type: application/json');
-            $output(json_encode($flowData->jsonbundler->json));
-
-            return;
-        }
-
-        include_once __DIR__ . '/../static/page.php';
     }
 
     /**

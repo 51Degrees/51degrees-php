@@ -45,17 +45,30 @@ class OfflineProcessingConsoleOnPremise
             'performanceProfile' => 'MaxPerformance'
         ]))->build();
 
-        foreach ($ipAddresses as $ipAddress) {
-            $flowData = $pipeline->createFlowData();
-            $flowData->evidence->set('query.client-ip', $ipAddress);
-            $result = $flowData->process();
+        // The pipeline is closed in the finally block, which releases the
+        // native data it holds.
+        try {
+            foreach ($ipAddresses as $ipAddress) {
+                // Each FlowData is closed in its finally block, which
+                // releases the results of the lookup straight away, rather
+                // than when the garbage collector next runs.
+                $flowData = $pipeline->createFlowData();
+                try {
+                    $flowData->evidence->set('query.client-ip', $ipAddress);
+                    $result = $flowData->process();
 
-            $ip = $result->ip;
-            fwrite($output, "---\n");
-            fwrite($output, sprintf("query.client-ip: %s\n", $ipAddress));
-            foreach (['RegisteredName', 'Country', 'CountryCode'] as $name) {
-                ExampleUtils::outputProperty($ip, $name, $output);
+                    $ip = $result->ip;
+                    fwrite($output, "---\n");
+                    fwrite($output, sprintf("query.client-ip: %s\n", $ipAddress));
+                    foreach (['RegisteredName', 'Country', 'CountryCode'] as $name) {
+                        ExampleUtils::outputProperty($ip, $name, $output);
+                    }
+                } finally {
+                    $flowData->close();
+                }
             }
+        } finally {
+            $pipeline->close();
         }
     }
 }

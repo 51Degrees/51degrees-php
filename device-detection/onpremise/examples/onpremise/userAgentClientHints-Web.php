@@ -93,27 +93,29 @@ $builder = new PipelineBuilder(['suppressProcessExceptions' => true]);
 
 $pipeline = $builder->add($device)->build();
 
-// We create the flowData object that is used to add evidence to and read data from
+// We create the flowData object that is used to add evidence to and read data from.
+// It is closed, with the pipeline, in the finally block at the end of the
+// page, which releases the results of the detection straight away.
 $flowData = $pipeline->createFlowData();
+try {
+    // We set headers, cookies and more information from the web request
+    $flowData->evidence->setFromWebRequest();
 
-// We set headers, cookies and more information from the web request
-$flowData->evidence->setFromWebRequest();
+    // Now we process the flowData
+    $flowData->process();
 
-// Now we process the flowData
-$flowData->process();
+    $device = $flowData->device;
 
-$device = $flowData->device;
+    // Some browsers require that extra HTTP headers are explicitly
+    // requested. So set whatever headers are required by the browser in
+    // order to return the evidence needed by the pipeline.
+    // More info on this can be found at
+    // https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=top
+    Utils::setResponseHeader($flowData);
 
-// Some browsers require that extra HTTP headers are explicitly
-// requested. So set whatever headers are required by the browser in
-// order to return the evidence needed by the pipeline.
-// More info on this can be found at
-// https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=top
-Utils::setResponseHeader($flowData);
-
-// Determine whether the free 'Lite' data file is in use so that the
-// contact-us banner can be shown only on that tier.
-$showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('device')) === 'Lite';
+    // Determine whether the free 'Lite' data file is in use so that the
+    // contact-us banner can be shown only on that tier.
+    $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('device')) === 'Lite';
 ?>
 <head>
     <title>User-Agent Client Hints Example</title>
@@ -235,3 +237,8 @@ $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('
     };
 
 </script>
+<?php
+} finally {
+    $flowData->close();
+    $pipeline->close();
+}

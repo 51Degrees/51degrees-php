@@ -54,6 +54,33 @@ class SwigData extends AspectData
         parent::__construct($engine);
     }
 
+    /**
+     * Release the native results, which keep the engine's data in memory
+     * while they are held, even after the engine is closed or its data is
+     * refreshed. Values already read are unaffected, and reading a property
+     * afterwards throws an exception. Closing the FlowData closes its
+     * results.
+     */
+    public function close(): void
+    {
+        $this->result = null;
+    }
+
+    /**
+     * Get a property value, once the results are known to be open.
+     * Checked here, because AspectData::get turns an exception from
+     * getInternal into a missing property message.
+     * @throws \Exception
+     */
+    public function get(string $key)
+    {
+        if ($this->result === null) {
+            throw new \Exception(Messages::RESULTS_CLOSED);
+        }
+
+        return parent::get($key);
+    }
+
     public function __isset($key)
     {
         return isset($this->flowElement->properties[strtolower($key)]);

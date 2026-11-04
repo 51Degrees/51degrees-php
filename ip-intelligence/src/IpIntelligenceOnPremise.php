@@ -173,6 +173,10 @@ class IpIntelligenceOnPremise extends Engine
 
     public function processInternal(FlowData $flowData): void
     {
+        if ($this->engine === null) {
+            throw new \Exception(Messages::ENGINE_CLOSED);
+        }
+
         [$ipv4, $ipv6] = $this->getClientIps($flowData);
 
         // Look up the supplied client IP directly via the engine's string
@@ -190,6 +194,18 @@ class IpIntelligenceOnPremise extends Engine
         $data = new SwigData($this, $result, $ipv4, $ipv6);
 
         $flowData->setElementData($data);
+    }
+
+    /**
+     * Release the native engine this element built from its dataFile
+     * setting. Its data is freed once no results read from it are still
+     * held, so close every FlowData it processed as well. The shared global
+     * engine belongs to the extension and stays loaded. Closing the Pipeline
+     * closes the element.
+     */
+    public function close(): void
+    {
+        $this->engine = null;
     }
 
     /**

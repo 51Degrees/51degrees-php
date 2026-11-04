@@ -31,7 +31,7 @@
  * of metrics and data set production on our website. See also the [performance options](/documentation/4.5/_device_detection__features__performance_options.html)
  * page.
  * # Location
- * This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-php-onpremise/blob/master/examples/onpremise/matchMetrics.php).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/device-detection/onpremise/examples/onpremise/matchMetrics.php).
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';

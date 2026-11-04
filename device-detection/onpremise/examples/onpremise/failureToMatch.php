@@ -28,7 +28,7 @@
  * that meaningful values are returned when checking properties
  * returned from the device detection engine.
  *
- * This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-php-onpremise/blob/master/examples/onpremise/failureToMatch.php).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/device-detection/onpremise/examples/onpremise/failureToMatch.php).
  *
  * In this example we create an on premise 51Degrees device detection pipeline,
  * in order to do this you will need a copy of the 51Degrees on-premise library
@@ -42,7 +42,7 @@
  * When running under a process manager such as Apache MPM or php-fpm, the
  * engine must load the whole data file into memory. This is now enforced
  * automatically (the MaxPerformance profile is always used), so no extra
- * configuration is required. More details can be found in <a href="https://github.com/51Degrees/device-detection-php-onpremise/blob/master/readme.md">README</a>.
+ * configuration is required. More details can be found in <a href="https://github.com/51Degrees/51degrees-php/blob/main/device-detection/onpremise/readme.md">README</a>.
  *
  * Expected output:
  *

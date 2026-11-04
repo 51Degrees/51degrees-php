@@ -1,7 +1,7 @@
 # 51Degrees Pipeline Translation (PHP)
 
 A generic translation engine for the
-[51Degrees Pipeline API](https://github.com/51Degrees/pipeline-php-core).
+[51Degrees Pipeline API](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/core).
 
 It reads one or more properties produced by an upstream pipeline element,
 translates each value into the language resolved from the request evidence,
@@ -12,7 +12,7 @@ weighting is preserved and only the value is translated.
 
 This package provides the base behaviour. Concrete engines (for example the
 country code and countries translation engines in
-[ip-intelligence-php](https://github.com/51Degrees/ip-intelligence-php))
+[ip-intelligence](https://github.com/51Degrees/51degrees-php/tree/main/ip-intelligence))
 configure it with a source element data key, a set of source to destination
 property name pairs, the per-locale translation maps, and a missing-translation
 behaviour.

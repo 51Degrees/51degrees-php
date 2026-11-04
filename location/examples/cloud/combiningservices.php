@@ -30,7 +30,7 @@
  *
  * To run this example you will need to include the Device Detection Cloud engine from the device detection package.
  *
- * This example is available in full on [GitHub](https://github.com/51Degrees/location-php/blob/master/examples/cloud/combiningservices.php).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/location/examples/cloud/combiningservices.php).
  *
  * To run this example, you will need to create a **resource key**.
  * The resource key is used as short-hand to store the particular set of

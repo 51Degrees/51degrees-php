@@ -38,7 +38,7 @@
  * keys that, when added to the evidence collection in flow data, could have some impact on the
  * result returned by device detection.
  *
- * This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-php-onpremise/blob/master/examples/onpremise/metadataConsole.php).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/device-detection/onpremise/examples/onpremise/metadataConsole.php).
  *
  * @include{doc} example-require-datafile.txt
  *

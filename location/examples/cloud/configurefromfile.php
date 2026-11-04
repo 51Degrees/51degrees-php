@@ -26,7 +26,7 @@
 * This example shows how to configure a pipeline from a configuration file
 * using the pipelinebuilder's buildFromConfig method.
 *
-* This example is available in full on [GitHub](https://github.com/51Degrees/location-php/blob/master/examples/cloud/configurefromfile.php).
+* This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/location/examples/cloud/configurefromfile.php).
 * To run this example, you will need to create a **resource key**.
 * The resource key is used as short-hand to store the particular set of
 * properties you are interested in as well as any associated license keys

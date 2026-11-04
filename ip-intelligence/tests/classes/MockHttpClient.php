@@ -30,7 +30,7 @@ use fiftyone\pipeline\cloudrequestengine\HttpClient;
 /**
  * Mock of the cloud HttpClient so that cloud engine unit tests can run
  * without a resource key or any network access. The PHP analogue of
- * ip-intelligence-python's MockRequestClient.
+ * MockRequestClient in 51degrees-python.
  */
 class MockHttpClient extends HttpClient
 {

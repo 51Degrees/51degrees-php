@@ -33,6 +33,10 @@ class ExampleUtils
     // is the name the 51Degrees examples in every language read.
     public const DATA_FILE_ENV_VAR = '51DEGREES_DD_PATH';
 
+    // Sent with each download of a data file, so that downloads can be
+    // counted by where they come from.
+    public const DATA_DOWNLOAD_SOURCE = 'examples-51degrees-php';
+
     /**
      * Use the data file named by the 51DEGREES_DD_PATH environment variable,
      * when it is set, in place of the one set in php.ini.
@@ -42,7 +46,9 @@ class ExampleUtils
      * must still name a data file that exists. When the environment variable
      * names a different file, the engine is reloaded from that file. The
      * reload lasts for the life of the PHP process, so each process reloads
-     * once and later requests find the engine already using the file.
+     * once and later requests find the engine already using the file. A free
+     * file from cxx/data that has not been downloaded yet is downloaded
+     * first.
      *
      * @param mixed $engine The device detection engine in the pipeline
      * @param mixed $logger
@@ -54,6 +60,7 @@ class ExampleUtils
             return;
         }
 
+        ExampleUtils::downloadMissingDataFile($path);
         $wanted = realpath($path);
         if ($wanted === false) {
             throw new \Exception(
@@ -72,6 +79,78 @@ class ExampleUtils
             "variable '" . ExampleUtils::DATA_FILE_ENV_VAR . "'."
         );
         $engine->refreshData($wanted);
+    }
+
+    /**
+     * Download a free data file that is missing, with the data repository's
+     * script, when the file's link is in the folder where it goes.
+     *
+     * The data repository keeps each free data file as <file>.link, holding
+     * the address it is downloaded from, and the repository is the folder
+     * above the link's folder. The command is printed before it runs, and
+     * again if the file is still missing.
+     *
+     * @param string $path Where the data file goes
+     * @return bool True when the data file is there
+     */
+    public static function downloadMissingDataFile($path)
+    {
+        if (file_exists($path)) {
+            return true;
+        }
+        $command = ExampleUtils::getDataFileCommand($path);
+        if ($command === null) {
+            return false;
+        }
+
+        $name = basename($path);
+        ExampleUtils::writeError(
+            "{$name} is missing, so it is being downloaded by running\n{$command}"
+        );
+        $status = 1;
+        if (function_exists('exec')) {
+            $lines = [];
+            exec($command, $lines, $status);
+            if (count($lines) > 0) {
+                ExampleUtils::writeError(implode("\n", $lines));
+            }
+        }
+        clearstatcache(true, $path);
+        if ($status === 0 && file_exists($path)) {
+            return true;
+        }
+        ExampleUtils::writeError(
+            "{$name} could not be downloaded. Run this command to try " .
+            "again.\n{$command}"
+        );
+
+        return false;
+    }
+
+    /**
+     * The command that downloads a free data file with the data repository's
+     * script, or null when the file's link is not in the folder where it
+     * goes.
+     *
+     * @param string $path Where the data file goes
+     */
+    public static function getDataFileCommand($path)
+    {
+        $link = realpath($path . '.link');
+        if ($link === false || !is_file($link)) {
+            return null;
+        }
+        $data = dirname($link, 2);
+        $name = escapeshellarg(basename($path));
+        $source = ExampleUtils::DATA_DOWNLOAD_SOURCE;
+        if (PHP_OS_FAMILY === 'Windows') {
+            return 'powershell -NoProfile -ExecutionPolicy Bypass -File ' .
+                escapeshellarg($data . '\\get-data-files.ps1') .
+                " {$name} -Source {$source}";
+        }
+
+        return 'sh ' . escapeshellarg($data . '/get-data-files.sh') .
+            " -s {$source} {$name}";
     }
 
     public static function output($message)
@@ -129,9 +208,11 @@ class ExampleUtils
                     "that is more than '" . ExampleUtils::DATA_FILE_AGE_WARNING . "' days " .
                     'old. A more recent data file may be needed to ' .
                     'correctly detect the latest devices, browsers, ' .
-                    'etc. The latest lite data file is available from ' .
-                    'the device-detection-data repository on GitHub ' .
-                    'https://github.com/51Degrees/device-detection-data. ' .
+                    'etc. Get the latest lite data file by running ' .
+                    'cxx/data/get-data-files.sh -u 51Degrees-LiteV4.1.hash, ' .
+                    'or cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash ' .
+                    '-Update on Windows. The scripts are in the data ' .
+                    'repository https://github.com/51Degrees/data. ' .
                     'Find out about the Enterprise data file, which ' .
                     'includes automatic updates, on our pricing page: ' .
                     'https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-exampleutils.php&utm_term=data-file-age-warning'
@@ -186,5 +267,14 @@ class ExampleUtils
         $env = getenv();
 
         return $env[$name] ?? '';
+    }
+
+    /**
+     * Write a message to standard error. The web example's server shows it
+     * in its console, and it never reaches the page.
+     */
+    private static function writeError($message)
+    {
+        file_put_contents('php://stderr', $message . "\n");
     }
 }

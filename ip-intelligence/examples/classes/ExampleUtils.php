@@ -51,7 +51,8 @@ class ExampleUtils
 
     /**
      * Resolve an on-premise data file path from a CLI argument, environment
-     * variable, or by searching known repository locations.
+     * variable, or by searching known repository locations. When none is
+     * found, the free Lite file is downloaded into cxx/data/ip-intelligence.
      *
      * @param array<string> $args
      */
@@ -66,25 +67,102 @@ class ExampleUtils
             return $env;
         }
 
-        $searchDirs = [
-            __DIR__ . '/../../assets',
-            __DIR__ . '/../../../cxx/ip-intelligence-data'
-        ];
+        $assets = __DIR__ . '/../../assets';
+        $data = __DIR__ . '/../../../cxx/data/ip-intelligence';
 
-        foreach ($searchDirs as $dir) {
+        foreach ([$assets, $data] as $dir) {
             foreach (ExampleConstants::IPI_DATA_FILE_NAMES as $name) {
                 $candidate = $dir . '/' . $name;
                 if (file_exists($candidate)) {
                     return $candidate;
                 }
             }
-            $any = glob($dir . '/*.ipi') ?: [];
-            if (!empty($any)) {
-                return $any[0];
+            // Any other .ipi file in assets was put there to be used. The
+            // data folder is searched by name only, as it can also hold the
+            // Asn file.
+            if ($dir === $assets) {
+                $any = glob($dir . '/*.ipi') ?: [];
+                if (!empty($any)) {
+                    return $any[0];
+                }
             }
         }
 
-        return null;
+        $lite = $data . '/' . ExampleConstants::LITE_DATA_FILE_NAME;
+
+        return self::downloadMissingDataFile($lite) ? $lite : null;
+    }
+
+    /**
+     * Download a free data file that is missing, with the data repository's
+     * script, when the file's link is in the folder where it goes.
+     *
+     * The data repository keeps each free data file as <file>.link, holding
+     * the address it is downloaded from, and the repository is the folder
+     * above the link's folder. The command is printed before it runs, and
+     * again if the file is still missing.
+     *
+     * @param string $path Where the data file goes
+     * @return bool True when the data file is there
+     */
+    public static function downloadMissingDataFile(string $path): bool
+    {
+        if (file_exists($path)) {
+            return true;
+        }
+        $command = self::getDataFileCommand($path);
+        if ($command === null) {
+            return false;
+        }
+
+        $name = basename($path);
+        self::writeError(
+            "{$name} is missing, so it is being downloaded by running\n{$command}"
+        );
+        $status = 1;
+        if (function_exists('exec')) {
+            $lines = [];
+            exec($command, $lines, $status);
+            if (count($lines) > 0) {
+                self::writeError(implode("\n", $lines));
+            }
+        }
+        clearstatcache(true, $path);
+        if ($status === 0 && file_exists($path)) {
+            return true;
+        }
+        self::writeError(
+            "{$name} could not be downloaded. Run this command to try " .
+            "again.\n{$command}"
+        );
+
+        return false;
+    }
+
+    /**
+     * The command that downloads a free data file with the data repository's
+     * script, or null when the file's link is not in the folder where it
+     * goes.
+     *
+     * @param string $path Where the data file goes
+     */
+    public static function getDataFileCommand(string $path): ?string
+    {
+        $link = realpath($path . '.link');
+        if ($link === false || !is_file($link)) {
+            return null;
+        }
+        $data = dirname($link, 2);
+        $name = escapeshellarg(basename($path));
+        $source = ExampleConstants::DATA_DOWNLOAD_SOURCE;
+        if (PHP_OS_FAMILY === 'Windows') {
+            return 'powershell -NoProfile -ExecutionPolicy Bypass -File ' .
+                escapeshellarg($data . '\\get-data-files.ps1') .
+                " {$name} -Source {$source}";
+        }
+
+        return 'sh ' . escapeshellarg($data . '/get-data-files.sh') .
+            " -s {$source} {$name}";
     }
 
     /**
@@ -140,5 +218,14 @@ class ExampleUtils
             // data file. Report it rather than aborting the whole example.
             fwrite($output, sprintf("\t%s: (not available - %s)\n", $name, $e->getMessage()));
         }
+    }
+
+    /**
+     * Write a message to standard error. A web example's server shows it in
+     * its console, and it never reaches the page.
+     */
+    private static function writeError(string $message): void
+    {
+        file_put_contents('php://stderr', $message . "\n");
     }
 }

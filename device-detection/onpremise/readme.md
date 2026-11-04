@@ -1,8 +1,8 @@
 # 51Degrees PHP Device Detection On-Premise
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-device-detection-on-premise "Data rewards the curious") **PHP Pipeline API**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=51degrees-php-device-detection-on-premise "Data rewards the curious") **PHP Pipeline API**
 
-[Developer Documentation](https://51degrees.com/device-detection-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-device-detection-on-premise "developer documentation")
+[Developer Documentation](https://51degrees.com/device-detection-php/index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=51degrees-php-device-detection-on-premise "developer documentation")
 
 ## Introduction
 This project contains the on-premise version of 51Degrees Device Detection for the Pipeline API.
@@ -11,29 +11,27 @@ When using on-premise device detection engines in the PHP pipeline, the appropri
 
 ## Dependencies
 
-For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies) page.
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies) page shows 
+For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies) page.
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies) page shows 
 the PHP versions that we currently test against. The software may run fine against other versions, 
 but additional caution should be applied.
 
 ### Data file
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' sub-module of 'cxx', which has 
+The 'data' sub-module of 'cxx' has a script that downloads a free, 'lite' file. That file has 
 a significantly reduced set of properties. To obtain a file with a more complete set of device 
 properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=data-file). 
-If you want to use the lite file, you will need to install [GitLFS](https://git-lfs.github.com/):
+To download the lite file into 'cxx/data/device-detection', run this from the root of the repository:
 
 ```
-sudo apt-get install git-lfs
-git lfs install
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ```
 
-Then, navigate to 'cxx/device-detection-data' at the root of the repository and execute:
-
-```
-git lfs pull
-```
+On Windows, run `cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash` in PowerShell instead.
+Then set `FiftyOneDegreesHashEngine.data_file` in php.ini to that file, as
+[Configuration](#configuration) describes. The engine loads the file when PHP starts, so the
+file must be there first.
 
 ## Install
 
@@ -156,12 +154,17 @@ When running under Apache MPM, only `prefork` mode is supported, since `dl()` ca
 
 #### Refresh Internal Data
 
-To reload the data file, *refreshData()* needs to be called as described in this [example](https://51degrees.com/documentation/_examples__device_detection__data_file_updates__manual.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=refresh-internal-data) . Thus, unless a reload is performed in the main process and all child processes, the data will not be updated. There is not a proven solution to do so yet, so we recommend a full server restart to be performed instead.
+To reload the data file, *refreshData()* needs to be called as described in this [example](https://51degrees.com/documentation/_device_detection__data_file_updates.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=refresh-internal-data) . Thus, unless a reload is performed in the main process and all child processes, the data will not be updated. There is not a proven solution to do so yet, so we recommend a full server restart to be performed instead.
 
 ## Examples
 
 Before running the examples, the configuration for the native module MUST be
 added to the php.ini file. See [Configuration](#configuration).
+
+The gettingStartedWeb example uses the data file named by the `51DEGREES_DD_PATH`
+environment variable in place of the php.ini one, when it is set. If that is a
+free file in `cxx/data` that has not been downloaded yet, the example runs the
+download script for it first.
 
 To run the examples, you will need PHP and composer installed.
 Once these are available, install the dependencies required by the examples. 
@@ -253,3 +256,12 @@ then the dependency changed to:
 ```
 "51degrees/fiftyone.pipeline.core": "*"
 ```
+
+## Find out more
+
+- [Device Detection](https://51degrees.com/device-detection?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-device-detection)
+- [Device Detection documentation](https://51degrees.com/documentation/_device_detection__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-documentation)
+- [Getting started](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-getting-started)
+- [Pricing](https://51degrees.com/pricing?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-pricing)
+- https://github.com/51Degrees/51degrees-php
+- https://github.com/51Degrees/51degrees-cxx

@@ -12,7 +12,7 @@
     "type": "library",
     "require": {
         "php": ">=8.0",
-        "51degrees/fiftyone.pipeline.core": "4.*",
+        "51degrees/fiftyone.pipeline.core": "^4.5.206",
         "51degrees/fiftyone.pipeline.engines": "4.*"
     },
     "require-dev": {

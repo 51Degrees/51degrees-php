@@ -26,9 +26,10 @@
 #            The package's own build-project.ps1 and install-package.ps1 are
 #            not run, as they would run composer install in the package.
 #            Own: the package's own build-project.ps1 runs composer install in
-#            the package directory, so its tests use the versions on Packagist
-#            for the other 51Degrees packages. Used where the package is not in
-#            the root composer.json, or where its build script also compiles a
+#            the package directory, from a copy of its composer.json with path
+#            repositories for the pipeline packages, so its tests also run
+#            against their source here. Used where the package is not in the
+#            root composer.json, or where its build script also compiles a
 #            native extension and cannot be split from its composer install.
 #   Ci       Whether the package has a ci folder to run scripts from.
 #   Assembled  The mirror's version tags go on a commit that
@@ -66,9 +67,7 @@
 #   ip-intelligence: Own, because its build-project.ps1 compiles the
 #     native extension and then runs composer install. No mirror yet.
 #
-# Own packages test against the Packagist releases of the pipeline packages,
-# so a change to pipeline/core reaches their tests only after it is
-# released. Moving them to Root needs their native build split from their
+# Moving the Own packages to Root needs their native build split from their
 # composer install.
 $Packages = @(
     @{ Path = 'pipeline/core'; Mirror = 'pipeline-php-core'; Vendor = 'Root'; Ci = $true }

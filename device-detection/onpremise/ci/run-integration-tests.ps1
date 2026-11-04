@@ -1,8 +1,16 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName
+    [string]$RepoName,
+    # False, from select-options.ps1, on every entry of a pull request but
+    # one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 $ErrorActionPreference = 'Stop'
+
+if (-not $SeleniumContract) {
+    Write-Host "Another entry runs the Selenium contract tests for this pull request."
+    return
+}
 
 # The shared Selenium contract tests need DeviceType and the JavaScript
 # overrides for screen size, which the Lite data file does not have, so they

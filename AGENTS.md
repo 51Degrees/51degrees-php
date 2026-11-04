@@ -56,6 +56,13 @@ for the whole repository. Those run each package's own `ci/` scripts with
 mirrors, and which packages test against the root `vendor` and which install
 their own. Add a package there, not in the workflows.
 
+`ci/select-options.ps1` chooses the entries a pull request runs. The standard
+set is PHP 8.5 and 7.4 on Linux and PHP 8.3 on Windows, with the Selenium
+contract on 8.5 alone. A change to a `composer.json`, a `ci/` folder or a file
+outside the package folders adds the other PHP versions on Linux. macOS and
+performance run only when `rc` itself or the release pull request is built,
+which `.github/workflows/release-pull-request.yml` does on every entry.
+
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a
 `composer install` run inside the package stops it, as the tests would then

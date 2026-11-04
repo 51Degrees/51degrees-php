@@ -2,7 +2,10 @@ param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
     [Parameter(Mandatory=$true)]
-    [hashtable]$Keys
+    [hashtable]$Keys,
+    # False, from select-options.ps1, on every entry of a pull request but
+    # one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 
 if (!$Keys.TestResourceKey) {
@@ -31,6 +34,11 @@ $env:AcceptChNoneKey = $Keys.TestResourceKey
 
 ./php/run-integration-tests.ps1 -RepoName $RepoName
 $status = $LASTEXITCODE
+
+if (-not $SeleniumContract) {
+    Write-Host "Another entry runs the Selenium contract tests for this pull request."
+    exit $status
+}
 
 Write-Host 'Running Selenium tests...'
 try {

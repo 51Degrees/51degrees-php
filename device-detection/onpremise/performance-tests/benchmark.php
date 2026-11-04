@@ -30,18 +30,22 @@ use fiftyone\pipeline\core\JsonBundlerElement;
 
 function process($pipeline, $server, $cookies = null, $query = null) {
     // We create the flowData object that is used to add evidence to and read
-    // data from
+    // data from. It is closed in the finally block, which releases the
+    // results of the detection straight away.
     $flowData = $pipeline->createFlowData();
+    try {
+        // We set headers, cookies and more information from the web request
+        $flowData->evidence->setFromWebRequest($server, $cookies, $query);
 
-    // We set headers, cookies and more information from the web request
-    $flowData->evidence->setFromWebRequest($server, $cookies, $query);
+        // Now we process the flowData
+        $result = $flowData->process();
 
-    // Now we process the flowData
-    $result = $flowData->process();
+        $device = $flowData->device;
 
-    $device = $flowData->device;
-
-    return "IsMobile: " . (isset($device->ismobile) && $device->ismobile->hasValue ? $device->ismobile->value : "Unknown (" . (isset($device->ismobile) ? $device->ismobile->noValueMessage : "property unavailable" ) .")") . "\n";
+        return "IsMobile: " . (isset($device->ismobile) && $device->ismobile->hasValue ? $device->ismobile->value : "Unknown (" . (isset($device->ismobile) ? $device->ismobile->noValueMessage : "property unavailable" ) .")") . "\n";
+    } finally {
+        $flowData->close();
+    }
 }
 
 $device = new DeviceDetectionOnPremise();
@@ -80,20 +84,26 @@ for ($i = 1; $i < $argc; ++$i) {
 
 $userAgents = file($userAgentsFile, FILE_IGNORE_NEW_LINES) or exit(1);
 
-$startTime = hrtime(true);
-foreach ($userAgents as $ua) {
-    $server["HTTP_USER_AGENT"] = $ua;
-    process($pipeline, $server);
-}
-$timeNS = hrtime(true) - $startTime;
-$timeMS = $timeNS / 1e6;
-$timeS = $timeMS / 1e3;
+// The pipeline is closed in the finally block once the detections have been
+// timed.
+try {
+    $startTime = hrtime(true);
+    foreach ($userAgents as $ua) {
+        $server["HTTP_USER_AGENT"] = $ua;
+        process($pipeline, $server);
+    }
+    $timeNS = hrtime(true) - $startTime;
+    $timeMS = $timeNS / 1e6;
+    $timeS = $timeMS / 1e3;
 
-if ($output) {
-    echo json_encode(array(
-        "Detections" => count($userAgents),
-        "DetectionsPerSecond" => count($userAgents) / $timeS,
-        "RuntimeSeconds" => $timeS,
-        "AvgMillisecsPerDetection" => $timeMS / count($userAgents),
-    ), JSON_PRETTY_PRINT), "\n";
+    if ($output) {
+        echo json_encode(array(
+            "Detections" => count($userAgents),
+            "DetectionsPerSecond" => count($userAgents) / $timeS,
+            "RuntimeSeconds" => $timeS,
+            "AvgMillisecsPerDetection" => $timeMS / count($userAgents),
+        ), JSON_PRETTY_PRINT), "\n";
+    }
+} finally {
+    $pipeline->close();
 }

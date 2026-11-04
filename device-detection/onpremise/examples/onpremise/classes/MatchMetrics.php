@@ -76,97 +76,104 @@ class MatchMetrics
         // and usually consists of a number of HTTP Header field
         // values, in this case represented by a dictionary of header
         // name/value entries.
+        // The FlowData and then the pipeline are closed in the finally block,
+        // which releases the results of the detection straight away, rather
+        // than when the garbage collector next runs.
         $data = $pipeline->createFlowData();
+        try {
+            // Process a single evidence to retrieve the values
+            // associated with the user-agent and other evidence such as sec-ch-* for the
+            // selected properties.
+            $data->evidence->setArray($this->evidenceValues);
+            $data->process();
 
-        // Process a single evidence to retrieve the values
-        // associated with the user-agent and other evidence such as sec-ch-* for the
-        // selected properties.
-        $data->evidence->setArray($this->evidenceValues);
-        $data->process();
+            // Now that it's been processed, the flow data will have
+            // been populated with the result. In this case, we want
+            // information about the device, which we can get by
+            // asking for a result matching named "device"
+            $device = $data->device;
 
-        // Now that it's been processed, the flow data will have
-        // been populated with the result. In this case, we want
-        // information about the device, which we can get by
-        // asking for a result matching named "device"
-        $device = $data->device;
-
-        $output('--- Compare evidence with what was matched ---');
-        $output('');
-        $output('Evidence');
-        // output the evidence in reverse value length order
-        uasort($this->evidenceValues, function ($a, $b) {
-            return strlen($b) - strlen($a);
-        });
-        foreach ($this->evidenceValues as $key => $value) {
-            $output("    {$key}: {$value}");
-        }
-
-        // Obtain the matched User-Agents: the matched substrings in the
-        // User-Agents are separated with underscores - output in forward length order.
-        $output('Matches');
-        $useragents = $device->useragents->value;
-        usort($useragents, function ($a, $b) {
-            return strlen($a) - strlen($b);
-        });
-        foreach ($useragents as $useragent) {
-            $output("    Matched User-Agent: {$useragent}");
-        }
-
-        $output('');
-
-        $output('--- Listing all available properties, by component, by property ' .
-            'name ---');
-        $output('For a discussion of what the match properties mean, see: ' .
-            '/documentation/4.5/_device_detection__hash' .
-            '.html#DeviceDetection_Hash_DataSetProduction');
-
-        // retrieve the available properties from the hash engine. The properties
-        // available depends on
-        // a) the use of FiftyOneDegreesHashEngine.required_properties option in the
-        // php.ini file.
-        // which controls which properties will be extracted, and also affects
-        // the performance of extraction
-        // b) the tier of data file being used. The Lite data file contains fewer
-        // than 20 of the >200 available properties
-        $availableProperties =
-            $pipeline->getElement('device')->getProperties();
-
-        // create a Map keyed on the component name of the properties available
-        // components being hardware, browser, OS and Crawler.
-        $categoryMap = [];
-        foreach ($availableProperties as $property) {
-            $component = $property['component'];
-            if (array_key_exists($component, $categoryMap) === false) {
-                $categoryMap[$component] = [];
+            $output('--- Compare evidence with what was matched ---');
+            $output('');
+            $output('Evidence');
+            // output the evidence in reverse value length order
+            uasort($this->evidenceValues, function ($a, $b) {
+                return strlen($b) - strlen($a);
+            });
+            foreach ($this->evidenceValues as $key => $value) {
+                $output("    {$key}: {$value}");
             }
-            $categoryMap[$component][] = $property;
-        }
 
-        // iterate the map created above
-        foreach ($categoryMap as $component => $componentProperties) {
-            $output($component);
-            foreach ($componentProperties as $property) {
-                $name = $property['name'];
-                $description = $property['description'];
+            // Obtain the matched User-Agents: the matched substrings in the
+            // User-Agents are separated with underscores - output in forward length order.
+            $output('Matches');
+            $useragents = $device->useragents->value;
+            usort($useragents, function ($a, $b) {
+                return strlen($a) - strlen($b);
+            });
+            foreach ($useragents as $useragent) {
+                $output("    Matched User-Agent: {$useragent}");
+            }
 
-                // while we get the available properties and their metadata from the
-                // pipeline we get the values for the last detection from flowData
-                $value = $device->{$name};
+            $output('');
 
-                // output property names, values and descriptions
-                // some property values are lists. $property["isList"] will be true
-                if ($value->hasValue && is_array($value->value)) {
-                    $output("    {$name}: " . count($value->value) . ' Values');
-                    foreach ($value->value as $x) {
-                        $output("        : {$x}");
+            $output('--- Listing all available properties, by component, by property ' .
+                'name ---');
+            $output('For a discussion of what the match properties mean, see: ' .
+                '/documentation/4.5/_device_detection__hash' .
+                '.html#DeviceDetection_Hash_DataSetProduction');
+
+            // retrieve the available properties from the hash engine. The properties
+            // available depends on
+            // a) the use of FiftyOneDegreesHashEngine.required_properties option in the
+            // php.ini file.
+            // which controls which properties will be extracted, and also affects
+            // the performance of extraction
+            // b) the tier of data file being used. The Lite data file contains fewer
+            // than 20 of the >200 available properties
+            $availableProperties =
+                $pipeline->getElement('device')->getProperties();
+
+            // create a Map keyed on the component name of the properties available
+            // components being hardware, browser, OS and Crawler.
+            $categoryMap = [];
+            foreach ($availableProperties as $property) {
+                $component = $property['component'];
+                if (array_key_exists($component, $categoryMap) === false) {
+                    $categoryMap[$component] = [];
+                }
+                $categoryMap[$component][] = $property;
+            }
+
+            // iterate the map created above
+            foreach ($categoryMap as $component => $componentProperties) {
+                $output($component);
+                foreach ($componentProperties as $property) {
+                    $name = $property['name'];
+                    $description = $property['description'];
+
+                    // while we get the available properties and their metadata from the
+                    // pipeline we get the values for the last detection from flowData
+                    $value = $device->{$name};
+
+                    // output property names, values and descriptions
+                    // some property values are lists. $property["isList"] will be true
+                    if ($value->hasValue && is_array($value->value)) {
+                        $output("    {$name}: " . count($value->value) . ' Values');
+                        foreach ($value->value as $x) {
+                            $output("        : {$x}");
+                        }
+                    } else {
+                        $output("    {$name}: {$value->value}");
                     }
-                } else {
-                    $output("    {$name}: {$value->value}");
-                }
-                if ($showDescs === true) {
-                    $output("        {$description}");
+                    if ($showDescs === true) {
+                        $output("        {$description}");
+                    }
                 }
             }
+        } finally {
+            $data->close();
+            $pipeline->close();
         }
     }
 }

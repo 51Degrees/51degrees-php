@@ -54,8 +54,14 @@ class TranslationConsoleOnPremise
             ->add(new CountriesTranslationEngine())
             ->build();
 
-        foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
-            $this->analyse($pipeline, $evidence, $output);
+        // The pipeline is closed in the finally block, which releases the
+        // native data it holds.
+        try {
+            foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
+                $this->analyse($pipeline, $evidence, $output);
+            }
+        } finally {
+            $pipeline->close();
         }
     }
 
@@ -69,17 +75,24 @@ class TranslationConsoleOnPremise
      */
     public function analyse(Pipeline $pipeline, array $evidence, $output): void
     {
+        // The FlowData is closed in the finally block, which releases the
+        // results of the lookup straight away, rather than when the garbage
+        // collector next runs.
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->setArray($evidence);
-        $result = $flowData->process();
+        try {
+            $flowData->evidence->setArray($evidence);
+            $result = $flowData->process();
 
-        $translated = $result->countrynamestranslated;
-        $geo = $translated->get('countrycodesgeographicalall');
-        $pop = $translated->get('countrycodespopulationall');
+            $translated = $result->countrynamestranslated;
+            $geo = $translated->get('countrycodesgeographicalall');
+            $pop = $translated->get('countrycodespopulationall');
 
-        fwrite($output, 'Input: ' . json_encode($evidence) . "\n");
-        fwrite($output, "\tCountryCodesGeographicalAll: " . $this->codesLine($geo) . "\n");
-        fwrite($output, "\tCountryCodesPopulationAll: " . $this->codesLine($pop) . "\n\n");
+            fwrite($output, 'Input: ' . json_encode($evidence) . "\n");
+            fwrite($output, "\tCountryCodesGeographicalAll: " . $this->codesLine($geo) . "\n");
+            fwrite($output, "\tCountryCodesPopulationAll: " . $this->codesLine($pop) . "\n\n");
+        } finally {
+            $flowData->close();
+        }
     }
 
     private function codesLine($apv): string

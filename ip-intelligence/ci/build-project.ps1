@@ -42,7 +42,19 @@ if (-not (Test-Path $translationPath)) {
     git clone --depth 1 "https://github.com/$OrgName/$TranslationRepoName" $translationPath || $(throw "failed to clone $OrgName/$TranslationRepoName")
 }
 
-$env:COMPOSER = "composer.json"
+# The pipeline packages come from this checkout rather than Packagist, so the
+# tests run with the pipeline code they are released with. A copy of
+# composer.json gets the path repositories, and the published one is left as
+# it is.
+$composer = Get-Content -Raw $RepoName/composer.json | ConvertFrom-Json -AsHashtable
+$composer['repositories'] = @(foreach ($name in 'core', 'engines', 'cloudrequestengine') {
+    @{ type = 'path'; url = "../pipeline/$name"; options = @{ symlink = $true;
+        versions = @{ "51degrees/fiftyone.pipeline.$name" = '4.x-dev' } } }
+}) + @($composer['repositories'])
+$composer['minimum-stability'] = 'dev'
+$composer['prefer-stable'] = $true
+$composer | ConvertTo-Json -Depth 20 | Set-Content $RepoName/composer.ci.json
+$env:COMPOSER = "composer.ci.json"
 ./php/build-project.ps1 -RepoName $RepoName
 
 exit $LASTEXITCODE

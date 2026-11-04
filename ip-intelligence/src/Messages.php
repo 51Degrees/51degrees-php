@@ -52,4 +52,13 @@ class Messages
         'The FiftyOneDegreesIpIntelligenceEngine extension is not loaded. The ' .
         'on-premise IP intelligence engine requires the native extension to be ' .
         'built and enabled (see OnPremise.md). Cloud operation does not require it.';
+
+    public const RESULTS_CLOSED =
+        'These IP intelligence results have been closed, so their ' .
+        'properties cannot be read. Read the values needed before closing ' .
+        'the FlowData.';
+
+    public const ENGINE_CLOSED =
+        'The on-premise IP intelligence engine has been closed, so it cannot ' .
+        'process evidence. Build a new pipeline.';
 }

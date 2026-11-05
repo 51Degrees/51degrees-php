@@ -101,7 +101,10 @@ class JavascriptBuilderElement extends FlowElement
      * A name must be a JavaScript identifier (ASCII letters, digits, '_' and
      * '$', not starting with a digit) and not a reserved word. An invalid
      * 'objName', the empty string included, throws an \InvalidArgumentException, and an invalid
-     * requested name is ignored with a warning logged.
+     * requested name is ignored with a warning logged. 'protocol', when set,
+     * must be http or https in any case of its ASCII letters, or the
+     * constructor throws an \InvalidArgumentException. Left out, the
+     * 'header.protocol' evidence is used, or https when there is none.
      */
     public function __construct(array $settings = [])
     {
@@ -111,6 +114,18 @@ class JavascriptBuilderElement extends FlowElement
                 "The JavaScript builder's objName setting must be a " .
                 "JavaScript identifier (ASCII letters, digits, '_' and '$', " .
                 'not starting with a digit) and not a reserved word.'
+            );
+        }
+
+        // A protocol given here is used for every request, so one the script
+        // cannot send its request with is refused now rather than logged on
+        // the first request.
+        $protocol = $settings['protocol'] ?? null;
+        if ($protocol !== null && $protocol !== '' &&
+            !CallbackUrl::isScheme($protocol)) {
+            throw new \InvalidArgumentException(
+                "The JavaScript builder's protocol setting must be http or " .
+                'https.'
             );
         }
 

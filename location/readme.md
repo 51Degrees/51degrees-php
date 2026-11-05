@@ -3,9 +3,9 @@
 
 # 51Degrees Geo-Location Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=51degrees-geo-location-engines "Data rewards the curious") **Pipeline API**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **Pipeline API**
 
-[Developer Documentation](https://51degrees.com/location-php/index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=51degrees-geo-location-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_reverse_geocoding__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=51degrees-geo-location-engines "developer documentation")
 
 ## Introduction
 

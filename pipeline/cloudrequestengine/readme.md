@@ -3,9 +3,9 @@
 
 # 51Degrees PHP Cloud Request Engine
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=51degrees-php-cloud-request-engine "Data rewards the curious") **PHP Pipeline API**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **PHP Pipeline API**
 
-[Developer Documentation](https://51degrees.com/documentation/index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=51degrees-php-cloud-request-engine "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=51degrees-php-cloud-request-engine "developer documentation")
 
 ## Introduction
 This project contains the source code for the CloudrequestEngine for the PHP implementation of the 51Degrees Pipeline API.

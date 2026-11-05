@@ -28,6 +28,10 @@ use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 
 class MatchMetrics
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-matchmetrics.php&utm_term=enterprise-data-file';
+
     // Evidence values from a Windows 11 device using a browser
     // that supports User-Agent Client Hints.
     private $evidenceValues = [
@@ -59,8 +63,9 @@ class MatchMetrics
             // in the output.
             // Set the values required in the php.ini file using the
             // FiftyOneDegreesHashEngine.required_properties option.
-            // If using the full on-premise data file more properties will be
-            // present in the data file. See https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-matchmetrics.php&utm_term=run
+            // If using the Enterprise data file more properties will be
+            // present in the data file. Contact us for a copy at
+            // https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-matchmetrics.php&utm_term=run
         ]);
         $pipeline = (new PipelineBuilder())
             ->add($engine)
@@ -164,12 +169,19 @@ class MatchMetrics
                             $output("        : {$x}");
                         }
                     } else {
-                        $output("    {$name}: {$value->value}");
+                        $shown = is_bool($value->value)
+                            ? ($value->value ? 'True' : 'False')
+                            : $value->value;
+                        $output("    {$name}: {$shown}");
                     }
                     if ($showDescs === true) {
                         $output("        {$description}");
                     }
                 }
+            }
+            if (ExampleUtils::isLiteDataFile($pipeline->getElement('device'))) {
+                $output('');
+                $output(ExampleUtils::getEnterpriseOffer(self::CONTACT_US));
             }
         } finally {
             $data->close();

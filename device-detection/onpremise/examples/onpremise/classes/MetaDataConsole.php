@@ -28,6 +28,10 @@ use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 
 class MetaDataConsole
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-metadataconsole.php&utm_term=enterprise-data-file';
+
     /**
      * In this example, we use the DeviceDetectionPipelineBuilder
      * and configure it in code. For more information about
@@ -48,6 +52,10 @@ class MetaDataConsole
         $this->outputEvidenceKeyDetails($engine, $output);
         $this->outputProperties($engine, $output);
         ExampleUtils::checkDataFile($engine, $logger);
+        if (ExampleUtils::isLiteDataFile($engine)) {
+            $output('');
+            $output(ExampleUtils::getEnterpriseOffer(self::CONTACT_US));
+        }
     }
 
     private function outputEvidenceKeyDetails($engine, callable $output)

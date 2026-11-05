@@ -38,8 +38,8 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
             running <code>cxx/data/get-data-files.sh -u 51Degrees-LiteV4.1.hash</code>, or
             <code>cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash -Update</code> on Windows.
             The scripts are in the <a href="https://github.com/51Degrees/data">data</a>
-            repository on GitHub. Find out about the Enterprise data file, which includes automatic
-            daily updates, on our <a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=data-file-age-warning">pricing page</a>.
+            repository on GitHub. <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-static-page.php&utm_term=data-file-age-warning">Contact us</a>
+            about the Enterprise data file, which includes automatic daily updates.
         </div>
     <?php } ?>
 
@@ -163,17 +163,17 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
                 </tr>
             </thead>
             <tbody>
-                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Vendor:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'hardwarevendor')); ?></td></tr>
-                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Name:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'hardwarename')); ?></td></tr>
-                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Device Type:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'devicetype')); ?></td></tr>
-                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Vendor:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'platformvendor')); ?></td></tr>
-                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Name:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'platformname')); ?></td></tr>
-                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Version:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'platformversion')); ?></td></tr>
-                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Vendor:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'browservendor')); ?></td></tr>
-                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Name:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'browsername')); ?></td></tr>
-                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Version:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'browserversion')); ?></td></tr>
-                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Screen width (pixels):</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'screenpixelswidth')); ?></td></tr>
-                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Screen height (pixels):</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'screenpixelsheight')); ?></td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Vendor:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'hardwarevendor')); ?></td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Name:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'hardwarename')); ?></td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Device Type:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'devicetype')); ?></td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Vendor:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'platformvendor')); ?></td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Name:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'platformname')); ?></td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Version:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'platformversion')); ?></td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Vendor:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'browservendor')); ?></td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Name:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'browsername')); ?></td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Version:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'browserversion')); ?></td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Screen width (pixels):</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'screenpixelswidth')); ?></td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Screen height (pixels):</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $flowData->device, 'screenpixelsheight')); ?></td></tr>
                 <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Device Id:</td><td class="c-eg-table__cell"><?php $output(ExampleUtils::getHumanReadable($flowData->device, 'deviceid')); ?></td></tr>
             </tbody>
         </table>

@@ -19,9 +19,10 @@ but additional caution should be applied.
 ### Data file
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-The 'data' sub-module of 'cxx' has a script that downloads a free, 'lite' file. That file has 
-a significantly reduced set of properties. To obtain a file with a more complete set of device 
-properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=data-file). 
+The 'data' sub-module of 'cxx' has a script that downloads a free, 'lite' file. That file has
+a significantly reduced set of properties. The Enterprise data file has every device property,
+and the examples show the properties it adds as needing it.
+[Contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=data-file) for a copy.
 To download the lite file into 'cxx/data/device-detection', run this from the root of the repository:
 
 ```
@@ -189,12 +190,16 @@ The table below describes the examples that are available.
 | Example                                | Description |
 |----------------------------------------|-------------|
 | gettingStartedConsole                  | How to use the 51Degrees on-premise device detection API to determine details about a device based on its User-Agent and User-Agent Client Hints HTTP header values. |
-| gettingStartedWeb                      | How to use the 51Degrees Cloud service to determine details about a device as part of a simple ASP.NET website. |
+| gettingStartedWeb                      | How to use on-premise device detection to determine details about a device as part of a simple PHP website. |
 | metadataConsole                        | How to access the meta-data that relates to the device detection algorithm. |
 | manualDataUpdate                       | How to update the device detection data file when a new one is available. |
 | matchMetrics                           | Demonstrate the metrics that supply information such as confidence in the result. |
 | failureToMatch                         | Demonstrates the functionality available when device detection is unable to identify the details of the device. |
 | userAgentClientHints-Web               | Legacy example. Retained for the associated automated tests. See GettingStarted-Web instead. |
+
+With php.ini naming the free Lite data file, the examples show each property only the Enterprise
+data file has, such as HardwareVendor, HardwareName and DeviceType, as needing it, and give a
+link to contact us about a copy.
 
 ## Tests
 

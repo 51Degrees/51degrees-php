@@ -33,6 +33,10 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
  */
 class MetadataConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-metadataconsoleonpremise.php&utm_term=enterprise-data-file';
+
     /**
      * @param resource $output
      */
@@ -65,6 +69,9 @@ class MetadataConsoleOnPremise
                 if ($filter->filterEvidenceKey($key)) {
                     fwrite($output, sprintf("\t%s\n", $key));
                 }
+            }
+            if (ExampleUtils::isFreeDataFile($engine)) {
+                fwrite($output, "\n" . ExampleUtils::getEnterpriseOffer(self::CONTACT_US) . "\n");
             }
         } finally {
             $engine->close();

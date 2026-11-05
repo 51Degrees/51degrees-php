@@ -78,6 +78,14 @@ or add to `php.ini`:
 extension=/full/path/to/FiftyOneDegreesIpIntelligenceEngine.so
 ```
 
+The web examples use the engine the extension builds once, when PHP starts,
+so that a request does not open the data file again. Name the data file in
+`php.ini` as well, for example the free Lite file:
+
+```ini
+FiftyOneDegreesIpIntelligenceEngine.data_file=/full/path/to/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
+```
+
 ## Data file
 
 The tests and examples use the free Lite `.ipi` data file. Download it into

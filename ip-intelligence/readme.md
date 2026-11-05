@@ -107,7 +107,23 @@ In-repo under `examples/`:
 | `onpremise/gettingstarted-console.php` | On-premise | Look up several IP addresses. |
 | `onpremise/metadata-console.php` | On-premise | List properties and evidence keys. |
 | `onpremise/offlineprocessing-console.php` | On-premise | Batch process IP addresses. |
+| `onpremise/performance-console.php` | On-premise | Measure lookups per second. |
+| `onpremise/suspicious-console.php` | On-premise | Flag IP addresses that look suspicious. |
+| `onpremise/translation-console.php` | On-premise | List the countries an IP address is most likely in. |
 | `onpremise/mixed/gettingstarted-console.php` | On-premise | Device detection + IP intelligence. |
+| `onpremise/web/index.php` | On-premise | Web page with the country list. |
+| `onpremise/web-mixed/index.php` | On-premise | Web page with device detection + IP intelligence. |
+
+The on-premise examples use the free Lite data file when no other is given,
+and download it the first time. The performance example downloads the far
+smaller free ASN file instead, as any data file will do for a benchmark. Each
+example shows the properties only the Enterprise data file has as needing it,
+and gives a link to
+[contact us](https://51degrees.com/contact-us?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=examples)
+about a copy. The suspicious and translation examples need those properties
+throughout, so with a free data file they say which and stop. The web pages
+use the engine php.ini names in `FiftyOneDegreesIpIntelligenceEngine.data_file`,
+as [OnPremise.md](OnPremise.md) describes.
 
 ## Tests
 

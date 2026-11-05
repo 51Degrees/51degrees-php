@@ -37,6 +37,11 @@ class ExampleConstants
     // download it into cxx/data/ip-intelligence when no other file is found.
     public const LITE_DATA_FILE_NAME = '51Degrees-LiteV41.ipi';
 
+    // The free ASN data file, as the data repository names it. It has only
+    // the ASN properties and is far smaller than the Lite file, so the
+    // performance example, which reads one property, downloads it instead.
+    public const ASN_DATA_FILE_NAME = '51Degrees-IPIV4AsnIpiV41.ipi';
+
     // The default on-premise data file names searched for, in priority order.
     // The Asn file is left out, because it has only the Asn and AsnName
     // properties and the examples are written for the Lite or Enterprise file.
@@ -47,7 +52,9 @@ class ExampleConstants
     ];
 
     // Sent with each download of a data file, so that downloads can be
-    // counted by where they come from.
+    // counted by where they come from. It is left out inside GitHub Actions,
+    // where the data repository's script names the build instead, so that
+    // test runs are not counted as people using the examples.
     public const DATA_DOWNLOAD_SOURCE = 'examples-51degrees-php';
 
     // Evidence (IP addresses) used by the getting started examples. These

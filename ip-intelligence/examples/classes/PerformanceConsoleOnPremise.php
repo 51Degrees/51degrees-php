@@ -38,6 +38,10 @@ namespace fiftyone\pipeline\ipintelligence\examples\classes;
  */
 class PerformanceConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-performanceconsoleonpremise.php&utm_term=enterprise-data-file';
+
     // Hard upper bound on the number of detections, regardless of the time
     // cap. A safety net so the benchmark can never run away on a large
     // enterprise data file (which contains millions of profiles).
@@ -81,6 +85,12 @@ class PerformanceConsoleOnPremise
         $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
         $startupMs = (microtime(true) - $startupStart) * 1000.0;
 
+        // The free ASN data file has AsnName in place of RegisteredName, so
+        // the benchmark reads whichever the data file has.
+        $property = ExampleUtils::hasProperty($engine, 'RegisteredName')
+            ? 'RegisteredName'
+            : 'AsnName';
+
         fwrite($output, "Performance benchmark (on-premise IP intelligence)\n");
         fwrite($output, sprintf("\tData file: %s\n", $dataFile));
         fwrite($output, sprintf("\tEngine startup: %.0f ms\n", $startupMs));
@@ -101,7 +111,7 @@ class PerformanceConsoleOnPremise
             foreach ($ipAddresses as $ip) {
                 $results = $engine->process($ip);
                 // Read a property so the lookup cannot be optimised away.
-                $value = $results->getValueAsString('RegisteredName');
+                $value = $results->getValueAsString($property);
                 if ($value->hasValue()) {
                     $checksum += strlen($value->getValue());
                 }
@@ -127,5 +137,8 @@ class PerformanceConsoleOnPremise
         fwrite($output, sprintf("\tDetections per second: %.0f\n", $detectionsPerSecond));
         fwrite($output, sprintf("\tAvg ms per detection: %.4f\n", $msPerDetection));
         fwrite($output, sprintf("\t(checksum: %d)\n", $checksum));
+        if (ExampleUtils::isFreeDataFile($engine)) {
+            fwrite($output, "\n" . ExampleUtils::getEnterpriseOffer(self::CONTACT_US) . "\n");
+        }
     }
 }

@@ -38,6 +38,21 @@ namespace fiftyone\pipeline\ipintelligence\examples\classes;
  */
 class SuspiciousConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-suspiciousconsoleonpremise.php&utm_term=enterprise-data-file';
+
+    // The properties the example decides with, which only the Enterprise
+    // data file has.
+    private const SUSPICIOUS_PROPERTIES = [
+        'IsCellular',
+        'HardwareDiversity',
+        'BrowserDiversity',
+        'LocationConfidence',
+        'IsHosted',
+        'HumanProbability'
+    ];
+
     /**
      * @param resource $output
      */
@@ -52,6 +67,15 @@ class SuspiciousConsoleOnPremise
         $config->setLowMemory();
         $config->setUseUpperPrefixHeaders(false);
         $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
+        if (ExampleUtils::lacksEnterpriseProperties(
+            $engine,
+            'Finding suspicious IP addresses',
+            self::SUSPICIOUS_PROPERTIES,
+            $output,
+            self::CONTACT_US
+        )) {
+            return;
+        }
 
         foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
             $this->analyseEvidence($evidence, $engine, $output);

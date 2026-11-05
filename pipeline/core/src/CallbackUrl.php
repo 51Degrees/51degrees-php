@@ -29,10 +29,10 @@ namespace fiftyone\pipeline\core;
  * The callback URL the client script posts to for updated JSON. The protocol
  * and host usually come from the request, and the script holds the URL in a
  * single-quoted string, so the URL is checked before it is written into the
- * script. A URL that is not valid is refused. In the user information, in
- * anything after the host and port, and in the endpoint, the bytes a URL
- * cannot hold or that could end the string or the script are
- * percent-encoded.
+ * script. A URL that is not valid, including one whose protocol is not http
+ * or https, is refused. In the user information, in anything after the host
+ * and port, and in the endpoint, the bytes a URL cannot hold or that could
+ * end the string or the script are percent-encoded.
  *
  * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/javascript-builder.md#callback-url
  *
@@ -67,10 +67,11 @@ class CallbackUrl
         '\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}]*$/Du';
 
     /**
-     * A scheme as RFC 3986 section 3.1 defines one, being a letter followed
-     * by letters, digits, '+', '-' and '.'.
+     * The schemes the script can send its request with. It uses the URL only
+     * with fetch and XMLHttpRequest, which reach a server with no other
+     * scheme.
      */
-    private const SCHEME = '/^[A-Za-z][A-Za-z0-9+.-]*$/D';
+    private const SCHEMES = ['http', 'https'];
 
     /**
      * A label of a host name, being ASCII letters, digits, '-' and '_'.
@@ -123,7 +124,7 @@ class CallbackUrl
      * and removed when both do. The protocol and the host are written in
      * lower case and the rest as given, apart from the percent-encoding.
      *
-     * @param mixed $protocol The protocol, such as https
+     * @param mixed $protocol The protocol, http or https in any case
      * @param mixed $host The host, which can start with user information and
      * end with a port, a path, a query or a fragment
      * @param mixed $endpoint The endpoint
@@ -144,7 +145,7 @@ class CallbackUrl
             $endpoint = substr($endpoint, 1);
         }
         $built = $protocol . '://' . $host . $endpoint;
-        if (preg_match(self::SCHEME, $protocol) !== 1) {
+        if (!self::isScheme($protocol)) {
             return new self(false, $built);
         }
         $end = strcspn($host, '/?#');
@@ -158,6 +159,19 @@ class CallbackUrl
             self::lower($protocol) . '://' . $authority .
                 self::encoded(substr($host, $end)) . self::encoded($endpoint)
         );
+    }
+
+    /**
+     * Whether the protocol is http or https, ignoring the case of its ASCII
+     * letters only, so that no letter outside ASCII can stand in for an
+     * ASCII one.
+     *
+     * @param mixed $protocol
+     */
+    public static function isScheme($protocol): bool
+    {
+        return is_string($protocol) &&
+            in_array(self::lower($protocol), self::SCHEMES, true);
     }
 
     /**

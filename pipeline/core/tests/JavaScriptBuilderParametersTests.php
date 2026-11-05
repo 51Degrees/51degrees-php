@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\core\tests;
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowElement;
+use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
@@ -297,6 +298,64 @@ class JavaScriptBuilderParametersTests extends TestCase
             $this->assertStringNotContainsString($c, $errors[0]);
         }
         $this->assertStringContainsString('a\nb.com\r\u2028', $errors[0]);
+    }
+
+    /**
+     * A protocol from the request that is neither http nor https gives a
+     * script with no callback, and is logged once like any other URL that is
+     * not valid.
+     */
+    public function testRefusedProtocolFromTheRequestIsLeftOutAndLoggedOnce()
+    {
+        $logger = new CallbackUrlTestLogger('error');
+        $pipeline = (new PipelineBuilder([
+            'javascriptBuilderSettings' => [
+                'endpoint' => '/json',
+                'minify' => false
+            ]
+        ]))->addLogger($logger)->build();
+        foreach ([1, 2] as $request) {
+            $flowData = $pipeline->createFlowData();
+            $flowData->evidence->set('header.host', 'example.com');
+            $flowData->evidence->set('header.protocol', 'ftp');
+            $flowData->process();
+            $this->assertSame(
+                [],
+                $this->requestUrls($flowData->javascriptbuilder->javascript),
+                'request ' . $request
+            );
+        }
+        $this->assertCount(1, $logger->errors, json_encode($logger->errors));
+        $this->assertStringContainsString(
+            '"ftp://example.com/json"',
+            $logger->errors[0]
+        );
+    }
+
+    /**
+     * A protocol in the settings is used for every request, so one the
+     * script cannot send its request with is refused when the builder is
+     * created.
+     */
+    public function testConfiguredProtocolOtherThanHttpOrHttpsIsRefused()
+    {
+        $refused = ['ftp', 'ws', 'javascript', 'https ', "http\u{017F}"];
+        foreach ($refused as $protocol) {
+            try {
+                new JavascriptBuilderElement(['protocol' => $protocol]);
+                $this->fail(json_encode($protocol) . ' was accepted');
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString('protocol', $e->getMessage());
+            }
+        }
+    }
+
+    public function testConfiguredHttpOrHttpsIsAccepted()
+    {
+        foreach (['http', 'https', 'HTTPS'] as $protocol) {
+            $element = new JavascriptBuilderElement(['protocol' => $protocol]);
+            $this->assertSame($protocol, $element->settings['_protocol']);
+        }
     }
 
     /**

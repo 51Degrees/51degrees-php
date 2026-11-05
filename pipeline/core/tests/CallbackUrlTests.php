@@ -185,6 +185,99 @@ class CallbackUrlTests extends TestCase
         $this->assertInvalid(self::url('https', $host), json_encode($host));
     }
 
+    public static function provider_refusedZonesAndTextAfterTheBracket(): array
+    {
+        return [
+            ['[fe80::1%25]'],
+            ["[fe80::1%25'+alert(1)+']"],
+            ['[fe80::1%eth0]'],
+            ['[fe80::1%25eth%0]'],
+            ['[::1]x'],
+            ['[::1]80'],
+            ['[::1]:80x'],
+            ['[::1]]']
+        ];
+    }
+
+    /**
+     * Inside the brackets only an IPv6 address, optionally followed by '%25'
+     * and a zone of unreserved characters, and after them only a port. The
+     * zone check is what keeps a quote out of the script for a bracketed
+     * host.
+     *
+     * @dataProvider provider_refusedZonesAndTextAfterTheBracket
+     */
+    #[DataProvider('provider_refusedZonesAndTextAfterTheBracket')]
+    public function testRefusesTheZoneOrTheTextAfterTheBracket(
+        string $host
+    ): void {
+        $this->assertInvalid(self::url('https', $host), json_encode($host));
+    }
+
+    public function testAcceptsAZoneFollowedByAPort(): void
+    {
+        $this->assertValid(
+            'https://[fe80::1%25eth0]:8080/51dpipeline/json',
+            self::url('https', '[fe80::1%25eth0]:8080'),
+            '[fe80::1%25eth0]:8080'
+        );
+    }
+
+    /**
+     * A port goes by its value, so leading zeros are allowed, and a port too
+     * long to read is refused rather than read as small enough.
+     */
+    public function testChecksThePortByItsValue(): void
+    {
+        $this->assertValid(
+            'https://example.com:00080/51dpipeline/json',
+            self::url('https', 'example.com:00080'),
+            'example.com:00080'
+        );
+        $this->assertValid(
+            'https://example.com:0065535/51dpipeline/json',
+            self::url('https', 'example.com:0065535'),
+            'example.com:0065535'
+        );
+        $refused = [
+            'example.com:0065536',
+            'example.com:123456',
+            'example.com:4294967296',
+            'example.com:99999999999999999999'
+        ];
+        foreach ($refused as $host) {
+            $this->assertInvalid(self::url('https', $host), $host);
+        }
+    }
+
+    /**
+     * Each character rule 8 lists, in the user information, after the host
+     * and in the endpoint, and a '%' without two hexadecimal digits after
+     * it, even at the end.
+     */
+    public function testEncodesTheCharactersRule8Lists(): void
+    {
+        $this->assertValid(
+            'https://u%22%5E%60%7B%7C%7D@example.com/%22%5E%60%7B%7C%7D' .
+                '/j%22%5E%60%7B%7C%7D',
+            CallbackUrl::of('https', 'u"^`{|}@example.com/"^`{|}', '/j"^`{|}'),
+            'rule 8 characters'
+        );
+        $cases = [
+            'example.com/a%' => 'https://example.com/a%25/51dpipeline/json',
+            'example.com/a%4' => 'https://example.com/a%254/51dpipeline/json',
+            'example.com/a%41' => 'https://example.com/a%41/51dpipeline/json'
+        ];
+        foreach ($cases as $host => $expected) {
+            $this->assertValid($expected, self::url('https', $host), $host);
+        }
+        $this->assertValid(
+            'https://example.com/json%25',
+            CallbackUrl::of('https', 'example.com', '/json%'),
+            '/json%'
+        );
+    }
+
     public function testTheInvalidUrlIsTheOneBuilt(): void
     {
         $url = self::url('https', 'exa mple.com');
@@ -192,9 +285,14 @@ class CallbackUrlTests extends TestCase
         $this->assertSame('https://exa mple.com/51dpipeline/json', $url->url);
     }
 
+    /**
+     * Only http and https, ignoring the case of ASCII letters only, so a
+     * letter outside ASCII that a case-insensitive comparison can match to an
+     * ASCII one, such as the long s, is refused.
+     */
     public function testChecksTheScheme(): void
     {
-        foreach (['https', 'http', 'ftp', 'h+t-p.s'] as $protocol) {
+        foreach (['https', 'http', 'HtTp'] as $protocol) {
             $url = self::url($protocol, 'example.com');
             $this->assertTrue($url->valid, $protocol);
         }
@@ -203,9 +301,23 @@ class CallbackUrlTests extends TestCase
             self::url('HTTPS', 'example.com'),
             'HTTPS'
         );
-        foreach (['1http', 'h t', "x');alert(1);//", 'a://b'] as $protocol) {
+        $refused = [
+            'ftp',
+            'h+t-p.s',
+            'ws',
+            'javascript',
+            'httpx',
+            'https ',
+            '1http',
+            'h t',
+            "x');alert(1);//",
+            'a://b',
+            "http\u{017F}",
+            "HTTP\u{017F}"
+        ];
+        foreach ($refused as $protocol) {
             $url = self::url($protocol, 'example.com');
-            $this->assertInvalid($url, $protocol);
+            $this->assertInvalid($url, json_encode($protocol));
         }
     }
 

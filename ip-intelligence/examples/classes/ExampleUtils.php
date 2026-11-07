@@ -26,9 +26,15 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\examples\classes;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\core\FlowElement;
 
 class ExampleUtils
 {
+    // Shown in place of a value for a property that the data file in use
+    // does not have. Every property the examples ask for is in the
+    // Enterprise data file.
+    public const NEEDS_ENTERPRISE = 'needs the Enterprise data file';
+
     /**
      * Resolve the cloud resource key from a CLI argument or environment
      * variable.
@@ -52,12 +58,17 @@ class ExampleUtils
     /**
      * Resolve an on-premise data file path from a CLI argument, environment
      * variable, or by searching known repository locations. When none is
-     * found, the free Lite file is downloaded into cxx/data/ip-intelligence.
+     * found, the free file is downloaded into cxx/data/ip-intelligence.
      *
      * @param array<string> $args
+     * @param string $freeFile The free file to look for after the others,
+     * and to download when nothing is found, the Lite file unless another
+     * is named
      */
-    public static function getDataFile(array $args = []): ?string
-    {
+    public static function getDataFile(
+        array $args = [],
+        string $freeFile = ExampleConstants::LITE_DATA_FILE_NAME
+    ): ?string {
         if (count($args) > 0 && !empty($args[0]) && file_exists($args[0])) {
             return $args[0];
         }
@@ -70,8 +81,11 @@ class ExampleUtils
         $assets = __DIR__ . '/../../assets';
         $data = __DIR__ . '/../../../cxx/data/ip-intelligence';
 
+        $names = array_unique(
+            array_merge(ExampleConstants::IPI_DATA_FILE_NAMES, [$freeFile])
+        );
         foreach ([$assets, $data] as $dir) {
-            foreach (ExampleConstants::IPI_DATA_FILE_NAMES as $name) {
+            foreach ($names as $name) {
                 $candidate = $dir . '/' . $name;
                 if (file_exists($candidate)) {
                     return $candidate;
@@ -88,9 +102,9 @@ class ExampleUtils
             }
         }
 
-        $lite = $data . '/' . ExampleConstants::LITE_DATA_FILE_NAME;
+        $free = $data . '/' . $freeFile;
 
-        return self::downloadMissingDataFile($lite) ? $lite : null;
+        return self::downloadMissingDataFile($free) ? $free : null;
     }
 
     /**
@@ -154,15 +168,127 @@ class ExampleUtils
         }
         $data = dirname($link, 2);
         $name = escapeshellarg(basename($path));
-        $source = ExampleConstants::DATA_DOWNLOAD_SOURCE;
+        $source = getenv('GITHUB_ACTIONS') === 'true'
+            ? ''
+            : ExampleConstants::DATA_DOWNLOAD_SOURCE;
         if (PHP_OS_FAMILY === 'Windows') {
-            return 'powershell -NoProfile -ExecutionPolicy Bypass -File ' .
-                escapeshellarg($data . '\\get-data-files.ps1') .
-                " {$name} -Source {$source}";
+            // PowerShell 7 when it is on the path, otherwise Windows
+            // PowerShell, which, started from PowerShell 7, inherits its
+            // module path and then cannot load its own commands.
+            exec('where pwsh 2>NUL', $found, $status);
+            $shell = $status === 0 ? 'pwsh' : 'set "PSModulePath=" && powershell';
+            $command = "{$shell} -NoProfile -ExecutionPolicy Bypass -File " .
+                escapeshellarg($data . '\\get-data-files.ps1') . " {$name}";
+
+            return $source === '' ? $command : "{$command} -Source {$source}";
         }
 
-        return 'sh ' . escapeshellarg($data . '/get-data-files.sh') .
-            " -s {$source} {$name}";
+        $command = 'sh ' . escapeshellarg($data . '/get-data-files.sh');
+
+        return $source === ''
+            ? "{$command} {$name}"
+            : "{$command} -s {$source} {$name}";
+    }
+
+    /**
+     * True when the engine's data file has the property. The free Lite data
+     * file has the registration properties, such as RegisteredName, and the
+     * free ASN data file the ASN properties, such as AsnName. The data
+     * file's own list is read, because an engine's properties are only
+     * those it was built to give.
+     *
+     * @param mixed $engine A pipeline element, such as the IP intelligence
+     * or device detection engine, or a native engine
+     * @param string $name The property name, in any case
+     */
+    public static function hasProperty($engine, string $name): bool
+    {
+        $native = $engine instanceof FlowElement ? $engine->engine : $engine;
+        $properties = $native->getMetaData()->getProperties();
+        for ($i = 0; $i < $properties->getSize(); ++$i) {
+            if (strcasecmp($properties->getByIndex($i)->getName(), $name) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * True when the engine uses one of the free data files, Lite or ASN.
+     * Only the Enterprise data file has the range properties, so a check for
+     * IpRangeStart tells them apart.
+     *
+     * @param mixed $engine A pipeline element or a native engine
+     */
+    public static function isFreeDataFile($engine): bool
+    {
+        return !self::hasProperty($engine, 'IpRangeStart');
+    }
+
+    /**
+     * For an example that needs properties only the Enterprise data file
+     * has, report when the engine's data file has none of them, and then
+     * write which and where to ask for a copy of the Enterprise data file.
+     *
+     * @param mixed $engine A pipeline element or a native engine
+     * @param string $purpose What the example does, as the start of a
+     * sentence, for example "Finding suspicious IP addresses"
+     * @param array<string> $properties
+     * @param resource $output
+     * @param string $contactUs The contact page, tagged with the example's
+     * file, so that an enquiry can be traced to the example
+     */
+    public static function lacksEnterpriseProperties(
+        $engine,
+        string $purpose,
+        array $properties,
+        $output,
+        string $contactUs
+    ): bool {
+        foreach ($properties as $name) {
+            if (self::hasProperty($engine, $name)) {
+                return false;
+            }
+        }
+        $names = count($properties) === 1
+            ? $properties[0]
+            : implode(', ', array_slice($properties, 0, -1)) . ' and ' .
+                $properties[count($properties) - 1];
+        fwrite($output, "{$purpose} needs the {$names} properties, which " .
+            'only the Enterprise data file has. The data file in use has ' .
+            'none of them, so the example stops here. Contact us for a copy ' .
+            "of the Enterprise data file at {$contactUs}\n");
+
+        return true;
+    }
+
+    /**
+     * Where to ask for a copy of the Enterprise data file, written after an
+     * example has shown properties that the data file in use does not have.
+     *
+     * @param string $contactUs The contact page, tagged with the example's
+     * file
+     */
+    public static function getEnterpriseNote(string $contactUs): string
+    {
+        return 'Some of these properties need the Enterprise data file. ' .
+            "Contact us for a copy at {$contactUs}";
+    }
+
+    /**
+     * What the Enterprise data file adds and where to ask for a copy,
+     * written after an example that shows no location properties has run on
+     * a free data file.
+     *
+     * @param string $contactUs The contact page, tagged with the example's
+     * file
+     */
+    public static function getEnterpriseOffer(string $contactUs): string
+    {
+        return 'This example used a free data file. The Enterprise data file ' .
+            'adds the location, range and connection properties. Contact us ' .
+            "for a copy at {$contactUs}";
     }
 
     /**
@@ -200,6 +326,31 @@ class ExampleUtils
         }
 
         return (string) $value;
+    }
+
+    /**
+     * Write a property to the output stream, or that it needs the
+     * Enterprise data file when the engine's data file does not have it.
+     * Returns true when it needs the Enterprise data file.
+     *
+     * @param mixed $engine The engine that produced the data
+     * @param mixed $data An ElementData instance
+     * @param resource $output
+     */
+    public static function outputEnterpriseProperty(
+        $engine,
+        $data,
+        string $name,
+        $output
+    ): bool {
+        if (!self::hasProperty($engine, $name)) {
+            fwrite($output, sprintf("\t%s: %s\n", $name, self::NEEDS_ENTERPRISE));
+
+            return true;
+        }
+        self::outputProperty($data, $name, $output);
+
+        return false;
     }
 
     /**

@@ -28,6 +28,17 @@ use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 
 class GettingStartedConsole
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=enterprise-data-file';
+
+    // The properties only the Enterprise data file has, with the names they
+    // are shown with. The free Lite data file has the ones shown first.
+    private const ENTERPRISE_PROPERTIES = [
+        'Hardware Vendor' => 'hardwarevendor',
+        'Hardware Name' => 'hardwarename',
+        'Device Type' => 'devicetype'];
+
     // This collection contains the various input values that will
     // be passed to the device detection algorithm.
     private $evidenceValues = [
@@ -85,8 +96,15 @@ class GettingStartedConsole
             ExampleUtils::checkDataFile($pipeline->getElement('device'), $logger);
 
             // carry out some sample detections
+            $needsEnterprise = false;
             foreach ($this->evidenceValues as &$values) {
-                $this->analyseEvidence($values, $pipeline, $output);
+                $needsEnterprise =
+                    $this->analyseEvidence($values, $pipeline, $output) ||
+                    $needsEnterprise;
+            }
+            if ($needsEnterprise) {
+                $output('');
+                $output(ExampleUtils::getEnterpriseNote(self::CONTACT_US));
             }
         } finally {
             $pipeline->close();
@@ -103,7 +121,10 @@ class GettingStartedConsole
         // `AspectPropertyValue` also includes the `no_value_message`
         // method, which describes why the value has not been set.
         if ($value->hasValue) {
-            $message[] = "\t{$name}: {$value->value}";
+            $shown = is_bool($value->value)
+                ? ($value->value ? 'True' : 'False')
+                : $value->value;
+            $message[] = "\t{$name}: {$shown}";
         } else {
             $message[] = "\t{$name}: {$value->noValueMessage}";
         }
@@ -157,7 +178,20 @@ class GettingStartedConsole
             $this->outputValue('Platform Version', $device->platformversion, $message);
             $this->outputValue('Browser Name', $device->browsername, $message);
             $this->outputValue('Browser Version', $device->browserversion, $message);
+
+            // The engine says which properties its data file has, and the
+            // value of a property it does not have is not read.
+            $engine = $pipeline->getElement('device');
+            $needsEnterprise = false;
+            foreach (self::ENTERPRISE_PROPERTIES as $name => $property) {
+                $value = ExampleUtils::getEnterpriseValue($engine, $device, $property);
+                $needsEnterprise = $needsEnterprise ||
+                    $value === ExampleUtils::NEEDS_ENTERPRISE;
+                $message[] = "\t{$name}: {$value}";
+            }
             $output(implode("\n", $message));
+
+            return $needsEnterprise;
         } finally {
             $data->close();
         }

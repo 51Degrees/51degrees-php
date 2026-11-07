@@ -43,6 +43,10 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
  */
 class MixedConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-mixedconsoleonpremise.php&utm_term=enterprise-data-file';
+
     public const DEVICE_DETECTION_ONPREMISE_CLASS =
         'fiftyone\\pipeline\\devicedetection\\DeviceDetectionOnPremise';
 
@@ -79,8 +83,18 @@ class MixedConsoleOnPremise
         // The pipeline is closed in the finally block, which releases the
         // native data it holds.
         try {
+            $needsEnterprise = false;
             foreach (ExampleConstants::MIXED_EVIDENCE_VALUES as $evidence) {
-                $this->analyseEvidence($evidence, $pipeline, $output);
+                $needsEnterprise = $this->analyseEvidence(
+                    $evidence,
+                    $pipeline,
+                    $deviceEngine,
+                    $ipEngine,
+                    $output
+                ) || $needsEnterprise;
+            }
+            if ($needsEnterprise) {
+                fwrite($output, ExampleUtils::getEnterpriseNote(self::CONTACT_US) . "\n");
             }
         } finally {
             $pipeline->close();
@@ -91,8 +105,13 @@ class MixedConsoleOnPremise
      * @param array<string, string> $evidence
      * @param resource $output
      */
-    private function analyseEvidence(array $evidence, $pipeline, $output): void
-    {
+    private function analyseEvidence(
+        array $evidence,
+        $pipeline,
+        $deviceEngine,
+        $ipEngine,
+        $output
+    ): bool {
         // The FlowData is closed in the finally block, which releases the
         // results of the lookup straight away, rather than when the garbage
         // collector next runs.
@@ -108,16 +127,23 @@ class MixedConsoleOnPremise
 
             fwrite($output, "Device Detection Results:\n");
             $device = $result->device;
+            $needsEnterprise = false;
             foreach (ExampleConstants::DEVICE_OUTPUT_PROPERTIES as $name) {
-                ExampleUtils::outputProperty($device, $name, $output);
+                $needsEnterprise =
+                    ExampleUtils::outputEnterpriseProperty($deviceEngine, $device, $name, $output) ||
+                    $needsEnterprise;
             }
 
             fwrite($output, "IP Intelligence Results:\n");
             $ip = $result->ip;
             foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
-                ExampleUtils::outputProperty($ip, $name, $output);
+                $needsEnterprise =
+                    ExampleUtils::outputEnterpriseProperty($ipEngine, $ip, $name, $output) ||
+                    $needsEnterprise;
             }
             fwrite($output, "\n");
+
+            return $needsEnterprise;
         } finally {
             $flowData->close();
         }

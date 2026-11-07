@@ -33,6 +33,10 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
  */
 class GettingStartedConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-gettingstartedconsoleonpremise.php&utm_term=enterprise-data-file';
+
     /**
      * @param resource $output
      */
@@ -46,8 +50,15 @@ class GettingStartedConsoleOnPremise
         // The pipeline is closed in the finally block, which releases the
         // native data it holds.
         try {
+            $engine = $pipeline->getElement('ip');
+            $needsEnterprise = false;
             foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
-                $this->analyseEvidence($evidence, $pipeline, $output);
+                $needsEnterprise =
+                    $this->analyseEvidence($evidence, $pipeline, $engine, $output) ||
+                    $needsEnterprise;
+            }
+            if ($needsEnterprise) {
+                fwrite($output, ExampleUtils::getEnterpriseNote(self::CONTACT_US) . "\n");
             }
         } finally {
             $pipeline->close();
@@ -58,7 +69,7 @@ class GettingStartedConsoleOnPremise
      * @param array<string, string> $evidence
      * @param resource $output
      */
-    private function analyseEvidence(array $evidence, $pipeline, $output): void
+    private function analyseEvidence(array $evidence, $pipeline, $engine, $output): bool
     {
         // The FlowData is closed in the finally block, which releases the
         // results of the lookup straight away, rather than when the garbage
@@ -75,10 +86,15 @@ class GettingStartedConsoleOnPremise
 
             fwrite($output, "Results:\n");
             $ip = $result->ip;
+            $needsEnterprise = false;
             foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
-                ExampleUtils::outputProperty($ip, $name, $output);
+                $needsEnterprise =
+                    ExampleUtils::outputEnterpriseProperty($engine, $ip, $name, $output) ||
+                    $needsEnterprise;
             }
             fwrite($output, "\n");
+
+            return $needsEnterprise;
         } finally {
             $flowData->close();
         }

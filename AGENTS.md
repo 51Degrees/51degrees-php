@@ -309,8 +309,11 @@ it, and moves only the patch number. common-ci's `steps/release-plan.ps1`
 works out the plan from `ci/packages.json`, leaving out Markdown files,
 documentation, tests, examples and licences, and `ci/release-plan-filter.ps1`
 leaves out a `composer.json` whose only change is to its metadata
-(`description`, `keywords`, `homepage`, `support`, `authors`, `license`). Run
-its tests with `Invoke-Pester ci/release-plan-filter.Tests.ps1`. Each tag
+(`description`, `keywords`, `homepage`, `support`, `authors`, `license`). Each
+package's `Ignore` list leaves out its development files, being `phpunit.xml`,
+`phpstan.neon.dist`, `.php-cs-fixer.php`, `.gitignore` files, `.github/workflows`
+and `ci/`, apart from `pipeline/did/ci`, which builds that package. Run the
+filter's tests with `Invoke-Pester ci/release-plan-filter.Tests.ps1`. Each tag
 starts `mirror.yml`,
 which runs `ci/mirror-tags.ps1` to put `<version>` on the package's mirror,
 or `did-publish.yml` for `pipeline/did`. The publish makes every release

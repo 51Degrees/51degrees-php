@@ -2,6 +2,14 @@
   {
     "Name": "fiftyone.pipeline.core",
     "Path": "pipeline/core",
+    "Ignore": [
+      "pipeline/core/.github/workflows/**",
+      "pipeline/core/ci/**",
+      "pipeline/core/**/.gitignore",
+      "pipeline/core/.php-cs-fixer*.php",
+      "pipeline/core/phpstan.neon.dist",
+      "pipeline/core/phpunit.xml"
+    ],
     "DependsOn": [],
     "Publish": true,
     "Mirror": "pipeline-php-core",
@@ -11,6 +19,14 @@
   {
     "Name": "fiftyone.pipeline.engines",
     "Path": "pipeline/engines",
+    "Ignore": [
+      "pipeline/engines/.github/workflows/**",
+      "pipeline/engines/ci/**",
+      "pipeline/engines/**/.gitignore",
+      "pipeline/engines/.php-cs-fixer*.php",
+      "pipeline/engines/phpstan.neon.dist",
+      "pipeline/engines/phpunit.xml"
+    ],
     "DependsOn": ["fiftyone.pipeline.core"],
     "Publish": true,
     "Mirror": "pipeline-php-engines",
@@ -20,6 +36,14 @@
   {
     "Name": "fiftyone.pipeline.cloudrequestengine",
     "Path": "pipeline/cloudrequestengine",
+    "Ignore": [
+      "pipeline/cloudrequestengine/.github/workflows/**",
+      "pipeline/cloudrequestengine/ci/**",
+      "pipeline/cloudrequestengine/**/.gitignore",
+      "pipeline/cloudrequestengine/.php-cs-fixer*.php",
+      "pipeline/cloudrequestengine/phpstan.neon.dist",
+      "pipeline/cloudrequestengine/phpunit.xml"
+    ],
     "DependsOn": ["fiftyone.pipeline.core", "fiftyone.pipeline.engines"],
     "Publish": true,
     "Mirror": "pipeline-php-cloudrequestengine",
@@ -29,6 +53,13 @@
   {
     "Name": "fiftyone.pipeline.did",
     "Path": "pipeline/did",
+    "Ignore": [
+      "pipeline/did/.github/workflows/**",
+      "pipeline/did/**/.gitignore",
+      "pipeline/did/.php-cs-fixer*.php",
+      "pipeline/did/phpstan.neon.dist",
+      "pipeline/did/phpunit.xml"
+    ],
     "DependsOn": [],
     "Publish": true,
     "Mirror": "pipeline-php-did",
@@ -39,6 +70,14 @@
   {
     "Name": "fiftyone.pipeline.translation",
     "Path": "pipeline/translation",
+    "Ignore": [
+      "pipeline/translation/.github/workflows/**",
+      "pipeline/translation/ci/**",
+      "pipeline/translation/**/.gitignore",
+      "pipeline/translation/.php-cs-fixer*.php",
+      "pipeline/translation/phpstan.neon.dist",
+      "pipeline/translation/phpunit.xml"
+    ],
     "DependsOn": ["fiftyone.pipeline.core", "fiftyone.pipeline.engines"],
     "Publish": false,
     "Mirror": null,
@@ -48,6 +87,14 @@
   {
     "Name": "fiftyone.devicedetection",
     "Path": "device-detection/cloud",
+    "Ignore": [
+      "device-detection/cloud/.github/workflows/**",
+      "device-detection/cloud/ci/**",
+      "device-detection/cloud/**/.gitignore",
+      "device-detection/cloud/.php-cs-fixer*.php",
+      "device-detection/cloud/phpstan.neon.dist",
+      "device-detection/cloud/phpunit.xml"
+    ],
     "DependsOn": [
       "fiftyone.pipeline.core",
       "fiftyone.pipeline.engines",
@@ -61,6 +108,14 @@
   {
     "Name": "fiftyone.devicedetection.onpremise",
     "Path": "device-detection/onpremise",
+    "Ignore": [
+      "device-detection/onpremise/.github/workflows/**",
+      "device-detection/onpremise/ci/**",
+      "device-detection/onpremise/**/.gitignore",
+      "device-detection/onpremise/.php-cs-fixer*.php",
+      "device-detection/onpremise/phpstan.neon.dist",
+      "device-detection/onpremise/phpunit.xml"
+    ],
     "DependsOn": ["fiftyone.pipeline.core", "fiftyone.pipeline.engines"],
     "Publish": false,
     "Mirror": null,
@@ -71,6 +126,14 @@
   {
     "Name": "fiftyone.geolocation",
     "Path": "location",
+    "Ignore": [
+      "location/.github/workflows/**",
+      "location/ci/**",
+      "location/**/.gitignore",
+      "location/.php-cs-fixer*.php",
+      "location/phpstan.neon.dist",
+      "location/phpunit.xml"
+    ],
     "DependsOn": [
       "fiftyone.pipeline.core",
       "fiftyone.pipeline.engines",
@@ -84,6 +147,14 @@
   {
     "Name": "fiftyone.ipintelligence",
     "Path": "ip-intelligence",
+    "Ignore": [
+      "ip-intelligence/.github/workflows/**",
+      "ip-intelligence/ci/**",
+      "ip-intelligence/**/.gitignore",
+      "ip-intelligence/.php-cs-fixer*.php",
+      "ip-intelligence/phpstan.neon.dist",
+      "ip-intelligence/phpunit.xml"
+    ],
     "DependsOn": [
       "fiftyone.pipeline.core",
       "fiftyone.pipeline.engines",

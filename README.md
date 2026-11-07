@@ -80,7 +80,11 @@ a file in its directory changed since its last tag, and every package that
 requires it is released with it. A change only to Markdown files, documentation,
 tests, examples or licences does not count, nor does a change to a
 `composer.json` that only moves its metadata, such as its description or links
-([`ci/release-plan-filter.ps1`](ci/release-plan-filter.ps1)). Only the patch
+([`ci/release-plan-filter.ps1`](ci/release-plan-filter.ps1)). Neither does a
+change only to a package's development files, being its `phpunit.xml`,
+`phpstan.neon.dist`, `.php-cs-fixer.php`, `.gitignore` files, `.github/workflows`
+and `ci/` folder (the `Ignore` lists in `ci/packages.json`), except that
+`pipeline/did/ci` counts, because it builds that package. Only the patch
 number moves. The packages,
 what each requires and where each is published are listed in
 [`ci/packages.json`](ci/packages.json), and the release plan is worked out by

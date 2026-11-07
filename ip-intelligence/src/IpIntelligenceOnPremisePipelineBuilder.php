@@ -42,8 +42,9 @@ class IpIntelligenceOnPremisePipelineBuilder extends PipelineBuilder
      * @param array<string, mixed> $settings
      *   dataFile            - (required, unless the global engine is used)
      *                         path to the .ipi data file.
-     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES,
-     *                         defaulting to Constants::DEFAULT_PERFORMANCE_PROFILE.
+     *   performanceProfile  - (optional) only Constants::PERFORMANCE_PROFILE,
+     *                         as the engine always holds the data file in
+     *                         memory. Any other profile raises an exception.
      *   restrictedProperties- (optional) list of properties to populate.
      *   concurrency         - (optional) expected concurrent accesses.
      *

@@ -43,8 +43,7 @@ class GettingStartedConsoleOnPremise
     public function run(string $dataFile, $output): void
     {
         $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
+            'dataFile' => $dataFile
         ]))->build();
 
         // The pipeline is closed in the finally block, which releases the

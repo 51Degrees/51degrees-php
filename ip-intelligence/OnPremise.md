@@ -86,6 +86,22 @@ so that a request does not open the data file again. Name the data file in
 FiftyOneDegreesIpIntelligenceEngine.data_file=/full/path/to/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
 ```
 
+## Running under a process manager
+
+The engine always holds the whole data file in memory, which is the
+`MaxPerformance` performance profile, as device detection does. PHP is
+normally run under a process manager, such as Apache MPM prefork or php-fpm,
+that forks the worker processes. Every other profile keeps the data file open,
+and forking shares those file handles and their read positions between the
+workers, which corrupts the results. Loading the whole file leaves no handle
+to share, and it uses more memory than the other profiles, which read parts
+of the file as they need them.
+
+Leave the `FiftyOneDegreesIpIntelligenceEngine.performance_profile` setting
+and the `performanceProfile` setting out, or set them to `MaxPerformance`. Any
+other profile raises an exception when the engine is created, explaining that
+`MaxPerformance` is the only supported profile.
+
 ## Data file
 
 The tests and examples use the free Lite `.ipi` data file. Download it into

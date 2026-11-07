@@ -97,12 +97,14 @@ if (!extension_loaded('FiftyOneDegreesHashEngine')) {
         // so the multi-gigabyte data file is not re-opened on every request.
         // Fall back to direct construction when the global engine is not
         // configured (the FiftyOneDegreesIpIntelligenceEngine.data_file ini is
-        // not set).
+        // not set). PHP runs the engine with the whole data file in memory,
+        // as on-premise/ipi-php.i explains, so the fallback loads all of it
+        // on every request, and the global engine is the one to use.
         if (function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
             $ipiEngine = \ipi_engine_get();
         } else {
             $ipiConfig = new \ConfigIpiSwig();
-            $ipiConfig->setLowMemory();
+            $ipiConfig->setMaxPerformance();
             $ipiConfig->setUseUpperPrefixHeaders(false);
             $ipiEngine = new \EngineIpiSwig($ipiDataFile, $ipiConfig, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
         }

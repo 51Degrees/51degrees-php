@@ -31,8 +31,17 @@ class Messages
         'The on-premise IP intelligence engine has its own internal cache ' .
         'and does not support an external cache.';
 
-    public const INVALID_PERFORMANCE_PROFILE =
-        "'%s' is not a valid performance profile. Valid profiles are: %s.";
+    // Raised when a performance profile other than MaxPerformance is
+    // configured for the on-premise engine. The placeholders are the profile
+    // that was configured and the setting that configured it.
+    public const PERFORMANCE_PROFILE_ERROR =
+        "The on-premise IP intelligence engine for PHP can only run with the " .
+        "in-memory 'MaxPerformance' performance profile, but '%s' was " .
+        "configured. PHP is typically run under a process manager (Apache " .
+        "MPM prefork, php-fpm) that forks the worker process, and any other " .
+        "profile keeps the data file open and shares those file handles " .
+        "across the fork, which corrupts the results. Remove the '%s' " .
+        "setting, or set it to 'MaxPerformance'.";
 
     public const DATA_FILE_NOT_FOUND =
         'There is no IP intelligence data file at %s';
@@ -45,7 +54,7 @@ class Messages
         'load from the FiftyOneDegreesIpIntelligenceEngine.* php.ini ' .
         'settings and cannot be reconfigured per instance, so these ' .
         'setting(s) would have no effect: %s. Either configure them through ' .
-        'php.ini (data_file, performance_profile, required_properties) or ' .
+        'php.ini (data_file, required_properties) or ' .
         'supply a "dataFile" setting to build a dedicated engine.';
 
     public const EXTENSION_NOT_LOADED =

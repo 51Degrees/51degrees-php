@@ -1615,8 +1615,7 @@ SWIGINTERN int ResultsIpi_copyValueAsUTF8String(ResultsIpi *self,int requiredPro
 
     PHP_INI_BEGIN()
     PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.data_file", "", PHP_INI_ALL, NULL)
-    /* Keep in step with Constants::DEFAULT_PERFORMANCE_PROFILE. */
-    PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.performance_profile", "Balanced", PHP_INI_ALL, NULL)
+    PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.performance_profile", NULL, PHP_INI_ALL, NULL)
     PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.required_properties", "", PHP_INI_ALL, NULL)
     PHP_INI_END()
 
@@ -26724,21 +26723,24 @@ SWIG_php_minit {
     char *filePath = INI_STR("FiftyOneDegreesIpIntelligenceEngine.data_file");
     struct stat sb;
     if (filePath != NULL && strlen(filePath) > 0 && stat(filePath, &sb) == 0) {
-        char *profile = INI_STR("FiftyOneDegreesIpIntelligenceEngine.performance_profile");
         char *propertyList = INI_STR("FiftyOneDegreesIpIntelligenceEngine.required_properties");
         ipi_engine_config = new ConfigIpi();
-        if (profile != NULL && strcmp(profile, "MaxPerformance") == 0) {
-            ipi_engine_config->setMaxPerformance();
-        } else if (profile != NULL && strcmp(profile, "HighPerformance") == 0) {
-            ipi_engine_config->setHighPerformance();
-        } else if (profile != NULL && strcmp(profile, "BalancedTemp") == 0) {
-            ipi_engine_config->setBalancedTemp();
-        } else if (profile != NULL && strcmp(profile, "LowMemory") == 0) {
-            ipi_engine_config->setLowMemory();
-        } else {
-            /* "Balanced" and anything unrecognised. */
-            ipi_engine_config->setBalanced();
-        }
+        /*
+         * Always build the engine with the MaxPerformance (in memory)
+         * profile. PHP is normally run under a process manager (for example
+         * Apache MPM prefork or php-fpm) that serves each request from a
+         * child process forked from the one this module was initialised in.
+         * Streaming profiles keep a pool of open file handles, and forking
+         * copies those handles (together with their current read positions)
+         * into every child. The shared handles then corrupt each other's
+         * reads and can crash the worker (see device-detection-php-onpremise
+         * issue 38). Loading the whole data file into memory leaves no shared
+         * handles, so MaxPerformance is the only safe profile for PHP. It is
+         * enforced here so the engine can never be built in an unsafe mode,
+         * and the PHP layer (IpIntelligenceOnPremise) raises a clear
+         * exception when a different performance_profile is configured.
+         */
+        ipi_engine_config->setMaxPerformance();
         ipi_engine_config->setUseUpperPrefixHeaders(false);
         if (propertyList != NULL && strlen(propertyList) > 0) {
             ipi_engine_properties = new RequiredPropertiesConfig(propertyList);

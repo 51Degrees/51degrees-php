@@ -249,12 +249,80 @@ class IpIntelligenceOnPremiseTests extends TestCase
         }
     }
 
-    public function testInvalidPerformanceProfileRejected(): void
+    /**
+     * The on-premise engine for PHP only runs with the in-memory
+     * MaxPerformance profile (device-detection-php-onpremise issue 38), so
+     * any other profile in the settings raises a clear exception rather than
+     * being silently ignored.
+     */
+    public function testNonMaxPerformanceProfileThrows(): void
     {
-        $this->expectException(\Exception::class);
-        new IpIntelligenceOnPremise([
-            'dataFile' => self::$dataFile,
-            'performanceProfile' => 'NotARealProfile'
-        ]);
+        $profiles = ['Balanced', 'BalancedTemp', 'LowMemory', 'HighPerformance', 'NotARealProfile'];
+        foreach ($profiles as $profile) {
+            $message = null;
+            try {
+                new IpIntelligenceOnPremise([
+                    'dataFile' => self::$dataFile,
+                    'performanceProfile' => $profile
+                ]);
+            } catch (\Throwable $e) {
+                $message = $e->getMessage();
+            }
+
+            $this->assertSame(
+                sprintf(Messages::PERFORMANCE_PROFILE_ERROR, $profile, 'performanceProfile'),
+                $message,
+                $profile
+            );
+        }
+    }
+
+    /**
+     * A profile other than MaxPerformance in php.ini raises the same
+     * exception, naming the php.ini setting.
+     */
+    public function testNonMaxPerformanceIniProfileThrows(): void
+    {
+        $setting = 'FiftyOneDegreesIpIntelligenceEngine.performance_profile';
+        $original = ini_get($setting);
+        ini_set($setting, 'Balanced');
+
+        $message = null;
+        try {
+            $this->buildEngine();
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+        } finally {
+            ini_set($setting, $original === false ? '' : $original);
+        }
+
+        $this->assertSame(sprintf(Messages::PERFORMANCE_PROFILE_ERROR, 'Balanced', $setting), $message);
+    }
+
+    /**
+     * MaxPerformance, in any case, and leaving the profile unset are the
+     * supported configuration and do not raise the exception.
+     */
+    public function testMaxPerformanceProfileIsAccepted(): void
+    {
+        $setting = 'FiftyOneDegreesIpIntelligenceEngine.performance_profile';
+        $original = ini_get($setting);
+        ini_set($setting, 'MaxPerformance');
+
+        try {
+            foreach (['MaxPerformance', 'maxperformance', null] as $profile) {
+                $engine = new IpIntelligenceOnPremise([
+                    'dataFile' => self::$dataFile,
+                    'performanceProfile' => $profile
+                ]);
+                try {
+                    $this->assertSame('ip', $engine->dataKey);
+                } finally {
+                    $engine->close();
+                }
+            }
+        } finally {
+            ini_set($setting, $original === false ? '' : $original);
+        }
     }
 }

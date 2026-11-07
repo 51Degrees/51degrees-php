@@ -59,7 +59,7 @@ class TranslationConsoleOnPremise
      */
     public function run(string $dataFile, $output): void
     {
-        $engine = new IpIntelligenceOnPremise(['dataFile' => $dataFile, 'performanceProfile' => 'MaxPerformance']);
+        $engine = new IpIntelligenceOnPremise(['dataFile' => $dataFile]);
         if (ExampleUtils::lacksEnterpriseProperties(
             $engine,
             'Listing the countries an IP address is most likely in',

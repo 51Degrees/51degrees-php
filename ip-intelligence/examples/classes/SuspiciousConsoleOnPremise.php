@@ -64,7 +64,9 @@ class SuspiciousConsoleOnPremise
         }
 
         $config = new \ConfigIpiSwig();
-        $config->setLowMemory();
+        // PHP runs the engine with the whole data file in memory, as
+        // on-premise/ipi-php.i explains.
+        $config->setMaxPerformance();
         $config->setUseUpperPrefixHeaders(false);
         $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
         if (ExampleUtils::lacksEnterpriseProperties(

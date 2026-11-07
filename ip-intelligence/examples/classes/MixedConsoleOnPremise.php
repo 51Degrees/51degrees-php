@@ -71,8 +71,7 @@ class MixedConsoleOnPremise
         $deviceEngine = new $ddClass();
 
         $ipEngine = new IpIntelligenceOnPremise([
-            'dataFile' => $ipDataFile,
-            'performanceProfile' => 'MaxPerformance'
+            'dataFile' => $ipDataFile
         ]);
 
         $pipeline = (new PipelineBuilder([]))

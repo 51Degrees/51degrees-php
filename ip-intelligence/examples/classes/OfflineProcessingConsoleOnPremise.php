@@ -45,8 +45,7 @@ class OfflineProcessingConsoleOnPremise
     public function run(string $dataFile, array $ipAddresses, $output): void
     {
         $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
+            'dataFile' => $dataFile
         ]))->build();
 
         // The pipeline is closed in the finally block, which releases the

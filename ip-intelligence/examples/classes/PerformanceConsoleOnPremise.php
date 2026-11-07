@@ -79,8 +79,9 @@ class PerformanceConsoleOnPremise
         // Build the engine once and time how long that takes.
         $startupStart = microtime(true);
         $config = new \ConfigIpiSwig();
-        // The .NET Performance example benchmarks the LowMemory profile.
-        $config->setLowMemory();
+        // PHP runs the engine with the whole data file in memory, as
+        // on-premise/ipi-php.i explains.
+        $config->setMaxPerformance();
         $config->setUseUpperPrefixHeaders(false);
         $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
         $startupMs = (microtime(true) - $startupStart) * 1000.0;

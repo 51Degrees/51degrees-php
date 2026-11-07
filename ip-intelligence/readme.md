@@ -74,8 +74,7 @@ ip-intelligence-dotnet exposes as `IWeightedValue.RawWeighting`.
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 
 $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-    'dataFile' => '/path/to/51Degrees-LiteIpiV41.ipi',
-    'performanceProfile' => 'MaxPerformance'
+    'dataFile' => '/path/to/51Degrees-LiteIpiV41.ipi'
 ]))->build();
 
 $flowData = $pipeline->createFlowData();
@@ -86,7 +85,10 @@ echo $result->ip->registeredname->value;
 ```
 
 The on-premise engine requires the native extension. See
-[OnPremise.md](OnPremise.md) for how to build it.
+[OnPremise.md](OnPremise.md) for how to build it. The engine always holds the
+whole data file in memory, as
+[Running under a process manager](OnPremise.md#running-under-a-process-manager)
+explains.
 
 ## Mixed
 

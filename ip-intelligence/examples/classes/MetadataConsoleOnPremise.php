@@ -43,8 +43,7 @@ class MetadataConsoleOnPremise
     public function run(string $dataFile, $output): void
     {
         $engine = new IpIntelligenceOnPremise([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
+            'dataFile' => $dataFile
         ]);
 
         // The engine is closed in the finally block, which releases the

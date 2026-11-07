@@ -2,7 +2,7 @@ name: Mirror
 
 # Packagist reads the old repositories, not this one. This keeps each old
 # repository, now a read-only mirror, equal to its package directory here.
-# The mirrors are the packages with a Mirror in ci/packages.ps1.
+# The mirrors are the packages with a Mirror in ci/packages.json.
 #
 # Push to main: each mirrored directory is split out with git subtree split
 # and pushed to the main branch of its mirror. The split of unchanged history
@@ -11,10 +11,14 @@ name: Mirror
 # not a fast-forward means somebody pushed to a mirror directly, and a person
 # has to decide which side wins.
 #
-# Push of a version tag such as 4.5.203 (made by common-ci when it publishes):
-# the whole repository has one version, so every mirror gets the same tag, on
-# the split of its directory at the tagged commit. That tag is what Packagist
-# turns into a release. pipeline-php-did is tagged by did-publish.yml instead.
+# The publish tags a commit of main "<package>/<version>", such as
+# fiftyone.pipeline.core/4.5.207, for each package it releases. Each such tag
+# runs ci/mirror-tags.ps1, which tags the package's mirror "<version>", and
+# that tag is what Packagist turns into a release. A package that requires
+# others is published with those requirements raised to the versions
+# released with it, so its mirror's tag goes on a commit on top of the split
+# that changes only them. pipeline-php-did is tagged by did-publish.yml
+# instead.
 #
 # MIRROR_PUSH_TOKEN must be able to push to the mirror repositories and to
 # nothing else: a fine-grained token limited to the mirrors with
@@ -27,17 +31,19 @@ name: Mirror
 on:
   push:
     branches: [main]
-    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    tags: ['*/[0-9]+.[0-9]+.[0-9]+']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # A newer main run makes a waiting one pointless, so main runs share one
-# group. Each tag gets its own group, because a cancelled tag run would lose
-# that release on the mirrors.
+# group. A tag run mirrors every package tag on its commit, so the tag runs of
+# one commit share a group too. GitHub keeps only the newest waiting run of a
+# group, which loses nothing, because that run starts after every tag before
+# it was pushed.
 concurrency:
-  group: mirror-${{ github.ref }}
+  group: ${{ startsWith(github.ref, 'refs/tags/') && format('mirror-tags-{0}', github.sha) || format('mirror-{0}', github.ref) }}
   cancel-in-progress: false
 
 jobs:
@@ -66,7 +72,7 @@ jobs:
           ./ci/prepare-split.sh
           list=$(pwsh -NoProfile -Command '. ./ci/packages.ps1; $Packages | Where-Object Mirror | ForEach-Object { "$($_.Path) $($_.Mirror)" }')
           if [ -z "$list" ]; then
-            echo "::error::ci/packages.ps1 lists no mirrored package"
+            echo "::error::ci/packages.json lists no mirrored package"
             exit 1
           fi
           failed=0
@@ -91,112 +97,38 @@ jobs:
           exit $failed
 
   Tag:
-    name: Mirror release tag
+    name: Mirror release tags
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          # git subtree split walks the whole history, and the versions
+          # required are read from the tags.
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Split the tagged commit and push the tag to every mirror
+      # A tag pushed by hand is a path into Packagist that the publish's
+      # checks do not see, and a published version cannot be taken back.
+      - name: Refuse a tag that is not on main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor HEAD origin/main || {
+            echo "::error::$GITHUB_REF_NAME is not on main"
+            exit 1
+          }
+
+      - name: Push each released package's version to its mirror
         env:
           MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
           OWNER: ${{ github.repository_owner }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           if [ -z "$MIRROR_PUSH_TOKEN" ]; then
             echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
             exit 1
           fi
-          version="$GITHUB_REF_NAME"
-          pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
-          if [[ ! "$version" =~ $pattern ]]; then
-            echo "::error::'$version' is not a version such as 4.5.203"
-            exit 1
-          fi
-
-          # A tag pushed by hand is the one path into Packagist that
-          # common-ci's check-version-bump does not see, and a published
-          # version cannot be taken back. So the tag must be on main and
-          # above every other version tag here.
-          git fetch origin main || exit 1
-          git merge-base --is-ancestor HEAD origin/main || {
-            echo "::error::tag $version is not on main"
-            exit 1
-          }
-          # The run shell has -e, so a grep with no match must not end the
-          # step: on the first release there is no other version tag.
-          highest=$(git tag --list | { grep -E "$pattern" || true; } | { grep -vxF "$version" || true; } | sort -V | tail -1)
-          if [ -n "$highest" ] && [ "$(printf '%s\n' "$highest" "$version" | sort -V | tail -1)" != "$version" ]; then
-            echo "::error::$version is not above $highest, the highest other version tag here"
-            exit 1
-          fi
-
           # Keeps the split inside the package history, see the script.
           ./ci/prepare-split.sh
-          list=$(pwsh -NoProfile -Command '. ./ci/packages.ps1; $Packages | Where-Object { $_.Mirror -and -not $_.Assembled } | ForEach-Object { "$($_.Path) $($_.Mirror)" }')
-          if [ -z "$list" ]; then
-            echo "::error::ci/packages.ps1 lists no mirror for this workflow to tag"
-            exit 1
-          fi
-
-          # Every mirror is checked before any is tagged, so a refusal for
-          # one leaves the version unpublished everywhere rather than on some
-          # packages only.
-          failed=0
-          pushes=""
-          while read -r p mirror; do
-            # The checkout is at the tagged commit, so this splits that commit.
-            if ! s=$(git subtree split --prefix="$p" 2>"$RUNNER_TEMP/split.err"); then
-              cat "$RUNNER_TEMP/split.err"
-              echo "::error::git subtree split of $p failed"
-              failed=1
-              continue
-            fi
-            url="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${mirror}.git"
-            if ! refs=$(git ls-remote --tags "$url"); then
-              echo "::error::cannot read the tags of $mirror"
-              failed=1
-              continue
-            fi
-            # A published version is never replaced. The same commit is let
-            # through so that a re-run of a finished job is green. An
-            # annotated tag is listed twice; the ^{} line names the commit.
-            existing=$(awk -v r="refs/tags/$version" \
-              '$2 == r "^{}" { c = $1 } $2 == r { t = $1 } END { print (c != "" ? c : t) }' <<< "$refs")
-            if [ -n "$existing" ]; then
-              if [ "$existing" = "$s" ]; then
-                echo "$mirror already has tag $version on $s"
-              else
-                echo "::error::$mirror already has tag $version on $existing, not on the split commit $s. A published version is never moved."
-                failed=1
-              fi
-              continue
-            fi
-            top=$(awk '{ print $2 }' <<< "$refs" | sed -e 's|^refs/tags/||' -e 's|\^{}$||' | { grep -E "$pattern" || true; } | sort -V | tail -1)
-            if [ -n "$top" ] && [ "$(printf '%s\n' "$top" "$version" | sort -V | tail -1)" != "$version" ]; then
-              echo "::error::$version is below $top, the highest version on $mirror"
-              failed=1
-              continue
-            fi
-            echo "$p split=$s will be tagged $version on $mirror"
-            pushes+="$mirror $s"$'\n'
-          done <<< "$list"
-          if [ $failed -ne 0 ]; then
-            echo "::error::nothing was tagged, see the errors above"
-            exit 1
-          fi
-
-          while read -r mirror s; do
-            [ -n "$mirror" ] || continue
-            url="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${mirror}.git"
-            if git push "$url" "$s:refs/tags/$version"; then
-              echo "pushed $s to $mirror as tag $version"
-            else
-              echo "::error::push of tag $version to $mirror failed. Re-run this job: mirrors already tagged on the same commit pass."
-              failed=1
-            fi
-          done <<< "$pushes"
-          exit $failed
+          pwsh -NoProfile -File ./ci/mirror-tags.ps1 -Owner "$OWNER" -Tag "$GITHUB_REF_NAME" -Push

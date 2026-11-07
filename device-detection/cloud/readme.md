@@ -3,9 +3,9 @@
 
 # 51Degrees PHP Device Detection
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=51degrees-php-device-detection "Data rewards the curious") **PHP Device Detection**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **PHP Device Detection**
 
-[Developer Documentation](https://51degrees.com/device-detection-php/index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=51degrees-php-device-detection "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=51degrees-php-device-detection "developer documentation")
 
 ## Introduction
 This project contains the source code for the PHP implementation of 51Degrees' 
@@ -118,7 +118,7 @@ then the dependency changed to:
 ## Find out more
 
 - [Device Detection](https://51degrees.com/device-detection?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-device-detection)
-- [Device Detection documentation](https://51degrees.com/documentation/_device_detection__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-documentation)
+- [Device Detection documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-documentation)
 - [Getting started](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-getting-started)
 - [Pricing](https://51degrees.com/pricing?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-pricing)
 - https://github.com/51Degrees/51degrees-php

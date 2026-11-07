@@ -1,6 +1,6 @@
 # 51Degrees IP Intelligence Engines (PHP)
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious")
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious")
 
 **IP Intelligence in PHP**: Identify the country, region, network, and approximate
 location associated with an IP address, either via the 51Degrees cloud service or

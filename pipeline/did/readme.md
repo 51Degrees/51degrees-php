@@ -163,8 +163,10 @@ use fiftyone\pipeline\did\IdType;
 // A value from outside may be anything at all, so reading answers rather
 // than raising. Either base64 alphabet is accepted, standard as the cloud
 // issues it or URL-safe as a page puts it in a link, with or without
-// padding, and surrounding whitespace such as a trailing newline is
-// ignored. A null, an empty string or an array is reported, not raised.
+// padding, and white space around it such as a trailing newline is
+// ignored. A value with white space inside it, or with characters from
+// both alphabets, is refused. A null, an empty string or an array is
+// reported, not raised.
 $result = FodId::tryFromBase64($_GET['51did'] ?? null);
 if (!$result->ok) {
     // $result->status names the reason and is safe to log.
@@ -258,9 +260,9 @@ things the payload can get wrong are this package's own
 | Status | From | Meaning |
 | --- | --- | --- |
 | `Parsed` | OWID | A 51Did in a sound envelope. Says nothing about the signature |
-| `MissingInput` | OWID | Nothing was given, being null, an empty string or whitespace only |
+| `MissingInput` | OWID | Nothing was given, being null, an empty string or white space only |
 | `InvalidInputType` | OWID | Not a string, for example the array PHP builds when a query parameter repeats with brackets |
-| `InvalidBase64` | OWID | The text is not base64, so there are no bytes to read |
+| `InvalidBase64` | OWID | The text is not base64 in one alphabet, so there are no bytes to read. White space inside the text, and characters from both alphabets, report this |
 | `UnsupportedVersion` | OWID | The first byte names an envelope version the library does not know |
 | `UnexpectedEnd` | OWID | The bytes stop part way through a field, before the payload length was read |
 | `InvalidDomainEncoding` | OWID | The creator domain has no terminator within the length a domain name can hold |

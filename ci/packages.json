@@ -1,0 +1,99 @@
+[
+  {
+    "Name": "fiftyone.pipeline.core",
+    "Path": "pipeline/core",
+    "DependsOn": [],
+    "Publish": true,
+    "Mirror": "pipeline-php-core",
+    "Vendor": "Root",
+    "Ci": true
+  },
+  {
+    "Name": "fiftyone.pipeline.engines",
+    "Path": "pipeline/engines",
+    "DependsOn": ["fiftyone.pipeline.core"],
+    "Publish": true,
+    "Mirror": "pipeline-php-engines",
+    "Vendor": "Root",
+    "Ci": true
+  },
+  {
+    "Name": "fiftyone.pipeline.cloudrequestengine",
+    "Path": "pipeline/cloudrequestengine",
+    "DependsOn": ["fiftyone.pipeline.core", "fiftyone.pipeline.engines"],
+    "Publish": true,
+    "Mirror": "pipeline-php-cloudrequestengine",
+    "Vendor": "Root",
+    "Ci": true
+  },
+  {
+    "Name": "fiftyone.pipeline.did",
+    "Path": "pipeline/did",
+    "DependsOn": [],
+    "Publish": true,
+    "Mirror": "pipeline-php-did",
+    "Vendor": "Root",
+    "Ci": true,
+    "Assembled": true
+  },
+  {
+    "Name": "fiftyone.pipeline.translation",
+    "Path": "pipeline/translation",
+    "DependsOn": ["fiftyone.pipeline.core", "fiftyone.pipeline.engines"],
+    "Publish": false,
+    "Mirror": null,
+    "Vendor": "Root",
+    "Ci": false
+  },
+  {
+    "Name": "fiftyone.devicedetection",
+    "Path": "device-detection/cloud",
+    "DependsOn": [
+      "fiftyone.pipeline.core",
+      "fiftyone.pipeline.engines",
+      "fiftyone.pipeline.cloudrequestengine"
+    ],
+    "Publish": true,
+    "Mirror": "device-detection-php",
+    "Vendor": "Root",
+    "Ci": true
+  },
+  {
+    "Name": "fiftyone.devicedetection.onpremise",
+    "Path": "device-detection/onpremise",
+    "DependsOn": ["fiftyone.pipeline.core", "fiftyone.pipeline.engines"],
+    "Publish": false,
+    "Mirror": null,
+    "Vendor": "Own",
+    "Ci": true,
+    "Native": true
+  },
+  {
+    "Name": "fiftyone.geolocation",
+    "Path": "location",
+    "DependsOn": [
+      "fiftyone.pipeline.core",
+      "fiftyone.pipeline.engines",
+      "fiftyone.pipeline.cloudrequestengine"
+    ],
+    "Publish": true,
+    "Mirror": "location-php",
+    "Vendor": "Root",
+    "Ci": true
+  },
+  {
+    "Name": "fiftyone.ipintelligence",
+    "Path": "ip-intelligence",
+    "DependsOn": [
+      "fiftyone.pipeline.core",
+      "fiftyone.pipeline.engines",
+      "fiftyone.pipeline.cloudrequestengine",
+      "fiftyone.pipeline.translation"
+    ],
+    "Publish": false,
+    "Mirror": null,
+    "Vendor": "Own",
+    "Ci": true,
+    "Native": true
+  }
+]

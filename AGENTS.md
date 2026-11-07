@@ -250,12 +250,16 @@ ip-intelligence also requires translation.
 translation and device-detection/onpremise require core and engines.
 did requires no other 51Degrees package.
 The `require` section of each package `composer.json` is the source of truth.
+`DependsOn` in `ci/packages.json` must name the same packages, which the
+publish checks before it tags anything.
 
 ## Rules
 
 1. Each package directory, including its `composer.json` and `ci/`, is
-   published to its mirror repository as it is. Do not edit them to make
-   the monorepo work. Put monorepo glue in root files only.
+   published to its mirror repository as it is, except that a release
+   raises its requirements on the other packages here to the versions
+   released with it. Do not edit them to make the monorepo work. Put
+   monorepo glue in root files only.
 2. After a change in a package, run that package's unit tests with the root
    autoloader. After a change in core, engines or cloudrequestengine, also
    run the tests of every package that depends on it.
@@ -286,9 +290,10 @@ root autoloader does not load its `src`.
 
 The workflows call common-ci, which runs the scripts in the root `ci/` once
 for the whole repository. Those run each package's own `ci/` scripts with
-`-RepoName <repository>/<package>`. `ci/packages.ps1` lists the packages, the
+`-RepoName <repository>/<package>`. `ci/packages.json` lists the packages, the
 mirrors, and which packages test against the root `vendor` and which install
-their own. Add a package there, not in the workflows.
+their own, and `ci/packages.ps1` describes the fields. Add a package there,
+not in the workflows.
 
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a
@@ -297,10 +302,19 @@ use that copy.
 
 ## Versions
 
-The repository has one version, tagged as a plain version such as `4.5.203`,
-and every package is released with it. `ci/get-next-package-version.ps1`
-moves only the patch number. `mirror.yml` puts the tag on every mirror, and
-`did-publish.yml` on the mirror of `pipeline/did`.
+Each package has its own version, tagged `<package>/<version>`, such as
+`fiftyone.pipeline.core/4.5.207`. The publish releases a package when a file
+in its directory changed since its last tag, with every package that requires
+it, and moves only the patch number. common-ci's `steps/release-plan.ps1`
+works out the plan from `ci/packages.json`, leaving out Markdown files,
+documentation, tests, examples and licences, and `ci/release-plan-filter.ps1`
+leaves out a `composer.json` whose only change is to its metadata
+(`description`, `keywords`, `homepage`, `support`, `authors`, `license`). Run
+its tests with `Invoke-Pester ci/release-plan-filter.Tests.ps1`. Each tag
+starts `mirror.yml`,
+which runs `ci/mirror-tags.ps1` to put `<version>` on the package's mirror,
+or `did-publish.yml` for `pipeline/did`. The publish makes every release
+tag, so do not push one by hand, and never move the major or minor number.
 
 ## More
 

@@ -50,6 +50,10 @@ class CloudRequestEngine extends Engine
      * @var array<string>
      */
     private array $evidenceKeys = [];
+    private bool $evidenceKeysLoaded = false;
+    // The failure of a fetch made for the filter, which processInternal
+    // reports rather than fetching again.
+    private ?\Throwable $evidenceKeysFailure = null;
     private HttpClient $httpClient;
 
     /**
@@ -99,11 +103,22 @@ class CloudRequestEngine extends Engine
     }
 
     /**
-     * Instance of EvidenceKeyFilter based on the evidence keys fetched
-     * from the cloud service by the private getEvidenceKeys() method.
+     * Instance of EvidenceKeyFilter of the evidence keys the cloud service
+     * lists. The keys are fetched the first time they are needed, which is
+     * when the first Evidence is set, so that the Evidence the cloud service
+     * uses is kept. A failed fetch leaves the list empty, and processInternal
+     * reports the failure.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
+        if (!$this->evidenceKeysLoaded && $this->evidenceKeysFailure === null) {
+            try {
+                $this->loadEvidenceKeys();
+            } catch (\Throwable $e) {
+                $this->evidenceKeysFailure = $e;
+            }
+        }
+
         return new BasicListEvidenceKeyFilter($this->evidenceKeys);
     }
 
@@ -119,8 +134,13 @@ class CloudRequestEngine extends Engine
             $this->flowElementProperties = $this->getEngineProperties();
         }
 
-        if (count($this->evidenceKeys) === 0) {
-            $this->evidenceKeys = $this->getEvidenceKeys();
+        if (!$this->evidenceKeysLoaded) {
+            $failure = $this->evidenceKeysFailure;
+            $this->evidenceKeysFailure = null;
+            if ($failure !== null) {
+                throw $failure;
+            }
+            $this->loadEvidenceKeys();
         }
 
         $url = $this->baseURL . $this->resourceKey . '.json?';
@@ -304,6 +324,15 @@ class CloudRequestEngine extends Engine
         $this->flowElementProperties = $flowElementProperties;
 
         return $flowElementProperties;
+    }
+
+    /**
+     * Fetch the evidence keys the cloud service lists.
+     */
+    private function loadEvidenceKeys(): void
+    {
+        $this->evidenceKeys = $this->getEvidenceKeys();
+        $this->evidenceKeysLoaded = true;
     }
 
     /**

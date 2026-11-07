@@ -48,6 +48,15 @@ class JsonBundlerElement extends FlowElement
     private array $propertyCache = [];
 
     /**
+     * The JSONBundler reads only the sequence, which decides whether it lists
+     * the JavaScript properties, so it accepts no other Evidence.
+     */
+    public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
+    {
+        return new BasicListEvidenceKeyFilter(['query.sequence']);
+    }
+
+    /**
      * The JSONBundler extracts all properties from a FlowData and serializes them into JSON.
      */
     public function processInternal(FlowData $flowData): void

@@ -224,17 +224,18 @@ if ($failed -eq $true) {
     exit 1
 }
 
-foreach ($push in $pushes) {
+# Not $push, because PowerShell names ignore case and that would replace -Push.
+foreach ($release in $pushes) {
     if ($Push -eq $false) {
-        Write-Output "Dry run - would push $($push.Commit) to $($push.Mirror) as tag $($push.Version)"
+        Write-Output "Dry run - would push $($release.Commit) to $($release.Mirror) as tag $($release.Version)"
         continue
     }
     try {
-        git -C $RepoName push (Get-MirrorUrl $push.Mirror) "$($push.Commit):refs/tags/$($push.Version)"
+        git -C $RepoName push (Get-MirrorUrl $release.Mirror) "$($release.Commit):refs/tags/$($release.Version)"
     } catch {
-        Write-Output "::error::Pushing tag $($push.Version) to $($push.Mirror) failed, so the packages after it were not tagged. Re-run the job, which passes the mirrors already tagged."
+        Write-Output "::error::Pushing tag $($release.Version) to $($release.Mirror) failed, so the packages after it were not tagged. Re-run the job, which passes the mirrors already tagged."
         exit 1
     }
-    Write-Output "Pushed $($push.Commit) to $($push.Mirror) as tag $($push.Version)"
+    Write-Output "Pushed $($release.Commit) to $($release.Mirror) as tag $($release.Version)"
 }
 exit 0

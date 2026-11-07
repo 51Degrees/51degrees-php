@@ -306,7 +306,12 @@ Each package has its own version, tagged `<package>/<version>`, such as
 `fiftyone.pipeline.core/4.5.207`. The publish releases a package when a file
 in its directory changed since its last tag, with every package that requires
 it, and moves only the patch number. common-ci's `steps/release-plan.ps1`
-works out the plan from `ci/packages.json`. Each tag starts `mirror.yml`,
+works out the plan from `ci/packages.json`, leaving out Markdown files,
+documentation, tests, examples and licences, and `ci/release-plan-filter.ps1`
+leaves out a `composer.json` whose only change is to its metadata
+(`description`, `keywords`, `homepage`, `support`, `authors`, `license`). Run
+its tests with `Invoke-Pester ci/release-plan-filter.Tests.ps1`. Each tag
+starts `mirror.yml`,
 which runs `ci/mirror-tags.ps1` to put `<version>` on the package's mirror,
 or `did-publish.yml` for `pipeline/did`. The publish makes every release
 tag, so do not push one by hand, and never move the major or minor number.

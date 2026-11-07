@@ -77,7 +77,11 @@ Each package has its own version, and its releases are tagged here as
 `<package>/<version>`, for example `fiftyone.pipeline.core/4.5.207`, where the
 package is its Composer name without `51degrees/`. A package is released when
 a file in its directory changed since its last tag, and every package that
-requires it is released with it. Only the patch number moves. The packages,
+requires it is released with it. A change only to Markdown files, documentation,
+tests, examples or licences does not count, nor does a change to a
+`composer.json` that only moves its metadata, such as its description or links
+([`ci/release-plan-filter.ps1`](ci/release-plan-filter.ps1)). Only the patch
+number moves. The packages,
 what each requires and where each is published are listed in
 [`ci/packages.json`](ci/packages.json), and the release plan is worked out by
 common-ci's

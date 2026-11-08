@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\core\tests;
 use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\SetHeaderElement;
+use fiftyone\pipeline\core\tests\classes\DeclaresNothingElement;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
 use PHPUnit\Framework\TestCase;
 
@@ -103,6 +104,43 @@ class AcceptedEvidenceTests extends TestCase
                 'query.sequence' => '1',
                 'header.host' => 'example.com'
             ],
+            $flowData->evidence->getAll()
+        );
+    }
+
+    /**
+     * An element that does not say which Evidence it accepts accepts none.
+     */
+    public function testAnElementThatDeclaresNothingAcceptsNothing()
+    {
+        $element = new DeclaresNothingElement();
+
+        foreach (self::UNUSED_KEYS as $key) {
+            $this->assertFalse(
+                $element->filterEvidenceKey($key),
+                "An element that declares nothing accepts {$key}"
+            );
+        }
+    }
+
+    /**
+     * Adding such an element to a Pipeline does not make it keep Evidence
+     * that no other element accepts.
+     */
+    public function testAnElementThatDeclaresNothingWidensNothing()
+    {
+        $pipeline = (new PipelineBuilder())
+            ->add(new ExampleFlowElement1())
+            ->add(new DeclaresNothingElement())
+            ->build();
+        $flowData = $pipeline->createFlowData();
+
+        $flowData->evidence->set('header.user-agent', 'agent');
+        $flowData->evidence->set('header.x-test', 'not used');
+        $flowData->evidence->set('cookie.51d_test', 'not used');
+
+        $this->assertSame(
+            ['header.user-agent' => 'agent'],
             $flowData->evidence->getAll()
         );
     }

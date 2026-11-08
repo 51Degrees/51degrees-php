@@ -54,7 +54,7 @@
 #     is the root one. Its Live suite is not run by its CI, and its tags are
 #     published by .github/workflows/did-publish.yml, because the published
 #     tree has the OWID source copied in.
-#   pipeline/translation: no tests, no ci folder and no mirror. Its code is
+#   pipeline/translation: Unit suite. No mirror, and its code is also
 #     tested through ip-intelligence, which requires it.
 #   device-detection/cloud: Unit suite without keys, Integration suite and the
 #     Selenium contract tests against the cloud example when TestResourceKey
@@ -74,7 +74,7 @@ $Packages = @(
     @{ Path = 'pipeline/engines'; Mirror = 'pipeline-php-engines'; Vendor = 'Root'; Ci = $true }
     @{ Path = 'pipeline/cloudrequestengine'; Mirror = 'pipeline-php-cloudrequestengine'; Vendor = 'Root'; Ci = $true }
     @{ Path = 'pipeline/did'; Mirror = 'pipeline-php-did'; Vendor = 'Root'; Ci = $true; Assembled = $true }
-    @{ Path = 'pipeline/translation'; Mirror = $null; Vendor = 'Root'; Ci = $false }
+    @{ Path = 'pipeline/translation'; Mirror = $null; Vendor = 'Root'; Ci = $true }
     @{ Path = 'device-detection/cloud'; Mirror = 'device-detection-php'; Vendor = 'Root'; Ci = $true }
     @{ Path = 'device-detection/onpremise'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
     @{ Path = 'location'; Mirror = 'location-php'; Vendor = 'Root'; Ci = $true }

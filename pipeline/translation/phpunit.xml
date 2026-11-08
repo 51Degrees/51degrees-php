@@ -3,7 +3,7 @@
          bootstrap="vendor/autoload.php"
          colors="true">
   <testsuites>
-    <testsuite name="Translation">
+    <testsuite name="Unit">
       <file>tests/TranslationEngineConfigTests.php</file>
     </testsuite>
   </testsuites>

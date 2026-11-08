@@ -94,16 +94,9 @@ class IpIntelligenceOnPremise extends Engine
         // a multi-gigabyte data file on every request.
         $dataFile = $settings['dataFile'] ?? null;
         if ($dataFile === null && function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
-            // The global engine is built when PHP starts, before a process
-            // manager (Apache MPM prefork, php-fpm) forks the workers that
-            // use it, so it always holds the data file in memory. Any other
-            // profile would keep the data file open and share those file
-            // handles across the fork, which corrupts the results (see
-            // device-detection-php-onpremise issue 38). A different profile in
-            // php.ini is therefore a mistake, rejected here with a clear
-            // exception rather than being silently ignored. An engine built
-            // from a "dataFile" setting below opens its own file handles in
-            // the process that builds it, so it may use any profile.
+            // The global engine is always built with MaxPerformance (see
+            // on-premise/ipi-php.i), so another php.ini profile is a mistake
+            // and is refused rather than ignored.
             $startupProfile = ini_get('FiftyOneDegreesIpIntelligenceEngine.performance_profile');
             if ($startupProfile !== false
                 && $startupProfile !== ''

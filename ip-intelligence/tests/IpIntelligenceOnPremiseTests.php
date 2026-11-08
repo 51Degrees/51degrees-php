@@ -26,6 +26,8 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\Constants as IpiConstants;
+use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
+use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
@@ -314,9 +316,9 @@ class IpIntelligenceOnPremiseTests extends TestCase
 
     /**
      * The start-up engine is built before the process manager forks its
-     * workers, so it always holds the data file in memory
-     * (device-detection-php-onpremise issue 38). A different profile in
-     * php.ini raises a clear exception rather than being silently ignored.
+     * workers, so it always holds the data file in memory. A different
+     * profile in php.ini raises a clear exception rather than being silently
+     * ignored.
      */
     public function testStartupEngineRefusesAnotherIniProfile(): void
     {
@@ -368,5 +370,136 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             ini_set($setting, $original === false ? '' : $original);
         }
+    }
+
+    /**
+     * PHP started with a data_file setting builds the start-up engine in
+     * memory, so IpIntelligenceOnPremise takes it up when the php.ini profile
+     * is unset or MaxPerformance, and refuses any other.
+     */
+    public function testStartupEngineProfileWhenPhpStarts(): void
+    {
+        $this->assertSame('OK', $this->startPhp(null)['result']);
+        $this->assertSame('OK', $this->startPhp('MaxPerformance')['result']);
+        $this->assertSame(
+            sprintf(Messages::PERFORMANCE_PROFILE_ERROR, 'LowMemory'),
+            $this->startPhp('LowMemory')['result']
+        );
+    }
+
+    /**
+     * The start-up engine holds the whole data file in memory, so it keeps no
+     * handle on the file for forked workers to share. A LowMemory engine
+     * built from a dataFile setting does keep handles, which shows the count
+     * works.
+     */
+    public function testStartupEngineKeepsNoFileHandles(): void
+    {
+        if (!is_dir('/proc/self/fd')) {
+            $this->markTestSkipped(
+                'Counting open file handles needs /proc/self/fd, which this ' .
+                'system does not have.'
+            );
+        }
+        $startup = $this->startPhp(null);
+        $this->assertSame('OK', $startup['result']);
+        $this->assertSame(0, $startup['handles']);
+
+        $lowMemory = $this->startPhp(null, 'LowMemory');
+        $this->assertSame('OK', $lowMemory['result']);
+        $this->assertGreaterThan(0, $lowMemory['handles']);
+    }
+
+    // Builds IpIntelligenceOnPremise from the start-up engine, or from the
+    // data file with the profile given, and prints as JSON OK or the
+    // exception's message, and the open handles on the data file, or -1
+    // where /proc/self/fd does not exist. The arguments are the autoloader,
+    // the data file and the profile, empty for the start-up engine.
+    private const START_PHP = <<<'PHP'
+        require $argv[1];
+        $settings = $argv[3] === ''
+            ? []
+            : ['dataFile' => $argv[2], 'performanceProfile' => $argv[3]];
+        try {
+            $engine = new fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise(
+                $settings
+            );
+            $result = 'OK';
+        } catch (Throwable $e) {
+            $result = $e->getMessage();
+        }
+        $handles = -1;
+        if (is_dir('/proc/self/fd')) {
+            $handles = 0;
+            foreach (scandir('/proc/self/fd') as $fd) {
+                if (@readlink("/proc/self/fd/{$fd}") === $argv[2]) {
+                    ++$handles;
+                }
+            }
+        }
+        echo json_encode(['result' => $result, 'handles' => $handles]);
+        PHP;
+
+    /**
+     * Starts PHP with the php.ini settings naming the Lite data file and
+     * $iniProfile, runs START_PHP, and returns what it printed. With
+     * $dataFileProfile, php.ini names no data file and START_PHP builds an
+     * engine from a dataFile setting with that profile instead.
+     *
+     * @return array{result: string, handles: int}
+     */
+    private function startPhp(
+        ?string $iniProfile,
+        string $dataFileProfile = ''
+    ): array {
+        $dataFile = realpath($this->liteDataFile());
+        $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
+        $autoload = dirname(
+            (new \ReflectionClass(\Composer\Autoload\ClassLoader::class))
+                ->getFileName(),
+            2
+        ) . '/autoload.php';
+        $command = escapeshellarg(PHP_BINARY);
+        if ($dataFileProfile === '') {
+            $command .= ' -d ' . escapeshellarg(
+                "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}"
+            );
+        }
+        if ($iniProfile !== null) {
+            $command .= ' -d ' . escapeshellarg(
+                "FiftyOneDegreesIpIntelligenceEngine.performance_profile={$iniProfile}"
+            );
+        }
+        $command .= ' -r ' . escapeshellarg(self::START_PHP) . ' -- ' .
+            escapeshellarg($autoload) . ' ' . escapeshellarg($dataFile) . ' ' .
+            escapeshellarg($dataFileProfile) . ' 2>&1';
+        exec($command, $lines, $status);
+        $printed = implode("\n", $lines);
+        $this->assertSame(0, $status, $printed);
+        $started = json_decode($printed, true);
+        $this->assertIsArray($started, $printed);
+
+        return $started;
+    }
+
+    /**
+     * The free Lite data file. CI fetches it into the package's assets
+     * folder under its asset name, and a fresh clone downloads it into the
+     * data repository.
+     */
+    private function liteDataFile(): string
+    {
+        $asset = __DIR__ . '/../assets/51Degrees-LiteIpiV41.ipi';
+        if (is_file($asset)) {
+            return $asset;
+        }
+        $path = __DIR__ . '/../../cxx/data/ip-intelligence/' .
+            ExampleConstants::LITE_DATA_FILE_NAME;
+        $this->assertTrue(
+            ExampleUtils::downloadMissingDataFile($path),
+            'The free Lite data file could not be found or downloaded.'
+        );
+
+        return $path;
     }
 }

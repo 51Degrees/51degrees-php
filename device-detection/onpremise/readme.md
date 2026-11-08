@@ -142,11 +142,11 @@ path to where you have stored your 51Degrees data file.
 | `update_matched_useragent` | on or off | On if the detection should record the matched characters from the target User-Agent. | on |
 | `max_matched_useragent_length` | `int` | Number of characters to consider in the matched User-Agent. Ignored if `update_matched_useragent` is off. | `500` |
 
-The on or off settings are read the way PHP reads its own. `1`, `on`, `yes`
-and `true` in any case are on, written with or without quotes, so
-`FiftyOneDegreesHashEngine.use_performance_graph = true` turns the
-performance graph on. An empty value, `0`, `off`, `no` and `false` are off. A
-setting left out of php.ini keeps the default in the table.
+The on or off settings are read the way PHP reads its own. `on`, `yes` and
+`true` in any case, and a number other than `0`, are on, written with or
+without quotes, so `FiftyOneDegreesHashEngine.use_performance_graph = true`
+turns the performance graph on. Anything else, an empty value included, is
+off. A setting left out of php.ini keeps the default in the table.
 
 The engine needs at least one of the two graphs. Turning `use_predictive_graph`
 off without turning `use_performance_graph` on stops PHP when it starts, with

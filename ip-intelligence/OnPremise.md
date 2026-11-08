@@ -108,9 +108,14 @@ it, for example in a console script or inside a worker after the fork, and it
 opens its own file handles. It takes any profile through the
 `performanceProfile` setting, being `LowMemory`, `Balanced` (the default),
 `BalancedTemp`, `HighPerformance` or `MaxPerformance`. The examples use
-`LowMemory`, because they use the Enterprise data file when they find one,
-apart from the performance example, which uses `MaxPerformance` because it
-measures speed.
+`LowMemory`, because they use the Enterprise data file when they find one.
+The performance example takes `MaxPerformance` as its third argument, after
+the data file and the number of seconds to run for, to measure the fastest
+profile where there is memory for the whole file, as in this command.
+
+```bash
+php examples/onpremise/performance-console.php /path/to/data.ipi 10 MaxPerformance
+```
 
 ## Data file
 

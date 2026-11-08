@@ -56,9 +56,15 @@ class PerformanceConsoleOnPremise
      * for hours; instead we sample throughput over a fixed, short window.
      *
      * @param resource $output
+     * @param string $profile LowMemory, or MaxPerformance to hold the whole
+     *   data file in memory
      */
-    public function run(string $dataFile, float $maxSeconds, $output): void
-    {
+    public function run(
+        string $dataFile,
+        float $maxSeconds,
+        $output,
+        string $profile = 'LowMemory'
+    ): void {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             fwrite($output, "The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.\n");
             return;
@@ -79,10 +85,16 @@ class PerformanceConsoleOnPremise
         // Build the engine once and time how long that takes.
         $startupStart = microtime(true);
         $config = new \ConfigIpiSwig();
-        // MaxPerformance, the fastest profile, as this example measures
-        // speed. It holds the whole data file in memory. The .NET
-        // Performance example benchmarks MaxPerformance too.
-        $config->setMaxPerformance();
+        // LowMemory by default, because the example uses the Enterprise data
+        // file when it finds one. Pass MaxPerformance as the third argument
+        // of performance-console.php to measure the fastest profile where
+        // there is memory for the whole file.
+        $maxPerformance = strcasecmp($profile, 'MaxPerformance') === 0;
+        if ($maxPerformance) {
+            $config->setMaxPerformance();
+        } else {
+            $config->setLowMemory();
+        }
         $config->setUseUpperPrefixHeaders(false);
         $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
         $startupMs = (microtime(true) - $startupStart) * 1000.0;
@@ -95,6 +107,10 @@ class PerformanceConsoleOnPremise
 
         fwrite($output, "Performance benchmark (on-premise IP intelligence)\n");
         fwrite($output, sprintf("\tData file: %s\n", $dataFile));
+        fwrite($output, sprintf(
+            "\tProfile: %s\n",
+            $maxPerformance ? 'MaxPerformance' : 'LowMemory'
+        ));
         fwrite($output, sprintf("\tEngine startup: %.0f ms\n", $startupMs));
         fwrite($output, sprintf("\tIP addresses: %d, time cap: %.1f s\n", count($ipAddresses), $maxSeconds));
 

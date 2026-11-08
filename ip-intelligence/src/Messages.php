@@ -43,6 +43,12 @@ class Messages
         "across the fork, which corrupts the results. Remove the '%s' " .
         "setting, or set it to 'MaxPerformance'.";
 
+    /**
+     * @deprecated Use Messages::PERFORMANCE_PROFILE_ERROR, which this
+     *   equals.
+     */
+    public const INVALID_PERFORMANCE_PROFILE = self::PERFORMANCE_PROFILE_ERROR;
+
     public const DATA_FILE_NOT_FOUND =
         'There is no IP intelligence data file at %s';
 

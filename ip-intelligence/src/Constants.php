@@ -49,6 +49,18 @@ class Constants
     // explains.
     public const PERFORMANCE_PROFILE = 'MaxPerformance';
 
+    /**
+     * @deprecated Use Constants::PERFORMANCE_PROFILE, the only profile the
+     *   on-premise engine runs with in PHP.
+     */
+    public const DEFAULT_PERFORMANCE_PROFILE = self::PERFORMANCE_PROFILE;
+
+    /**
+     * @deprecated Use Constants::PERFORMANCE_PROFILE. The on-premise engine
+     *   runs with that profile alone in PHP, so this lists only it.
+     */
+    public const PERFORMANCE_PROFILES = [self::PERFORMANCE_PROFILE];
+
     // The file extension expected for an on-premise IP intelligence data file.
     public const DATA_FILE_EXTENSION = '.ipi';
 }

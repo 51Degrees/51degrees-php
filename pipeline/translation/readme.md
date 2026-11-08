@@ -31,6 +31,43 @@ base language (`en`), resolution stops and the values are left untranslated
 (the source data is already English). A two letter candidate falls back to the
 first available locale that starts with it (`fr` matches `fr_FR`).
 
+## Configuration file
+
+`PipelineBuilder::buildFromConfig` builds the engine from a configuration file,
+as it builds any element, passing the `BuildParameters` to the constructor as
+one settings array. The settings use the option names of the Translation Engine
+specification, or the same names in camelCase, the style other PHP elements'
+settings use.
+
+- `SourceElementDataKey`, the element whose values are translated. Required.
+- `FixedLanguage`, a locale to always translate into, such as `en_GB`.
+  Otherwise the locale comes from the evidence.
+- `MissingTranslationBehavior`, being `Original` (the default), `EmptyString`
+  or `FlowError`, in any case.
+
+```json
+{
+  "PipelineOptions": {
+    "Elements": [
+      {
+        "BuilderName": "fiftyone\\pipeline\\translation\\TranslationEngine",
+        "BuildParameters": {
+          "SourceElementDataKey": "ip",
+          "FixedLanguage": "en_GB",
+          "MissingTranslationBehavior": "Original"
+        }
+      }
+    ]
+  }
+}
+```
+
+An engine built this way uses the element data key `translation`. Sources and
+translations are added in code only, as the specification says, so it has none
+and returns no properties. An engine for one particular translation, such as
+the country translation engines in ip-intelligence, adds its own and is the one
+to name in a configuration file.
+
 ## Classes
 
 - `TranslationEngine` - the base pipeline engine.

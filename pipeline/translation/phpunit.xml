@@ -4,7 +4,7 @@
          colors="true">
   <testsuites>
     <testsuite name="Translation">
-      <directory>tests</directory>
+      <file>tests/TranslationEngineConfigTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

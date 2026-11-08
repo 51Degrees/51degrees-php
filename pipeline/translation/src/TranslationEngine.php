@@ -77,20 +77,61 @@ class TranslationEngine extends Engine
     protected Translator $emptyTranslator;
 
     /**
-     * @param string $sourceElementDataKey upstream element to read from
+     * The element data key of an engine built from settings, the key the
+     * .NET Translation Engine uses.
+     */
+    public const DEFAULT_ELEMENT_DATA_KEY = 'translation';
+
+    /**
+     * Builds the engine from its arguments, or from the settings array that
+     * PipelineBuilder::buildFromConfig passes every element it builds from a
+     * configuration file.
+     *
+     * The settings use the specification's option names,
+     * SourceElementDataKey (required), FixedLanguage and
+     * MissingTranslationBehavior (Original, EmptyString or FlowError, in any
+     * case), or the same names in camelCase, the style the settings of other
+     * PHP elements use. Sources and translations are added in code only, as
+     * the specification says, so an engine built from settings has none and
+     * returns no properties. A subclass that adds its own is the way to build
+     * a useful one from a configuration file.
+     *
+     * @param string|array<string, mixed> $elementDataKey this engine's element
+     *   data key, or the settings
+     * @param null|string $sourceElementDataKey upstream element to read from
      * @param array<string, string> $propertyMap source => destination names
      * @param array<string, array<string, string>> $localeMaps locale => map
      * @param null|string $fixedLanguage a locale to always use, or null to
      *   resolve from evidence
+     * @throws \InvalidArgumentException when no source element data key is
+     *   given, or the settings name a missing translation behavior that is
+     *   not one of the three
      */
     public function __construct(
-        string $elementDataKey,
-        string $sourceElementDataKey,
-        array $propertyMap,
-        array $localeMaps,
+        string|array $elementDataKey = [],
+        ?string $sourceElementDataKey = null,
+        array $propertyMap = [],
+        array $localeMaps = [],
         ?string $fixedLanguage = null,
         string $behavior = MissingTranslationBehavior::ORIGINAL
     ) {
+        if (is_array($elementDataKey)) {
+            $settings = $elementDataKey;
+            $elementDataKey = self::DEFAULT_ELEMENT_DATA_KEY;
+            $sourceElementDataKey = self::stringSetting($settings, 'SourceElementDataKey');
+            $fixedLanguage = self::stringSetting($settings, 'FixedLanguage');
+            $named = self::stringSetting($settings, 'MissingTranslationBehavior');
+            $behavior = $named === null
+                ? MissingTranslationBehavior::ORIGINAL
+                : MissingTranslationBehavior::fromName($named);
+        }
+        if ($sourceElementDataKey === null) {
+            throw new \InvalidArgumentException(
+                'The Translation Engine needs a source element data key, ' .
+                'the SourceElementDataKey setting.'
+            );
+        }
+
         $this->pipelines = [];
 
         $this->dataKey = $elementDataKey;
@@ -116,6 +157,28 @@ class TranslationEngine extends Engine
         $this->properties = $properties;
 
         parent::__construct();
+    }
+
+    /**
+     * A text setting by the specification's name, or by the same name in
+     * camelCase. Null when neither is given or the value is empty.
+     *
+     * @param array<string, mixed> $settings
+     * @throws \InvalidArgumentException when the value is not text
+     */
+    private static function stringSetting(array $settings, string $name): ?string
+    {
+        $value = $settings[$name] ?? $settings[lcfirst($name)] ?? null;
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (!is_string($value)) {
+            throw new \InvalidArgumentException(
+                "The Translation Engine's {$name} setting must be text."
+            );
+        }
+
+        return $value;
     }
 
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter

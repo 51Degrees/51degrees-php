@@ -186,6 +186,101 @@ class TranslationEngineConfigTests extends TestCase
         }
     }
 
+    public function testASettingThatIsNotTextIsRefused(): void
+    {
+        $cases = [
+            'SourceElementDataKey' => ['SourceElementDataKey' => 5],
+            'FixedLanguage' => [
+                'SourceElementDataKey' => 'ip',
+                'FixedLanguage' => ['en_GB'],
+            ],
+        ];
+        foreach ($cases as $name => $parameters) {
+            $message = null;
+            try {
+                new TranslationEngine($parameters);
+            } catch (\InvalidArgumentException $e) {
+                $message = $e->getMessage();
+            }
+            $this->assertSame(
+                "The Translation Engine's {$name} setting must be text.",
+                $message,
+                (string) json_encode($parameters)
+            );
+        }
+    }
+
+    /**
+     * An engine built from a configuration has no sources or translations,
+     * so it processes without error and gives no properties.
+     */
+    public function testAConfiguredEngineReturnsNoProperties(): void
+    {
+        $pipeline = (new PipelineBuilder())->buildFromConfig([
+            'PipelineOptions' => [
+                'Elements' => [
+                    ['BuilderName' => SourceElement::class],
+                    [
+                        'BuilderName' => TranslationEngine::class,
+                        'BuildParameters' => ['SourceElementDataKey' => 'ip'],
+                    ],
+                ],
+            ],
+        ]);
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->process();
+            $this->assertSame([], $flowData->errors);
+            $this->assertSame(
+                [],
+                $flowData->get(TranslationEngine::DEFAULT_ELEMENT_DATA_KEY)
+                    ->asDictionary()
+            );
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
+     * FlowError records an error under the engine's data key for a value
+     * with no translation, and the engine still gives its properties.
+     */
+    public function testFlowErrorRecordsAMissingTranslation(): void
+    {
+        $pipeline = (new PipelineBuilder())
+            ->add(new SourceElement())
+            ->add(new TranslationEngine(
+                'translated',
+                'ip',
+                ['Country' => 'CountryTranslated'],
+                ['fr_FR' => ['Scotland' => 'Ecosse']],
+                'fr_FR',
+                MissingTranslationBehavior::FLOW_ERROR
+            ))
+            ->build();
+        // Keep the error in the FlowData rather than throw it from process.
+        $pipeline->suppressProcessExceptions = true;
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->process();
+            $this->assertSame(['translated'], array_keys($flowData->errors));
+            $this->assertSame(
+                "There was no translation found for the value 'England'.",
+                $flowData->errors['translated']->getMessage()
+            );
+            $value = $flowData->get('translated')->get('countrytranslated');
+            $this->assertFalse($value->hasValue);
+            $this->assertSame(
+                'Translation produced no value.',
+                $value->noValueMessage
+            );
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
+
     /**
      * The constructor's arguments, which code written before the
      * configuration route passes, still build an engine that translates.
@@ -198,12 +293,19 @@ class TranslationEngineConfigTests extends TestCase
             ['Country' => 'CountryTranslated'],
             ['fr_FR' => ['England' => 'Angleterre']],
             'fr_FR',
-            MissingTranslationBehavior::ORIGINAL
+            MissingTranslationBehavior::EMPTY_STRING
+        );
+        $this->assertSame(
+            MissingTranslationBehavior::EMPTY_STRING,
+            self::field($engine, 'behavior')
         );
         $this->assertTranslates($engine, 'translated');
     }
 
-    /** PHP 8 named arguments still use the parameter names they did. */
+    /**
+     * PHP 8 named arguments with the deprecated name behavior still set the
+     * missing translation behavior.
+     */
     public function testNamedArgumentsStillWork(): void
     {
         $engine = new TranslationEngine(
@@ -212,7 +314,32 @@ class TranslationEngineConfigTests extends TestCase
             propertyMap: ['Country' => 'CountryTranslated'],
             localeMaps: ['fr_FR' => ['England' => 'Angleterre']],
             fixedLanguage: 'fr_FR',
-            behavior: MissingTranslationBehavior::ORIGINAL
+            behavior: MissingTranslationBehavior::EMPTY_STRING
+        );
+        $this->assertSame(
+            MissingTranslationBehavior::EMPTY_STRING,
+            self::field($engine, 'behavior')
+        );
+        $this->assertTranslates($engine, 'translated');
+    }
+
+    /**
+     * The named argument takes the specification's name,
+     * missingTranslationBehavior.
+     */
+    public function testNamedArgumentsUseTheSpecificationName(): void
+    {
+        $engine = new TranslationEngine(
+            elementDataKey: 'translated',
+            sourceElementDataKey: 'ip',
+            propertyMap: ['Country' => 'CountryTranslated'],
+            localeMaps: ['fr_FR' => ['England' => 'Angleterre']],
+            fixedLanguage: 'fr_FR',
+            missingTranslationBehavior: MissingTranslationBehavior::FLOW_ERROR
+        );
+        $this->assertSame(
+            MissingTranslationBehavior::FLOW_ERROR,
+            self::field($engine, 'behavior')
         );
         $this->assertTranslates($engine, 'translated');
     }

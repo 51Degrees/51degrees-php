@@ -62,11 +62,13 @@ settings use.
 }
 ```
 
-An engine built this way uses the element data key `translation`. Sources and
-translations are added in code only, as the specification says, so it has none
-and returns no properties. An engine for one particular translation, such as
-the country translation engines in ip-intelligence, adds its own and is the one
-to name in a configuration file.
+An engine built this way uses the element data key `translation`. This engine
+does not read sources and translations from settings, so it has none and
+returns no properties. An engine for one particular translation adds its own
+and is the one to name in a configuration file. The country translation
+engines in ip-intelligence are engines of that kind, named with no
+`BuildParameters`, because their constructors take the folder of translation
+files rather than settings.
 
 ## Classes
 

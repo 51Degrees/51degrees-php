@@ -91,10 +91,10 @@ class TranslationEngine extends Engine
      * SourceElementDataKey (required), FixedLanguage and
      * MissingTranslationBehavior (Original, EmptyString or FlowError, in any
      * case), or the same names in camelCase, the style the settings of other
-     * PHP elements use. Sources and translations are added in code only, as
-     * the specification says, so an engine built from settings has none and
-     * returns no properties. A subclass that adds its own is the way to build
-     * a useful one from a configuration file.
+     * PHP elements use. This engine does not read sources and translations
+     * from settings, so an engine built from settings has none and returns no
+     * properties. A subclass that adds its own is the way to build a useful
+     * one from a configuration file.
      *
      * @param string|array<string, mixed> $elementDataKey this engine's element
      *   data key, or the settings
@@ -103,6 +103,10 @@ class TranslationEngine extends Engine
      * @param array<string, array<string, string>> $localeMaps locale => map
      * @param null|string $fixedLanguage a locale to always use, or null to
      *   resolve from evidence
+     * @param string $missingTranslationBehavior what a value with no
+     *   translation gives, one of the MissingTranslationBehavior values
+     * @param null|string $behavior deprecated, use $missingTranslationBehavior.
+     *   Used in its place when given.
      * @throws \InvalidArgumentException when no source element data key is
      *   given, or the settings name a missing translation behavior that is
      *   not one of the three
@@ -113,8 +117,10 @@ class TranslationEngine extends Engine
         array $propertyMap = [],
         array $localeMaps = [],
         ?string $fixedLanguage = null,
-        string $behavior = MissingTranslationBehavior::ORIGINAL
+        string $missingTranslationBehavior = MissingTranslationBehavior::ORIGINAL,
+        ?string $behavior = null
     ) {
+        $behavior ??= $missingTranslationBehavior;
         if (is_array($elementDataKey)) {
             $settings = $elementDataKey;
             $elementDataKey = self::DEFAULT_ELEMENT_DATA_KEY;
@@ -277,7 +283,7 @@ class TranslationEngine extends Engine
         $errors = [];
         $translated = $translator->translate($apv->value, $errors);
         foreach ($errors as $error) {
-            $flowData->setError($error->getMessage(), $this);
+            $flowData->setError($this->dataKey, $error);
         }
 
         if ($translated === null) {

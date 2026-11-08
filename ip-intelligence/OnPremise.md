@@ -88,19 +88,29 @@ FiftyOneDegreesIpIntelligenceEngine.data_file=/full/path/to/cxx/data/ip-intellig
 
 ## Running under a process manager
 
-The engine always holds the whole data file in memory, which is the
+The engine the extension builds when PHP starts, from the `data_file` setting
+above, always holds the whole data file in memory, which is the
 `MaxPerformance` performance profile, as device detection does. PHP is
 normally run under a process manager, such as Apache MPM prefork or php-fpm,
-that forks the worker processes. Every other profile keeps the data file open,
-and forking shares those file handles and their read positions between the
-workers, which corrupts the results. Loading the whole file leaves no handle
-to share, and it uses more memory than the other profiles, which read parts
-of the file as they need them.
+that forks the worker processes after that engine is built. Every other
+profile keeps the data file open, and forking would share those file handles
+and their read positions between the workers, which corrupts the results.
+Loading the whole file leaves no handle to share, and it uses more memory than
+the other profiles, which read parts of the file as they need them.
 
 Leave the `FiftyOneDegreesIpIntelligenceEngine.performance_profile` setting
-and the `performanceProfile` setting out, or set them to `MaxPerformance`. Any
-other profile raises an exception when the engine is created, explaining that
-`MaxPerformance` is the only supported profile.
+out, or set it to `MaxPerformance`. Any other profile there raises an
+exception when `IpIntelligenceOnPremise` takes up that engine, explaining that
+`MaxPerformance` is the only supported profile for it.
+
+An engine built from a `dataFile` setting is built in the process that uses
+it, for example in a console script or inside a worker after the fork, and it
+opens its own file handles. It takes any profile through the
+`performanceProfile` setting, being `LowMemory`, `Balanced` (the default),
+`BalancedTemp`, `HighPerformance` or `MaxPerformance`. The examples use
+`LowMemory`, because they use the Enterprise data file when they find one,
+apart from the performance example, which uses `MaxPerformance` because it
+measures speed.
 
 ## Data file
 

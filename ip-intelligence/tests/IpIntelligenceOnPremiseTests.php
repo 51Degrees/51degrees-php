@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
+use fiftyone\pipeline\ipintelligence\Constants as IpiConstants;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
@@ -249,74 +250,117 @@ class IpIntelligenceOnPremiseTests extends TestCase
         }
     }
 
-    /**
-     * The on-premise engine for PHP only runs with the in-memory
-     * MaxPerformance profile (device-detection-php-onpremise issue 38), so
-     * any other profile in the settings raises a clear exception rather than
-     * being silently ignored.
-     */
-    public function testNonMaxPerformanceProfileThrows(): void
+    public function testInvalidPerformanceProfileRejected(): void
     {
-        $profiles = ['Balanced', 'BalancedTemp', 'LowMemory', 'HighPerformance', 'NotARealProfile'];
-        foreach ($profiles as $profile) {
-            $message = null;
-            try {
-                new IpIntelligenceOnPremise([
-                    'dataFile' => self::$dataFile,
-                    'performanceProfile' => $profile
-                ]);
-            } catch (\Throwable $e) {
-                $message = $e->getMessage();
-            }
-
-            $this->assertSame(
-                sprintf(Messages::PERFORMANCE_PROFILE_ERROR, $profile, 'performanceProfile'),
-                $message,
-                $profile
-            );
-        }
-    }
-
-    /**
-     * A profile other than MaxPerformance in php.ini raises the same
-     * exception, naming the php.ini setting.
-     */
-    public function testNonMaxPerformanceIniProfileThrows(): void
-    {
-        $setting = 'FiftyOneDegreesIpIntelligenceEngine.performance_profile';
-        $original = ini_get($setting);
-        ini_set($setting, 'Balanced');
-
         $message = null;
         try {
-            $this->buildEngine();
+            new IpIntelligenceOnPremise([
+                'dataFile' => self::$dataFile,
+                'performanceProfile' => 'NotARealProfile'
+            ]);
         } catch (\Throwable $e) {
             $message = $e->getMessage();
-        } finally {
-            ini_set($setting, $original === false ? '' : $original);
         }
 
-        $this->assertSame(sprintf(Messages::PERFORMANCE_PROFILE_ERROR, 'Balanced', $setting), $message);
+        $this->assertSame(
+            sprintf(
+                Messages::INVALID_PERFORMANCE_PROFILE,
+                'NotARealProfile',
+                implode(', ', IpiConstants::PERFORMANCE_PROFILES)
+            ),
+            $message
+        );
     }
 
     /**
-     * MaxPerformance, in any case, and leaving the profile unset are the
-     * supported configuration and do not raise the exception.
+     * An engine built from a dataFile setting opens its own file handles in
+     * the process that builds it, so it takes any profile. The php.ini
+     * profile is for the engine the extension builds when PHP starts, so it
+     * does not stop one.
      */
-    public function testMaxPerformanceProfileIsAccepted(): void
+    public function testAnEngineBuiltFromSettingsTakesAnyProfile(): void
     {
         $setting = 'FiftyOneDegreesIpIntelligenceEngine.performance_profile';
         $original = ini_get($setting);
-        ini_set($setting, 'MaxPerformance');
+        ini_set($setting, 'LowMemory');
 
         try {
-            foreach (['MaxPerformance', 'maxperformance', null] as $profile) {
+            foreach (['LowMemory', 'Balanced', 'HighPerformance', 'MaxPerformance', null] as $profile) {
                 $engine = new IpIntelligenceOnPremise([
                     'dataFile' => self::$dataFile,
                     'performanceProfile' => $profile
                 ]);
                 try {
-                    $this->assertSame('ip', $engine->dataKey);
+                    $this->assertSame('ip', $engine->dataKey, (string) $profile);
+                } finally {
+                    $engine->close();
+                }
+            }
+        } finally {
+            ini_set($setting, $original === false ? '' : $original);
+        }
+    }
+
+    /**
+     * The engine the extension builds when PHP starts only exists when the
+     * data_file php.ini setting was given at start-up.
+     */
+    private function requireStartupEngine(): void
+    {
+        if (!function_exists('ipi_engine_get') || \ipi_engine_get() === null) {
+            $this->markTestSkipped('No start-up engine. Start PHP with FiftyOneDegreesIpIntelligenceEngine.data_file set to run this test.');
+        }
+    }
+
+    /**
+     * The start-up engine is built before the process manager forks its
+     * workers, so it always holds the data file in memory
+     * (device-detection-php-onpremise issue 38). A different profile in
+     * php.ini raises a clear exception rather than being silently ignored.
+     */
+    public function testStartupEngineRefusesAnotherIniProfile(): void
+    {
+        $this->requireStartupEngine();
+        $setting = 'FiftyOneDegreesIpIntelligenceEngine.performance_profile';
+        $original = ini_get($setting);
+
+        try {
+            foreach (['LowMemory', 'Balanced', 'HighPerformance', 'NotARealProfile'] as $profile) {
+                ini_set($setting, $profile);
+                $message = null;
+                try {
+                    new IpIntelligenceOnPremise([]);
+                } catch (\Throwable $e) {
+                    $message = $e->getMessage();
+                }
+
+                $this->assertSame(
+                    sprintf(Messages::PERFORMANCE_PROFILE_ERROR, $profile),
+                    $message,
+                    $profile
+                );
+            }
+        } finally {
+            ini_set($setting, $original === false ? '' : $original);
+        }
+    }
+
+    /**
+     * MaxPerformance, in any case, and leaving the profile unset are what
+     * the start-up engine runs with, so they are accepted.
+     */
+    public function testStartupEngineAcceptsMaxPerformance(): void
+    {
+        $this->requireStartupEngine();
+        $setting = 'FiftyOneDegreesIpIntelligenceEngine.performance_profile';
+        $original = ini_get($setting);
+
+        try {
+            foreach (['', 'MaxPerformance', 'maxperformance'] as $profile) {
+                ini_set($setting, $profile);
+                $engine = new IpIntelligenceOnPremise([]);
+                try {
+                    $this->assertSame('ip', $engine->dataKey, $profile);
                 } finally {
                     $engine->close();
                 }

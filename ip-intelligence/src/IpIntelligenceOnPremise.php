@@ -70,15 +70,16 @@ class IpIntelligenceOnPremise extends Engine
      * @param array<string, mixed> $settings
      *   dataFile            - (required, unless the global engine is used)
      *                         path to the .ipi data file.
-     *   performanceProfile  - (optional) only Constants::PERFORMANCE_PROFILE,
-     *                         as the engine always holds the data file in
-     *                         memory. Any other profile raises an exception.
+     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES,
+     *                         defaulting to Constants::DEFAULT_PERFORMANCE_PROFILE.
      *   restrictedProperties- (optional) list of properties to populate.
      *   concurrency         - (optional) expected concurrent accesses.
      *
      * Omitting "dataFile" reuses the shared global engine when one exists.
      * That engine comes from the FiftyOneDegreesIpIntelligenceEngine.* ini
-     * settings, so ENGINE_SETTINGS are rejected on that path.
+     * settings, so ENGINE_SETTINGS are rejected on that path. It is always
+     * built in memory, so a performance_profile ini setting other than
+     * Constants::STARTUP_PERFORMANCE_PROFILE is rejected too.
      * @throws \Exception
      */
     public function __construct(array $settings = [])
@@ -89,24 +90,27 @@ class IpIntelligenceOnPremise extends Engine
             throw new \Exception(Messages::EXTENSION_NOT_LOADED);
         }
 
-        // The on-premise engine for PHP can only run with the in-memory
-        // MaxPerformance profile. PHP is normally run under a process manager
-        // (Apache MPM prefork, php-fpm) that forks the worker process. Any
-        // other profile keeps the data file open and shares those file
-        // handles across the fork, which corrupts the results (see
-        // device-detection-php-onpremise issue 38). The engine is always
-        // built in memory, so any other configured profile is a mistake that
-        // is rejected here with a clear exception rather than being silently
-        // ignored.
-        self::requireMaxPerformance(
-            ini_get('FiftyOneDegreesIpIntelligenceEngine.performance_profile'),
-            'FiftyOneDegreesIpIntelligenceEngine.performance_profile'
-        );
-
         // Reusing the global engine lets a long-running SAPI avoid re-opening
         // a multi-gigabyte data file on every request.
         $dataFile = $settings['dataFile'] ?? null;
         if ($dataFile === null && function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
+            // The global engine is built when PHP starts, before a process
+            // manager (Apache MPM prefork, php-fpm) forks the workers that
+            // use it, so it always holds the data file in memory. Any other
+            // profile would keep the data file open and share those file
+            // handles across the fork, which corrupts the results (see
+            // device-detection-php-onpremise issue 38). A different profile in
+            // php.ini is therefore a mistake, rejected here with a clear
+            // exception rather than being silently ignored. An engine built
+            // from a "dataFile" setting below opens its own file handles in
+            // the process that builds it, so it may use any profile.
+            $startupProfile = ini_get('FiftyOneDegreesIpIntelligenceEngine.performance_profile');
+            if ($startupProfile !== false
+                && $startupProfile !== ''
+                && strcasecmp($startupProfile, Constants::STARTUP_PERFORMANCE_PROFILE) !== 0) {
+                throw new \Exception(sprintf(Messages::PERFORMANCE_PROFILE_ERROR, $startupProfile));
+            }
+
             // Only a setting with an actual value counts: callers commonly pass
             // options straight through as ['performanceProfile' => $profile ?? null],
             // where a null supplies nothing to apply.
@@ -135,10 +139,14 @@ class IpIntelligenceOnPremise extends Engine
             throw new \Exception(sprintf(Messages::DATA_FILE_NOT_FOUND, $dataFile));
         }
 
-        self::requireMaxPerformance(
-            $settings['performanceProfile'] ?? null,
-            'performanceProfile'
-        );
+        $performanceProfile = $settings['performanceProfile'] ?? Constants::DEFAULT_PERFORMANCE_PROFILE;
+        if (!in_array($performanceProfile, Constants::PERFORMANCE_PROFILES, true)) {
+            throw new \Exception(sprintf(
+                Messages::INVALID_PERFORMANCE_PROFILE,
+                $performanceProfile,
+                implode(', ', Constants::PERFORMANCE_PROFILES)
+            ));
+        }
 
         $restrictedProperties = $settings['restrictedProperties'] ?? [];
         $concurrency = $settings['concurrency'] ?? null;
@@ -155,7 +163,7 @@ class IpIntelligenceOnPremise extends Engine
 
         // Assemble the engine configuration.
         $this->config = new \ConfigIpiSwig();
-        $this->config->setMaxPerformance();
+        $this->applyPerformanceProfile($this->config, $performanceProfile);
         // Do not prefix evidence keys with http_.
         $this->config->setUseUpperPrefixHeaders(false);
         if ($concurrency !== null) {
@@ -256,26 +264,24 @@ class IpIntelligenceOnPremise extends Engine
         return $this->engine->getProduct();
     }
 
-    /**
-     * Raises the exception for a configured performance profile other than
-     * MaxPerformance, naming the setting that configured it. A profile that
-     * is unset or empty is accepted, as the engine is always built in memory.
-     *
-     * @param mixed $profile the configured profile, or null or false when
-     *   none is configured
-     * @throws \Exception
-     */
-    private static function requireMaxPerformance($profile, string $setting): void
+    private function applyPerformanceProfile($config, string $profile): void
     {
-        if ($profile !== null
-            && $profile !== false
-            && $profile !== ''
-            && strcasecmp((string) $profile, Constants::PERFORMANCE_PROFILE) !== 0) {
-            throw new \Exception(sprintf(
-                Messages::PERFORMANCE_PROFILE_ERROR,
-                $profile,
-                $setting
-            ));
+        switch ($profile) {
+            case 'LowMemory':
+                $config->setLowMemory();
+                break;
+            case 'MaxPerformance':
+                $config->setMaxPerformance();
+                break;
+            case 'Balanced':
+                $config->setBalanced();
+                break;
+            case 'BalancedTemp':
+                $config->setBalancedTemp();
+                break;
+            case 'HighPerformance':
+                $config->setHighPerformance();
+                break;
         }
     }
 

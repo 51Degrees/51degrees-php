@@ -79,8 +79,9 @@ class PerformanceConsoleOnPremise
         // Build the engine once and time how long that takes.
         $startupStart = microtime(true);
         $config = new \ConfigIpiSwig();
-        // PHP runs the engine with the whole data file in memory, as
-        // on-premise/ipi-php.i explains.
+        // MaxPerformance, the fastest profile, as this example measures
+        // speed. It holds the whole data file in memory. The .NET
+        // Performance example benchmarks MaxPerformance too.
         $config->setMaxPerformance();
         $config->setUseUpperPrefixHeaders(false);
         $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));

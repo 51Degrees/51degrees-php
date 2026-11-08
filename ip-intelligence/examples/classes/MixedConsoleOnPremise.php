@@ -71,7 +71,11 @@ class MixedConsoleOnPremise
         $deviceEngine = new $ddClass();
 
         $ipEngine = new IpIntelligenceOnPremise([
-            'dataFile' => $ipDataFile
+            'dataFile' => $ipDataFile,
+            // The example uses the Enterprise data file when it finds one,
+            // which is several gigabytes, and LowMemory keeps the memory it
+            // needs small.
+            'performanceProfile' => 'LowMemory'
         ]);
 
         $pipeline = (new PipelineBuilder([]))

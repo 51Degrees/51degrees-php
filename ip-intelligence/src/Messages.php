@@ -31,23 +31,23 @@ class Messages
         'The on-premise IP intelligence engine has its own internal cache ' .
         'and does not support an external cache.';
 
-    // Raised when a performance profile other than MaxPerformance is
-    // configured for the on-premise engine. The placeholders are the profile
-    // that was configured and the setting that configured it.
-    public const PERFORMANCE_PROFILE_ERROR =
-        "The on-premise IP intelligence engine for PHP can only run with the " .
-        "in-memory 'MaxPerformance' performance profile, but '%s' was " .
-        "configured. PHP is typically run under a process manager (Apache " .
-        "MPM prefork, php-fpm) that forks the worker process, and any other " .
-        "profile keeps the data file open and shares those file handles " .
-        "across the fork, which corrupts the results. Remove the '%s' " .
-        "setting, or set it to 'MaxPerformance'.";
+    public const INVALID_PERFORMANCE_PROFILE =
+        "'%s' is not a valid performance profile. Valid profiles are: %s.";
 
-    /**
-     * @deprecated Use Messages::PERFORMANCE_PROFILE_ERROR, which this
-     *   equals.
-     */
-    public const INVALID_PERFORMANCE_PROFILE = self::PERFORMANCE_PROFILE_ERROR;
+    // Raised when the php.ini settings name a performance profile other than
+    // MaxPerformance for the shared global engine. The placeholder is the
+    // profile that was configured.
+    public const PERFORMANCE_PROFILE_ERROR =
+        "The IP intelligence engine the extension builds when PHP starts can " .
+        "only run with the in-memory 'MaxPerformance' performance profile, " .
+        "but '%s' was configured. PHP is typically run under a process " .
+        "manager (Apache MPM prefork, php-fpm) that forks the worker process " .
+        "after that engine is built, and any other profile keeps the data " .
+        "file open and shares those file handles across the fork, which " .
+        "corrupts the results. Remove the " .
+        "'FiftyOneDegreesIpIntelligenceEngine.performance_profile' setting, " .
+        "or set it to 'MaxPerformance'. An engine built from a \"dataFile\" " .
+        "setting may use any profile.";
 
     public const DATA_FILE_NOT_FOUND =
         'There is no IP intelligence data file at %s';

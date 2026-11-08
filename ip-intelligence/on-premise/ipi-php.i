@@ -80,19 +80,23 @@ EngineIpi *ipi_engine;
         char *propertyList = INI_STR("FiftyOneDegreesIpIntelligenceEngine.required_properties");
         ipi_engine_config = new ConfigIpi();
         /*
-         * Always build the engine with the MaxPerformance (in memory)
-         * profile. PHP is normally run under a process manager (for example
-         * Apache MPM prefork or php-fpm) that serves each request from a
-         * child process forked from the one this module was initialised in.
-         * Streaming profiles keep a pool of open file handles, and forking
-         * copies those handles (together with their current read positions)
-         * into every child. The shared handles then corrupt each other's
-         * reads and can crash the worker (see device-detection-php-onpremise
-         * issue 38). Loading the whole data file into memory leaves no shared
-         * handles, so MaxPerformance is the only safe profile for PHP. It is
-         * enforced here so the engine can never be built in an unsafe mode,
-         * and the PHP layer (IpIntelligenceOnPremise) raises a clear
-         * exception when a different performance_profile is configured.
+         * Always build this engine, the one built when PHP starts, with the
+         * MaxPerformance (in memory) profile. PHP is normally run under a
+         * process manager (for example Apache MPM prefork or php-fpm) that
+         * serves each request from a child process forked from the one this
+         * module was initialised in. Streaming profiles keep a pool of open
+         * file handles, and forking copies those handles (together with
+         * their current read positions) into every child. The shared handles
+         * then corrupt each other's reads and can crash the worker (see
+         * device-detection-php-onpremise issue 38). Loading the whole data
+         * file into memory leaves no shared handles, so MaxPerformance is the
+         * only safe profile for this engine. It is enforced here so the
+         * engine can never be built in an unsafe mode, and the PHP layer
+         * (IpIntelligenceOnPremise) raises a clear exception when a different
+         * performance_profile is configured. An engine
+         * IpIntelligenceOnPremise builds from a dataFile setting opens its
+         * own file handles in the process that builds it, so it may use any
+         * profile.
          */
         ipi_engine_config->setMaxPerformance();
         ipi_engine_config->setUseUpperPrefixHeaders(false);

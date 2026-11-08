@@ -91,7 +91,9 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
         // load, so this example requires the
         // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting to
         // point at an .ipi file (see OnPremise.md). Pass ['dataFile' => ...]
-        // instead to build a per-request engine.
+        // instead to build a per-request engine. That engine opens its own
+        // file handles in the request's worker, so it may use the LowMemory
+        // profile, set with 'performanceProfile' => 'LowMemory'.
         $pipeline = (new PipelineBuilder([]))
             ->add(new IpIntelligenceOnPremise([]))
             ->add(new CountryCodeTranslationEngine())

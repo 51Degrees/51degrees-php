@@ -43,7 +43,11 @@ class MetadataConsoleOnPremise
     public function run(string $dataFile, $output): void
     {
         $engine = new IpIntelligenceOnPremise([
-            'dataFile' => $dataFile
+            'dataFile' => $dataFile,
+            // The example uses the Enterprise data file when it finds one,
+            // which is several gigabytes, and LowMemory keeps the memory it
+            // needs small.
+            'performanceProfile' => 'LowMemory'
         ]);
 
         // The engine is closed in the finally block, which releases the

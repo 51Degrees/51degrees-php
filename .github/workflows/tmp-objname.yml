@@ -1,0 +1,32 @@
+name: Temporary object name tests
+
+on:
+  push:
+    branches:
+      - 'tmp/objname-php-*'
+
+jobs:
+  Test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Show head
+        run: git log -1 --format=%H
+      - name: Install
+        working-directory: pipeline/core
+        run: composer install --no-interaction --no-progress
+      - name: Test
+        working-directory: pipeline/core
+        run: vendor/bin/phpunit tests/JavaScriptBuilderObjectNameTests.php
+      - name: Static analysis
+        working-directory: pipeline/core
+        run: vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress || true

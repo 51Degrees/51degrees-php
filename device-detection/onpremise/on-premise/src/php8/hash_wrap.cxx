@@ -1416,6 +1416,35 @@ SWIGINTERN void std_vector_Sl_uint8_t_Sg__set(std::vector< uint8_t > *self,int i
         else
           throw std::out_of_range("vector index out of range");
       }
+SWIGINTERN unsigned int EvidenceDeviceDetection_size(EvidenceDeviceDetection const *self){
+        return (unsigned int)self->size();
+    }
+SWIGINTERN void EvidenceDeviceDetection_clear(EvidenceDeviceDetection *self){
+        self->clear();
+    }
+SWIGINTERN std::string const &EvidenceDeviceDetection_get(EvidenceDeviceDetection *self,std::string const &key){
+        std::map<std::string, std::string>::iterator i = self->find(key);
+        if (i == self->end()) {
+            throw std::out_of_range("key not found");
+        }
+        return i->second;
+    }
+SWIGINTERN void EvidenceDeviceDetection_set(EvidenceDeviceDetection *self,std::string const &key,std::string const &value){
+        (*self)[key] = value;
+    }
+SWIGINTERN void EvidenceDeviceDetection_del(EvidenceDeviceDetection *self,std::string const &key){
+        std::map<std::string, std::string>::iterator i = self->find(key);
+        if (i == self->end()) {
+            throw std::out_of_range("key not found");
+        }
+        self->erase(i);
+    }
+SWIGINTERN bool EvidenceDeviceDetection_has_key(EvidenceDeviceDetection *self,std::string const &key){
+        return self->find(key) != self->end();
+    }
+SWIGINTERN bool EvidenceDeviceDetection_is_empty(EvidenceDeviceDetection const *self){
+        return self->empty();
+    }
 SWIGINTERN bool std_vector_Sl_uint32_t_Sg__is_empty(std::vector< uint32_t > const *self){
         return self->empty();
       }
@@ -12964,6 +12993,393 @@ static PHP_METHOD(EvidenceDeviceDetectionSwig,__construct) {
 }
 
 
+static PHP_METHOD(EvidenceDeviceDetectionSwig,size) {
+  EvidenceDeviceDetection *arg1 = 0 ;
+  unsigned int result;
+  
+  arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
+  if(ZEND_NUM_ARGS() != 0) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  {
+    try {
+      result = (unsigned int)EvidenceDeviceDetection_size((EvidenceDeviceDetection const *)arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  RETVAL_LONG(result);
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
+static PHP_METHOD(EvidenceDeviceDetectionSwig,clear) {
+  EvidenceDeviceDetection *arg1 = 0 ;
+  
+  arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
+  if(ZEND_NUM_ARGS() != 0) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  {
+    try {
+      EvidenceDeviceDetection_clear(arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
+static PHP_METHOD(EvidenceDeviceDetectionSwig,get) {
+  EvidenceDeviceDetection *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  std::string temp2 ;
+  zval args[1];
+  std::string *result = 0 ;
+  
+  arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
+  if(ZEND_NUM_ARGS() != 1 || zend_get_parameters_array_ex(1, args) != SUCCESS) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  
+  convert_to_string(&args[0]);
+  temp2.assign(Z_STRVAL(args[0]), Z_STRLEN(args[0]));
+  arg2 = &temp2;
+  
+  {
+    try {
+      try {
+        result = (std::string *) &EvidenceDeviceDetection_get(arg1,(std::string const &)*arg2);
+      } catch(std::out_of_range &_e) {
+        (void)_e;
+        zend_throw_exception(NULL, "C++ std::out_of_range exception thrown", 0);
+        goto fail;
+        
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  ZVAL_STRINGL(return_value, result->data(), result->size());
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
+static PHP_METHOD(EvidenceDeviceDetectionSwig,set) {
+  EvidenceDeviceDetection *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  std::string *arg3 = 0 ;
+  std::string temp2 ;
+  std::string temp3 ;
+  zval args[2];
+  
+  arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
+  if(ZEND_NUM_ARGS() != 2 || zend_get_parameters_array_ex(2, args) != SUCCESS) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  
+  convert_to_string(&args[0]);
+  temp2.assign(Z_STRVAL(args[0]), Z_STRLEN(args[0]));
+  arg2 = &temp2;
+  
+  
+  convert_to_string(&args[1]);
+  temp3.assign(Z_STRVAL(args[1]), Z_STRLEN(args[1]));
+  arg3 = &temp3;
+  
+  {
+    try {
+      EvidenceDeviceDetection_set(arg1,(std::string const &)*arg2,(std::string const &)*arg3);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
+static PHP_METHOD(EvidenceDeviceDetectionSwig,del) {
+  EvidenceDeviceDetection *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  std::string temp2 ;
+  zval args[1];
+  
+  arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
+  if(ZEND_NUM_ARGS() != 1 || zend_get_parameters_array_ex(1, args) != SUCCESS) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  
+  convert_to_string(&args[0]);
+  temp2.assign(Z_STRVAL(args[0]), Z_STRLEN(args[0]));
+  arg2 = &temp2;
+  
+  {
+    try {
+      try {
+        EvidenceDeviceDetection_del(arg1,(std::string const &)*arg2);
+      } catch(std::out_of_range &_e) {
+        (void)_e;
+        zend_throw_exception(NULL, "C++ std::out_of_range exception thrown", 0);
+        goto fail;
+        
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
+static PHP_METHOD(EvidenceDeviceDetectionSwig,has_key) {
+  EvidenceDeviceDetection *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  std::string temp2 ;
+  zval args[1];
+  bool result;
+  
+  arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
+  if(ZEND_NUM_ARGS() != 1 || zend_get_parameters_array_ex(1, args) != SUCCESS) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  
+  convert_to_string(&args[0]);
+  temp2.assign(Z_STRVAL(args[0]), Z_STRLEN(args[0]));
+  arg2 = &temp2;
+  
+  {
+    try {
+      result = (bool)EvidenceDeviceDetection_has_key(arg1,(std::string const &)*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  RETVAL_BOOL((result) ? 1 : 0);
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
+static PHP_METHOD(EvidenceDeviceDetectionSwig,is_empty) {
+  EvidenceDeviceDetection *arg1 = 0 ;
+  bool result;
+  
+  arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
+  if(ZEND_NUM_ARGS() != 0) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  {
+    try {
+      result = (bool)EvidenceDeviceDetection_is_empty((EvidenceDeviceDetection const *)arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  RETVAL_BOOL((result) ? 1 : 0);
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
 
 
 PHP_METHOD(EvidenceDeviceDetectionSwig,__set) {
@@ -19315,6 +19731,27 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineHashSwig_refreshData swig_arginfo_EngineBaseSwig_refreshData
 #define swig_arginfo_new_EvidenceBaseSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_new_EvidenceDeviceDetectionSwig swig_arginfo_new_BoolValueSwig
+#define swig_arginfo_MapStringStringSwig_clear swig_arginfo_ConfigHashSwig_setBalanced
+#define swig_arginfo_EvidenceDeviceDetectionSwig_clear swig_arginfo_ConfigHashSwig_setBalanced
+#define swig_arginfo_MapStringStringSwig_del swig_arginfo_EngineBaseSwig_setDataUpdateUrl
+#define swig_arginfo_EvidenceDeviceDetectionSwig_del swig_arginfo_EngineBaseSwig_setDataUpdateUrl
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_get, 0, 1, MAY_BE_STRING)
+ ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
+ZEND_END_ARG_INFO()
+#define swig_arginfo_EvidenceDeviceDetectionSwig_get swig_arginfo_MapStringStringSwig_get
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_has_key, 0, 1, MAY_BE_BOOL)
+ ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
+ZEND_END_ARG_INFO()
+#define swig_arginfo_EvidenceDeviceDetectionSwig_has_key swig_arginfo_MapStringStringSwig_has_key
+#define swig_arginfo_MapStringStringSwig_is_empty swig_arginfo_BoolValueSwig_getValue
+#define swig_arginfo_EvidenceDeviceDetectionSwig_is_empty swig_arginfo_BoolValueSwig_getValue
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_set, 0, 2, MAY_BE_VOID)
+ ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
+ ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_STRING,NULL)
+ZEND_END_ARG_INFO()
+#define swig_arginfo_EvidenceDeviceDetectionSwig_set swig_arginfo_MapStringStringSwig_set
+#define swig_arginfo_MapStringStringSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
+#define swig_arginfo_EvidenceDeviceDetectionSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_IntegerValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_IntegerValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
 #define swig_arginfo_IntegerValueSwig_getValue swig_arginfo_CollectionConfigSwig_getCapacity
@@ -19322,20 +19759,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_MapStringStringSwig, 0, 0, 1)
  ZEND_ARG_OBJ_TYPE_MASK(0,arg1,MapStringStringSwig,0,NULL)
 ZEND_END_ARG_INFO()
-#define swig_arginfo_MapStringStringSwig_clear swig_arginfo_ConfigHashSwig_setBalanced
-#define swig_arginfo_MapStringStringSwig_del swig_arginfo_EngineBaseSwig_setDataUpdateUrl
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_get, 0, 1, MAY_BE_STRING)
- ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_has_key, 0, 1, MAY_BE_BOOL)
- ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
-ZEND_END_ARG_INFO()
-#define swig_arginfo_MapStringStringSwig_is_empty swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_set, 0, 2, MAY_BE_VOID)
- ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
- ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_STRING,NULL)
-ZEND_END_ARG_INFO()
-#define swig_arginfo_MapStringStringSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getComponentForProfile, 0, 1, ComponentMetaDataSwig, MAY_BE_NULL)
  ZEND_ARG_OBJ_TYPE_MASK(0,arg1,ProfileMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
@@ -19844,6 +20267,13 @@ static const zend_function_entry class_EvidenceBaseSwig_functions[] = {
 
 static const zend_function_entry class_EvidenceDeviceDetectionSwig_functions[] = {
  PHP_ME(EvidenceDeviceDetectionSwig,__construct,swig_arginfo_new_EvidenceDeviceDetectionSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(EvidenceDeviceDetectionSwig,size,swig_arginfo_EvidenceDeviceDetectionSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(EvidenceDeviceDetectionSwig,clear,swig_arginfo_EvidenceDeviceDetectionSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(EvidenceDeviceDetectionSwig,get,swig_arginfo_EvidenceDeviceDetectionSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(EvidenceDeviceDetectionSwig,set,swig_arginfo_EvidenceDeviceDetectionSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(EvidenceDeviceDetectionSwig,del,swig_arginfo_EvidenceDeviceDetectionSwig_del,ZEND_ACC_PUBLIC)
+ PHP_ME(EvidenceDeviceDetectionSwig,has_key,swig_arginfo_EvidenceDeviceDetectionSwig_has_key,ZEND_ACC_PUBLIC)
+ PHP_ME(EvidenceDeviceDetectionSwig,is_empty,swig_arginfo_EvidenceDeviceDetectionSwig_is_empty,ZEND_ACC_PUBLIC)
  PHP_ME(EvidenceDeviceDetectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
  PHP_ME(EvidenceDeviceDetectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
  PHP_ME(EvidenceDeviceDetectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)

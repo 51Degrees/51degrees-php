@@ -78,6 +78,9 @@ class WebIntegrationElementsTests extends TestCase
         ];
     }
 
+    /**
+     * @dataProvider provider_testSwitch
+     */
     #[DataProvider('provider_testSwitch')]
     public function testSwitchRemovesOnlyItsElement(
         string $setting,

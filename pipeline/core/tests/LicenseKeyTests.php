@@ -57,7 +57,7 @@ class LicenseKeyTests extends TestCase
     public function testMaskQueryMasksEveryKeyOfAList()
     {
         $this->assertSame(
-            'https://example.com/d?LicenseKeys=****ONE1111|****TWO2222&Type=x',
+            'https://example.com/d?LicenseKeys=*******1111|*******2222&Type=x',
             LicenseKey::maskQuery('https://example.com/d?LicenseKeys=KEYSONE1111|KEYSTWO2222&Type=x')
         );
     }

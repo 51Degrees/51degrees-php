@@ -68,7 +68,9 @@ class CoreTests extends TestCase
     public function testGetWhere()
     {
         $testPipeline = new TestPipeline();
-        $this->assertCount(1, $testPipeline->flowData->getWhere('type', 'int'));
+        // The integer property of the example element and the Sequence Element's
+        // sequence.
+        $this->assertCount(2, $testPipeline->flowData->getWhere('type', 'int'));
     }
 
     public function testGetFromElement()

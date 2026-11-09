@@ -296,7 +296,9 @@ class JavaScriptBuilderSequenceTests extends TestCase
         $script = self::render(['query.session-id' => $value], false, $sequenceElement);
 
         $this->assertSame(['var sessionId = "";'], self::lines($script, 'sessionId'));
-        if ($checkText) {
+        // With the Sequence Element the value is also in the JSON object,
+        // where json_encode escapes it.
+        if ($checkText && !$sequenceElement) {
             $this->assertStringNotContainsString($value, $script);
         }
         $this->assertParses($script);

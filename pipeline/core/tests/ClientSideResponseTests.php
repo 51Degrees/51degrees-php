@@ -411,6 +411,13 @@ class ClientSideResponseTests extends TestCase
         Utils::javascriptResponse($flowData, $server);
     }
 
+    /**
+     * send() sets the status and headers, which PHP refuses once output has
+     * started, so this runs in its own process.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function testSendWritesTheContent(): void
     {
         $response = $this->app->respond('GET');

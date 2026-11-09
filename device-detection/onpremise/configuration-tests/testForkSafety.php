@@ -52,7 +52,6 @@
  *
  * Inputs (env vars, with argv fallbacks):
  *   FIFTYONE_DATA_FILE  path to a .hash data file   (argv[1], or the module's configured data_file)
- *   FIFTYONE_WRAPPER    path to the generated FiftyOneDegreesHashEngine.php (argv[2])
  *   FIFTYONE_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
  */
 
@@ -78,16 +77,11 @@ if ($dataFile === '' || !is_file($dataFile)) {
     fail("data file not found (set FIFTYONE_DATA_FILE or pass it as the first argument): '{$dataFile}'");
 }
 
-$wrapper = getenv('FIFTYONE_WRAPPER') ?: ($argv[2] ?? '');
-if ($wrapper !== '' && is_file($wrapper)) {
-    require_once $wrapper;
-}
-
 if (!function_exists('pcntl_fork')) {
     fail('the pcntl extension is required to reproduce the fork behaviour');
 }
 if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
-    fail('the FiftyOneDegreesHashEngine extension and its PHP wrapper must be loaded');
+    fail('the FiftyOneDegreesHashEngine extension must be loaded');
 }
 
 // Load a set of User-Agents to detect. The exact values do not matter, only

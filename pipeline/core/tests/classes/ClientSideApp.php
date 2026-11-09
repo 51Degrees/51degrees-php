@@ -47,8 +47,10 @@ class ClientSideApp
                 'endpoint' => '/json',
                 'minify' => false
             ],
-            'suppressProcessExceptions' => true
         ]))->add(new SwitchableElement())->build();
+        // PipelineBuilder does not pass this setting on, so set it on the
+        // Pipeline, where FlowData::process reads it.
+        $this->pipeline->suppressProcessExceptions = true;
     }
 
     /**

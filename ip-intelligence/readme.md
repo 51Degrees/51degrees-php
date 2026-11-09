@@ -74,7 +74,7 @@ ip-intelligence-dotnet exposes as `IWeightedValue.RawWeighting`.
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 
 $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-    'dataFile' => '/path/to/51Degrees-LiteIpiV41.ipi',
+    'dataFile' => '/path/to/51Degrees-LiteV41.ipi',
     'performanceProfile' => 'MaxPerformance'
 ]))->build();
 
@@ -86,7 +86,11 @@ echo $result->ip->registeredname->value;
 ```
 
 The on-premise engine requires the native extension. See
-[OnPremise.md](OnPremise.md) for how to build it.
+[OnPremise.md](OnPremise.md) for how to build it. The engine the extension
+builds when PHP starts always holds the whole data file in memory, and an
+engine built from a `dataFile` setting takes any performance profile, as
+[Running under a process manager](OnPremise.md#running-under-a-process-manager)
+explains.
 
 ## Mixed
 

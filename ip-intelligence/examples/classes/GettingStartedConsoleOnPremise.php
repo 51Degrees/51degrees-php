@@ -44,7 +44,10 @@ class GettingStartedConsoleOnPremise
     {
         $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
             'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
+            // The example uses the Enterprise data file when it finds one,
+            // which is several gigabytes, and LowMemory keeps the memory it
+            // needs small.
+            'performanceProfile' => 'LowMemory'
         ]))->build();
 
         // The pipeline is closed in the finally block, which releases the

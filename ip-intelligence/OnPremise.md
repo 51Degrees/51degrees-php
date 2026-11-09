@@ -86,6 +86,37 @@ so that a request does not open the data file again. Name the data file in
 FiftyOneDegreesIpIntelligenceEngine.data_file=/full/path/to/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
 ```
 
+## Running under a process manager
+
+The engine the extension builds when PHP starts, from the `data_file` setting
+above, always holds the whole data file in memory, which is the
+`MaxPerformance` performance profile, as device detection does. PHP is
+normally run under a process manager, such as Apache MPM prefork or php-fpm,
+that forks the worker processes after that engine is built. Every other
+profile keeps the data file open, and forking would share those file handles
+and their read positions between the workers, which corrupts the results.
+Loading the whole file leaves no handle to share, and it uses more memory than
+the other profiles, which read parts of the file as they need them.
+
+Leave the `FiftyOneDegreesIpIntelligenceEngine.performance_profile` setting
+out, or set it to `MaxPerformance`. Any other profile there raises an
+exception when `IpIntelligenceOnPremise` takes up that engine, explaining that
+`MaxPerformance` is the only supported profile for it.
+
+An engine built from a `dataFile` setting is built in the process that uses
+it, for example in a console script or inside a worker after the fork, and it
+opens its own file handles. It takes any profile through the
+`performanceProfile` setting, being `LowMemory`, `Balanced` (the default),
+`BalancedTemp`, `HighPerformance` or `MaxPerformance`. The examples use
+`LowMemory`, because they use the Enterprise data file when they find one.
+The performance example takes `MaxPerformance` as its third argument, after
+the data file and the number of seconds to run for, to measure the fastest
+profile where there is memory for the whole file, as in this command.
+
+```bash
+php examples/onpremise/performance-console.php /path/to/data.ipi 10 MaxPerformance
+```
+
 ## Data file
 
 The tests and examples use the free Lite `.ipi` data file. Download it into

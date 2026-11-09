@@ -34,7 +34,6 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 $ip = isset($_GET['client-ip']) && $_GET['client-ip'] !== '' ? trim((string) $_GET['client-ip']) : '8.8.8.8';
 $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-$ddDataFile = getenv('DEVICEDETECTIONDATAFILE') ?: 'D:/WorkSpace/TAC-HashV41.hash';
 $ipiDataFile = ExampleUtils::getDataFile();
 
 $error = null;
@@ -97,7 +96,9 @@ if (!extension_loaded('FiftyOneDegreesHashEngine')) {
         // so the multi-gigabyte data file is not re-opened on every request.
         // Fall back to direct construction when the global engine is not
         // configured (the FiftyOneDegreesIpIntelligenceEngine.data_file ini is
-        // not set).
+        // not set). The fallback engine is built inside the request's worker
+        // and opens its own file handles, so it can use LowMemory, which
+        // keeps the memory each request needs small.
         if (function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
             $ipiEngine = \ipi_engine_get();
         } else {

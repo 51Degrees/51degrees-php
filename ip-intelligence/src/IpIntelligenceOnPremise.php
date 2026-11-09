@@ -77,7 +77,9 @@ class IpIntelligenceOnPremise extends Engine
      *
      * Omitting "dataFile" reuses the shared global engine when one exists.
      * That engine comes from the FiftyOneDegreesIpIntelligenceEngine.* ini
-     * settings, so ENGINE_SETTINGS are rejected on that path.
+     * settings, so ENGINE_SETTINGS are rejected on that path. It is always
+     * built in memory, so a performance_profile ini setting other than
+     * Constants::STARTUP_PERFORMANCE_PROFILE is rejected too.
      * @throws \Exception
      */
     public function __construct(array $settings = [])
@@ -92,6 +94,16 @@ class IpIntelligenceOnPremise extends Engine
         // a multi-gigabyte data file on every request.
         $dataFile = $settings['dataFile'] ?? null;
         if ($dataFile === null && function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
+            // The global engine is always built with MaxPerformance (see
+            // on-premise/ipi-php.i), so another php.ini profile is a mistake
+            // and is refused rather than ignored.
+            $startupProfile = ini_get('FiftyOneDegreesIpIntelligenceEngine.performance_profile');
+            if ($startupProfile !== false
+                && $startupProfile !== ''
+                && strcasecmp($startupProfile, Constants::STARTUP_PERFORMANCE_PROFILE) !== 0) {
+                throw new \Exception(sprintf(Messages::PERFORMANCE_PROFILE_ERROR, $startupProfile));
+            }
+
             // Only a setting with an actual value counts: callers commonly pass
             // options straight through as ['performanceProfile' => $profile ?? null],
             // where a null supplies nothing to apply.

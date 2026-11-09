@@ -59,7 +59,13 @@ class TranslationConsoleOnPremise
      */
     public function run(string $dataFile, $output): void
     {
-        $engine = new IpIntelligenceOnPremise(['dataFile' => $dataFile, 'performanceProfile' => 'MaxPerformance']);
+        $engine = new IpIntelligenceOnPremise([
+            'dataFile' => $dataFile,
+            // The example uses the Enterprise data file when it finds one,
+            // which is several gigabytes, and LowMemory keeps the memory it
+            // needs small.
+            'performanceProfile' => 'LowMemory'
+        ]);
         if (ExampleUtils::lacksEnterpriseProperties(
             $engine,
             'Listing the countries an IP address is most likely in',

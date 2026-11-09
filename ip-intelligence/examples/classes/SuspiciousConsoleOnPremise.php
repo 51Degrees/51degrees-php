@@ -64,6 +64,8 @@ class SuspiciousConsoleOnPremise
         }
 
         $config = new \ConfigIpiSwig();
+        // The example uses the Enterprise data file when it finds one, which
+        // is several gigabytes, and LowMemory keeps the memory it needs small.
         $config->setLowMemory();
         $config->setUseUpperPrefixHeaders(false);
         $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));

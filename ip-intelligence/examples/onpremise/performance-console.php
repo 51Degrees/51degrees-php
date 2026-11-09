@@ -36,4 +36,8 @@ if (!$dataFile) {
 // lookups against the multi-million-profile enterprise data file).
 $maxSeconds = (count($argv) > 2 && is_numeric($argv[2])) ? (float) $argv[2] : 10.0;
 
-(new PerformanceConsoleOnPremise())->run($dataFile, $maxSeconds, STDOUT);
+// The performance profile, LowMemory unless the third argument is
+// MaxPerformance.
+$profile = $argv[3] ?? 'LowMemory';
+
+(new PerformanceConsoleOnPremise())->run($dataFile, $maxSeconds, STDOUT, $profile);

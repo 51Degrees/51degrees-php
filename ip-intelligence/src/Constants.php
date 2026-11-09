@@ -43,11 +43,16 @@ class Constants
         'The IPv6 address that was used to perform the lookup. This is the ' .
         'IP address supplied as evidence, echoed back in the results.';
 
-    // Must stay in step with the performance_profile ini default in
-    // on-premise/ipi-php.i, which governs the shared global engine.
+    // The profile of an engine built from a "dataFile" setting when the
+    // "performanceProfile" setting is left out.
     public const DEFAULT_PERFORMANCE_PROFILE = 'Balanced';
 
-    // Performance profiles supported by the on-premise engine.
+    // The only profile of the shared global engine the extension builds when
+    // PHP starts, because forked PHP workers would otherwise share its file
+    // handles, as on-premise/ipi-php.i explains.
+    public const STARTUP_PERFORMANCE_PROFILE = 'MaxPerformance';
+
+    // Performance profiles an engine built from a "dataFile" setting accepts.
     public const PERFORMANCE_PROFILES = [
         'LowMemory',
         'MaxPerformance',

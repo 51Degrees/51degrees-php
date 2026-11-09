@@ -278,7 +278,7 @@ cd pipeline/core
 `vendor` is `../vendor`.
 
 Check the suite names in the package's `phpunit.xml`. `location` has
-only `Integration`. `pipeline/translation` has `Translation`.
+only `Integration`.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 

@@ -145,6 +145,49 @@ class WebIntegrationElementsTests extends TestCase
         $this->assertSame(5, $flowData->evidence->get('query.sequence'));
     }
 
+    public function testSequenceElementTreatsAnArrayAsNoSessionId()
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.session-id', ['x', 'y']);
+        $flowData->process();
+
+        $this->assertIsString($flowData->sequence->get('session-id'));
+        $this->assertNotEmpty($flowData->sequence->get('session-id'));
+        $this->assertSame(1, $flowData->sequence->get('sequence'));
+    }
+
+    public function testSequenceElementTreatsAnArrayAsNoSequence()
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.session-id', 'abc');
+        $flowData->evidence->set('query.sequence', ['7']);
+        $flowData->process();
+
+        $this->assertSame('abc', $flowData->sequence->get('session-id'));
+        $this->assertSame(1, $flowData->sequence->get('sequence'));
+    }
+
+    public function testSequenceElementKeepsASessionIdOfZero()
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.session-id', '0');
+        $flowData->evidence->set('query.sequence', 2);
+        $flowData->process();
+
+        $this->assertSame('0', $flowData->sequence->get('session-id'));
+        $this->assertSame(3, $flowData->sequence->get('sequence'));
+    }
+
+    public function testSequenceElementCountsASequenceWithNoSessionId()
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.sequence', 4);
+        $flowData->process();
+
+        $this->assertNotEmpty($flowData->sequence->get('session-id'));
+        $this->assertSame(5, $flowData->sequence->get('sequence'));
+    }
+
     public function testSequenceIsInTheJsonSentToTheBrowser()
     {
         $flowData = (new PipelineBuilder([]))->build()->createFlowData();

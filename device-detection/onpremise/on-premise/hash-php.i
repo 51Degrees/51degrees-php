@@ -60,6 +60,19 @@ public:
     PHP_INI_ENTRY("FiftyOneDegreesHashEngine.max_matched_useragent_length", NULL, PHP_INI_ALL, NULL)
 
     PHP_INI_END()
+
+    // Whether the text of an on or off setting means on, read the way PHP
+    // reads its own settings. "true", "yes" and "on" in any case, and text
+    // starting with a number other than zero such as "1", are on, and
+    // anything else, an empty value included, is off. PHP's ini parser turns
+    // a bare true in php.ini into "1", so comparing with "true" alone would
+    // read it as off.
+    static bool settingIsOn(const char *value) {
+        zend_string *text = zend_string_init(value, strlen(value), 1);
+        bool on = zend_ini_parse_bool(text);
+        zend_string_release_ex(text, 1);
+        return on;
+    }
 %}
 
 %immutable engine;
@@ -103,15 +116,15 @@ EngineHash *engine;
     }
     // Set allow unmatched.
     if (allowUnmatched != NULL) {
-        config->setAllowUnmatched(strcmp(allowUnmatched, "true") == 0);
+        config->setAllowUnmatched(settingIsOn(allowUnmatched));
     }
     // Set use predictive graph.
     if (usePredictiveGraph != NULL) {
-        config->setUsePredictiveGraph(strcmp(usePredictiveGraph, "true") == 0);
+        config->setUsePredictiveGraph(settingIsOn(usePredictiveGraph));
     }
     // Set use performance graph.
     if (usePerformanceGraph != NULL) {
-        config->setUsePerformanceGraph(strcmp(usePerformanceGraph, "true") == 0);
+        config->setUsePerformanceGraph(settingIsOn(usePerformanceGraph));
     }
 	// Set concurrency.
     if (concurrency <= 0) {
@@ -122,7 +135,7 @@ EngineHash *engine;
     }
     // Set update matched User-Agent.
 	if (updateMatchedUa != NULL) {
-		config->setUpdateMatchedUserAgent(strcmp(updateMatchedUa, "true") == 0);
+		config->setUpdateMatchedUserAgent(settingIsOn(updateMatchedUa));
 	}
 	// Set max matched User-Agent length.
 	if (maxUaLength != 0) {

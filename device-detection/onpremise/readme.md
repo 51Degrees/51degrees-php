@@ -135,11 +135,22 @@ path to where you have stored your 51Degrees data file.
 | `performance_profile` | `string` | PHP on premise can only run with the in-memory `MaxPerformance` profile, because it is the only profile that is safe under a process manager such as `Apache MPM` or `php-fpm`. See [Running Under Process Manager](#running-under-process-manager). Leave this unset or set it to `MaxPerformance`. Configuring any other value raises an exception explaining that in-memory is the only supported configuration. | `MaxPerformance` (enforced) |
 | `difference` | `int` | The difference value to allow when matching (`-1` to disable). | `0` |
 | `drift` | `int` | The drift to allow when matching (`-1` to disable). | `0` |
-| `use_predictive_graph` | `string` | True if the predictive optimized graph should be used for processing. | `true` |
-| `use_performance_graph` | `string` | True if the performance optimized graph should be used for processing. | `false` |
+| `allow_unmatched` | on or off | On if evidence that cannot be matched should give the values of the default profile for each component, rather than no values. | off |
+| `use_predictive_graph` | on or off | On if the predictive optimized graph should be used for processing. | on |
+| `use_performance_graph` | on or off | On if the performance optimized graph should be used for processing. | off |
 | `concurrency` | `int` | Maximum number of potential concurrent threads that the engine will be used with. We recommend that this should not be set higher than the number of CPUs available on your machine and this should never be set to be less than or equal to 0. `NOTE`: If a value which is less than or equal to 0 is specified, default value will be used. | `10` |
-| `update_matched_useragent` | `string` | True if the detection should record the matched characters from the target User-Agent. | `true` |
-| `max_matched_useragent_length` | `int` | Number of characters to consider in the matched User-Agent. Ignored if `update_matched_useragent` is false. | `500` |
+| `update_matched_useragent` | on or off | On if the detection should record the matched characters from the target User-Agent. | on |
+| `max_matched_useragent_length` | `int` | Number of characters to consider in the matched User-Agent. Ignored if `update_matched_useragent` is off. | `500` |
+
+The on or off settings are read the way PHP reads its own. `on`, `yes` and
+`true` in any case, and a number other than `0`, are on, written with or
+without quotes, so `FiftyOneDegreesHashEngine.use_performance_graph = true`
+turns the performance graph on. Anything else, an empty value included, is
+off. A setting left out of php.ini keeps the default in the table.
+
+The engine needs at least one of the two graphs. Turning `use_predictive_graph`
+off without turning `use_performance_graph` on stops PHP when it starts, with
+the message "The configuration provided was not valid".
 
 ### Running Under Process Manager
 

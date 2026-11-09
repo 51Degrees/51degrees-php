@@ -38,6 +38,14 @@ class SequenceElement extends FlowElement
     public string $dataKey = 'sequence';
 
     /**
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'session-id' => ['name' => 'session-id', 'type' => 'string'],
+        'sequence' => ['name' => 'sequence', 'type' => 'int'],
+    ];
+
+    /**
      * The SequenceElement uses query.sequence and query.session-id evidence.
      */
     public function getEvidenceKeyFilter(): EvidenceKeyFilter

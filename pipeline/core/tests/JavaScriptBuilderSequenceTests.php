@@ -23,6 +23,8 @@
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\ElementDataDictionary;
+use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\PipelineBuilder;
@@ -30,11 +32,33 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
+ * Gives the JSON bundler the sequence number it needs and leaves Evidence
+ * alone, so the Evidence reaches the JavaScript builder as it was supplied.
+ */
+class FixedSequenceElement extends FlowElement
+{
+    public string $dataKey = 'sequence';
+
+    public array $properties = [
+        'session-id' => ['name' => 'session-id', 'type' => 'string'],
+        'sequence' => ['name' => 'sequence', 'type' => 'int'],
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'session-id' => 'fixed',
+            'sequence' => 1,
+        ]));
+    }
+}
+
+/**
  * The script must parse whatever the pipeline holds. The sequence is written
  * into the script as bare code and the session id inside quotes, and a
- * pipeline built without a SequenceElement, for example from a configuration
- * file that does not list one, passes the query string's values, or nothing
- * at all, straight to the builder.
+ * pipeline whose sequence number does not come from the SequenceElement, for
+ * example one built from a configuration file, passes the query string's
+ * values, or nothing at all, straight to the builder.
  *
  * The script is checked with "node --check", which needs Node on the path.
  * Every GitHub hosted runner has it.
@@ -42,8 +66,8 @@ use PHPUnit\Framework\TestCase;
 class JavaScriptBuilderSequenceTests extends TestCase
 {
     /**
-     * Render the script. Without the sequence element the pipeline has only
-     * the JSON bundler and the JavaScript builder.
+     * Render the script. Without the sequence element the pipeline has a
+     * FixedSequenceElement, the JSON bundler and the JavaScript builder.
      */
     private static function render(
         array $evidence = [],
@@ -56,6 +80,7 @@ class JavaScriptBuilderSequenceTests extends TestCase
         }
         $builder = new PipelineBuilder($settings);
         if (!$sequenceElement) {
+            $builder->add(new FixedSequenceElement());
             $builder->add(new JsonBundlerElement());
             $builder->add(new JavascriptBuilderElement(['minify' => $minify]));
         }

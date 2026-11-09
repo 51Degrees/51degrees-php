@@ -85,9 +85,9 @@ class CallbackUrl
     private const NUMBER_LABEL = '/^([0-9]+|0[xX][0-9A-Fa-f]*)$/D';
 
     /**
-     * A port as it follows the host, being ':' and any number of digits.
+     * A port as it follows the host, being ':' and at least one digit.
      */
-    private const PORT = '/^:[0-9]*$/D';
+    private const PORT = '/^:[0-9]+$/D';
 
     /**
      * One group of an IPv6 address.
@@ -194,7 +194,7 @@ class CallbackUrl
      * valid. The host is an IPv6 address in brackets, or a name of labels
      * separated by dots with a dot allowed at the end, which is an IPv4
      * address when its last label is a number. The port is ':' followed by
-     * digits up to 65535, or by nothing.
+     * digits up to 65535.
      */
     private static function checkedHostPort(string $hostPort): ?string
     {
@@ -233,7 +233,7 @@ class CallbackUrl
 
     /**
      * Whether the text is ':' followed by digits whose value is no more than
-     * 65535, or by nothing.
+     * 65535.
      */
     private static function isPort(string $text): bool
     {

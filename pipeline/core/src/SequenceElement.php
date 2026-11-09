@@ -57,6 +57,9 @@ class SequenceElement extends FlowElement
 
     /**
      * The SequenceElement stores session data for requests for JavaScript.
+     * It writes the session id and sequence to Evidence, under
+     * query.session-id and query.sequence, and to its Element Data, under
+     * session-id and sequence.
      */
     public function processInternal(FlowData $flowData): void
     {
@@ -70,13 +73,19 @@ class SequenceElement extends FlowElement
                 $flowData->evidence->get('query.sequence')
             );
 
-            $flowData->evidence->set(
-                'query.sequence',
-                $sequence === null ? 1 : $sequence + 1
-            );
+            $sessionId = $flowData->evidence->get('query.session-id');
+            $sequence = $sequence === null ? 1 : $sequence + 1;
         } else {
-            $flowData->evidence->set('query.session-id', uniqid());
-            $flowData->evidence->set('query.sequence', 1);
+            $sessionId = uniqid();
+            $sequence = 1;
         }
+
+        $flowData->evidence->set('query.session-id', $sessionId);
+        $flowData->evidence->set('query.sequence', $sequence);
+
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'session-id' => $sessionId,
+            'sequence' => $sequence,
+        ]));
     }
 }

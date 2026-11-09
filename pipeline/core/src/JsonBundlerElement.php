@@ -155,7 +155,9 @@ class JsonBundlerElement extends FlowElement
                             $value = $valueContainer->value;
                         } else {
                             $value = null;
-                            $nullReason = $valueContainer->noValueMessage;
+                            $nullReason = !empty($valueContainer->noValueMessage)
+                                ? $valueContainer->noValueMessage
+                                : 'Unknown';
                         }
                     } else {
                         // Standard value
@@ -167,7 +169,7 @@ class JsonBundlerElement extends FlowElement
                 }
 
                 $output[strtolower($flowElement->dataKey)][strtolower($propertyKey)] = $value;
-                if ($value == null) {
+                if ($value === null) {
                     $output[strtolower($flowElement->dataKey)][strtolower($propertyKey) . 'nullreason'] = $nullReason;
                 }
 

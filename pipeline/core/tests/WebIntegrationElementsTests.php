@@ -145,12 +145,16 @@ class WebIntegrationElementsTests extends TestCase
         $this->assertSame(5, $flowData->evidence->get('query.sequence'));
     }
 
-    public function testSequenceIsNotInTheJsonSentToTheBrowser()
+    public function testSequenceIsInTheJsonSentToTheBrowser()
     {
         $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.session-id', 'abc');
+        $flowData->evidence->set('query.sequence', 2);
         $flowData->process();
 
-        $this->assertArrayNotHasKey('sequence', $flowData->jsonbundler->json);
-        $this->assertArrayNotHasKey('session-id', $flowData->jsonbundler->json);
+        $this->assertSame(
+            ['session-id' => 'abc', 'sequence' => 3],
+            $flowData->jsonbundler->json['sequence']
+        );
     }
 }

@@ -79,6 +79,5 @@ For complete documentation on the Pipeline API and associated engines, see the [
 
 - [Geolocation](https://51degrees.com/geolocation?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-geolocation)
 - [Reverse geocoding documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-documentation)
-- [Getting started](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-getting-started)
 - [Pricing](https://51degrees.com/pricing?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-pricing)
 - https://github.com/51Degrees/51degrees-php

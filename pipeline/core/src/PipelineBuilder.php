@@ -36,12 +36,26 @@ class PipelineBuilder
      * @var array<\fiftyone\pipeline\core\Pipeline>
      */
     public array $pipelines;
+
+    /**
+     * Adds the Sequence, JSON Bundler and JavaScript Builder elements
+     * together. False leaves out all three, whatever their own switches say.
+     */
     public bool $addJavaScriptBuilder;
+    public bool $addSequenceElement;
+    public bool $addJsonBundlerElement;
+    public bool $addJavaScriptBuilderElement;
+    public bool $addSetHeaderElement;
 
     /**
      * @var array<string, mixed>
      */
     public array $javascriptBuilderSettings = [];
+
+    /**
+     * Adds the Set Header element. False leaves it out, whatever
+     * addSetHeaderElement says.
+     */
     public bool $useSetHeaderProperties;
 
     /**
@@ -65,6 +79,10 @@ class PipelineBuilder
         $this->addJavaScriptBuilder = (bool) ($settings['addJavaScriptBuilder'] ?? true);
         $this->javascriptBuilderSettings = $settings['javascriptBuilderSettings'] ?? [];
         $this->useSetHeaderProperties = (bool) ($settings['useSetHeaderProperties'] ?? true);
+        $this->addSequenceElement = (bool) ($settings['addSequenceElement'] ?? true);
+        $this->addJsonBundlerElement = (bool) ($settings['addJsonBundlerElement'] ?? true);
+        $this->addJavaScriptBuilderElement = (bool) ($settings['addJavaScriptBuilderElement'] ?? true);
+        $this->addSetHeaderElement = (bool) ($settings['addSetHeaderElement'] ?? true);
 
         // Passed on to the Pipeline, which reads it when it is closed.
         if (array_key_exists('autoCloseElements', $settings)) {
@@ -89,13 +107,14 @@ class PipelineBuilder
      */
     public function build(): Pipeline
     {
-        $this->flowElements = array_merge(
+        $flowElements = array_merge(
+            $this->getSequenceElements(),
             $this->flowElements,
             $this->getJavaScriptElements(),
             $this->getSetHeaderElements()
         );
 
-        return new Pipeline($this->flowElements, $this->settings);
+        return new Pipeline($flowElements, $this->settings);
     }
 
     /**
@@ -191,16 +210,34 @@ class PipelineBuilder
     }
 
     /**
+     * The Sequence element goes first, so every later element reads the
+     * session id and sequence it writes.
+     *
+     * @return array<\fiftyone\pipeline\core\FlowElement>
+     */
+    private function getSequenceElements(): array
+    {
+        if ($this->addJavaScriptBuilder && $this->addSequenceElement) {
+            return [new SequenceElement()];
+        }
+
+        return [];
+    }
+
+    /**
+     * The JSON Bundler goes before the JavaScript Builder, which reads it.
+     *
      * @return array<\fiftyone\pipeline\core\FlowElement>
      */
     private function getJavaScriptElements(): array
     {
         $flowElements = [];
 
-        if ($this->addJavaScriptBuilder) {
-            // Add JavaScript elements
-            $flowElements[] = new SequenceElement();
+        if ($this->addJavaScriptBuilder && $this->addJsonBundlerElement) {
             $flowElements[] = new JsonBundlerElement();
+        }
+
+        if ($this->addJavaScriptBuilder && $this->addJavaScriptBuilderElement) {
             $flowElements[] = new JavascriptBuilderElement($this->javascriptBuilderSettings);
         }
 
@@ -214,7 +251,7 @@ class PipelineBuilder
     {
         $flowElements = [];
 
-        if ($this->useSetHeaderProperties) {
+        if ($this->useSetHeaderProperties && $this->addSetHeaderElement) {
             // Add SetHeader elements
             $flowElements[] = new SetHeaderElement();
         }

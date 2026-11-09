@@ -173,6 +173,9 @@ class CallbackUrlTests extends TestCase
             ["a\nb.com"],
             [' example.com'],
             ['example.com '],
+            ["example.com\n"],
+            ["example.com:80\n"],
+            ["[::1]\n"],
             ["example.com:8080');alert(1);//"]
         ];
     }

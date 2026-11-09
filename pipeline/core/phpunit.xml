@@ -13,6 +13,7 @@
       <file>tests/CloseTests.php</file>
 	    <file>tests/SetHeaderTests.php</file>
       <file>tests/EvidenceFromWebRequestTests.php</file>
+      <file>tests/AcceptedEvidenceTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

@@ -68,12 +68,13 @@ class FlowElement
     }
 
     /**
-     * Function for getting the FlowElement's EvidenceKeyFilter
-     * Used by the filterEvidence method.
+     * The Evidence this element accepts. An element overrides this to name
+     * the Evidence that can change its results. One that does not accepts no
+     * Evidence, so it never widens what the Pipeline keeps.
      */
     public function getEvidenceKeyFilter(): EvidenceKeyFilter
     {
-        return new EvidenceKeyFilter();
+        return new BasicListEvidenceKeyFilter([]);
     }
 
     /**

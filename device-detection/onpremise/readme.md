@@ -151,7 +151,7 @@ While this is an issue in multi-processing environment, it is not a problem in m
 
 #### Apache MPM
 
-When running under Apache MPM, only `prefork` mode is supported, since `dl()` call is required to load Device Detection engine module and it is not supported under multi-threading environment which `worker` and `event` mode does.
+When running under Apache MPM, only `prefork` mode is supported, because the engine is built in memory when PHP starts and each worker is forked from that process. The extension is enabled in `php.ini` as described above.
 
 #### Refresh Internal Data
 

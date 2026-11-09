@@ -41,6 +41,46 @@ public:
 
 };
 
+// SWIG's PHP wrapper hands the stored pointer straight to the methods that
+// EvidenceDeviceDetection inherits from std::map, without converting it to
+// the map. The evidence classes have virtual methods, so the map sits after
+// the vtable pointer and the inherited methods would read and write the wrong
+// memory. These definitions take the pointer as an EvidenceDeviceDetection
+// instead, and replace the inherited methods of the same names with the
+// behaviour of SWIG's std_map.i.
+%extend EvidenceDeviceDetection {
+public:
+    unsigned int size() const {
+        return (unsigned int)self->size();
+    }
+    void clear() {
+        self->clear();
+    }
+    const std::string& get(const std::string& key) throw (std::out_of_range) {
+        std::map<std::string, std::string>::iterator i = self->find(key);
+        if (i == self->end()) {
+            throw std::out_of_range("key not found");
+        }
+        return i->second;
+    }
+    void set(const std::string& key, const std::string& value) {
+        (*self)[key] = value;
+    }
+    void del(const std::string& key) throw (std::out_of_range) {
+        std::map<std::string, std::string>::iterator i = self->find(key);
+        if (i == self->end()) {
+            throw std::out_of_range("key not found");
+        }
+        self->erase(i);
+    }
+    bool has_key(const std::string& key) {
+        return self->find(key) != self->end();
+    }
+    bool is_empty() const {
+        return self->empty();
+    }
+}
+
 %{
     EngineHash *engine;
     ConfigHash *config;

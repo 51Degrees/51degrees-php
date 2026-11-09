@@ -44,6 +44,17 @@ class Evidence
     protected array $evidence = [];
 
     /**
+     * The key the web request is held under.
+     */
+    public const HTTP_REQUEST_KEY = 'server.http-request';
+
+    /**
+     * The web request, kept apart from the values above so that it never
+     * reaches an element's filter, a cache key or a request to the cloud.
+     */
+    protected ?HttpRequest $httpRequest = null;
+
+    /**
      * Evidence container constructor.
      *
      * @param \fiftyone\pipeline\core\FlowData $flowData Parent FlowData
@@ -117,6 +128,7 @@ class Evidence
         }
 
         $evidence = [];
+        $headers = [];
 
         foreach ($server as $name => $value) {
             if (substr($name, 0, 5) == 'HTTP_') {
@@ -125,6 +137,13 @@ class Evidence
                 $key = strtolower($key);
 
                 $evidence['header.' . $key] = $value;
+                $headers[$key] = (string) $value;
+            }
+        }
+
+        foreach (['CONTENT_TYPE' => 'content-type', 'CONTENT_LENGTH' => 'content-length'] as $name => $key) {
+            if (isset($server[$name]) && !isset($headers[$key])) {
+                $headers[$key] = (string) $server[$name];
             }
         }
 
@@ -161,6 +180,28 @@ class Evidence
         $evidence['header.protocol'] = $protocol;
 
         $this->setArray($evidence);
+
+        $this->httpRequest = new HttpRequest(
+            $headers,
+            $cookies,
+            $query,
+            isset($_SESSION) && is_array($_SESSION) ? $_SESSION : [],
+            (string) ($server['REMOTE_ADDR'] ?? ''),
+            (string) $protocol,
+            (string) ($server['REQUEST_METHOD'] ?? ''),
+            self::pathOf((string) ($server['REQUEST_URI'] ?? ''))
+        );
+    }
+
+    /**
+     * The path of a request target, being everything before the first ? or #,
+     * left as sent.
+     */
+    private static function pathOf(string $target): string
+    {
+        $end = strcspn($target, '?#');
+
+        return substr($target, 0, $end);
     }
 
     /**
@@ -345,11 +386,16 @@ class Evidence
      */
     public function get(string $key)
     {
+        if ($key === self::HTTP_REQUEST_KEY) {
+            return $this->httpRequest;
+        }
+
         return $this->evidence[$key] ?? null;
     }
 
     /**
-     * Get all evidence.
+     * Get all evidence, apart from the web request that get() returns under
+     * server.http-request.
      *
      * @return array<string, int|string>
      */

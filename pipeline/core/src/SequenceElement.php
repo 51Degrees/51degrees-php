@@ -71,22 +71,20 @@ class SequenceElement extends FlowElement
      */
     public function processInternal(FlowData $flowData): void
     {
-        if ($flowData->evidence->get('query.session-id')) {
-            // Get current sequence number. A value that is absent or is not a
-            // positive 32 bit integer is treated as no sequence at all, so the
-            // request is sequence 1 rather than carrying a number the script
-            // cannot use. The JavaScript builder renders any value it cannot
-            // use as 1 in the same way.
-            $sequence = JavascriptBuilderElement::parseSequence(
-                $flowData->evidence->get('query.sequence')
-            );
-
-            $sessionId = $flowData->evidence->get('query.session-id');
-            $sequence = $sequence === null ? 1 : $sequence + 1;
-        } else {
+        // The session id and the sequence are each taken from Evidence
+        // independently. A value that is absent, or not a string (a repeated
+        // query parameter gives an array), is treated as absent. A sequence
+        // that is not a positive 32 bit integer is also treated as absent,
+        // as the JavaScript builder renders any such value as 1.
+        $sessionId = $flowData->evidence->get('query.session-id');
+        if (!is_string($sessionId) || $sessionId === '') {
             $sessionId = uniqid();
-            $sequence = 1;
         }
+
+        $sequence = JavascriptBuilderElement::parseSequence(
+            $flowData->evidence->get('query.sequence')
+        );
+        $sequence = $sequence === null ? 1 : $sequence + 1;
 
         $flowData->evidence->set('query.session-id', $sessionId);
         $flowData->evidence->set('query.sequence', $sequence);

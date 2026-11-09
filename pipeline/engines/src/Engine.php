@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\engines;
 
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\FlowElement;
 

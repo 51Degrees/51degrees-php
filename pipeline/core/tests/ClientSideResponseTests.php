@@ -29,6 +29,8 @@ use Composer\Autoload\ClassLoader;
 use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\core\tests\classes\ClientSideApp;
 use fiftyone\pipeline\core\tests\classes\SwitchableElement;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -418,6 +420,8 @@ class ClientSideResponseTests extends TestCase
      * @runInSeparateProcess
      * @preserveGlobalState disabled
      */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
     public function testSendWritesTheContent(): void
     {
         $response = $this->app->respond('GET');
@@ -428,5 +432,54 @@ class ClientSideResponseTests extends TestCase
         });
 
         $this->assertSame([$response->body], $written);
+    }
+
+    /**
+     * The example routes call the functions with the request in $_SERVER and
+     * write the content with send(), so a route serves the script and the
+     * JSON with their Content-Type and a body the length Content-Length
+     * gives. This runs in its own process, because it changes $_SERVER and
+     * send() sets headers.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testAnExampleRouteServesTheScriptAndTheJson(): void
+    {
+        $routes = [
+            'GET' => ['application/x-javascript', 'fiftyoneDegreesManager'],
+            'POST' => ['application/json', '"switchable"'],
+        ];
+        foreach ($routes as $method => [$contentType, $expected]) {
+            $_SERVER['REQUEST_METHOD'] = $method;
+            $_SERVER['HTTP_HOST'] = 'localhost:3000';
+            $_SERVER['HTTP_USER_AGENT'] = ClientSideApp::CHROME;
+            unset($_SERVER['HTTP_IF_NONE_MATCH']);
+            $flowData = $this->app->pipeline->createFlowData();
+            $flowData->evidence->setFromWebRequest(null, [], []);
+
+            $response = $method === 'GET'
+                ? Utils::javascriptResponse($flowData)
+                : Utils::jsonResponse($flowData);
+            $written = '';
+            $response->send(function (string $body) use (&$written) {
+                $written .= $body;
+            });
+
+            $this->assertSame(200, $response->status, $method);
+            $this->assertSame(
+                $contentType,
+                $response->headers['Content-Type'],
+                $method
+            );
+            $this->assertStringContainsString($expected, $written, $method);
+            $this->assertSame(
+                (string) strlen($written),
+                $response->headers['Content-Length'],
+                $method
+            );
+        }
     }
 }

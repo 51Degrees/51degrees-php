@@ -155,6 +155,27 @@ class CloudRequestEngine extends Engine
     }
 
     /**
+     * A response whose JSON has a top-level member named fodid, in any case,
+     * holds a 51Did created for the one request.
+     */
+    protected function holdsValueForOneRequest(ElementData $data): bool
+    {
+        $json = json_decode((string) $data->get('cloud'), true);
+
+        if (!is_array($json)) {
+            return false;
+        }
+
+        foreach (array_keys($json) as $member) {
+            if (strcasecmp((string) $member, 'fodid') === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Generate the Content to send in the POST request. The evidence keys
      * e.g. 'query.' and 'header.' have an order of precedence. These are
      * added to the evidence in reverse order, if there is conflict then

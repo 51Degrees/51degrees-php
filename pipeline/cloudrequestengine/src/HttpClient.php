@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\cloudrequestengine;
 
+use fiftyone\pipeline\core\LicenseKey;
+
 class HttpClient
 {
     /**
@@ -65,11 +67,11 @@ class HttpClient
                 // caller heard nothing about the connection.
                 $error = error_get_last();
 
-                throw new CloudRequestException(sprintf(
+                throw new CloudRequestException(LicenseKey::maskQuery(sprintf(
                     Constants::MESSAGE_REQUEST_FAILED,
                     $url,
                     $error['message'] ?? 'the reason was not reported'
-                ));
+                )));
             }
 
             $statusCode = $this->getHttpCode($http_response_header);
@@ -107,11 +109,11 @@ class HttpClient
             $error = curl_error($ch);
             curl_close($ch);
 
-            throw new CloudRequestException(sprintf(
+            throw new CloudRequestException(LicenseKey::maskQuery(sprintf(
                 Constants::MESSAGE_REQUEST_FAILED,
                 $url,
                 $error === '' ? 'the reason was not reported' : $error
-            ));
+            )));
         }
 
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -193,7 +195,9 @@ class HttpClient
         if (isset($message)) {
             // Get the response headers.
             $responseHeaders = $this->parseHeaders($httpResponseHeaders);
-            $cloudError = sprintf(Constants::EXCEPTION_CLOUD_ERROR, $message);
+            $cloudError = LicenseKey::maskQuery(
+                sprintf(Constants::EXCEPTION_CLOUD_ERROR, $message)
+            );
 
             throw new CloudRequestException($cloudError, $httpStatusCode, $responseHeaders);
         }

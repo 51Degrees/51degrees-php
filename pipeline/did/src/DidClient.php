@@ -380,14 +380,14 @@ final class DidClient
         }
         if ($status === 400) {
             throw new InvalidArgumentException(
-                self::errorsText($json, $response['body'])
+                $this->errorsText($json, $response['body'])
             );
         }
         throw new CloudException(
             $status,
             $response['body'],
             "The verify endpoint answered {$status}: "
-            . self::excerpt($response['body'])
+            . $this->excerpt($response['body'])
         );
     }
 
@@ -439,7 +439,7 @@ final class DidClient
         }
         if ($status === 400) {
             throw new InvalidArgumentException(
-                self::errorsText(json_decode($body, true), $body)
+                $this->errorsText(json_decode($body, true), $body)
             );
         }
         if ($status === 404) {
@@ -452,7 +452,7 @@ final class DidClient
         throw new CloudException(
             $status,
             $body,
-            "The redeem endpoint answered {$status}: " . self::excerpt($body)
+            "The redeem endpoint answered {$status}: " . $this->excerpt($body)
         );
     }
 
@@ -537,7 +537,7 @@ final class DidClient
                 $response['status'],
                 $response['body'],
                 "The key endpoint answered {$response['status']}: "
-                . self::excerpt($response['body'])
+                . $this->excerpt($response['body'])
             );
         }
         try {
@@ -550,7 +550,7 @@ final class DidClient
         } catch (JsonException $exception) {
             throw new RuntimeException(
                 'The key endpoint did not answer with a key list: '
-                . self::excerpt($response['body']),
+                . $this->excerpt($response['body']),
                 0,
                 $exception
             );
@@ -558,7 +558,7 @@ final class DidClient
         if (!is_array($json)) {
             throw new RuntimeException(
                 'The key endpoint did not answer with a key list: '
-                . self::excerpt($response['body'])
+                . $this->excerpt($response['body'])
             );
         }
         $keys = [];
@@ -863,7 +863,14 @@ final class DidClient
             $headers[] = 'Content-Type: application/x-www-form-urlencoded';
             $headers[] = 'Content-Length: ' . strlen($body);
         }
-        $response = ($this->transport)($method, $url, $headers, $body);
+        try {
+            $response = ($this->transport)($method, $url, $headers, $body);
+        } catch (RuntimeException $exception) {
+            // The transport's message may name the licence key.
+            throw new RuntimeException(
+                $this->maskLicence($exception->getMessage())
+            );
+        }
         if (!is_array($response)
             || !isset($response['status'], $response['body'])
             || !is_int($response['status'])
@@ -949,7 +956,7 @@ final class DidClient
      *
      * @param mixed $json
      */
-    private static function errorsText($json, string $body): string
+    private function errorsText($json, string $body): string
     {
         if (is_array($json) && isset($json['errors'])
             && is_array($json['errors'])
@@ -961,16 +968,39 @@ final class DidClient
                 }
             }
             if ($messages !== []) {
-                return implode(' ', $messages);
+                return $this->maskLicence(implode(' ', $messages));
             }
         }
-        return self::excerpt($body);
+        return $this->excerpt($body);
+    }
+
+    /**
+     * The text with the licence key, if one was given, replaced by its last
+     * 4 characters preceded by asterisks. A key of 4 characters or fewer is
+     * replaced entirely.
+     */
+    private function maskLicence(string $text): string
+    {
+        if ($this->licenceKey === null) {
+            return $text;
+        }
+
+        $length = strlen($this->licenceKey);
+        $masked = $length <= 4
+            ? str_repeat('*', $length)
+            : str_repeat('*', $length - 4) . substr($this->licenceKey, -4);
+
+        return str_replace(
+            [$this->licenceKey, rawurlencode($this->licenceKey)],
+            $masked,
+            $text
+        );
     }
 
     /** The start of a body for a message, so a page of HTML stays short. */
-    private static function excerpt(string $body): string
+    private function excerpt(string $body): string
     {
-        $trimmed = trim($body);
+        $trimmed = $this->maskLicence(trim($body));
         return strlen($trimmed) > 200
             ? substr($trimmed, 0, 200) . '...'
             : $trimmed;

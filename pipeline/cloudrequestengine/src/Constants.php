@@ -68,6 +68,10 @@ class Constants
     // other evidence constant
     public const EVIDENCE_OTHER = 'other';
 
+    // Names the engine sends from its own settings, which Evidence must
+    // not supply.
+    public const RESERVED_EVIDENCE_SUFFIXES = ['resource', 'license', 'licence', 'values'];
+
     // warning message to be shown for conflicted evidences
     public const WARNING_MESSAGE = "'%s=>%s' evidence conflicts with ";
 

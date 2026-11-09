@@ -144,11 +144,14 @@ class ClientSideResponseTests extends TestCase
         $code = 'require $argv[1]; echo '
             . '\fiftyone\pipeline\core\tests\classes\ClientSideApp::scriptEtag();';
         $etags = [];
-        foreach ([1, 2] as $run) {
-            $etags[] = trim((string) shell_exec(
+        for ($run = 0; $run < 2; ++$run) {
+            $output = trim((string) shell_exec(
                 escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($code)
                     . ' -- ' . escapeshellarg($autoload)
             ));
+            // The ETag is the last line, after any notice PHP writes.
+            $lines = preg_split('/\R/', $output);
+            $etags[] = (string) end($lines);
         }
 
         $this->assertMatchesRegularExpression(self::WEAK_ETAG, $etags[0]);
@@ -170,7 +173,11 @@ class ClientSideResponseTests extends TestCase
         $sessionIds = array_map(function ($response) {
             $this->assertSame(
                 1,
-                preg_match('/sessionId = "([^"]*)"/', $response->body, $found)
+                preg_match(
+                    '/var sessionId\s*=\s*"([^"]*)"/',
+                    $response->body,
+                    $found
+                )
             );
 
             return $found[1];

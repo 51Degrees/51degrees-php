@@ -25,6 +25,7 @@ namespace fiftyone\pipeline\cloudrequestengine\tests;
 
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\Constants;
+use fiftyone\pipeline\cloudrequestengine\HttpClient;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\Attributes\After;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -438,6 +439,65 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         $result = $engine->getContent($data);
 
         $this->assertSame(['51d_profileids' => '12345'], $result);
+    }
+
+    /**
+     * The engine sends only the Evidence the cloud accepts, never
+     * 'resource', 'license', 'licence' or 'values' from Evidence, as the Processing
+     * section of cloud-request-engine.md says. Other Evidence is sent with
+     * the usual precedence.
+     */
+    public function testEvidenceNeverSuppliesResourceLicenseOrValues()
+    {
+        $sent = [];
+        $keys = '["query.resource","query.license","query.licence","query.values",' .
+            '"header.resource","cookie.license","query.other",' .
+            '"header.other","cookie.cookie-only"]';
+        $client = $this->createMock(HttpClient::class);
+        $client->method('makeCloudRequest')->willReturnCallback(
+            function () use (&$sent, $keys) {
+                $args = func_get_args();
+                if (strpos($args[1], 'evidencekeys') !== false) {
+                    return $keys;
+                }
+                if (strpos($args[1], 'resource_key.json') !== false) {
+                    $sent[] = ['url' => $args[1], 'content' => $args[2]];
+                }
+
+                return CloudRequestEngineTests::getResponse(...$args);
+            }
+        );
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $client
+        ]);
+
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        $data->evidence->set('query.Resource', 'evidence_resource');
+        $data->evidence->set('query.LICENSE', 'evidence_license');
+        $data->evidence->set('query.Licence', 'evidence_licence');
+        $data->evidence->set('query.Values', 'evidence_values');
+        $data->evidence->set('header.resource', 'header_resource');
+        $data->evidence->set('cookie.License', 'cookie_license');
+        $data->evidence->set('query.other', 'query_other');
+        $data->evidence->set('header.other', 'header_other');
+        $data->evidence->set('cookie.cookie-only', 'cookie_only');
+        $data->process();
+
+        $this->assertCount(1, $sent);
+        $this->assertStringEndsWith(
+            CloudRequestEngineTests::resourceKey . '.json?',
+            $sent[0]['url']
+        );
+        parse_str($sent[0]['content'], $fields);
+        $this->assertSame('query_other', $fields['other']);
+        $this->assertSame('cookie_only', $fields['cookie-only']);
+        foreach (['resource', 'license', 'licence', 'values'] as $name) {
+            $this->assertArrayNotHasKey($name, $fields);
+        }
+        $this->assertStringNotContainsString('evidence_', $sent[0]['content']);
+        $this->assertStringNotContainsString('header_resource', $sent[0]['content']);
+        $this->assertStringNotContainsString('cookie_license', $sent[0]['content']);
     }
 
     /**

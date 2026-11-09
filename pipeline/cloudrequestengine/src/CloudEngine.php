@@ -50,6 +50,11 @@ class CloudEngine extends CloudEngineBase
     public array $aspectProperties;
 
     /**
+     * Whether the missing product has been logged for this engine.
+     */
+    private bool $missingProductLogged = false;
+
+    /**
      * Callback called when an engine is added to a pipeline.
      *
      * @throws \Exception
@@ -86,6 +91,15 @@ class CloudEngine extends CloudEngineBase
 
             $result = [];
 
+            // A Resource Key with no product for this engine is not an error.
+            // The engine gives empty data, and says so once.
+            if (!isset($cloudData[$this->dataKey]) || !is_array($cloudData[$this->dataKey])) {
+                $this->logMissingProduct($flowData);
+                $flowData->setElementData(new AspectDataDictionary($this, $result));
+
+                return;
+            }
+
             foreach ($cloudData[$this->dataKey] as $key => $value) {
                 if (isset($cloudData[$this->dataKey][$key . 'nullreason'])) {
                     $result[$key] = new AspectPropertyValue($cloudData[$this->dataKey][$key . 'nullreason']);
@@ -98,5 +112,22 @@ class CloudEngine extends CloudEngineBase
 
             $flowData->setElementData($data);
         }
+    }
+
+    /**
+     * Log, on the first request only, that the Resource Key has no product
+     * for this engine.
+     */
+    private function logMissingProduct(FlowData $flowData): void
+    {
+        if ($this->missingProductLogged) {
+            return;
+        }
+
+        $this->missingProductLogged = true;
+        $flowData->pipeline->log('error', sprintf(
+            "The Resource Key includes no product for '%s', so the engine gives no data.",
+            $this->dataKey
+        ));
     }
 }

@@ -100,7 +100,6 @@ class CallbackUrlTests extends TestCase
         return [
             ['EXAMPLE.com', 'https://example.com/51dpipeline/json'],
             ['example.com:8080', 'https://example.com:8080/51dpipeline/json'],
-            ['example.com:', 'https://example.com:/51dpipeline/json'],
             ['example.com:65535', 'https://example.com:65535/51dpipeline/json'],
             ['a_b.com', 'https://a_b.com/51dpipeline/json'],
             ['-ab.com', 'https://-ab.com/51dpipeline/json'],
@@ -389,6 +388,29 @@ class CallbackUrlTests extends TestCase
      */
     #[DataProvider('provider_namesEndingInANumber')]
     public function testRefusesANameEndingInANumber(string $host): void
+    {
+        $this->assertInvalid(self::url('https', $host), json_encode($host));
+    }
+
+    public static function provider_emptyPorts(): array
+    {
+        return [
+            ['example.com:'],
+            ['example.com:/path'],
+            ['[::1]:'],
+            ['https://example.com'],
+            ['http://example.com']
+        ];
+    }
+
+    /**
+     * Rule 5 refuses a port that is present but empty, so a protocol written
+     * into the host gives the host 'https' with an empty port.
+     *
+     * @dataProvider provider_emptyPorts
+     */
+    #[DataProvider('provider_emptyPorts')]
+    public function testRefusesTheEmptyPort(string $host): void
     {
         $this->assertInvalid(self::url('https', $host), json_encode($host));
     }

@@ -25,8 +25,6 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection;
 
-include_once __DIR__ . '/../on-premise/src/php' . explode('.', PHP_VERSION)[0] . '/FiftyOneDegreesHashEngine.php';
-
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\engines\DataKeyedCache;

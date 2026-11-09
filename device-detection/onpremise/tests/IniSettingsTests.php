@@ -37,16 +37,9 @@ class IniSettingsTests extends TestCase
     private const LITE_DATA_FILE = __DIR__ .
         '/../../../cxx/data/device-detection/51Degrees-LiteV4.1.hash';
 
-    // The extension's PHP classes, which DeviceDetectionOnPremise includes
-    // in the same way.
-    private const SWIG_CLASSES = __DIR__ . '/../on-premise/src/php' .
-        PHP_MAJOR_VERSION . '/FiftyOneDegreesHashEngine.php';
-
     // Detects a Chrome User-Agent with the engine built when PHP started,
     // and prints the match method and the first matched User-Agent as JSON.
-    // The argument is the file of the extension's PHP classes.
     private const DETECT = <<<'PHP'
-        require $argv[1];
         $evidence = new EvidenceDeviceDetectionSwig();
         $evidence->set('header.user-agent', 'Mozilla/5.0 (Windows NT 10.0; ' .
             'Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' .
@@ -109,8 +102,7 @@ class IniSettingsTests extends TestCase
         foreach ($settings as $name => $value) {
             $command .= ' -d ' . escapeshellarg("{$name}={$value}");
         }
-        $command .= ' -r ' . escapeshellarg(self::DETECT) . ' -- ' .
-            escapeshellarg(self::SWIG_CLASSES) . ' 2>&1';
+        $command .= ' -r ' . escapeshellarg(self::DETECT) . ' 2>&1';
         exec($command, $lines, $status);
         $printed = implode("\n", $lines);
         $this->assertSame(0, $status, $printed);

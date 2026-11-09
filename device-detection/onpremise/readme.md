@@ -73,37 +73,26 @@ then be added to the active php.ini file.
 
 ### Regenerating swig wrapper files.
 
-**Note** - this step should not normally need to be performed outside 51Degrees. 
-We include the instructions here for the rare case where it is necessary.
-
-If the SWIG wrapper files need to be regenerated due to new code in the 'cxx'
- submodule, add `SWIG=1` to the `./configure` step. Note that for backwards compatibility with
- PHP 5, SWIG 3.0.12 is used for the pregenerated files in this repository. Newer versions of
- SWIG can be used, provided the extension is being built only for PHP 7.
-
-Currently, The generation of SWIG wrapper files is using a specific revision of SWIG and is done
-using the following steps:
-
-Checkout and install SWIG:
+The wrapper files in `on-premise/src/php8` are generated from
+`on-premise/hash-php.i` and are never edited by hand. When `hash-php.i` or the
+`cxx` submodule changes, install SWIG 4.5.1, the version that generated the
+committed files and the IP Intelligence wrapper, and run this from the root of
+the repository with the `cxx` submodule checked out.
 
 ```
-git clone https://github.com/swig/swig.git
+git clone --depth 1 --branch v4.5.1 https://github.com/swig/swig.git
 cd swig
-git checkout fd96627b2fc65353c03b160efd60fdce864d386c
 ./autogen.sh
 ./configure
 make
 sudo make install
+cd ..
+sh device-detection/onpremise/on-premise/generate-wrapper.sh
 ```
 
-Generate wrapper files:
-
-```
-$:~/device-detection-php-onpremise
-cd on-premise
-phpize
-swig -v -c++ -php7 -module FiftyOneDegreesHashEngine -outdir src/php8 -o src/php8/hash_wrap.cxx hash-php.i
-```
+Commit the changed `hash_wrap.cxx` and `php_FiftyOneDegreesHashEngine.h`. The
+`PHP wrapper check` workflow runs the same script with `--check` and fails when
+the committed files differ from what it generates.
 
 ### Windows 
 
@@ -162,7 +151,7 @@ While this is an issue in multi-processing environment, it is not a problem in m
 
 #### Apache MPM
 
-When running under Apache MPM, only `prefork` mode is supported, since `dl()` call is required to load Device Detection engine module and it is not supported under multi-threading environment which `worker` and `event` mode does.
+When running under Apache MPM, only `prefork` mode is supported, because the engine is built in memory when PHP starts and each worker is forked from that process. The extension is enabled in `php.ini` as described above.
 
 #### Refresh Internal Data
 

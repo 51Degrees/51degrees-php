@@ -114,6 +114,27 @@ class MissingProductTests extends TestCase
         $this->assertStringContainsString('testElement', $this->logged[0]['message']);
     }
 
+    public function testLogsTheMissingProductAtWarningLevel()
+    {
+        [$pipeline, $cloud] = $this->pipeline([]);
+        $this->process($pipeline, $cloud);
+
+        $this->assertCount(1, $this->logged);
+        $this->assertSame('warning', $this->logged[0]['level']);
+    }
+
+    public function testAResponseWithoutThePortionIsNotAMissingProduct()
+    {
+        [$pipeline, $cloud] = $this->pipeline([
+            'testElement' => ['one' => ['name' => 'one', 'type' => 'string']]
+        ]);
+
+        $flowData = $this->process($pipeline, $cloud);
+
+        $this->assertSame([], $flowData->get('testElement')->asDictionary());
+        $this->assertSame([], $this->logged);
+    }
+
     public function testLogsNothingWhenTheProductIsPresent()
     {
         [$pipeline, $cloud] = $this->pipeline([

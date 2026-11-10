@@ -2005,4 +2005,78 @@ class DidClientTest extends TestCase
             $this->assertSame($case->name, $case->value);
         }
     }
+
+    /** The 20 character licence with all but its last 4 replaced. */
+    private const MASKED_LICENCE = '****************NURL';
+
+    public function testErrorMessagesHoldOnlyTheMaskedLicenceKey(): void
+    {
+        $this->queueJson(400, [
+            'errors' => ['The license ' . self::LICENCE . ' is not valid.']
+        ]);
+
+        try {
+            $this->client()->redeem($this->someId(), 'SEALED', '');
+            $this->fail('The redeem was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringNotContainsString(
+                self::LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertStringContainsString(
+                self::MASKED_LICENCE,
+                $exception->getMessage()
+            );
+        }
+    }
+
+    public function testServerErrorMessagesHoldOnlyTheMaskedLicenceKey(): void
+    {
+        $this->queue(500, 'Failed for ' . self::LICENCE);
+
+        try {
+            $this->client()->redeem($this->someId(), 'SEALED', '');
+            $this->fail('The redeem was accepted.');
+        } catch (CloudException $exception) {
+            $this->assertStringNotContainsString(
+                self::LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertStringContainsString(
+                self::MASKED_LICENCE,
+                $exception->getMessage()
+            );
+        }
+    }
+
+    public function testTransportFailureMessagesHoldOnlyTheMaskedLicenceKey(): void
+    {
+        $transport = function (): array {
+            throw new RuntimeException(
+                'Could not send the license ' . self::LICENCE . '.'
+            );
+        };
+        $client = new DidClient(
+            self::RESOURCE,
+            self::LICENCE,
+            self::ENDPOINT,
+            $transport,
+            fn (): int => $this->now
+        );
+
+        try {
+            $client->redeem($this->someId(), 'SEALED', '');
+            $this->fail('The redeem was accepted.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringNotContainsString(
+                self::LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertStringContainsString(
+                self::MASKED_LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertNull($exception->getPrevious());
+        }
+    }
 }

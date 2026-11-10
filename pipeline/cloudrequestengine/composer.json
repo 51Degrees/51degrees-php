@@ -21,7 +21,7 @@
     "require": {
         "php": ">=7.4",
         "51degrees/fiftyone.pipeline.engines": "4.*",
-        "51degrees/fiftyone.pipeline.core": "4.*"
+        "51degrees/fiftyone.pipeline.core": "^4.5.207"
     },
     "require-dev": {
         "phpunit/phpunit": "*",

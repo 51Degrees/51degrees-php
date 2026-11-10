@@ -51,6 +51,16 @@ try {
     # Wait for the example to come up.
     curl -sS -o /dev/null --retry 5 --retry-connrefused "http://localhost:$env:PORT"
 
+    # Every browser test needs the client-side script, so check the example
+    # serves it first. Otherwise a broken route shows only as each test timing
+    # out, and the example's output is never printed.
+    $coreJs = Join-Path ([IO.Path]::GetTempPath()) '51Degrees.core.js'
+    $answer = curl -sS -o $coreJs -w '%{http_code} %{content_type}' "http://localhost:$env:PORT/51Degrees.core.js"
+    if ($answer -notlike '200 application/x-javascript*' -or
+        -not (Select-String -Quiet -SimpleMatch 'fiftyoneDegreesManager' $coreJs)) {
+        throw "The example answered /51Degrees.core.js with '$answer' and no client-side script."
+    }
+
     $env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
     $env:PAID_RESOURCE_KEY = $Keys.TestResourceKey
     $env:EXAMPLE_URL = "http://localhost:$env:PORT"

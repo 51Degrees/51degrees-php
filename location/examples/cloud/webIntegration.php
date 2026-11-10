@@ -32,6 +32,7 @@
 
 require(__DIR__ . "/../../vendor/autoload.php");
 
+use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 
@@ -93,19 +94,19 @@ $flowData = $pipeline->createFlowData();
 // We set headers, cookies and more information from the web request
 $flowData->evidence->setFromWebRequest();
 
-// Now we process the flowData
-$result = $flowData->process();
-
 // Following the JavaScript bundler settings where we created an endpoint called
-// ?json, we now use this endpoint (if called) to send back JSON to the client side
+// ?json, we now use this endpoint (if called) to send back JSON to the client side.
+// Utils processes the flowData itself and sets the cache headers, so a
+// revalidation with a matching ETag is answered without any processing.
 
 if (isset($_GET["json"])) {
-    header('Content-Type: application/json');
+    Utils::jsonResponse($flowData)->send();
 
-    echo json_encode($flowData->jsonbundler->json);
-    
     return;
 }
+
+// Now we process the flowData
+$result = $flowData->process();
 
 // In the standard call we check if the required properties exist
 $properties = $pipeline->getElement("location")->getProperties();

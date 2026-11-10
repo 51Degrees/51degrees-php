@@ -86,15 +86,16 @@ class CloudEngine extends CloudEngineBase
 
         $cloudData = $flowData->get('cloud')->get('cloud');
 
+        $this->logMissingProduct($flowData);
+
         if ($cloudData) {
             $cloudData = json_decode($cloudData, true);
 
             $result = [];
 
-            // A Resource Key with no product for this engine is not an error.
-            // The engine gives empty data, and says so once.
+            // A response with no portion for this engine gives empty data,
+            // and is not an error.
             if (!isset($cloudData[$this->dataKey]) || !is_array($cloudData[$this->dataKey])) {
-                $this->logMissingProduct($flowData);
                 $flowData->setElementData(new AspectDataDictionary($this, $result));
 
                 return;
@@ -115,17 +116,21 @@ class CloudEngine extends CloudEngineBase
     }
 
     /**
-     * Log, on the first request only, that the Resource Key has no product
-     * for this engine.
+     * Log once, at warning level, when the products the Cloud Request Engine
+     * found hold nothing for this engine's Data Key. A Resource Key with no
+     * product for the engine is not an error. Call this after reading the
+     * Cloud Request Engine's Element Data, because the products are found
+     * before that data is set.
      */
-    private function logMissingProduct(FlowData $flowData): void
+    protected function logMissingProduct(FlowData $flowData): void
     {
-        if ($this->missingProductLogged) {
+        $products = $flowData->pipeline->flowElementsList['cloud']->flowElementProperties;
+        if ($this->missingProductLogged || isset($products[$this->dataKey])) {
             return;
         }
 
         $this->missingProductLogged = true;
-        $flowData->pipeline->log('error', sprintf(
+        $flowData->pipeline->log('warning', sprintf(
             "The Resource Key includes no product for '%s', so the engine gives no data.",
             $this->dataKey
         ));

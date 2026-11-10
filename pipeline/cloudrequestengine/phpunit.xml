@@ -9,6 +9,7 @@
       <file>tests/MissingPropertyHandling.php</file>
       <file>tests/HttpClientFailureTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>
+      <file>tests/MissingProductTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/CloudRequestTests.php</file>

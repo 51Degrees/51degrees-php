@@ -70,10 +70,12 @@ class ClientSideResponse
         http_response_code($this->status);
 
         if (!isset($this->headers['Content-Type'])) {
-            // PHP adds a Content-Type of its own to a response without one,
-            // and a 304 or a 412 has no content to describe.
+            // PHP adds its default Content-Type to a response that sets none,
+            // and a 304 or a 412 has no content to describe. Setting any
+            // Content-Type stops PHP adding the default, and removing it
+            // then leaves none, with the default_mimetype setting unchanged.
+            header('Content-Type:');
             header_remove('Content-Type');
-            ini_set('default_mimetype', '');
         }
 
         foreach ($this->headers as $name => $value) {

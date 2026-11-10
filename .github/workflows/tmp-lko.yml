@@ -1,0 +1,43 @@
+name: tmp licence key tests
+on:
+  push:
+    branches: ['tmp/lko-php-*']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+      - name: Install the three packages from source
+        run: |
+          mkdir -p "$RUNNER_TEMP/w"
+          cat > "$RUNNER_TEMP/w/composer.json" <<EOF
+          {
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              { "type": "path", "url": "$GITHUB_WORKSPACE/pipeline/core", "options": { "symlink": true, "versions": { "51degrees/fiftyone.pipeline.core": "4.x-dev" } } },
+              { "type": "path", "url": "$GITHUB_WORKSPACE/pipeline/engines", "options": { "symlink": true, "versions": { "51degrees/fiftyone.pipeline.engines": "4.x-dev" } } },
+              { "type": "path", "url": "$GITHUB_WORKSPACE/pipeline/cloudrequestengine", "options": { "symlink": true, "versions": { "51degrees/fiftyone.pipeline.cloudrequestengine": "4.x-dev" } } }
+            ],
+            "require": {
+              "51degrees/fiftyone.pipeline.core": "@dev",
+              "51degrees/fiftyone.pipeline.engines": "@dev",
+              "51degrees/fiftyone.pipeline.cloudrequestengine": "@dev",
+              "phpunit/phpunit": "*"
+            },
+            "autoload-dev": {
+              "psr-4": {
+                "fiftyone\\\\pipeline\\\\cloudrequestengine\\\\tests\\\\": "$GITHUB_WORKSPACE/pipeline/cloudrequestengine/tests/"
+              }
+            }
+          }
+          EOF
+          cd "$RUNNER_TEMP/w" && composer install --no-interaction --no-progress
+      - name: Run the Unit suite
+        run: |
+          cd "$GITHUB_WORKSPACE/pipeline/cloudrequestengine"
+          "$RUNNER_TEMP/w/vendor/bin/phpunit" -c phpunit.xml --bootstrap "$RUNNER_TEMP/w/vendor/autoload.php" --testsuite Unit

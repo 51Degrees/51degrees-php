@@ -25,10 +25,52 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\ElementDataDictionary;
+use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
+
+/**
+ * Writes a sequence to the Sequence Element's Element Data only, leaving
+ * Evidence without one.
+ */
+class SequenceDataOnlyElement extends FlowElement
+{
+    public string $dataKey = 'sequence';
+
+    public array $properties = [
+        'sequence' => ['name' => 'sequence', 'type' => 'int'],
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'sequence' => 1,
+        ]));
+    }
+}
+
+/**
+ * Has one JavaScript Property, which the JSON Bundler lists below a sequence
+ * of 10.
+ */
+class ScriptPropertyElement extends FlowElement
+{
+    public string $dataKey = 'scripted';
+
+    public array $properties = [
+        'snippet' => ['name' => 'snippet', 'type' => 'javascript'],
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'snippet' => 'void 0;',
+        ]));
+    }
+}
 
 /**
  * The JSON Bundler needs the sequence number a Sequence Element produced.
@@ -36,13 +78,16 @@ use PHPUnit\Framework\TestCase;
  */
 class JsonBundlerSequenceTests extends TestCase
 {
-    private function withoutSequenceElement()
+    private function withoutSequenceElement(?FlowElement $first = null)
     {
         $builder = new PipelineBuilder([
             'addJavaScriptBuilder' => false,
             'useSetHeaderProperties' => false,
             'suppressProcessExceptions' => true,
         ]);
+        if ($first !== null) {
+            $builder->add($first);
+        }
         $builder->add(new JsonBundlerElement());
         $builder->add(new JavascriptBuilderElement([]));
         $pipeline = $builder->build();
@@ -80,6 +125,42 @@ class JsonBundlerSequenceTests extends TestCase
     {
         $flowData = $this->withoutSequenceElement();
         $flowData->evidence->set('query.sequence', '3');
+        $flowData->process();
+
+        $this->assertArrayHasKey('jsonbundler', $flowData->errors);
+    }
+
+    public function testAnIntegerInEvidenceIsTheSequenceNumber()
+    {
+        $flowData = $this->withoutSequenceElement(new ScriptPropertyElement());
+        $flowData->evidence->set('query.sequence', 9);
+        $flowData->process();
+
+        $this->assertArrayNotHasKey('jsonbundler', $flowData->errors);
+        $this->assertSame(
+            ['scripted.snippet'],
+            $flowData->jsonbundler->json['javascriptProperties']
+        );
+    }
+
+    public function testFromTenTheJavaScriptPropertiesAreNotListed()
+    {
+        $flowData = $this->withoutSequenceElement(new ScriptPropertyElement());
+        $flowData->evidence->set('query.sequence', 10);
+        $flowData->process();
+
+        $this->assertArrayNotHasKey('jsonbundler', $flowData->errors);
+        $this->assertSame(
+            [],
+            $flowData->jsonbundler->json['javascriptProperties']
+        );
+    }
+
+    public function testElementDataAloneIsNotASequenceNumber()
+    {
+        $flowData = $this->withoutSequenceElement(
+            new SequenceDataOnlyElement()
+        );
         $flowData->process();
 
         $this->assertArrayHasKey('jsonbundler', $flowData->errors);

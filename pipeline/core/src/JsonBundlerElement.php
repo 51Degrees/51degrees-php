@@ -172,11 +172,6 @@ class JsonBundlerElement extends FlowElement
                 $value = null;
                 $nullReason = null;
 
-                // Check if property has delayed execution and set in JSON if yes
-                if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
-                    $output[$dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
-                }
-
                 // Check if property has any delayed execution evidence properties and set in JSON if yes
                 if (isset($propertyCache['evidenceProperties'][$propertyKey])) {
                     $output[$dataKey][strtolower($propertyKey) . 'evidenceproperties'] = $propertyCache['evidenceProperties'][$propertyKey];
@@ -207,12 +202,16 @@ class JsonBundlerElement extends FlowElement
 
                 // A Property assigned no value is written as null with its
                 // reason. Any other null, such as a plain null from an
-                // element that is not an Engine, has no entry.
+                // element that is not an Engine, has no entry. Only a Property
+                // with a value is marked for delayed execution.
                 if ($nullReason !== null) {
                     $output[$dataKey][strtolower($propertyKey)] = null;
                     $output[$dataKey][strtolower($propertyKey) . 'nullreason'] = $nullReason;
                 } elseif ($value !== null) {
                     $output[$dataKey][strtolower($propertyKey)] = $value;
+                    if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
+                        $output[$dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
+                    }
                 }
 
                 if ($sequence < self::MAX_SEQUENCE_WITH_JAVASCRIPT) {

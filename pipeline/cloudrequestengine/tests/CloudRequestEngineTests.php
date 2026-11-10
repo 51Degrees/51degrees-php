@@ -444,8 +444,9 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     /**
      * The engine sends only the Evidence the cloud accepts, never
      * 'resource', 'license', 'licence' or 'values' from Evidence, as the
-     * Processing section of cloud-request-engine.md says. Other Evidence is
-     * sent with the usual precedence.
+     * Processing section of cloud-request-engine.md says. The body's
+     * 'resource' is the configured Resource Key, and other Evidence is sent
+     * with the usual precedence.
      */
     public function testEvidenceNeverSuppliesResourceLicenseOrValues()
     {
@@ -492,7 +493,8 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         parse_str($sent[0]['content'], $fields);
         $this->assertSame('query_other', $fields['other']);
         $this->assertSame('cookie_only', $fields['cookie-only']);
-        foreach (['resource', 'license', 'licence', 'values'] as $name) {
+        $this->assertSame(CloudRequestEngineTests::resourceKey, $fields['resource']);
+        foreach (['license', 'licence', 'values'] as $name) {
             $this->assertArrayNotHasKey($name, $fields);
         }
         $this->assertStringNotContainsString('evidence_', $sent[0]['content']);

@@ -5,6 +5,7 @@
   <testsuites>
     <testsuite name="Unit">
       <file>tests/CloudResponse.php</file>
+      <file>tests/CredentialsTests.php</file>
       <file>tests/CloudRequestEngineTests.php</file>
       <file>tests/MissingPropertyHandling.php</file>
       <file>tests/RequestValueCacheTests.php</file>

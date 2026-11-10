@@ -35,6 +35,11 @@ namespace fiftyone\pipeline\core;
  */
 class JsonBundlerElement extends FlowElement
 {
+    /**
+     * The nullreason of a Property assigned no value without a message.
+     */
+    private const NO_VALUE_MESSAGE = 'This instance does not have a set value';
+
     public string $dataKey = 'jsonbundler';
 
     /**
@@ -165,7 +170,7 @@ class JsonBundlerElement extends FlowElement
 
             foreach ($properties as $propertyKey => $property) {
                 $value = null;
-                $nullReason = 'Unknown';
+                $nullReason = null;
 
                 // Check if property has delayed execution and set in JSON if yes
                 if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
@@ -187,8 +192,9 @@ class JsonBundlerElement extends FlowElement
                         if ($valueContainer->hasValue) {
                             $value = $valueContainer->value;
                         } else {
-                            $value = null;
-                            $nullReason = $valueContainer->noValueMessage;
+                            $nullReason = !empty($valueContainer->noValueMessage)
+                                ? $valueContainer->noValueMessage
+                                : self::NO_VALUE_MESSAGE;
                         }
                     } else {
                         // Standard value
@@ -199,9 +205,14 @@ class JsonBundlerElement extends FlowElement
                     continue;
                 }
 
-                $output[$dataKey][strtolower($propertyKey)] = $value;
-                if ($value == null) {
+                // A Property assigned no value is written as null with its
+                // reason. Any other null, such as a plain null from an
+                // element that is not an Engine, has no entry.
+                if ($nullReason !== null) {
+                    $output[$dataKey][strtolower($propertyKey)] = null;
                     $output[$dataKey][strtolower($propertyKey) . 'nullreason'] = $nullReason;
+                } elseif ($value !== null) {
+                    $output[$dataKey][strtolower($propertyKey)] = $value;
                 }
 
                 if ($sequence < self::MAX_SEQUENCE_WITH_JAVASCRIPT) {

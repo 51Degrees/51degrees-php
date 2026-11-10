@@ -20,6 +20,7 @@
       <file>tests/HttpRequestEvidenceTests.php</file>
       <file>tests/JsonBundlerKeysTests.php</file>
       <file>tests/LicenseKeyTests.php</file>
+      <file>tests/JsonBundlerNullTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

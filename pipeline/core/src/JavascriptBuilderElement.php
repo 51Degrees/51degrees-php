@@ -77,9 +77,10 @@ class JavascriptBuilderElement extends FlowElement
     private const DEFAULT_SEQUENCE = 1;
 
     /**
-     * The largest sequence, which is the largest 32 bit signed integer.
+     * The largest sequence, which leaves room to add one within a 32 bit
+     * signed integer.
      */
-    public const MAX_SEQUENCE = 2147483647;
+    public const MAX_SEQUENCE = 2147483646;
 
     /**
      * @var array<string, mixed>
@@ -159,8 +160,9 @@ class JavascriptBuilderElement extends FlowElement
     }
 
     /**
-     * A sequence as a positive 32 bit integer, or null when the value cannot
-     * be used as one.
+     * A sequence as a whole number, or a string of the digits 0 to 9 only,
+     * from 1 up to MAX_SEQUENCE. Anything else, including a sign, white space
+     * and 0, gives null, which counts as not present.
      *
      * @param mixed $value The query.sequence evidence, or null
      */
@@ -170,17 +172,17 @@ class JavascriptBuilderElement extends FlowElement
             return $value >= 1 && $value <= self::MAX_SEQUENCE ? $value : null;
         }
 
-        if (!is_string($value) || preg_match('/^\s*\+?[0-9]+\s*$/D', $value) !== 1) {
+        if (!is_string($value) || preg_match('/^[0-9]+$/D', $value) !== 1) {
             return null;
         }
 
         // The range is checked on the digits, because casting a number that
         // is too large gives the largest integer rather than failing. Every
-        // leading zero is dropped first, so no digits left means zero, which
-        // is not a sequence.
-        $digits = ltrim(ltrim(trim($value, " \t\n\r\v\f"), '+'), '0');
-        if ($digits === '' || strlen($digits) > 10 ||
-            (strlen($digits) === 10 && strcmp($digits, '2147483647') > 0)) {
+        // leading zero is dropped first, so no digits left means zero.
+        $digits = ltrim($value, '0');
+        $maxDigits = (string) self::MAX_SEQUENCE;
+        if ($digits === '' || strlen($digits) > strlen($maxDigits) ||
+            (strlen($digits) === strlen($maxDigits) && strcmp($digits, $maxDigits) > 0)) {
             return null;
         }
 

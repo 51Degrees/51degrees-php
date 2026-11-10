@@ -30,7 +30,7 @@ make
 sudo make install
 ```
 
-To regenerate the SWIG wrapper files, add `SWIG=1` to the `./configure` step.
+To regenerate the SWIG wrapper files, install SWIG 4.5.1 and run `on-premise/generate-wrapper.sh`.
 
 The Hash engine extension will then be installed into the PHP extensions directory and can then be added to the active php.ini file.
 

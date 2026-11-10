@@ -181,6 +181,24 @@ function Set-RootAutoload ([string]$RepoName) {
     }
 }
 
+# Writes composer.ci.json in a package, a copy of its composer.json with path
+# repositories for the named pipeline packages. A composer install there with
+# $env:COMPOSER set to composer.ci.json then takes those packages from this
+# checkout rather than Packagist, as the Own packages' build scripts do.
+function Write-CheckoutComposer ([string]$RepoName, [string]$Package, [string[]]$Pipeline) {
+    $up = '../' * $Package.Split('/').Count
+    $composer = Get-Content -Raw (Join-Path $RepoName $Package 'composer.json') |
+        ConvertFrom-Json -AsHashtable
+    $composer['repositories'] = @(foreach ($name in $Pipeline) {
+        @{ type = 'path'; url = "$($up)pipeline/$name"; options = @{ symlink = $true;
+            versions = @{ "51degrees/fiftyone.pipeline.$name" = '4.x-dev' } } }
+    })
+    $composer['minimum-stability'] = 'dev'
+    $composer['prefer-stable'] = $true
+    $composer | ConvertTo-Json -Depth 20 |
+        Set-Content (Join-Path $RepoName $Package 'composer.ci.json')
+}
+
 # Runs ci/<Script>.ps1 of each package that has it, with -RepoName set to the
 # package directory and any of $Parameters the script accepts, the way
 # common-ci's steps/run-script.ps1 does. Every package runs even when one
@@ -189,12 +207,16 @@ function Set-RootAutoload ([string]$RepoName) {
 # The package scripts write their test results under the package directory.
 # common-ci collects them from <repository>/test-results, so they are moved
 # there after each script.
+#
+# $Environment maps a package path to environment variables that are set
+# while that package's script runs, and restored after it.
 function Invoke-PackageScript {
     param (
         [Parameter(Mandatory)][string]$RepoName,
         [Parameter(Mandatory)][string]$Script,
         [hashtable]$Parameters = @{},
-        [string]$Vendor
+        [string]$Vendor,
+        [hashtable]$Environment = @{}
     )
     $failed = @()
     foreach ($package in $Packages) {
@@ -221,6 +243,13 @@ function Invoke-PackageScript {
             $arguments.RepoName = "$RepoName/$($package.Path)"
         }
 
+        $variables = $Environment[$package.Path] ?? @{}
+        $saved = @{}
+        foreach ($name in $variables.Keys) {
+            $saved[$name] = [Environment]::GetEnvironmentVariable($name)
+            [Environment]::SetEnvironmentVariable($name, $variables[$name])
+        }
+
         Write-Host "::group::$($package.Path): $Script"
         try {
             $global:LASTEXITCODE = 0
@@ -232,6 +261,9 @@ function Invoke-PackageScript {
             Write-Host "::error title=$Script failed::$($package.Path): $_"
             $failed += $package.Path
         } finally {
+            foreach ($name in $saved.Keys) {
+                [Environment]::SetEnvironmentVariable($name, $saved[$name])
+            }
             Move-TestResults -RepoName $RepoName -Package $package.Path
             Write-Host "::endgroup::"
         }

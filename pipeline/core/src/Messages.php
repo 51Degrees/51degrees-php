@@ -41,6 +41,13 @@ class Messages
     public const FLOW_DATA_PROCESSED = 'FlowData already processed';
 
     /**
+     * A client-side response was asked for with a FlowData that has been
+     * processed, so the Evidence the request supplied cannot be told from
+     * the Evidence processing added.
+     */
+    public const CLIENT_SIDE_PROCESSED = 'Pass the FlowData for a client-side response before it is processed, because its ETag is calculated from the Evidence the request supplied.';
+
+    /**
      * The JSON Bundler found no sequence number from a Sequence Element.
      */
     public const NO_SEQUENCE = 'The JSON Bundler needs a sequence number from the Sequence Element. Place a Sequence Element before the JSON Bundler in the Pipeline.';

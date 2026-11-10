@@ -29,6 +29,7 @@ use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -283,6 +284,67 @@ class JavaScriptBuilderParametersTests extends TestCase
             '"https://exa mple.com/json"',
             $errors[0]
         );
+    }
+
+    public static function provider_loggedHosts(): array
+    {
+        return [
+            ['user:secret@example.com', 'https://***@example.com/json'],
+            ['a@b@example.com', 'https://***@example.com/json'],
+            ['u@[::1]:80x', 'https://***@[::1]:80x/json'],
+            ['user:pa/ss@example.com', 'https://***@example.com/json'],
+            ['user:pa?ss@example.com', 'https://***@example.com/json'],
+            ['exa mple.com/a@b', 'https://***@b/json']
+        ];
+    }
+
+    /**
+     * The log never holds what comes before the last '@' of the host value.
+     * Each host has an element of its own because a refusal is logged once
+     * per element.
+     *
+     * @dataProvider provider_loggedHosts
+     */
+    #[DataProvider('provider_loggedHosts')]
+    public function testRefusedHostIsLoggedWithoutItsUserInformation(
+        string $host,
+        string $logged
+    ) {
+        [$scripts, $errors] = $this->renderWithHosts([$host]);
+
+        $this->assertSame([], $this->requestUrls($scripts[0]));
+        $this->assertCount(1, $errors, json_encode($errors));
+        $this->assertStringContainsString('"' . $logged . '"', $errors[0]);
+        $this->assertStringNotContainsString('secret', $errors[0]);
+        $this->assertDoesNotMatchRegularExpression('/\\bpa\\b/', $errors[0]);
+    }
+
+    /**
+     * A host from the settings is refused and logged the same way.
+     */
+    public function testRefusedConfiguredHostIsLoggedWithoutUserInformation()
+    {
+        $logger = new CallbackUrlTestLogger('error');
+        $pipeline = (new PipelineBuilder([
+            'javascriptBuilderSettings' => [
+                'host' => 'user:secret@example.com',
+                'endpoint' => '/json',
+                'minify' => false
+            ]
+        ]))->addLogger($logger)->build();
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(
+            [],
+            $this->requestUrls($flowData->javascriptbuilder->javascript)
+        );
+        $this->assertCount(1, $logger->errors, json_encode($logger->errors));
+        $this->assertStringContainsString(
+            '"https://***@example.com/json"',
+            $logger->errors[0]
+        );
+        $this->assertStringNotContainsString('secret', $logger->errors[0]);
     }
 
     /**

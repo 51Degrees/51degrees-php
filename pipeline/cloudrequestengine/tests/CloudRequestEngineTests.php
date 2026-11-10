@@ -443,9 +443,9 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
 
     /**
      * The engine sends only the Evidence the cloud accepts, never
-     * 'resource', 'license', 'licence' or 'values' from Evidence, as the Processing
-     * section of cloud-request-engine.md says. Other Evidence is sent with
-     * the usual precedence.
+     * 'resource', 'license', 'licence' or 'values' from Evidence, as the
+     * Processing section of cloud-request-engine.md says. Other Evidence is
+     * sent with the usual precedence.
      */
     public function testEvidenceNeverSuppliesResourceLicenseOrValues()
     {

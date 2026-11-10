@@ -84,6 +84,20 @@ class HttpRequestEvidenceTests extends TestCase
         $this->assertSame('/a%20b/page', $request->getPath());
     }
 
+    public function testProtocolIsTheRequestsOwnNotTheReferers()
+    {
+        $server = $this->server();
+        unset($server['HTTPS']);
+        $server['HTTP_REFERER'] = 'https://example.com/page';
+        $flowData = $this->flowData();
+        $flowData->evidence->setFromWebRequest($server, [], []);
+
+        $this->assertSame(
+            'http',
+            $flowData->evidence->get('server.http-request')->getProtocol()
+        );
+    }
+
     public function testSessionValuesAreInTheView()
     {
         $saved = $_SESSION ?? null;

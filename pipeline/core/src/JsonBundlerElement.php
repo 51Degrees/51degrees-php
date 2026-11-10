@@ -35,12 +35,12 @@ namespace fiftyone\pipeline\core;
  */
 class JsonBundlerElement extends FlowElement
 {
-    public string $dataKey = 'jsonbundler';
-
     /**
      * The nullreason of a Property assigned no value without a message.
      */
     private const NO_VALUE_MESSAGE = 'This instance does not have a set value';
+
+    public string $dataKey = 'jsonbundler';
 
     /**
      * @var array<string, mixed>

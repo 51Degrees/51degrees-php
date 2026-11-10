@@ -17,6 +17,7 @@
       <file>tests/WebIntegrationElementsTests.php</file>
       <file>tests/ClientSideResponseTests.php</file>
       <file>tests/HttpRequestEvidenceTests.php</file>
+      <file>tests/JsonBundlerKeysTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

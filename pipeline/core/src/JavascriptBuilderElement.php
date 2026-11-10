@@ -53,11 +53,15 @@ class JavascriptBuilderElement extends FlowElement
     private const EXCLUDED_PARAMETERS = ['query.session-id', 'query.sequence'];
 
     /**
-     * Names the object cannot have. These are the reserved words of the
-     * language, including those reserved only in strict mode and the literals
-     * null, true and false, plus the three global values a top level var
-     * cannot replace, so the object would silently never be created, and the
-     * name of the constructor the script itself defines.
+     * Names the object cannot have, in the groups the specification lists.
+     * - The reserved words, including those reserved only in strict mode and
+     *   the literals null, true and false.
+     * - eval and arguments, which strict mode code cannot declare.
+     * - Infinity, NaN and undefined, and the Window properties a top level
+     *   var cannot replace, so the object would never be created.
+     * - location, because a top level var of that name navigates the page
+     *   away.
+     * - fiftyoneDegreesManager, the constructor the script itself defines.
      */
     private const RESERVED_WORDS = [
         'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
@@ -67,7 +71,16 @@ class JavascriptBuilderElement extends FlowElement
         'package', 'private', 'protected', 'public', 'return', 'static',
         'super', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 'var',
         'void', 'while', 'with', 'yield',
-        'Infinity', 'NaN', 'undefined', 'fiftyoneDegreesManager'
+        'Infinity', 'NaN', 'undefined',
+        'eval', 'arguments',
+        'window', 'document', 'top', 'name', 'status', 'history',
+        'navigator', 'closed', 'location', 'frameElement', 'isSecureContext',
+        'crossOriginIsolated', 'trustedTypes', 'crypto', 'indexedDB',
+        'localStorage', 'sessionStorage', 'caches', 'cookieStore',
+        'speechSynthesis', 'styleMedia', 'crashReport', 'credentialless',
+        'customElements', 'documentPictureInPicture', 'fence', 'launchQueue',
+        'originAgentCluster',
+        'fiftyoneDegreesManager'
     ];
 
     /**

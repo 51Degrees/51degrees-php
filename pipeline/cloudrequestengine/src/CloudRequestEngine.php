@@ -204,6 +204,11 @@ class CloudRequestEngine extends Engine
             // the name, which is what the .NET engine does with it too.
             $suffix = strtolower(end($evidenceKeyParts));
 
+            // Evidence never supplies the request's own fields.
+            if (in_array($suffix, Constants::RESERVED_EVIDENCE_SUFFIXES, true)) {
+                continue;
+            }
+
             // Check and add the evidence to the query parameters.
             if (!array_key_exists($suffix, $queryData)) {
                 $queryData[$suffix] = $evidenceValue;

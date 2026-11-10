@@ -23,18 +23,40 @@
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\ElementDataDictionary;
+use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
-use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
+ * Stands in for the JSON bundler, giving the JSON it builds when no other
+ * element has data. The JSON bundler needs a sequence number in Evidence,
+ * and these tests give the JavaScript builder the query string's values as
+ * they were supplied.
+ */
+class FixedJsonElement extends FlowElement
+{
+    public string $dataKey = 'jsonbundler';
+
+    public array $properties = [
+        'json' => ['name' => 'json', 'type' => 'array'],
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'json' => ['javascriptProperties' => []],
+        ]));
+    }
+}
+
+/**
  * The script must parse whatever the pipeline holds. The sequence is written
  * into the script as bare code and the session id inside quotes, and a
- * pipeline built without a SequenceElement, for example from a configuration
- * file that does not list one, passes the query string's values, or nothing
- * at all, straight to the builder.
+ * pipeline without a SequenceElement passes the query string's values, or
+ * nothing at all, straight to the builder.
  *
  * The script is checked with "node --check", which needs Node on the path.
  * Every GitHub hosted runner has it.
@@ -42,8 +64,9 @@ use PHPUnit\Framework\TestCase;
 class JavaScriptBuilderSequenceTests extends TestCase
 {
     /**
-     * Render the script. Without the sequence element the pipeline has only
-     * the JSON bundler and the JavaScript builder.
+     * Render the script. Without the sequence element the pipeline has a
+     * FixedJsonElement in place of the JSON bundler, and the JavaScript
+     * builder.
      */
     private static function render(
         array $evidence = [],
@@ -56,7 +79,7 @@ class JavaScriptBuilderSequenceTests extends TestCase
         }
         $builder = new PipelineBuilder($settings);
         if (!$sequenceElement) {
-            $builder->add(new JsonBundlerElement());
+            $builder->add(new FixedJsonElement());
             $builder->add(new JavascriptBuilderElement(['minify' => $minify]));
         }
         $flowData = $builder->build()->createFlowData();
@@ -140,14 +163,17 @@ class JavaScriptBuilderSequenceTests extends TestCase
             'decimal' => ['1.5'],
             'hexadecimal' => ['0x10'],
             'just too large' => ['2147483648'],
-            'far too large' => ['99999999999999999999']
+            'far too large' => ['99999999999999999999'],
+            'plus sign' => ['+5'],
+            'leading space' => [' 5'],
+            'trailing space' => ['5 ']
         ];
     }
 
     /**
-     * A query.sequence that is not a positive 32 bit integer is rendered as
-     * 1, as the pipeline specification says, so the script parses and nothing
-     * else is written in its place.
+     * A query.sequence that is not a whole number, or a string of the digits
+     * 0 to 9 only, from 1 up to the largest 32 bit integer, is rendered as 1,
+     * so the script parses and nothing else is written in its place.
      * @dataProvider provider_unusableSequence
      */
     #[DataProvider('provider_unusableSequence')]
@@ -170,16 +196,19 @@ class JavaScriptBuilderSequenceTests extends TestCase
             'zero' => ['0'],
             'too large' => ['99999999999'],
             'empty' => [''],
-            'largest' => ['2147483647']
+            'largest' => ['2147483647'],
+            'plus sign' => ['+5'],
+            'leading space' => [' 5'],
+            'trailing space' => ['5 ']
         ];
     }
 
     /**
      * With the SequenceElement the value that reaches the script is the one
-     * the element works out. A query.sequence that is not a positive 32 bit
-     * integer is treated as no sequence, so the request is sequence 1 rather
-     * than carrying a number the script cannot use. The largest sequence has
-     * no next value, so the builder renders 1 for it as well.
+     * the element works out. A query.sequence that is not a whole number, or
+     * a string of the digits 0 to 9 only, from 0 up to 2147483646, is treated
+     * as no sequence, so the request is sequence 1. The largest 32 bit
+     * integer has no next value, so it is treated as no sequence as well.
      * @dataProvider provider_unusableSequenceWithElement
      */
     #[DataProvider('provider_unusableSequenceWithElement')]
@@ -200,8 +229,6 @@ class JavaScriptBuilderSequenceTests extends TestCase
     {
         return [
             'text' => ['7', 7],
-            'spaces' => [' 7 ', 7],
-            'plus' => ['+3', 3],
             'leading zeros' => ['007', 7],
             'largest' => ['2147483647', 2147483647],
             'number' => [12, 12]
@@ -221,6 +248,25 @@ class JavaScriptBuilderSequenceTests extends TestCase
 
         $this->assertSame(
             ['var sequence = ' . $expected . ';'],
+            self::lines($script, 'sequence')
+        );
+        $this->assertParses($script);
+    }
+
+    /**
+     * The SequenceElement's largest output, one more than the largest
+     * sequence it counts from, is rendered as it is.
+     */
+    public function testTheLargestSequenceElementOutputIsRendered(): void
+    {
+        $script = self::render(
+            ['query.session-id' => 'abc', 'query.sequence' => '2147483646'],
+            false,
+            true
+        );
+
+        $this->assertSame(
+            ['var sequence = 2147483647;'],
             self::lines($script, 'sequence')
         );
         $this->assertParses($script);

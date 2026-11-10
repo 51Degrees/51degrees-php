@@ -43,6 +43,12 @@ class JsonBundlerElement extends FlowElement
     public string $dataKey = 'jsonbundler';
 
     /**
+     * From this sequence number on, the JavaScript properties are not listed,
+     * so the script stops asking for them.
+     */
+    private const MAX_SEQUENCE_WITH_JAVASCRIPT = 10;
+
+    /**
      * @var array<string, mixed>
      */
     public array $json;
@@ -53,12 +59,31 @@ class JsonBundlerElement extends FlowElement
     private array $propertyCache = [];
 
     /**
-     * The JSONBundler reads only the sequence, which decides whether it lists
-     * the JavaScript properties, so it accepts no other Evidence.
+     * The JSONBundler accepts no Evidence. It reads the Element Data of the
+     * other elements, and the sequence number the Sequence Element adds to
+     * Evidence, which the Sequence Element's own filter keeps.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
-        return new BasicListEvidenceKeyFilter(['query.sequence']);
+        return new BasicListEvidenceKeyFilter([]);
+    }
+
+    /**
+     * The integer under query.sequence in Evidence, which the Sequence
+     * Element adds. A value from the query string is text, so it is not a
+     * sequence number.
+     *
+     * @throws \Exception when Evidence holds no integer sequence number
+     */
+    private function getSequence(FlowData $flowData): int
+    {
+        $sequence = $flowData->evidence->get('query.sequence');
+
+        if (!is_int($sequence)) {
+            throw new \Exception(Messages::NO_SEQUENCE);
+        }
+
+        return $sequence;
     }
 
     /**
@@ -66,6 +91,10 @@ class JsonBundlerElement extends FlowElement
      */
     public function processInternal(FlowData $flowData): void
     {
+        // The sequence number decides whether the JavaScript properties are
+        // listed. Without one from a Sequence Element the JSON is not built.
+        $sequence = $this->getSequence($flowData);
+
         // Get every property on every FlowElement
         // Storing JavaScript properties in an extra section
 
@@ -186,9 +215,7 @@ class JsonBundlerElement extends FlowElement
                     $output[$dataKey][strtolower($propertyKey)] = $value;
                 }
 
-                $sequence = $flowData->evidence->get('query.sequence');
-
-                if (!$sequence || $sequence < 10) {
+                if ($sequence < self::MAX_SEQUENCE_WITH_JAVASCRIPT) {
                     // Cloud properties come back as capitalized
                     // TODO change this, but for now
                     if (isset($property['Type'])) {

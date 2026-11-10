@@ -108,13 +108,15 @@ class JsonBundlerElement extends FlowElement
                             }
                         );
 
+                        // Each name is lower case, as the keys are, and the
+                        // names form a list, so the filter's gaps are closed.
                         if (count($delayedEvidencePropertiesList)) {
-                            $delayedEvidenceProperties[$propertyKey] = array_map(
+                            $delayedEvidenceProperties[$propertyKey] = array_values(array_map(
                                 function ($property) use ($flowElement) {
-                                    return $flowElement->dataKey . '.' . $property;
+                                    return strtolower($flowElement->dataKey . '.' . $property);
                                 },
                                 $delayedEvidencePropertiesList
-                            );
+                            ));
                         }
                     }
                 }
@@ -127,8 +129,10 @@ class JsonBundlerElement extends FlowElement
 
             $propertyCache = $this->propertyCache[$flowElement->dataKey];
 
-            // Create empty area for FlowElement properties to go
-            $output[$flowElement->dataKey] = [];
+            // Create empty area for FlowElement properties to go. Every key in
+            // the JSON is lower case.
+            $dataKey = strtolower($flowElement->dataKey);
+            $output[$dataKey] = [];
 
             foreach ($properties as $propertyKey => $property) {
                 $value = null;
@@ -136,12 +140,12 @@ class JsonBundlerElement extends FlowElement
 
                 // Check if property has delayed execution and set in JSON if yes
                 if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
-                    $output[$flowElement->dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
+                    $output[$dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
                 }
 
                 // Check if property has any delayed execution evidence properties and set in JSON if yes
                 if (isset($propertyCache['evidenceProperties'][$propertyKey])) {
-                    $output[$flowElement->dataKey][strtolower($propertyKey) . 'evidenceproperties'] = $propertyCache['evidenceProperties'][$propertyKey];
+                    $output[$dataKey][strtolower($propertyKey) . 'evidenceproperties'] = $propertyCache['evidenceProperties'][$propertyKey];
                 }
 
                 try {
@@ -166,9 +170,9 @@ class JsonBundlerElement extends FlowElement
                     continue;
                 }
 
-                $output[strtolower($flowElement->dataKey)][strtolower($propertyKey)] = $value;
+                $output[$dataKey][strtolower($propertyKey)] = $value;
                 if ($value == null) {
-                    $output[strtolower($flowElement->dataKey)][strtolower($propertyKey) . 'nullreason'] = $nullReason;
+                    $output[$dataKey][strtolower($propertyKey) . 'nullreason'] = $nullReason;
                 }
 
                 $sequence = $flowData->evidence->get('query.sequence');
@@ -181,7 +185,7 @@ class JsonBundlerElement extends FlowElement
                     }
 
                     if (isset($property['type']) && strtolower($property['type']) === 'javascript') {
-                        $output['javascriptProperties'][] = strtolower($flowElement->dataKey) . '.' . strtolower($propertyKey);
+                        $output['javascriptProperties'][] = $dataKey . '.' . strtolower($propertyKey);
                     }
                 }
             }

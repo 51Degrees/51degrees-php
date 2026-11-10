@@ -16,6 +16,7 @@
       <file>tests/AcceptedEvidenceTests.php</file>
       <file>tests/WebIntegrationElementsTests.php</file>
       <file>tests/ClientSideResponseTests.php</file>
+      <file>tests/JsonBundlerKeysTests.php</file>
       <file>tests/LicenseKeyTests.php</file>
     </testsuite>
   </testsuites>

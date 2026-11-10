@@ -44,6 +44,12 @@ class CredentialsTests extends TestCase
     public const requested = ['device.ismobile', 'device.istablet'];
     public const failure = 'The request was refused.';
 
+    /**
+     * The license key as a message may show it, the last 4 characters
+     * after one * for each other character.
+     */
+    public const maskedLicenseKey = '****************7890';
+
     /** @var array<array{string, string, null|string}> */
     private array $requests = [];
 
@@ -51,7 +57,8 @@ class CredentialsTests extends TestCase
      * A client that records every request as [method, url, body] and
      * answers each endpoint with canned data, the data request with
      * $dataAnswer where one is given. A request whose URL contains $failing
-     * is refused instead.
+     * is refused instead, with an error that names the license key, as the
+     * cloud service's refusal of a license key does.
      */
     private function recordingClient(?string $failing = null, ?string $dataAnswer = null): HttpClient
     {
@@ -62,7 +69,11 @@ class CredentialsTests extends TestCase
                 $this->requests[] = [$type, $url, $content];
                 $lower = strtolower($url);
                 if ($failing !== null && strpos($lower, $failing) !== false) {
-                    throw new CloudRequestException(self::failure, 403, []);
+                    throw new CloudRequestException(
+                        self::failure . " License key(s): '" . self::licenseKey . "'",
+                        403,
+                        []
+                    );
                 }
                 if (strpos($lower, 'accessibleproperties') !== false) {
                     return '{"Products": {"device": {"Properties": [' .
@@ -303,7 +314,7 @@ class CredentialsTests extends TestCase
         $this->assertSame(self::requested, $engine->requestedProperties);
     }
 
-    public function testAKeySurroundedByWhitespaceIsTrimmed(): void
+    public function testABlankKeyIsAbsentAndAnyOtherKeyIsKeptAsGiven(): void
     {
         $engine = new CloudRequestEngine([
             'resourceKey' => ' ' . self::resourceKey . "\n",
@@ -312,7 +323,7 @@ class CredentialsTests extends TestCase
             'httpClient' => $this->recordingClient()
         ]);
 
-        $this->assertSame(self::resourceKey, $engine->resourceKey);
+        $this->assertSame(' ' . self::resourceKey . "\n", $engine->resourceKey);
         $this->assertSame('', $engine->licenseKey);
         $this->assertSame([], $engine->requestedProperties);
     }
@@ -405,6 +416,10 @@ class CredentialsTests extends TestCase
                 $text .= "\n" . $e->getMessage();
             }
             $this->assertStringContainsString(self::failure, $text);
+            $this->assertStringContainsString(
+                "License key(s): '" . self::maskedLicenseKey . "'",
+                $text
+            );
             $this->assertStringNotContainsString(self::licenseKey, $text);
         }
     }
@@ -434,6 +449,28 @@ class CredentialsTests extends TestCase
             [sprintf(Constants::MESSAGE_PROPERTIES_NOT_COVERED, 'device.iscrawler')],
             $logger->messages
         );
+    }
+
+    public function testANameAResourceKeyAnswerLeavesOutIsReportedAsNotAProperty(): void
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => self::resourceKey,
+            'requestedProperties' => ['device.ismobile', 'device.notaproperty'],
+            'httpClient' => $this->recordingClient()
+        ]);
+        $logger = self::memoryLogger();
+        $pipeline = (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
+        $data = $pipeline->createFlowData();
+        $data->evidence->set('query.User-Agent', 'iPhone');
+        $data->process();
+
+        $this->assertCount(1, $logger->messages);
+        $this->assertStringContainsString('device.notaproperty', $logger->messages[0]);
+        $this->assertStringContainsString(
+            'not properties the cloud service knows',
+            $logger->messages[0]
+        );
+        $this->assertStringNotContainsString('keys in use', $logger->messages[0]);
     }
 
     public function testNothingIsLoggedWhenEveryPropertyCameBackOrNoneWasNamed(): void

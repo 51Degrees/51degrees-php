@@ -63,6 +63,30 @@ class FalsyValuesElement extends FlowElement
 }
 
 /**
+ * Three Properties whose metadata sets the delay execution flag, one with a
+ * value, one assigned no value and one plain null.
+ */
+class DelayedValuesElement extends FlowElement
+{
+    public string $dataKey = 'delayed';
+
+    public array $properties = [
+        'WithValue' => ['type' => 'javascript', 'delayexecution' => true],
+        'NoValue' => ['type' => 'javascript', 'delayexecution' => true],
+        'PlainNull' => ['type' => 'javascript', 'delayexecution' => true],
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'WithValue' => new AspectPropertyValue(null, 'void 0;'),
+            'NoValue' => new AspectPropertyValue('Not available'),
+            'PlainNull' => null,
+        ]));
+    }
+}
+
+/**
  * The JSON Bundler writes null, with a string nullreason, only for a Property
  * that has been assigned no value. A plain null has no entry.
  */
@@ -143,5 +167,19 @@ class JsonBundlerNullTests extends TestCase
         $this->assertNull($json['missing']);
         $this->assertIsString($json['missingnullreason']);
         $this->assertNotSame('', $json['missingnullreason']);
+    }
+
+    public function testDelayExecutionIsWrittenOnlyForAPropertyWithAValue()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new DelayedValuesElement())
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+        $json = $flowData->jsonbundler->json['delayed'];
+
+        $this->assertTrue($json['withvaluedelayexecution']);
+        $this->assertArrayNotHasKey('novaluedelayexecution', $json);
+        $this->assertArrayNotHasKey('plainnulldelayexecution', $json);
     }
 }

@@ -83,6 +83,15 @@ class Constants
         'from every result. The other requested properties came back and ' .
         'are usable.';
 
+    // Logged once when an answer to a resource key with no license key
+    // leaves out requested properties.
+    public const MESSAGE_NOT_PROPERTIES =
+        'The cloud service did not return the requested properties %s. ' .
+        'They are not properties the cloud service knows, so they will be ' .
+        'missing from every result. Check each name against the property ' .
+        'dictionary. The other requested properties came back and are ' .
+        'usable.';
+
     // Evidence key seperator
     public const EVIDENCE_SEPERATOR = '.';
 

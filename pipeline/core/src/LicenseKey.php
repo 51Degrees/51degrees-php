@@ -53,14 +53,14 @@ class LicenseKey
 
     /**
      * The text with the value of each license, licenseKey and licenseKeys
-     * query parameter masked. A value may hold several keys separated by a
-     * vertical bar or a comma. The text can be a URL or a message that names
-     * one.
+     * query parameter masked, in either spelling, as the cloud service also
+     * reads licence. A value may hold several keys separated by a vertical
+     * bar or a comma. The text can be a URL or a message that names one.
      */
     public static function maskQuery(string $text): string
     {
         return (string) preg_replace_callback(
-            '/([?&]license(?:keys?)?=)([^&#\s\'"]*)/i',
+            '/([?&]licen[cs]e(?:keys?)?=)([^&#\s\'"]*)/i',
             function (array $match): string {
                 $keys = preg_split('/([|,])/', $match[2], -1, PREG_SPLIT_DELIM_CAPTURE);
                 foreach ($keys as $index => $key) {

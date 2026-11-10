@@ -119,6 +119,12 @@ final class DidClient
     /** Seconds the default transport waits for the cloud. */
     private const TIMEOUT_SECONDS = 30;
 
+    /** The characters of a licence key a message may show, from its end. */
+    private const LICENCE_VISIBLE_CHARACTERS = 4;
+
+    /** Stands in for each hidden character of a licence key. */
+    private const LICENCE_MASK_CHARACTER = '*';
+
     private string $resourceKey;
     private ?string $licenceKey;
     private string $endpoint;
@@ -986,9 +992,11 @@ final class DidClient
         }
 
         $length = strlen($this->licenceKey);
-        $masked = $length <= 4
-            ? str_repeat('*', $length)
-            : str_repeat('*', $length - 4) . substr($this->licenceKey, -4);
+        $visible = self::LICENCE_VISIBLE_CHARACTERS;
+        $masked = $length <= $visible
+            ? str_repeat(self::LICENCE_MASK_CHARACTER, $length)
+            : str_repeat(self::LICENCE_MASK_CHARACTER, $length - $visible)
+                . substr($this->licenceKey, -$visible);
 
         return str_replace(
             [$this->licenceKey, rawurlencode($this->licenceKey)],

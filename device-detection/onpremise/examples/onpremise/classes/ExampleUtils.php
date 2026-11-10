@@ -31,7 +31,7 @@ class ExampleUtils
 
     // Environment variable that can name the device detection data file. It
     // is the name the 51Degrees examples in every language read.
-    public const DATA_FILE_ENV_VAR = '51DEGREES_DD_PATH';
+    public const DATA_FILE_ENV_VAR = '_51DEGREES_DD_PATH';
 
     // Sent with each download of a data file, so that downloads can be
     // counted by where they come from. It is left out inside GitHub Actions,
@@ -45,7 +45,7 @@ class ExampleUtils
     public const NEEDS_ENTERPRISE = 'needs the Enterprise data file';
 
     /**
-     * Use the data file named by the 51DEGREES_DD_PATH environment variable,
+     * Use the data file named by the _51DEGREES_DD_PATH environment variable,
      * when it is set, in place of the one set in php.ini.
      *
      * The engine is created once, when PHP starts, from the

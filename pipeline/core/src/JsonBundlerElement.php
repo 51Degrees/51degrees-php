@@ -54,9 +54,9 @@ class JsonBundlerElement extends FlowElement
     private array $propertyCache = [];
 
     /**
-     * The JSONBundler reads the Element Data of the other elements, and the
-     * sequence number the Sequence Element produced, so it accepts no
-     * Evidence.
+     * The JSONBundler accepts no Evidence. It reads the Element Data of the
+     * other elements, and the sequence number the Sequence Element adds to
+     * Evidence, which the Sequence Element's own filter keeps.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
@@ -64,18 +64,15 @@ class JsonBundlerElement extends FlowElement
     }
 
     /**
-     * The sequence number the Sequence Element produced for this FlowData.
-     * A sequence in Evidence does not count, as a request can carry one.
+     * The integer under query.sequence in Evidence, which the Sequence
+     * Element adds. A value from the query string is text, so it is not a
+     * sequence number.
      *
-     * @throws \Exception when no Sequence Element has produced one
+     * @throws \Exception when Evidence holds no integer sequence number
      */
     private function getSequence(FlowData $flowData): int
     {
-        try {
-            $sequence = $flowData->get('sequence')->get('sequence');
-        } catch (\Exception $e) {
-            $sequence = null;
-        }
+        $sequence = $flowData->evidence->get('query.sequence');
 
         if (!is_int($sequence)) {
             throw new \Exception(Messages::NO_SEQUENCE);

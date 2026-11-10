@@ -26,29 +26,28 @@ namespace fiftyone\pipeline\core\tests;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
-use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Gives the JSON bundler the sequence number it needs and leaves Evidence
- * alone, so the Evidence reaches the JavaScript builder as it was supplied.
+ * Stands in for the JSON bundler, giving the JSON it builds when no other
+ * element has data. The JSON bundler needs a sequence number in Evidence,
+ * and these tests give the JavaScript builder the query string's values as
+ * they were supplied.
  */
-class FixedSequenceElement extends FlowElement
+class FixedJsonElement extends FlowElement
 {
-    public string $dataKey = 'sequence';
+    public string $dataKey = 'jsonbundler';
 
     public array $properties = [
-        'session-id' => ['name' => 'session-id', 'type' => 'string'],
-        'sequence' => ['name' => 'sequence', 'type' => 'int'],
+        'json' => ['name' => 'json', 'type' => 'array'],
     ];
 
     public function processInternal($flowData): void
     {
         $flowData->setElementData(new ElementDataDictionary($this, [
-            'session-id' => 'fixed',
-            'sequence' => 1,
+            'json' => ['javascriptProperties' => []],
         ]));
     }
 }
@@ -56,9 +55,8 @@ class FixedSequenceElement extends FlowElement
 /**
  * The script must parse whatever the pipeline holds. The sequence is written
  * into the script as bare code and the session id inside quotes, and a
- * pipeline whose sequence number does not come from the SequenceElement, for
- * example one built from a configuration file, passes the query string's
- * values, or nothing at all, straight to the builder.
+ * pipeline without a SequenceElement passes the query string's values, or
+ * nothing at all, straight to the builder.
  *
  * The script is checked with "node --check", which needs Node on the path.
  * Every GitHub hosted runner has it.
@@ -67,7 +65,8 @@ class JavaScriptBuilderSequenceTests extends TestCase
 {
     /**
      * Render the script. Without the sequence element the pipeline has a
-     * FixedSequenceElement, the JSON bundler and the JavaScript builder.
+     * FixedJsonElement in place of the JSON bundler, and the JavaScript
+     * builder.
      */
     private static function render(
         array $evidence = [],
@@ -80,8 +79,7 @@ class JavaScriptBuilderSequenceTests extends TestCase
         }
         $builder = new PipelineBuilder($settings);
         if (!$sequenceElement) {
-            $builder->add(new FixedSequenceElement());
-            $builder->add(new JsonBundlerElement());
+            $builder->add(new FixedJsonElement());
             $builder->add(new JavascriptBuilderElement(['minify' => $minify]));
         }
         $flowData = $builder->build()->createFlowData();

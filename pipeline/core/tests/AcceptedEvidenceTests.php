@@ -63,8 +63,8 @@ class AcceptedEvidenceTests extends TestCase
     }
 
     /**
-     * The JSON bundler reads the sequence from the Sequence Element's
-     * Element Data, so it accepts no Evidence.
+     * The JSON bundler reads the sequence number the Sequence Element adds
+     * to Evidence, and accepts no Evidence itself.
      */
     public function testJsonBundlerAcceptsNoEvidence()
     {

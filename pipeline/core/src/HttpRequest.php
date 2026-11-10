@@ -122,6 +122,10 @@ final class HttpRequest
         return $this->clientIp;
     }
 
+    /**
+     * The request's own protocol, http or https, from the HTTPS server
+     * value or the X-Forwarded-Proto header. The Referer does not change it.
+     */
     public function getProtocol(): string
     {
         return $this->protocol;

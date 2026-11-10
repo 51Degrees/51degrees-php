@@ -36,6 +36,16 @@ class Evidence
      */
     private const DEFAULT_MAX_INPUT_VARS = 1000;
 
+    /**
+     * The two request headers PHP puts in $_SERVER without the HTTP_ prefix,
+     * by their $_SERVER name, with the header name each is given in the web
+     * request.
+     */
+    private const UNPREFIXED_HEADERS = [
+        'CONTENT_TYPE' => 'content-type',
+        'CONTENT_LENGTH' => 'content-length',
+    ];
+
     protected FlowData $flowData;
 
     /**
@@ -141,7 +151,7 @@ class Evidence
             }
         }
 
-        foreach (['CONTENT_TYPE' => 'content-type', 'CONTENT_LENGTH' => 'content-length'] as $name => $key) {
+        foreach (self::UNPREFIXED_HEADERS as $name => $key) {
             if (isset($server[$name]) && !isset($headers[$key])) {
                 $headers[$key] = (string) $server[$name];
             }
@@ -171,6 +181,11 @@ class Evidence
             $protocol = 'http';
         }
 
+        // The web request's view keeps the request's own protocol, so the
+        // Referer below, which is the scheme of the page that made the
+        // request, changes only the header.protocol Evidence.
+        $requestProtocol = $protocol;
+
         // Override protocol with referer header if set
 
         if (isset($server['HTTP_REFERER']) && $server['HTTP_REFERER']) {
@@ -187,7 +202,7 @@ class Evidence
             $query,
             isset($_SESSION) && is_array($_SESSION) ? $_SESSION : [],
             (string) ($server['REMOTE_ADDR'] ?? ''),
-            (string) $protocol,
+            $requestProtocol,
             (string) ($server['REQUEST_METHOD'] ?? ''),
             self::pathOf((string) ($server['REQUEST_URI'] ?? ''))
         );
@@ -382,7 +397,7 @@ class Evidence
     /**
      * Get a piece of evidence by key.
      *
-     * @return null|int|string
+     * @return null|int|string|HttpRequest
      */
     public function get(string $key)
     {

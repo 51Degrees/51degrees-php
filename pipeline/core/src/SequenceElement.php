@@ -74,8 +74,9 @@ class SequenceElement extends FlowElement
         // The session id and the sequence are each taken from Evidence
         // independently. A value that is absent, or not a string (a repeated
         // query parameter gives an array), is treated as absent. A sequence
-        // that is not a positive 32 bit integer is also treated as absent,
-        // as the JavaScript builder renders any such value as 1.
+        // that is not a whole number, or a string of digits only, from 0 up
+        // to MAX_SEQUENCE is also treated as absent, so adding one stays
+        // within a 32 bit integer. 0 and an absent sequence both give 1.
         $sessionId = $flowData->evidence->get('query.session-id');
         if (!is_string($sessionId) || $sessionId === '') {
             $sessionId = uniqid();

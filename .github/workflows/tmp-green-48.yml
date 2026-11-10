@@ -1,0 +1,20 @@
+name: tmp green 48
+on: push
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['7.4', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+      - name: Install the core package's dependencies
+        working-directory: pipeline/core
+        run: composer update --no-interaction --no-progress
+      - name: Run the client-side response tests alone
+        working-directory: pipeline/core
+        run: vendor/bin/phpunit --bootstrap vendor/autoload.php tests/ClientSideResponseTests.php

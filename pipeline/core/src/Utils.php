@@ -65,6 +65,13 @@ class Utils
     private const ENTITY_TAG = '/\G(W\/)?"([\x21\x23-\x7e\x80-\xff]*)"/';
 
     /**
+     * A field name of RFC 9110 section 5.1, being a token of section 5.6.2,
+     * in lower case. A name that is not one would make the Vary header
+     * invalid.
+     */
+    private const FIELD_NAME = '/^[!#$%&\'*+.^_`|~0-9a-z-]+$/D';
+
+    /**
      * The optional whitespace around the commas of a list, RFC 9110 section
      * 5.6.3.
      */
@@ -282,33 +289,63 @@ class Utils
     }
 
     /**
-     * The request headers the Pipeline's elements accept, for the Vary
-     * header.
+     * The headers in the Pipeline's Evidence key filter, for the Vary
+     * header, whether or not this request carried them. An element whose
+     * filter is a list names every header in it. A filter that is a function
+     * cannot list its headers, so such an element names the request's
+     * headers that it accepts.
      *
      * @param array<string, mixed> $server
      */
     private static function vary(FlowData $flowData, array $server): string
     {
-        $names = [];
+        $requestHeaders = [];
         foreach (array_keys($server) as $name) {
-            if (strpos((string) $name, 'HTTP_') !== 0) {
-                continue;
+            if (strpos((string) $name, 'HTTP_') === 0) {
+                $requestHeaders[] = strtolower(
+                    str_replace('_', '-', substr((string) $name, 5))
+                );
             }
-            $name = strtolower(str_replace('_', '-', substr((string) $name, 5)));
-            $key = 'header.' . $name;
-            if (self::isRevalidationHeader($key)) {
-                continue;
-            }
-            foreach ($flowData->pipeline->flowElements as $flowElement) {
-                if ($flowElement->filterEvidenceKey($key)) {
-                    $names[$name] = ucwords($name, '-');
-                    break;
+        }
+
+        $names = [];
+        foreach ($flowData->pipeline->flowElements as $flowElement) {
+            $filter = $flowElement->getEvidenceKeyFilter();
+            if ($filter instanceof BasicListEvidenceKeyFilter) {
+                foreach ($filter->getList() as $key) {
+                    $key = strtolower((string) $key);
+                    if (strpos($key, 'header.') === 0) {
+                        self::addVaryName($names, $key);
+                    }
+                }
+            } else {
+                foreach ($requestHeaders as $name) {
+                    $key = 'header.' . $name;
+                    if ($flowElement->filterEvidenceKey($key)) {
+                        self::addVaryName($names, $key);
+                    }
                 }
             }
         }
         ksort($names, SORT_STRING);
 
         return implode(', ', $names);
+    }
+
+    /**
+     * Add the header of a lower case header Evidence key to the Vary names,
+     * unless it is a revalidation header or not a field name.
+     *
+     * @param array<string, string> $names The names so far, by lower case
+     * name
+     */
+    private static function addVaryName(array &$names, string $key): void
+    {
+        $name = substr($key, strlen('header.'));
+        if (preg_match(self::FIELD_NAME, $name) === 1
+            && !self::isRevalidationHeader($key)) {
+            $names[$name] = ucwords($name, '-');
+        }
     }
 
     private static function isRevalidationHeader(string $key): bool

@@ -38,6 +38,11 @@ class JsonBundlerElement extends FlowElement
     public string $dataKey = 'jsonbundler';
 
     /**
+     * The nullreason of a Property assigned no value without a message.
+     */
+    private const NO_VALUE_MESSAGE = 'This instance does not have a set value';
+
+    /**
      * @var array<string, mixed>
      */
     public array $json;
@@ -132,7 +137,7 @@ class JsonBundlerElement extends FlowElement
 
             foreach ($properties as $propertyKey => $property) {
                 $value = null;
-                $nullReason = 'Unknown';
+                $nullReason = null;
 
                 // Check if property has delayed execution and set in JSON if yes
                 if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
@@ -154,10 +159,9 @@ class JsonBundlerElement extends FlowElement
                         if ($valueContainer->hasValue) {
                             $value = $valueContainer->value;
                         } else {
-                            $value = null;
                             $nullReason = !empty($valueContainer->noValueMessage)
                                 ? $valueContainer->noValueMessage
-                                : 'Unknown';
+                                : self::NO_VALUE_MESSAGE;
                         }
                     } else {
                         // Standard value
@@ -168,9 +172,14 @@ class JsonBundlerElement extends FlowElement
                     continue;
                 }
 
-                $output[strtolower($flowElement->dataKey)][strtolower($propertyKey)] = $value;
-                if ($value === null) {
+                // A Property assigned no value is written as null with its
+                // reason. Any other null, such as a plain null from an
+                // element that is not an Engine, has no entry.
+                if ($nullReason !== null) {
+                    $output[strtolower($flowElement->dataKey)][strtolower($propertyKey)] = null;
                     $output[strtolower($flowElement->dataKey)][strtolower($propertyKey) . 'nullreason'] = $nullReason;
+                } elseif ($value !== null) {
+                    $output[strtolower($flowElement->dataKey)][strtolower($propertyKey)] = $value;
                 }
 
                 $sequence = $flowData->evidence->get('query.sequence');

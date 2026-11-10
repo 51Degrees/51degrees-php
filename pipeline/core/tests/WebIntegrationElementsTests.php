@@ -200,4 +200,40 @@ class WebIntegrationElementsTests extends TestCase
             $flowData->jsonbundler->json['sequence']
         );
     }
+
+    public static function provider_sequenceInput(): array
+    {
+        return [
+            'zero' => ['0', 1],
+            'leading zeros' => ['000000000007', 8],
+            'largest text' => ['2147483646', 2147483647],
+            'largest number' => [2147483646, 2147483647],
+            'past largest text' => ['2147483647', 1],
+            'past largest number' => [2147483647, 1],
+            'plus sign' => ['+5', 1],
+            'leading space' => [' 5', 1],
+            'trailing space' => ['5 ', 1],
+            'trailing new line' => ["5\n", 1],
+            'negative number' => [-3, 1],
+        ];
+    }
+
+    /**
+     * A query.sequence counts only when it is a whole number, or a string of
+     * the digits 0 to 9 with no sign or spaces, from 0 up to 2147483646, so
+     * that adding one stays within a 32 bit integer. Any other value counts
+     * as absent, and 0 and an absent sequence both give 1.
+     * @dataProvider provider_sequenceInput
+     */
+    #[DataProvider('provider_sequenceInput')]
+    public function testSequenceElementCountsOnlyAUsableSequence($value, int $expected)
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.session-id', 'abc');
+        $flowData->evidence->set('query.sequence', $value);
+        $flowData->process();
+
+        $this->assertSame($expected, $flowData->sequence->get('sequence'));
+        $this->assertSame($expected, $flowData->evidence->get('query.sequence'));
+    }
 }

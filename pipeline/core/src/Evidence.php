@@ -36,12 +36,33 @@ class Evidence
      */
     private const DEFAULT_MAX_INPUT_VARS = 1000;
 
+    /**
+     * The two request headers PHP puts in $_SERVER without the HTTP_ prefix,
+     * by their $_SERVER name, with the header name each is given in the web
+     * request.
+     */
+    private const UNPREFIXED_HEADERS = [
+        'CONTENT_TYPE' => 'content-type',
+        'CONTENT_LENGTH' => 'content-length',
+    ];
+
     protected FlowData $flowData;
 
     /**
      * @var array<string, int|string>
      */
     protected array $evidence = [];
+
+    /**
+     * The key the web request is held under.
+     */
+    public const HTTP_REQUEST_KEY = 'server.http-request';
+
+    /**
+     * The web request, kept apart from the values above so that it never
+     * reaches an element's filter, a cache key or a request to the cloud.
+     */
+    protected ?HttpRequest $httpRequest = null;
 
     /**
      * Evidence container constructor.
@@ -117,6 +138,7 @@ class Evidence
         }
 
         $evidence = [];
+        $headers = [];
 
         foreach ($server as $name => $value) {
             if (substr($name, 0, 5) == 'HTTP_') {
@@ -125,6 +147,13 @@ class Evidence
                 $key = strtolower($key);
 
                 $evidence['header.' . $key] = $value;
+                $headers[$key] = (string) $value;
+            }
+        }
+
+        foreach (self::UNPREFIXED_HEADERS as $name => $key) {
+            if (isset($server[$name]) && !isset($headers[$key])) {
+                $headers[$key] = (string) $server[$name];
             }
         }
 
@@ -152,6 +181,11 @@ class Evidence
             $protocol = 'http';
         }
 
+        // The web request's view keeps the request's own protocol, so the
+        // Referer below, which is the scheme of the page that made the
+        // request, changes only the header.protocol Evidence.
+        $requestProtocol = $protocol;
+
         // Override protocol with referer header if set
 
         if (isset($server['HTTP_REFERER']) && $server['HTTP_REFERER']) {
@@ -161,6 +195,28 @@ class Evidence
         $evidence['header.protocol'] = $protocol;
 
         $this->setArray($evidence);
+
+        $this->httpRequest = new HttpRequest(
+            $headers,
+            $cookies,
+            $query,
+            isset($_SESSION) && is_array($_SESSION) ? $_SESSION : [],
+            (string) ($server['REMOTE_ADDR'] ?? ''),
+            $requestProtocol,
+            (string) ($server['REQUEST_METHOD'] ?? ''),
+            self::pathOf((string) ($server['REQUEST_URI'] ?? ''))
+        );
+    }
+
+    /**
+     * The path of a request target, being everything before the first ? or #,
+     * left as sent.
+     */
+    private static function pathOf(string $target): string
+    {
+        $end = strcspn($target, '?#');
+
+        return substr($target, 0, $end);
     }
 
     /**
@@ -341,15 +397,20 @@ class Evidence
     /**
      * Get a piece of evidence by key.
      *
-     * @return null|int|string
+     * @return null|int|string|HttpRequest
      */
     public function get(string $key)
     {
+        if ($key === self::HTTP_REQUEST_KEY) {
+            return $this->httpRequest;
+        }
+
         return $this->evidence[$key] ?? null;
     }
 
     /**
-     * Get all evidence.
+     * Get all evidence, apart from the web request that get() returns under
+     * server.http-request.
      *
      * @return array<string, int|string>
      */

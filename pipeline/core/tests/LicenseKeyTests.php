@@ -70,6 +70,14 @@ class LicenseKeyTests extends TestCase
         );
     }
 
+    public function testMaskQueryMasksTheLicenceSpelling()
+    {
+        $this->assertSame(
+            'https://example.com/a.json?licence=*********1234&LicenceKey=****WXYZ',
+            LicenseKey::maskQuery('https://example.com/a.json?licence=SECRETKEY1234&LicenceKey=STUVWXYZ')
+        );
+    }
+
     public function testMaskQueryLeavesOtherParametersAlone()
     {
         $text = 'http://h/p?resource=ABCDEFGH&licensed=no&query=license';

@@ -124,6 +124,11 @@ class ExampleWebTests extends TestCase
         );
         $this->assertSame(304, $again['response_code']);
         $this->assertSame($first['ETag'], $again['ETag']);
+        // A 304 has no content, so it carries no PHP default Content-Type.
+        $this->assertArrayNotHasKey(
+            'content-type',
+            array_change_key_case($again, CASE_LOWER)
+        );
     }
 
     /**

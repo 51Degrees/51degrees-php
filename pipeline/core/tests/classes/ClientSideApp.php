@@ -24,6 +24,7 @@
 namespace fiftyone\pipeline\core\tests\classes;
 
 use fiftyone\pipeline\core\ClientSideResponse;
+use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\Utils;
@@ -40,14 +41,22 @@ class ClientSideApp
 
     public Pipeline $pipeline;
 
-    public function __construct()
+    /**
+     * @param array<FlowElement> $elements Elements to add after the
+     * SwitchableElement
+     */
+    public function __construct(array $elements = [])
     {
-        $this->pipeline = (new PipelineBuilder([
+        $builder = (new PipelineBuilder([
             'javascriptBuilderSettings' => [
                 'endpoint' => '/json',
                 'minify' => false
             ],
-        ]))->add(new SwitchableElement())->build();
+        ]))->add(new SwitchableElement());
+        foreach ($elements as $element) {
+            $builder->add($element);
+        }
+        $this->pipeline = $builder->build();
         // PipelineBuilder does not pass this setting on, so set it on the
         // Pipeline, where FlowData::process reads it.
         $this->pipeline->suppressProcessExceptions = true;

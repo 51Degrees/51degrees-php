@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\core\tests;
 use Composer\Autoload\ClassLoader;
 use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\core\tests\classes\ClientSideApp;
+use fiftyone\pipeline\core\tests\classes\ListedEvidenceElement;
 use fiftyone\pipeline\core\tests\classes\SwitchableElement;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -93,6 +94,56 @@ class ClientSideResponseTests extends TestCase
                 $method
             );
         }
+    }
+
+    /**
+     * Vary names every header in the Pipeline's Evidence key filter, as the
+     * cache header detail of the web integration specification says, and
+     * not only the ones this request carried. A browser that kept the
+     * response to a request without one of them then asks again when it
+     * sends one. Host comes from the JavaScript Builder Element, whose filter
+     * is not a list.
+     */
+    public function testVaryNamesEveryListedHeader(): void
+    {
+        $app = new ClientSideApp([new ListedEvidenceElement([
+            'header.Accept-Language',
+            'header.sec-ch-ua-platform',
+            'header.User-Agent',
+            'query.user-agent',
+            'cookie.preference',
+        ])]);
+
+        foreach (['GET', 'POST'] as $method) {
+            $this->assertSame(
+                'Accept-Language, Host, Sec-Ch-Ua-Platform, User-Agent',
+                $app->respond($method)->headers['Vary'],
+                $method
+            );
+        }
+    }
+
+    /**
+     * A listed name that is not an HTTP field name, RFC 9110 section 5.1,
+     * would make the Vary header invalid, and a header a browser adds when
+     * it revalidates is not Evidence, so neither is named.
+     */
+    public function testVaryLeavesOutNamesThatCannotVary(): void
+    {
+        $app = new ClientSideApp([new ListedEvidenceElement([
+            'header.accept-language',
+            'header.',
+            'header.two words',
+            'header.a,b',
+            "header.x-split\r\nx-other",
+            'header.if-none-match',
+            'header.cache-control',
+        ])]);
+
+        $this->assertSame(
+            'Accept-Language, Host, User-Agent',
+            $app->respond('GET')->headers['Vary']
+        );
     }
 
     public function testTheContentTypeSaysWhichEndpointAnswered(): void
@@ -432,6 +483,47 @@ class ClientSideResponseTests extends TestCase
         });
 
         $this->assertSame([$response->body], $written);
+    }
+
+    /**
+     * send() keeps PHP from adding its default Content-Type to a 304 or a
+     * 412, which have no content, and leaves the default_mimetype setting
+     * as it was for the rest of the request. This runs in its own process,
+     * because send() sets headers.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testSendLeavesTheDefaultMimetypeAsItWas(): void
+    {
+        ini_set('default_mimetype', 'text/html');
+        $etags = [
+            'GET' => $this->app->respond('GET')->headers['ETag'],
+            'POST' => $this->app->respond('POST')->headers['ETag'],
+        ];
+
+        foreach (['GET' => 304, 'POST' => 412] as $method => $status) {
+            $response = $this->app->respond(
+                $method,
+                ['HTTP_IF_NONE_MATCH' => $etags[$method]]
+            );
+            $this->assertSame($status, $response->status, $method);
+            $this->assertArrayNotHasKey(
+                'Content-Type',
+                $response->headers,
+                $method
+            );
+
+            $response->send();
+
+            $this->assertSame(
+                'text/html',
+                ini_get('default_mimetype'),
+                $method
+            );
+        }
     }
 
     /**

@@ -40,6 +40,11 @@ class FalsyValuesElement extends FlowElement
         'Zero' => ['type' => 'int'],
         'Empty' => ['type' => 'string'],
         'Missing' => ['type' => 'string'],
+        'Reasoned' => ['type' => 'string'],
+        'PlainNull' => ['type' => 'string'],
+        'NullValue' => ['type' => 'string'],
+        'NotSet' => ['type' => 'string'],
+        'PlainScript' => ['type' => 'javascript'],
     ];
 
     public function processInternal($flowData): void
@@ -49,20 +54,24 @@ class FalsyValuesElement extends FlowElement
             'Zero' => new AspectPropertyValue(null, 0),
             'Empty' => new AspectPropertyValue(null, ''),
             'Missing' => new AspectPropertyValue(),
+            'Reasoned' => new AspectPropertyValue('No match'),
+            'PlainNull' => null,
+            'NullValue' => new AspectPropertyValue(null, null),
+            'PlainScript' => null,
         ]));
     }
 }
 
 /**
- * The JSON Bundler adds a nullreason only for a Property that has no value,
- * and always as a string.
+ * The JSON Bundler writes null, with a string nullreason, only for a Property
+ * that has been assigned no value. A plain null has no entry.
  */
 class JsonBundlerNullTests extends TestCase
 {
     /**
      * @return array<string, mixed>
      */
-    private function json(): array
+    private function fullJson(): array
     {
         $flowData = (new PipelineBuilder([]))
             ->add(new FalsyValuesElement())
@@ -70,7 +79,49 @@ class JsonBundlerNullTests extends TestCase
             ->createFlowData();
         $flowData->process();
 
-        return $flowData->jsonbundler->json['falsy'];
+        return $flowData->jsonbundler->json;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function json(): array
+    {
+        return $this->fullJson()['falsy'];
+    }
+
+    public function testAPlainNullHasNoEntryAndNoNullReason()
+    {
+        $json = $this->json();
+
+        foreach (['plainnull', 'nullvalue', 'notset', 'plainscript'] as $name) {
+            $this->assertArrayNotHasKey($name, $json);
+            $this->assertArrayNotHasKey($name . 'nullreason', $json);
+        }
+    }
+
+    public function testAPlainNullJavaScriptPropertyIsStillListed()
+    {
+        $this->assertContains(
+            'falsy.plainscript',
+            $this->fullJson()['javascriptProperties']
+        );
+    }
+
+    public function testTheNullReasonIsTheMessageGiven()
+    {
+        $json = $this->json();
+
+        $this->assertNull($json['reasoned']);
+        $this->assertSame('No match', $json['reasonednullreason']);
+    }
+
+    public function testANoValueWithoutAMessageSaysItHasNoSetValue()
+    {
+        $this->assertSame(
+            'This instance does not have a set value',
+            $this->json()['missingnullreason']
+        );
     }
 
     public function testFalseZeroAndEmptyValuesAreWrittenAsTheyAre()

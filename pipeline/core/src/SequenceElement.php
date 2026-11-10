@@ -38,6 +38,14 @@ class SequenceElement extends FlowElement
     public string $dataKey = 'sequence';
 
     /**
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'session-id' => ['name' => 'session-id', 'type' => 'string'],
+        'sequence' => ['name' => 'sequence', 'type' => 'int'],
+    ];
+
+    /**
      * The SequenceElement uses query.sequence and query.session-id evidence.
      */
     public function getEvidenceKeyFilter(): EvidenceKeyFilter
@@ -57,26 +65,33 @@ class SequenceElement extends FlowElement
 
     /**
      * The SequenceElement stores session data for requests for JavaScript.
+     * It writes the session id and sequence to Evidence, under
+     * query.session-id and query.sequence, and to its Element Data, under
+     * session-id and sequence.
      */
     public function processInternal(FlowData $flowData): void
     {
-        if ($flowData->evidence->get('query.session-id')) {
-            // Get current sequence number. A value that is absent or is not a
-            // positive 32 bit integer is treated as no sequence at all, so the
-            // request is sequence 1 rather than carrying a number the script
-            // cannot use. The JavaScript builder renders any value it cannot
-            // use as 1 in the same way.
-            $sequence = JavascriptBuilderElement::parseSequence(
-                $flowData->evidence->get('query.sequence')
-            );
-
-            $flowData->evidence->set(
-                'query.sequence',
-                $sequence === null ? 1 : $sequence + 1
-            );
-        } else {
-            $flowData->evidence->set('query.session-id', uniqid());
-            $flowData->evidence->set('query.sequence', 1);
+        // The session id and the sequence are each taken from Evidence
+        // independently. A value that is absent, or not a string (a repeated
+        // query parameter gives an array), is treated as absent. A sequence
+        // that is not a positive 32 bit integer is also treated as absent,
+        // as the JavaScript builder renders any such value as 1.
+        $sessionId = $flowData->evidence->get('query.session-id');
+        if (!is_string($sessionId) || $sessionId === '') {
+            $sessionId = uniqid();
         }
+
+        $sequence = JavascriptBuilderElement::parseSequence(
+            $flowData->evidence->get('query.sequence')
+        );
+        $sequence = $sequence === null ? 1 : $sequence + 1;
+
+        $flowData->evidence->set('query.session-id', $sessionId);
+        $flowData->evidence->set('query.sequence', $sequence);
+
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'session-id' => $sessionId,
+            'sequence' => $sequence,
+        ]));
     }
 }

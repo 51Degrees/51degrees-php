@@ -31,6 +31,9 @@ use the Linux commands below.
   and `device-detection/onpremise/readme.md` adds `libatomic1`.
 - SWIG 4.1 or later for IP Intelligence, which generates its wrapper when it
   builds. On macOS, CI installs it with `brew install swig`.
+- SWIG 4.5.1 only to regenerate the Device Detection wrapper. That wrapper is
+  committed, and `device-detection/onpremise/on-premise/generate-wrapper.sh`
+  rewrites it (`--check` compares it), so never edit `hash_wrap.cxx` by hand.
 - For the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS), which the
   data repository's shell script needs, and network access to
   `distributor.51degrees.com`.
@@ -278,7 +281,7 @@ cd pipeline/core
 `vendor` is `../vendor`.
 
 Check the suite names in the package's `phpunit.xml`. `location` has
-only `Integration`. `pipeline/translation` has `Translation`.
+only `Integration`.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 

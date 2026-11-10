@@ -19,6 +19,7 @@
       <file>tests/JsonBundlerSequenceTests.php</file>
       <file>tests/HttpRequestEvidenceTests.php</file>
       <file>tests/JsonBundlerKeysTests.php</file>
+      <file>tests/LicenseKeyTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

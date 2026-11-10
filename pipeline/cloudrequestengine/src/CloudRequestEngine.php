@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\cloudrequestengine;
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\engines\Engine;
@@ -152,6 +153,27 @@ class CloudRequestEngine extends Engine
         $data = new AspectDataDictionary($this, ['cloud' => $result]);
 
         $flowData->setElementData($data);
+    }
+
+    /**
+     * A response whose JSON has a top-level member named fodid, in any case,
+     * holds a 51Did created for the one request.
+     */
+    protected function holdsValueForOneRequest(ElementData $data): bool
+    {
+        $json = json_decode((string) $data->get('cloud'), true);
+
+        if (!is_array($json)) {
+            return false;
+        }
+
+        foreach (array_keys($json) as $member) {
+            if (strcasecmp((string) $member, 'fodid') === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

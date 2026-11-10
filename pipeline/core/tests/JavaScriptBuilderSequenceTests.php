@@ -140,7 +140,11 @@ class JavaScriptBuilderSequenceTests extends TestCase
             'decimal' => ['1.5'],
             'hexadecimal' => ['0x10'],
             'just too large' => ['2147483648'],
-            'far too large' => ['99999999999999999999']
+            'far too large' => ['99999999999999999999'],
+            'largest 32 bit' => ['2147483647'],
+            'plus sign' => ['+5'],
+            'leading space' => [' 5'],
+            'trailing space' => ['5 ']
         ];
     }
 
@@ -170,7 +174,10 @@ class JavaScriptBuilderSequenceTests extends TestCase
             'zero' => ['0'],
             'too large' => ['99999999999'],
             'empty' => [''],
-            'largest' => ['2147483647']
+            'largest' => ['2147483647'],
+            'plus sign' => ['+5'],
+            'leading space' => [' 5'],
+            'trailing space' => ['5 ']
         ];
     }
 
@@ -200,10 +207,8 @@ class JavaScriptBuilderSequenceTests extends TestCase
     {
         return [
             'text' => ['7', 7],
-            'spaces' => [' 7 ', 7],
-            'plus' => ['+3', 3],
             'leading zeros' => ['007', 7],
-            'largest' => ['2147483647', 2147483647],
+            'largest' => ['2147483646', 2147483646],
             'number' => [12, 12]
         ];
     }
@@ -350,7 +355,8 @@ class JavaScriptBuilderSequenceTests extends TestCase
             'int zero' => [0, 1],
             'int negative' => [-1, 1],
             'int smallest' => [1, 1],
-            'int largest' => [2147483647, 2147483647],
+            'int largest' => [2147483646, 2147483646],
+            'int past largest' => [2147483647, 1],
             'zero' => ['0', 1],
             'minus zero' => ['-0', 1],
             'negative' => ['-3', 1]

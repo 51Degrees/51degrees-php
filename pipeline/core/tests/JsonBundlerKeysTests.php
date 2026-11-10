@@ -40,9 +40,11 @@ class MixedCaseKeyElement extends FlowElement
             'type' => 'javascript',
             'delayexecution' => true
         ],
+        // NoValue is not delayed, so only DelayedScript is listed, and it is
+        // second in the metadata.
         'NeedsScript' => [
             'type' => 'string',
-            'evidenceproperties' => ['DelayedScript']
+            'evidenceproperties' => ['NoValue', 'DelayedScript']
         ],
         'NoValue' => [
             'type' => 'string'
@@ -100,6 +102,14 @@ class JsonBundlerKeysTests extends TestCase
                 'novaluenullreason',
             ],
             array_keys($this->json()['mixedkey'])
+        );
+    }
+
+    public function testEvidencePropertiesAreLowerCaseNamesInAList()
+    {
+        $this->assertSame(
+            ['mixedkey.delayedscript'],
+            $this->json()['mixedkey']['needsscriptevidenceproperties']
         );
     }
 }

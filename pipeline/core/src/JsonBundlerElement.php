@@ -38,6 +38,12 @@ class JsonBundlerElement extends FlowElement
     public string $dataKey = 'jsonbundler';
 
     /**
+     * From this sequence number on, the JavaScript properties are not listed,
+     * so the script stops asking for them.
+     */
+    private const MAX_SEQUENCE_WITH_JAVASCRIPT = 10;
+
+    /**
      * @var array<string, mixed>
      */
     public array $json;
@@ -48,12 +54,31 @@ class JsonBundlerElement extends FlowElement
     private array $propertyCache = [];
 
     /**
-     * The JSONBundler reads only the sequence, which decides whether it lists
-     * the JavaScript properties, so it accepts no other Evidence.
+     * The JSONBundler accepts no Evidence. It reads the Element Data of the
+     * other elements, and the sequence number the Sequence Element adds to
+     * Evidence, which the Sequence Element's own filter keeps.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
-        return new BasicListEvidenceKeyFilter(['query.sequence']);
+        return new BasicListEvidenceKeyFilter([]);
+    }
+
+    /**
+     * The integer under query.sequence in Evidence, which the Sequence
+     * Element adds. A value from the query string is text, so it is not a
+     * sequence number.
+     *
+     * @throws \Exception when Evidence holds no integer sequence number
+     */
+    private function getSequence(FlowData $flowData): int
+    {
+        $sequence = $flowData->evidence->get('query.sequence');
+
+        if (!is_int($sequence)) {
+            throw new \Exception(Messages::NO_SEQUENCE);
+        }
+
+        return $sequence;
     }
 
     /**
@@ -61,6 +86,10 @@ class JsonBundlerElement extends FlowElement
      */
     public function processInternal(FlowData $flowData): void
     {
+        // The sequence number decides whether the JavaScript properties are
+        // listed. Without one from a Sequence Element the JSON is not built.
+        $sequence = $this->getSequence($flowData);
+
         // Get every property on every FlowElement
         // Storing JavaScript properties in an extra section
 
@@ -108,13 +137,15 @@ class JsonBundlerElement extends FlowElement
                             }
                         );
 
+                        // Each name is lower case, as the keys are, and the
+                        // names form a list, so the filter's gaps are closed.
                         if (count($delayedEvidencePropertiesList)) {
-                            $delayedEvidenceProperties[$propertyKey] = array_map(
+                            $delayedEvidenceProperties[$propertyKey] = array_values(array_map(
                                 function ($property) use ($flowElement) {
-                                    return $flowElement->dataKey . '.' . $property;
+                                    return strtolower($flowElement->dataKey . '.' . $property);
                                 },
                                 $delayedEvidencePropertiesList
-                            );
+                            ));
                         }
                     }
                 }
@@ -127,8 +158,10 @@ class JsonBundlerElement extends FlowElement
 
             $propertyCache = $this->propertyCache[$flowElement->dataKey];
 
-            // Create empty area for FlowElement properties to go
-            $output[$flowElement->dataKey] = [];
+            // Create empty area for FlowElement properties to go. Every key in
+            // the JSON is lower case.
+            $dataKey = strtolower($flowElement->dataKey);
+            $output[$dataKey] = [];
 
             foreach ($properties as $propertyKey => $property) {
                 $value = null;
@@ -136,12 +169,12 @@ class JsonBundlerElement extends FlowElement
 
                 // Check if property has delayed execution and set in JSON if yes
                 if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
-                    $output[$flowElement->dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
+                    $output[$dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
                 }
 
                 // Check if property has any delayed execution evidence properties and set in JSON if yes
                 if (isset($propertyCache['evidenceProperties'][$propertyKey])) {
-                    $output[$flowElement->dataKey][strtolower($propertyKey) . 'evidenceproperties'] = $propertyCache['evidenceProperties'][$propertyKey];
+                    $output[$dataKey][strtolower($propertyKey) . 'evidenceproperties'] = $propertyCache['evidenceProperties'][$propertyKey];
                 }
 
                 try {
@@ -166,14 +199,12 @@ class JsonBundlerElement extends FlowElement
                     continue;
                 }
 
-                $output[strtolower($flowElement->dataKey)][strtolower($propertyKey)] = $value;
+                $output[$dataKey][strtolower($propertyKey)] = $value;
                 if ($value == null) {
-                    $output[strtolower($flowElement->dataKey)][strtolower($propertyKey) . 'nullreason'] = $nullReason;
+                    $output[$dataKey][strtolower($propertyKey) . 'nullreason'] = $nullReason;
                 }
 
-                $sequence = $flowData->evidence->get('query.sequence');
-
-                if (!$sequence || $sequence < 10) {
+                if ($sequence < self::MAX_SEQUENCE_WITH_JAVASCRIPT) {
                     // Cloud properties come back as capitalized
                     // TODO change this, but for now
                     if (isset($property['Type'])) {
@@ -181,7 +212,7 @@ class JsonBundlerElement extends FlowElement
                     }
 
                     if (isset($property['type']) && strtolower($property['type']) === 'javascript') {
-                        $output['javascriptProperties'][] = strtolower($flowElement->dataKey) . '.' . strtolower($propertyKey);
+                        $output['javascriptProperties'][] = $dataKey . '.' . strtolower($propertyKey);
                     }
                 }
             }

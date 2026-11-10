@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\cloudrequestengine;
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\engines\Engine;
@@ -155,6 +156,27 @@ class CloudRequestEngine extends Engine
     }
 
     /**
+     * A response whose JSON has a top-level member named fodid, in any case,
+     * holds a 51Did created for the one request.
+     */
+    protected function holdsValueForOneRequest(ElementData $data): bool
+    {
+        $json = json_decode((string) $data->get('cloud'), true);
+
+        if (!is_array($json)) {
+            return false;
+        }
+
+        foreach (array_keys($json) as $member) {
+            if (strcasecmp((string) $member, 'fodid') === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Generate the Content to send in the POST request. The evidence keys
      * e.g. 'query.' and 'header.' have an order of precedence. These are
      * added to the evidence in reverse order, if there is conflict then
@@ -203,6 +225,11 @@ class CloudRequestEngine extends Engine
             // splits into one part and that part is both the prefix and
             // the name, which is what the .NET engine does with it too.
             $suffix = strtolower(end($evidenceKeyParts));
+
+            // Evidence never supplies the request's own fields.
+            if (in_array($suffix, Constants::RESERVED_EVIDENCE_SUFFIXES, true)) {
+                continue;
+            }
 
             // Check and add the evidence to the query parameters.
             if (!array_key_exists($suffix, $queryData)) {

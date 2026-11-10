@@ -63,14 +63,14 @@ class AcceptedEvidenceTests extends TestCase
     }
 
     /**
-     * The JSON bundler reads only the sequence, which decides whether it
-     * lists the JavaScript properties.
+     * The JSON bundler reads the sequence number the Sequence Element adds
+     * to Evidence, and accepts no Evidence itself.
      */
-    public function testJsonBundlerAcceptsOnlyTheSequence()
+    public function testJsonBundlerAcceptsNoEvidence()
     {
         $element = new JsonBundlerElement();
 
-        $this->assertTrue($element->filterEvidenceKey('query.sequence'));
+        $this->assertFalse($element->filterEvidenceKey('query.sequence'));
         foreach (self::UNUSED_KEYS as $key) {
             $this->assertFalse(
                 $element->filterEvidenceKey($key),

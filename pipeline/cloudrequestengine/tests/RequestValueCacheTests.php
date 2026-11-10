@@ -33,7 +33,7 @@ use fiftyone\pipeline\engines\DataKeyedCache;
 use PHPUnit\Framework\TestCase;
 
 /**
- * A cache holding the Cloud Request Engine's responses
+ * A cache holding the Cloud Request Engine's responses.
  */
 class ArrayCache extends DataKeyedCache
 {

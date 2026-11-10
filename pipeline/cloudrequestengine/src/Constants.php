@@ -51,6 +51,40 @@ class Constants
     // the certificate cannot be checked or the request times out.
     public const MESSAGE_REQUEST_FAILED = "The request to the cloud service at '%s' could not be made: %s";
 
+    // The keys the cloud service reads its credentials and the list of
+    // requested properties from, in the query string of a GET and in the
+    // form body of a POST.
+    public const RESOURCE_PARAMETER = 'resource';
+    public const LICENSE_PARAMETER = 'license';
+    public const VALUES_PARAMETER = 'values';
+
+    // The path, below the base URL, of the data endpoint that takes no
+    // resource key in its route, used when the engine authenticates on a
+    // license key alone.
+    public const LICENSE_DATA_PATH = 'json';
+
+    // Messages for the credential combinations the engine refuses when it
+    // is built. Each says why the combination cannot work.
+    public const MESSAGE_NO_CREDENTIAL =
+        'CloudRequestEngine needs a resourceKey or a licenseKey to ' .
+        'authenticate with, as the cloud service answers 401 to a request ' .
+        'that carries neither. Create a resource key for free at ' .
+        'https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=pipeline-cloudrequestengine-src-constants.php&utm_term=no-credential';
+    public const MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES =
+        'CloudRequestEngine has a licenseKey and no requestedProperties. ' .
+        'A license key names no properties of its own, so the cloud ' .
+        'service answers 400 to every request made with one that does not ' .
+        'list the properties it wants. Set requestedProperties to the ' .
+        "fully qualified names wanted, for example ['device.ismobile', " .
+        "'device.iscrawler'].";
+    public const MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY =
+        'CloudRequestEngine has requestedProperties and a resourceKey. ' .
+        'The cloud service ignores the list whenever a resource key is ' .
+        'present and answers with everything the resource key carries, so ' .
+        'the caller would believe the response had narrowed when it had ' .
+        'not. Either leave out requestedProperties, or authenticate with ' .
+        'a licenseKey alone.';
+
     // Evidence key seperator
     public const EVIDENCE_SEPERATOR = '.';
 

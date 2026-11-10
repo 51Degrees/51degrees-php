@@ -45,6 +45,15 @@ class CloudRequestEngine extends Engine
      */
     public array $flowElementProperties = [];
     public string $resourceKey;
+    public string $licenseKey;
+
+    /**
+     * The fully qualified names of the properties each request asks for,
+     * trimmed and lower-cased.
+     *
+     * @var array<string>
+     */
+    public array $requestedProperties = [];
 
     /**
      * @var array<string>
@@ -57,13 +66,20 @@ class CloudRequestEngine extends Engine
     private HttpClient $httpClient;
 
     /**
-     * Settings should contain a resourceKey
+     * Settings should contain a resourceKey or a licenseKey
      * and optionally:
-     * 1) a cloudEndPoint to overwrite the default baseurl
-     * 2) a cloudRequestOrigin to use when sending requests to cloud.
+     * 1) requestedProperties, the fully qualified names of the properties
+     *    to ask for, as an array or one comma separated string. Required
+     *    with a licenseKey alone and refused with a resourceKey, because
+     *    the cloud service ignores the list whenever a resource key is
+     *    present
+     * 2) a cloudEndPoint to overwrite the default baseurl
+     * 3) a cloudRequestOrigin to use when sending requests to cloud.
      *
      * @param array{
      *     resourceKey?: string,
+     *     licenseKey?: string,
+     *     requestedProperties?: array<string>|string,
      *     cloudEndPoint?: string,
      *     cloudRequestOrigin?: string,
      *     httpClient?: \fiftyone\pipeline\cloudrequestengine\HttpClient
@@ -71,11 +87,14 @@ class CloudRequestEngine extends Engine
      */
     public function __construct(array $settings)
     {
-        if (!isset($settings['resourceKey'])) {
-            throw new \Exception('CloudRequestEngine needs a resource key');
-        }
-
-        $this->resourceKey = $settings['resourceKey'];
+        // A credential read from an environment variable often arrives
+        // with a trailing newline, and a value that is only whitespace is a
+        // mistake rather than a key, so each is trimmed and an empty one
+        // counts as absent.
+        $this->resourceKey = trim((string) ($settings['resourceKey'] ?? ''));
+        $this->licenseKey = trim((string) ($settings['licenseKey'] ?? ''));
+        $this->requestedProperties = self::propertyNames($settings['requestedProperties'] ?? null);
+        $this->checkCredentials();
 
         if (isset($settings['cloudEndPoint'])) {
             $this->baseURL = $settings['cloudEndPoint'];
@@ -100,6 +119,70 @@ class CloudRequestEngine extends Engine
         $this->cloudRequestOrigin = $settings['cloudRequestOrigin'] ?? null;
 
         parent::__construct();
+    }
+
+    /**
+     * Refuses a combination of resource key, license key and requested
+     * properties that the cloud service would refuse on every request, so a
+     * deployment sees one configuration error when the engine is built.
+     */
+    private function checkCredentials(): void
+    {
+        $hasResourceKey = $this->resourceKey !== '';
+        $hasLicenseKey = $this->licenseKey !== '';
+        $hasProperties = count($this->requestedProperties) > 0;
+
+        if (!$hasResourceKey && !$hasLicenseKey) {
+            throw new \InvalidArgumentException(Constants::MESSAGE_NO_CREDENTIAL);
+        }
+        if (!$hasResourceKey && !$hasProperties) {
+            throw new \InvalidArgumentException(Constants::MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES);
+        }
+        if ($hasResourceKey && $hasProperties) {
+            throw new \InvalidArgumentException(Constants::MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY);
+        }
+    }
+
+    /**
+     * The property names as trimmed, lower-cased, non-empty names. The
+     * cloud service lower-cases property names in its answer.
+     *
+     * @param null|array<string>|string $value an array of names or one comma separated string
+     * @return array<string>
+     */
+    private static function propertyNames($value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+        $names = [];
+        foreach (is_string($value) ? explode(',', $value) : $value as $name) {
+            $name = strtolower(trim((string) $name));
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * The credentials to send in the body of a request, under the names the
+     * cloud service reads them from. A key that is not set is left out.
+     *
+     * @return array<string, string>
+     */
+    public function getCredentials(): array
+    {
+        $credentials = [];
+        if ($this->resourceKey !== '') {
+            $credentials[Constants::RESOURCE_PARAMETER] = $this->resourceKey;
+        }
+        if ($this->licenseKey !== '') {
+            $credentials[Constants::LICENSE_PARAMETER] = $this->licenseKey;
+        }
+
+        return $credentials;
     }
 
     /**
@@ -143,9 +226,20 @@ class CloudRequestEngine extends Engine
             $this->loadEvidenceKeys();
         }
 
-        $url = $this->baseURL . $this->resourceKey . '.json?';
+        // A resource key names the route. A license key alone has no
+        // resource key to put there, so it uses the endpoint that takes none.
+        $url = $this->resourceKey !== ''
+            ? $this->baseURL . $this->resourceKey . '.json?'
+            : $this->baseURL . Constants::LICENSE_DATA_PATH;
 
-        $content = http_build_query($this->getContent($flowData));
+        // The credentials and the requested properties follow the evidence,
+        // so nothing in the evidence can replace them.
+        $fields = array_merge($this->getContent($flowData), $this->getCredentials());
+        if (count($this->requestedProperties) > 0) {
+            $fields[Constants::VALUES_PARAMETER] = implode(',', $this->requestedProperties);
+        }
+
+        $content = http_build_query($fields);
 
         $result = $this->httpClient->makeCloudRequest('POST', $url, $content, $this->cloudRequestOrigin);
 
@@ -299,14 +393,26 @@ class CloudRequestEngine extends Engine
     {
         // Get properties for all engines
 
-        $propertiesURL = $this->baseURL . 'accessibleProperties?resource=' . $this->resourceKey;
+        // A resource key alone goes in the query string as it always has. A
+        // license key is posted in the body instead, so it stays out of URLs
+        // and so out of anything that logs one.
+        $propertiesURL = $this->baseURL . 'accessibleProperties';
 
-        $properties = $this->httpClient->makeCloudRequest(
-            'GET',
-            $propertiesURL,
-            null,
-            $this->cloudRequestOrigin
-        );
+        if ($this->licenseKey === '') {
+            $properties = $this->httpClient->makeCloudRequest(
+                'GET',
+                $propertiesURL . '?resource=' . $this->resourceKey,
+                null,
+                $this->cloudRequestOrigin
+            );
+        } else {
+            $properties = $this->httpClient->makeCloudRequest(
+                'POST',
+                $propertiesURL,
+                http_build_query($this->getCredentials()),
+                $this->cloudRequestOrigin
+            );
+        }
 
         $properties = json_decode($properties, true);
 

@@ -80,22 +80,24 @@ if (!$resourceKey) {
         // request came from.
         $flowData->evidence->setFromWebRequest();
         $flowData->evidence->set('query.client-ip', $ip);
-        $result = $flowData->process();
 
-        // Ask the browser for the User-Agent Client Hints detection uses.
-        Utils::setResponseHeader($flowData);
-
+        // The script and its callback. Utils processes the flow data itself
+        // and sets the cache headers, so a browser revalidating its copy
+        // gets a 304 without any processing.
         if ($path === '/51Degrees.core.js') {
-            header('Content-Type: application/x-javascript');
-            echo $flowData->javascriptbuilder->javascript;
+            Utils::javascriptResponse($flowData)->send();
             exit;
         }
 
         if ($path === '/json') {
-            header('Content-Type: application/json');
-            echo json_encode($flowData->jsonbundler->json);
+            Utils::jsonResponse($flowData)->send();
             exit;
         }
+
+        $result = $flowData->process();
+
+        // Ask the browser for the User-Agent Client Hints detection uses.
+        Utils::setResponseHeader($flowData);
 
         $device = $result->device;
         $dd = [

@@ -3,9 +3,9 @@
 
 # 51Degrees PHP Cloud Request Engine
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=51degrees-php-cloud-request-engine "Data rewards the curious") **PHP Pipeline API**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **PHP Pipeline API**
 
-[Developer Documentation](https://51degrees.com/documentation/index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=51degrees-php-cloud-request-engine "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=51degrees-php-cloud-request-engine "developer documentation")
 
 ## Introduction
 This project contains the source code for the CloudrequestEngine for the PHP implementation of the 51Degrees Pipeline API.
@@ -45,7 +45,7 @@ then the dependency changed to:
 ## Find out more
 
 - [Build your own](https://51degrees.com/build-your-own?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=find-out-more-build-your-own)
-- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=find-out-more-documentation)
+- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=find-out-more-documentation)
 - [Pipeline API examples](https://51degrees.com/documentation/_pipeline_api__examples__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=find-out-more-examples)
 - [Cloud service documentation](https://51degrees.com/documentation/_services__cloud__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.cloudrequestengine&utm_term=find-out-more-cloud-service)
 - https://github.com/51Degrees/51degrees-php

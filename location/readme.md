@@ -3,9 +3,9 @@
 
 # 51Degrees Geo-Location Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=51degrees-geo-location-engines "Data rewards the curious") **Pipeline API**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **Pipeline API**
 
-[Developer Documentation](https://51degrees.com/location-php/index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=51degrees-geo-location-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=51degrees-geo-location-engines "developer documentation")
 
 ## Introduction
 
@@ -78,7 +78,6 @@ For complete documentation on the Pipeline API and associated engines, see the [
 ## Find out more
 
 - [Geolocation](https://51degrees.com/geolocation?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-geolocation)
-- [Reverse geocoding documentation](https://51degrees.com/documentation/_reverse_geocoding__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-documentation)
-- [Getting started](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-getting-started)
+- [Reverse geocoding documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-documentation)
 - [Pricing](https://51degrees.com/pricing?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-pricing)
 - https://github.com/51Degrees/51degrees-php

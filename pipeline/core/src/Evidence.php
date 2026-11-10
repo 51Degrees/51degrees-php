@@ -54,6 +54,16 @@ class Evidence
     protected array $evidence = [];
 
     /**
+     * The key each value is held under in $evidence, by that key in lower
+     * case. Evidence keys ignore letter case, so a key set again in other
+     * letters replaces the value and keeps the letters it was first set
+     * with.
+     *
+     * @var array<string, string>
+     */
+    private array $keys = [];
+
+    /**
      * The key the web request is held under.
      */
     public const HTTP_REQUEST_KEY = 'server.http-request';
@@ -92,6 +102,12 @@ class Evidence
         }
 
         if ($keep) {
+            $lower = strtolower($key);
+            if (isset($this->keys[$lower])) {
+                $key = $this->keys[$lower];
+            } else {
+                $this->keys[$lower] = $key;
+            }
             $this->evidence[$key] = $value;
         }
     }
@@ -395,17 +411,20 @@ class Evidence
     }
 
     /**
-     * Get a piece of evidence by key.
+     * Get a piece of evidence by key, in any letter case.
      *
      * @return null|int|string|HttpRequest
      */
     public function get(string $key)
     {
-        if ($key === self::HTTP_REQUEST_KEY) {
+        $lower = strtolower($key);
+        if ($lower === self::HTTP_REQUEST_KEY) {
             return $this->httpRequest;
         }
 
-        return $this->evidence[$key] ?? null;
+        $stored = $this->keys[$lower] ?? null;
+
+        return $stored === null ? null : $this->evidence[$stored];
     }
 
     /**

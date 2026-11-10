@@ -163,14 +163,17 @@ class JavaScriptBuilderSequenceTests extends TestCase
             'decimal' => ['1.5'],
             'hexadecimal' => ['0x10'],
             'just too large' => ['2147483648'],
-            'far too large' => ['99999999999999999999']
+            'far too large' => ['99999999999999999999'],
+            'plus sign' => ['+5'],
+            'leading space' => [' 5'],
+            'trailing space' => ['5 ']
         ];
     }
 
     /**
-     * A query.sequence that is not a positive 32 bit integer is rendered as
-     * 1, as the pipeline specification says, so the script parses and nothing
-     * else is written in its place.
+     * A query.sequence that is not a whole number, or a string of the digits
+     * 0 to 9 only, from 1 up to the largest 32 bit integer, is rendered as 1,
+     * so the script parses and nothing else is written in its place.
      * @dataProvider provider_unusableSequence
      */
     #[DataProvider('provider_unusableSequence')]
@@ -193,16 +196,19 @@ class JavaScriptBuilderSequenceTests extends TestCase
             'zero' => ['0'],
             'too large' => ['99999999999'],
             'empty' => [''],
-            'largest' => ['2147483647']
+            'largest' => ['2147483647'],
+            'plus sign' => ['+5'],
+            'leading space' => [' 5'],
+            'trailing space' => ['5 ']
         ];
     }
 
     /**
      * With the SequenceElement the value that reaches the script is the one
-     * the element works out. A query.sequence that is not a positive 32 bit
-     * integer is treated as no sequence, so the request is sequence 1 rather
-     * than carrying a number the script cannot use. The largest sequence has
-     * no next value, so the builder renders 1 for it as well.
+     * the element works out. A query.sequence that is not a whole number, or
+     * a string of the digits 0 to 9 only, from 0 up to 2147483646, is treated
+     * as no sequence, so the request is sequence 1. The largest 32 bit
+     * integer has no next value, so it is treated as no sequence as well.
      * @dataProvider provider_unusableSequenceWithElement
      */
     #[DataProvider('provider_unusableSequenceWithElement')]
@@ -223,8 +229,6 @@ class JavaScriptBuilderSequenceTests extends TestCase
     {
         return [
             'text' => ['7', 7],
-            'spaces' => [' 7 ', 7],
-            'plus' => ['+3', 3],
             'leading zeros' => ['007', 7],
             'largest' => ['2147483647', 2147483647],
             'number' => [12, 12]
@@ -244,6 +248,25 @@ class JavaScriptBuilderSequenceTests extends TestCase
 
         $this->assertSame(
             ['var sequence = ' . $expected . ';'],
+            self::lines($script, 'sequence')
+        );
+        $this->assertParses($script);
+    }
+
+    /**
+     * The SequenceElement's largest output, one more than the largest
+     * sequence it counts from, is rendered as it is.
+     */
+    public function testTheLargestSequenceElementOutputIsRendered(): void
+    {
+        $script = self::render(
+            ['query.session-id' => 'abc', 'query.sequence' => '2147483646'],
+            false,
+            true
+        );
+
+        $this->assertSame(
+            ['var sequence = 2147483647;'],
             self::lines($script, 'sequence')
         );
         $this->assertParses($script);

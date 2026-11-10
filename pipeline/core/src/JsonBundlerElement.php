@@ -108,13 +108,15 @@ class JsonBundlerElement extends FlowElement
                             }
                         );
 
+                        // Each name is lower case, as the keys are, and the
+                        // names form a list, so the filter's gaps are closed.
                         if (count($delayedEvidencePropertiesList)) {
-                            $delayedEvidenceProperties[$propertyKey] = array_map(
+                            $delayedEvidenceProperties[$propertyKey] = array_values(array_map(
                                 function ($property) use ($flowElement) {
-                                    return $flowElement->dataKey . '.' . $property;
+                                    return strtolower($flowElement->dataKey . '.' . $property);
                                 },
                                 $delayedEvidencePropertiesList
-                            );
+                            ));
                         }
                     }
                 }

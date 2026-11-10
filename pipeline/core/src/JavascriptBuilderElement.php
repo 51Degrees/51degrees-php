@@ -215,13 +215,13 @@ class JavascriptBuilderElement extends FlowElement
      *
      * The template writes the sequence as bare code (var sequence = ...;), so
      * anything other than a whole number would stop the script parsing, or
-     * change what it does. A pipeline without a SequenceElement passes the
-     * query string's value, or nothing at all, straight through, and the
-     * pipeline specification requires 1 in that case. This builder goes a
-     * little further than the specification currently says and renders 1
-     * for any value that parseSequence cannot use, up to the largest
-     * sequence the SequenceElement gives, because the script counts its own
-     * requests up from this number and cannot use zero or a negative one.
+     * change what it does. The value is query.sequence when parseSequence
+     * can use it, up to the largest sequence the SequenceElement gives, and
+     * 1 otherwise, because the script counts its own requests up from this
+     * number and cannot use zero or a negative one. With a SequenceElement,
+     * query.sequence holds the element's output. Without one, it holds the
+     * query string's value, or nothing, and a usable value is rendered as
+     * it is.
      *
      * @param mixed $value The query.sequence evidence, or null
      */

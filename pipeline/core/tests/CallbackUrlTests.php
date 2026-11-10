@@ -100,20 +100,22 @@ class CallbackUrlTests extends TestCase
         return [
             ['EXAMPLE.com', 'https://example.com/51dpipeline/json'],
             ['example.com:8080', 'https://example.com:8080/51dpipeline/json'],
-            ['example.com:', 'https://example.com:/51dpipeline/json'],
             ['example.com:65535', 'https://example.com:65535/51dpipeline/json'],
             ['a_b.com', 'https://a_b.com/51dpipeline/json'],
             ['-ab.com', 'https://-ab.com/51dpipeline/json'],
             ['127.0.0.1:80', 'https://127.0.0.1:80/51dpipeline/json'],
+            ['1.2.3.4', 'https://1.2.3.4/51dpipeline/json'],
+            ['1.2.3.4:8080', 'https://1.2.3.4:8080/51dpipeline/json'],
+            ['1.2.3.4/path', 'https://1.2.3.4/path/51dpipeline/json'],
+            ['0.0.0.0', 'https://0.0.0.0/51dpipeline/json'],
+            ['101.2.3.4', 'https://101.2.3.4/51dpipeline/json'],
+            ['example.co1', 'https://example.co1/51dpipeline/json'],
+            ['123.example.com', 'https://123.example.com/51dpipeline/json'],
+            ['0x7f.example.com', 'https://0x7f.example.com/51dpipeline/json'],
             ['[::1]', 'https://[::1]/51dpipeline/json'],
             ['[::1]:8080', 'https://[::1]:8080/51dpipeline/json'],
-            ['[fe80::1%25eth0]', 'https://[fe80::1%25eth0]/51dpipeline/json'],
-            ['user:pw@example.com', 'https://user:pw@example.com/51dpipeline/json'],
-            ['u x@example.com', 'https://u%20x@example.com/51dpipeline/json'],
-            ["u\tx@example.com", 'https://u%09x@example.com/51dpipeline/json'],
             ['example.com.', 'https://example.com./51dpipeline/json'],
             ['example.com/path', 'https://example.com/path/51dpipeline/json'],
-            ['example.com?x', 'https://example.com?x/51dpipeline/json'],
             ['example.com/a b', 'https://example.com/a%20b/51dpipeline/json'],
             ['example.com/a%zzb', 'https://example.com/a%25zzb/51dpipeline/json'],
             ['example.com/a%41b', 'https://example.com/a%41b/51dpipeline/json'],
@@ -150,7 +152,6 @@ class CallbackUrlTests extends TestCase
             ['[::1'],
             ['[v1.x]'],
             ['[1.2.3.4]'],
-            ['a@b@example.com'],
             ['a..b.com'],
             ['%41.com'],
             ['a\\b.com'],
@@ -172,6 +173,9 @@ class CallbackUrlTests extends TestCase
             ["a\nb.com"],
             [' example.com'],
             ['example.com '],
+            ["example.com\n"],
+            ["example.com:80\n"],
+            ["[::1]\n"],
             ["example.com:8080');alert(1);//"]
         ];
     }
@@ -214,15 +218,6 @@ class CallbackUrlTests extends TestCase
         $this->assertInvalid(self::url('https', $host), json_encode($host));
     }
 
-    public function testAcceptsAZoneFollowedByAPort(): void
-    {
-        $this->assertValid(
-            'https://[fe80::1%25eth0]:8080/51dpipeline/json',
-            self::url('https', '[fe80::1%25eth0]:8080'),
-            '[fe80::1%25eth0]:8080'
-        );
-    }
-
     /**
      * A port goes by its value, so leading zeros are allowed, and a port too
      * long to read is refused rather than read as small enough.
@@ -251,16 +246,14 @@ class CallbackUrlTests extends TestCase
     }
 
     /**
-     * Each character rule 8 lists, in the user information, after the host
-     * and in the endpoint, and a '%' without two hexadecimal digits after
-     * it, even at the end.
+     * Each character rule 8 lists, after the host and in the endpoint, and a
+     * '%' without two hexadecimal digits after it, even at the end.
      */
     public function testEncodesTheCharactersRule8Lists(): void
     {
         $this->assertValid(
-            'https://u%22%5E%60%7B%7C%7D@example.com/%22%5E%60%7B%7C%7D' .
-                '/j%22%5E%60%7B%7C%7D',
-            CallbackUrl::of('https', 'u"^`{|}@example.com/"^`{|}', '/j"^`{|}'),
+            'https://example.com/%22%5E%60%7B%7C%7D/j%22%5E%60%7B%7C%7D',
+            CallbackUrl::of('https', 'example.com/"^`{|}', '/j"^`{|}'),
             'rule 8 characters'
         );
         $cases = [
@@ -276,6 +269,190 @@ class CallbackUrlTests extends TestCase
             CallbackUrl::of('https', 'example.com', '/json%'),
             '/json%'
         );
+    }
+
+    public static function provider_zoneIdentifiers(): array
+    {
+        return [
+            ['[fe80::1%25eth0]'],
+            ['[fe80::1%25eth0]:8080'],
+            ['[FE80::1%25ETH0]'],
+            ['[fe80::1%251]'],
+            ['[::1%25lo]'],
+            ['[fe80::1%]'],
+            ['[fe80::1%25eth0]/path']
+        ];
+    }
+
+    /**
+     * Rule 4 refuses an IPv6 zone identifier.
+     *
+     * @dataProvider provider_zoneIdentifiers
+     */
+    #[DataProvider('provider_zoneIdentifiers')]
+    public function testRefusesTheZoneIdentifier(string $host): void
+    {
+        $this->assertInvalid(self::url('https', $host), json_encode($host));
+    }
+
+    public static function provider_userInformation(): array
+    {
+        return [
+            ['user@example.com'],
+            ['user:pw@example.com'],
+            ['@example.com'],
+            [':@example.com'],
+            ['user@example.com:8080'],
+            ['user@[::1]'],
+            ['user@example.com/path'],
+            ['u%41@example.com'],
+            ['u x@example.com'],
+            ["u\tx@example.com"],
+            ['u"x@example.com'],
+            ["u'x@example.com"],
+            ['u\\x@example.com'],
+            ["u\nx@example.com"],
+            ["u\u{1}x@example.com"],
+            ['a@b@example.com'],
+            ['example.com/a@b'],
+            ['exa mple.com/a@b'],
+            ['user:12/ss@example.com'],
+            ['user:pa/ss@example.com'],
+            ['user:pa?ss@example.com']
+        ];
+    }
+
+    /**
+     * Rule 3 refuses an '@' anywhere in the host value.
+     *
+     * @dataProvider provider_userInformation
+     */
+    #[DataProvider('provider_userInformation')]
+    public function testRefusesTheUserInformation(string $host): void
+    {
+        $this->assertInvalid(self::url('https', $host), json_encode($host));
+    }
+
+    public static function provider_queryAndFragment(): array
+    {
+        return [
+            ['example.com?x'],
+            ['example.com#x'],
+            ['example.com?'],
+            ['example.com#'],
+            ['example.com:8080?x'],
+            ['[::1]#x'],
+            ['example.com/path?x'],
+            ['example.com/path#x'],
+            ["example.com?');alert(1);//"],
+            ["example.com#');alert(1);//"]
+        ];
+    }
+
+    /**
+     * Rule 2 refuses a '?' or '#' anywhere in the host value.
+     *
+     * @dataProvider provider_queryAndFragment
+     */
+    #[DataProvider('provider_queryAndFragment')]
+    public function testRefusesTheQueryOrFragment(string $host): void
+    {
+        $this->assertInvalid(self::url('https', $host), json_encode($host));
+    }
+
+    public static function provider_namesEndingInANumber(): array
+    {
+        return [
+            ['example.123'],
+            ['example.0x1f'],
+            ['example.0X'],
+            ['1.2.3.999'],
+            ['1.2.3'],
+            ['127.1'],
+            ['0x7f.0.0.1'],
+            ['01.2.3.4'],
+            ['00.2.3.4'],
+            ['example.123.'],
+            ['1.2.3.4.'],
+            ['1.2.3.4.5'],
+            ['1'],
+            ['300.1.1.1'],
+            ['0x7f.1'],
+            ['1.2.3.4.:8080']
+        ];
+    }
+
+    /**
+     * Rule 4 reads a name whose last label is a number as an IPv4 address
+     * written as four decimal numbers, each starting with 0 only when it is
+     * 0 alone.
+     *
+     * @dataProvider provider_namesEndingInANumber
+     */
+    #[DataProvider('provider_namesEndingInANumber')]
+    public function testRefusesANameEndingInANumber(string $host): void
+    {
+        $this->assertInvalid(self::url('https', $host), json_encode($host));
+    }
+
+    public static function provider_emptyPorts(): array
+    {
+        return [
+            ['example.com:'],
+            ['example.com:/path'],
+            ['[::1]:'],
+            ['https://example.com'],
+            ['http://example.com']
+        ];
+    }
+
+    /**
+     * Rule 5 refuses a port that is present but empty, so a protocol written
+     * into the host gives the host 'https' with an empty port.
+     *
+     * @dataProvider provider_emptyPorts
+     */
+    #[DataProvider('provider_emptyPorts')]
+    public function testRefusesTheEmptyPort(string $host): void
+    {
+        $this->assertInvalid(self::url('https', $host), json_encode($host));
+    }
+
+    public static function provider_loggedUrls(): array
+    {
+        return [
+            [
+                'user:secret@example.com',
+                'https://***@example.com/51dpipeline/json'
+            ],
+            ['a@b@example.com', 'https://***@example.com/51dpipeline/json'],
+            ['u@[::1]:80x', 'https://***@[::1]:80x/51dpipeline/json'],
+            [
+                'user:pa/ss@example.com',
+                'https://***@example.com/51dpipeline/json'
+            ],
+            [
+                'user:pa?ss@example.com',
+                'https://***@example.com/51dpipeline/json'
+            ],
+            ['exa mple.com/a@b', 'https://***@b/51dpipeline/json']
+        ];
+    }
+
+    /**
+     * Rule 6 shows *** in place of everything in the host before its last
+     * '@', wherever in the host value that '@' is.
+     *
+     * @dataProvider provider_loggedUrls
+     */
+    #[DataProvider('provider_loggedUrls')]
+    public function testTheLoggedUrlHoldsNoUserInformation(
+        string $host,
+        string $logged
+    ): void {
+        $url = self::url('https', $host);
+        $this->assertInvalid($url, $host);
+        $this->assertSame($logged, $url->url);
     }
 
     public function testTheInvalidUrlIsTheOneBuilt(): void
@@ -325,10 +502,7 @@ class CallbackUrlTests extends TestCase
     {
         return [
             ["example.com/');alert(1);//"],
-            ["example.com?');alert(1);//"],
-            ["example.com#');alert(1);//"],
-            ["u'x@example.com"],
-            ['u\\x@example.com'],
+            ['example.com/a"b'],
             ['example.com/a\\b'],
             ['example.com/</script>']
         ];

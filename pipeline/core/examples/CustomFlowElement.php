@@ -41,6 +41,7 @@ use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\Utils;
 
 // Function to get star sign from month and day
 function getStarSign($month, $day)
@@ -175,17 +176,18 @@ $flowData = $Pipeline->createFlowData();
 // client side provided information)
 $flowData->evidence->setFromWebRequest();
 
-// Process the FlowData
-$flowData->process();
-
-// The client side JavaScript calls back to this page
+// The client side JavaScript calls back to this page. Utils processes the
+// FlowData itself and sets the cache headers, so a revalidation with a
+// matching ETag is answered without any processing.
 
 if (isset($_GET['json'])) {
-    header('Content-Type: application/json; charset=UTF-8');
-    echo json_encode($flowData->jsonbundler->json);
+    Utils::jsonResponse($flowData)->send();
 
     return;
 }
+
+// Process the FlowData
+$flowData->process();
 
 // Generate the HTML for the form that gets a user's starsign
 $output = '';

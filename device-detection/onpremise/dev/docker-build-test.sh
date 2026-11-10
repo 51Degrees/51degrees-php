@@ -63,7 +63,6 @@ FiftyOneDegreesHashEngine.data_file=${DATA}
 extension=/build/on-premise/modules/FiftyOneDegreesHashEngine.so
 INI
         FIFTYONE_DATA_FILE="${DATA}" \
-        FIFTYONE_WRAPPER="/build/on-premise/FiftyOneDegreesHashEngine.php" \
         FIFTYONE_UA_CSV="${CSV}" \
             php -c /tmp/ff.ini /build/configuration-tests/testForkSafety.php
     '

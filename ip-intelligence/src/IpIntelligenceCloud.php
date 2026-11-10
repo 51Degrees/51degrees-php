@@ -57,10 +57,6 @@ class IpIntelligenceCloud extends CloudEngine
             throw new \Exception('IP intelligence data was not available. The IP intelligence cloud engine requires a CloudRequestEngine to be placed in the pipeline before it.');
         }
 
-        if (!array_key_exists($this->dataKey, $cloudRequestEngine->flowElementProperties)) {
-            throw new \Exception('IP intelligence data was not available. Check that the resource key being used is authorised for IP intelligence data.');
-        }
-
         parent::processInternal($flowData);
     }
 }

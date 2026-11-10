@@ -214,4 +214,82 @@ class SwigDataTests extends TestCase
     {
         return new SwigData(new StubSwigEngine($properties), new StubSwigResult($values));
     }
+
+    /**
+     * Every read goes by the property's index in the list the engine was
+     * built with, so no accessor is handed a name.
+     */
+    public function testEveryReadGoesByTheBuildTimeIndex(): void
+    {
+        $required = ['RegisteredName', 'IsCrawler', 'Mcc'];
+        $properties = [
+            'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
+            'iscrawler' => ['name' => 'IsCrawler', 'type' => 'Bool'],
+            'mcc' => ['name' => 'Mcc', 'type' => 'String'],
+        ];
+        $result = new StubSwigResult([
+            'RegisteredName' => new StubSwigValue(true, 'An ISP'),
+            'IsCrawler' => new StubSwigValue(true, false),
+            'Mcc' => new StubSwigValue(true, new StubSwigList([new StubWeightedValue('234', 65535)])),
+        ], $required);
+        $data = new SwigData(new StubSwigEngine($properties, $required), $result);
+
+        $this->assertSame('An ISP', $data->getInternal('registeredname')->value);
+        $this->assertFalse($data->getInternal('iscrawler')->value);
+        $this->assertSame([['value' => '234', 'rawweighting' => 65535]], $data->getInternal('mcc')->value);
+
+        $this->assertSame([0, 1, 2], $result->requestedKeys);
+    }
+
+    /**
+     * A data set loaded later may hold the properties in another order, or
+     * hold more of them. The index still names the property the engine was
+     * built with, because it is the place in the build-time list.
+     */
+    public function testIndexesFollowTheBuildListNotTheDataSetOrder(): void
+    {
+        // The engine was built with these names, in this order.
+        $required = ['IsCrawler', 'RegisteredName'];
+
+        // The reloaded data set sorts its properties differently and holds a
+        // third property the engine was not built with.
+        $properties = [
+            'accuracyradiusmin' => ['name' => 'AccuracyRadiusMin', 'type' => 'WeightedInt'],
+            'iscrawler' => ['name' => 'IsCrawler', 'type' => 'Bool'],
+            'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
+        ];
+        $result = new StubSwigResult([
+            'IsCrawler' => new StubSwigValue(true, true),
+            'RegisteredName' => new StubSwigValue(true, 'Another ISP'),
+        ], $required);
+        $data = new SwigData(new StubSwigEngine($properties, $required), $result);
+
+        $this->assertTrue($data->getInternal('iscrawler')->value);
+        $this->assertSame('Another ISP', $data->getInternal('registeredname')->value);
+
+        // IsCrawler is index 0 and RegisteredName index 1 because that is the
+        // build order, even though the data set lists them second and third.
+        $this->assertSame([0, 1], $result->requestedKeys);
+    }
+
+    /**
+     * A property the engine was not built with has no index, so it carries no
+     * value rather than being read by name.
+     */
+    public function testAPropertyOutsideTheBuildListCarriesNoValue(): void
+    {
+        $required = ['IsCrawler'];
+        $properties = [
+            'iscrawler' => ['name' => 'IsCrawler', 'type' => 'Bool'],
+            'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
+        ];
+        $result = new StubSwigResult([
+            'IsCrawler' => new StubSwigValue(true, true),
+            'RegisteredName' => new StubSwigValue(true, 'An ISP'),
+        ], $required);
+        $data = new SwigData(new StubSwigEngine($properties, $required), $result);
+
+        $this->assertTrue($data->getInternal('iscrawler')->value);
+        $this->assertFalse($data->getInternal('registeredname')->hasValue);
+    }
 }

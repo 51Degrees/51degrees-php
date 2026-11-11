@@ -84,6 +84,20 @@ class ScriptDeviceElement extends FlowElement
  */
 class JavaScriptBuilderParametersTests extends TestCase
 {
+    /**
+     * The JavaScript Builder accepts a key that starts with query., in any
+     * letter case, and not one that only holds query. somewhere inside it.
+     */
+    public function testOnlyAKeyStartingWithQueryIsAccepted()
+    {
+        $element = new JavascriptBuilderElement();
+
+        $this->assertTrue($element->filterEvidenceKey('query.anything'));
+        $this->assertTrue($element->filterEvidenceKey('Query.Anything'));
+        $this->assertFalse($element->filterEvidenceKey('header.x-query.y'));
+        $this->assertFalse($element->filterEvidenceKey('cookie.query.z'));
+    }
+
     public function testOnlyQueryEvidenceBecomesAParameter()
     {
         $script = $this->render([

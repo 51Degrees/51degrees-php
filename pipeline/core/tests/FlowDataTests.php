@@ -177,6 +177,26 @@ class FlowDataTests extends TestCase
     }
 
     /**
+     * A key no element accepts, set again in other letters, is the same
+     * key, so its value replaces the first under the first key's letters,
+     * as an accepted key's does, and get() still answers only accepted
+     * values.
+     */
+    public function testAKeyNoElementAcceptsInOtherLettersIsTheSameKey()
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('header.X-Not-Used', 'first');
+        $flowData->evidence->set('HEADER.x-not-used', 'second');
+
+        $this->assertSame(['header.X-Not-Used' => 'second'], array_filter(
+            $flowData->evidence->getAllIncludingUnaccepted(),
+            fn ($key) => strcasecmp($key, 'header.x-not-used') === 0,
+            ARRAY_FILTER_USE_KEY
+        ));
+        $this->assertNull($flowData->evidence->get('header.x-not-used'));
+    }
+
+    /**
      * A key that has left the store answers null and raises nothing, so
      * the index of spellings never has to stay in step with the store.
      */

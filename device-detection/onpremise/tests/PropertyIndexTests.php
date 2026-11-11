@@ -186,7 +186,7 @@ class PropertyIndexTests extends TestCase
             ' -- ' . escapeshellarg($this->autoload()) . ' ' .
             escapeshellarg(self::CHROME) . ' ' . escapeshellarg($request);
 
-        return $this->run($command);
+        return $this->runPhp($command);
     }
 
     /**
@@ -200,7 +200,7 @@ class PropertyIndexTests extends TestCase
         $command = $this->php($startup) . ' -r ' . escapeshellarg(self::TIME) .
             ' -- ' . escapeshellarg(self::CHROME) . ' ' . $index;
 
-        return $this->run($command);
+        return $this->runPhp($command);
     }
 
     private function php(?string $startup): string
@@ -230,7 +230,7 @@ class PropertyIndexTests extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function run(string $command): array
+    private function runPhp(string $command): array
     {
         exec($command . ' 2>&1', $lines, $status);
         $printed = implode("\n", $lines);

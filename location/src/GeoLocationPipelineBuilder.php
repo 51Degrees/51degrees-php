@@ -47,12 +47,19 @@ class GeoLocationPipelineBuilder extends PipelineBuilder
     public string $licenseKey;
 
     /**
+     * settings.resourceKey the cloud resource key
+     * settings.licenseKey a license key, sent in the request body. At least
+     * one of resourceKey and licenseKey is needed.
+     * settings.requestedProperties the fully qualified names of the
+     * properties to ask for, needed with a license key alone
      * settings.cloudEndPoint custom endpoint for the cloud service
      * settings.restrictedProperties (list of properties to restrict the results to)
      * settings.cloudRequestOrigin value to use for the Origin header when sending requests to cloud.
      *
      * @param array{
-     *     resourceKey: string,
+     *     resourceKey?: string,
+     *     licenseKey?: string,
+     *     requestedProperties?: array<string>|string,
      *     cloudEndPoint?: string,
      *     restrictedProperties?: array<string>,
      *     cloudRequestOrigin?: string

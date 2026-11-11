@@ -40,7 +40,13 @@ class IpIntelligencePipelineBuilder extends PipelineBuilder
 {
     /**
      * @param array<string, mixed> $settings
-     *   resourceKey         - (required) 51Degrees cloud resource key.
+     *   resourceKey         - (optional) 51Degrees cloud resource key.
+     *   licenseKey          - (optional) 51Degrees license key, sent in the
+     *                         request body. At least one of resourceKey and
+     *                         licenseKey is needed.
+     *   requestedProperties - (optional) fully qualified names of the
+     *                         properties to ask for, needed with a license
+     *                         key alone.
      *   cloudEndPoint       - (optional) override the cloud service base URL.
      *   cloudRequestOrigin  - (optional) value for the Origin header.
      *   restrictedProperties- (optional) list of properties to request.

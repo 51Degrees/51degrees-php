@@ -44,18 +44,18 @@ if dependencies were install previously.
 
 This will create the vendor directory containing autoload.php.
 
-Ensure the `resource_key` environment variable is set to your resource key prior to running the example scripts.
+Ensure the `_51DEGREES_RESOURCE_KEY` environment variable is set to your resource key prior to running the example scripts.
 Now navigate to the examples directory and start a PHP server with the relevant file. 
 For example:
 
 ```
-resource_key=YOUR_RESOURCE_KEY php -S localhost:3000 cloud/gettingStartedWeb.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php -S localhost:3000 cloud/gettingStartedWeb.php
 ```
 
 or to run in a terminal
 
 ```
-resource_key=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
 ```
 
 This will start a local web server listening on port 3000. 

@@ -14,20 +14,12 @@ if (!$Keys.TestResourceKey) {
 }
 
 # Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The names
-# used before the convention was adopted are still set here, so anything not
-# yet moved over keeps working, and the tests prefer the aligned names.
+# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'.
 $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
 $env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_PLATFORM = $Keys.TestResourceKey
 $env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_HARDWARE = $Keys.TestResourceKey
 $env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_BROWSER = $Keys.TestResourceKey
 $env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_NONE = $Keys.TestResourceKey
-
-$env:resource_key = $Keys.TestResourceKey
-$env:AcceptChPlatformKey = $Keys.TestResourceKey
-$env:AcceptChHardwareKey = $Keys.TestResourceKey
-$env:AcceptChBrowserKey = $Keys.TestResourceKey
-$env:AcceptChNoneKey = $Keys.TestResourceKey
 
 ./php/run-integration-tests.ps1 -RepoName $RepoName
 $status = $LASTEXITCODE

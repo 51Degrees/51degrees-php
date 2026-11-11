@@ -50,6 +50,11 @@ class CloudEngine extends CloudEngineBase
     public array $aspectProperties;
 
     /**
+     * Whether the missing product has been logged for this engine.
+     */
+    private bool $missingProductLogged = false;
+
+    /**
      * Callback called when an engine is added to a pipeline.
      *
      * @throws \Exception
@@ -81,10 +86,20 @@ class CloudEngine extends CloudEngineBase
 
         $cloudData = $flowData->get('cloud')->get('cloud');
 
+        $this->logMissingProduct($flowData);
+
         if ($cloudData) {
             $cloudData = json_decode($cloudData, true);
 
             $result = [];
+
+            // A response with no portion for this engine gives empty data,
+            // and is not an error.
+            if (!isset($cloudData[$this->dataKey]) || !is_array($cloudData[$this->dataKey])) {
+                $flowData->setElementData(new AspectDataDictionary($this, $result));
+
+                return;
+            }
 
             foreach ($cloudData[$this->dataKey] as $key => $value) {
                 if (isset($cloudData[$this->dataKey][$key . 'nullreason'])) {
@@ -98,5 +113,26 @@ class CloudEngine extends CloudEngineBase
 
             $flowData->setElementData($data);
         }
+    }
+
+    /**
+     * Log once, at warning level, when the products the Cloud Request Engine
+     * found hold nothing for this engine's Data Key. A Resource Key with no
+     * product for the engine is not an error. Call this after reading the
+     * Cloud Request Engine's Element Data, because the products are found
+     * before that data is set.
+     */
+    protected function logMissingProduct(FlowData $flowData): void
+    {
+        $products = $flowData->pipeline->flowElementsList['cloud']->flowElementProperties;
+        if ($this->missingProductLogged || isset($products[$this->dataKey])) {
+            return;
+        }
+
+        $this->missingProductLogged = true;
+        $flowData->pipeline->log('warning', sprintf(
+            "The Resource Key includes no product for '%s', so the engine gives no data.",
+            $this->dataKey
+        ));
     }
 }

@@ -76,4 +76,13 @@ class Messages
     public const ENGINE_CLOSED =
         'The on-premise IP intelligence engine has been closed, so it cannot ' .
         'process evidence. Build a new pipeline.';
+
+    /**
+     * Message carried by a property the engine was not built with, which
+     * therefore has no index. Takes the property name.
+     */
+    public const PROPERTY_NOT_BUILT =
+        'The engine was not built with the property "%s", so it has no ' .
+        'value. Add the property to the required properties the engine is ' .
+        'built with, then build the engine again.';
 }

@@ -78,10 +78,8 @@ declare(strict_types=1);
  *
  * Environment variables.
  *
- *   _51DEGREES_RESOURCE_KEY  required, read before the legacy
- *                            RESOURCE_KEY
- *   _51DEGREES_LICENSE_KEY   optional, read before the legacy
- *                            LICENSE_KEY
+ *   _51DEGREES_RESOURCE_KEY  required
+ *   _51DEGREES_LICENSE_KEY   optional
  *   FOD_CLOUD_API_URL        optional, the cloud API base including
  *                            the /api/v4/ segment, defaulting to
  *                            https://cloud.51degrees.com/api/v4/
@@ -101,13 +99,11 @@ if (!is_file($autoload)) {
 }
 require $autoload;
 
-// The resource key is public by nature and names the account. The
-// aligned name is read first, then the legacy one.
-$resource = getenv('_51DEGREES_RESOURCE_KEY') ?: getenv('RESOURCE_KEY');
+// The resource key is public by nature and names the account.
+$resource = getenv('_51DEGREES_RESOURCE_KEY');
 if (!$resource) {
     http_response_code(500);
-    exit('Set _51DEGREES_RESOURCE_KEY (or the legacy RESOURCE_KEY) to '
-        . 'the resource key of the page.');
+    exit('Set _51DEGREES_RESOURCE_KEY to the resource key of the page.');
 }
 
 // Only an account that holds licence keys needs one to redeem, because
@@ -115,7 +111,7 @@ if (!$resource) {
 // servers. An account holding none has nothing to check against, so the
 // demo runs without it, and where the account does hold some the
 // redemption reports the context unreadable.
-$licence = getenv('_51DEGREES_LICENSE_KEY') ?: getenv('LICENSE_KEY') ?: null;
+$licence = getenv('_51DEGREES_LICENSE_KEY') ?: null;
 
 // One client for the server. The endpoint argument is left null so the
 // client reads FOD_CLOUD_API_URL itself, the same variable the 51Degrees

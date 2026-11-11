@@ -71,7 +71,9 @@ class EvidenceKeyFilter
     }
 
     /**
-     * Check whether a property key should be in the filtered evidence.
+     * Check whether a property key should be in the filtered evidence. The
+     * filter function is given the key in lower case, because Evidence keys
+     * ignore letter case.
      *
      * @param string $key Property name
      * @return bool Should this be filtered out or not?
@@ -79,7 +81,7 @@ class EvidenceKeyFilter
     public function filterEvidenceKey(string $key): bool
     {
         if ($this->_filterEvidenceKey) {
-            return call_user_func($this->_filterEvidenceKey, $key);
+            return call_user_func($this->_filterEvidenceKey, strtolower($key));
         }
 
         return true;

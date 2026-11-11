@@ -86,7 +86,12 @@ class CloudRequestEngineTestsBase extends TestCase
         "        }\n" .
         "    }\n" .
         '}';
+    // The fake resource key the stubbed responses are keyed on. It goes on
+    // the wire and is not an environment variable.
     public const resourceKey = 'resource_key';
+    // The environment variable the integration tests read a real resource key
+    // from.
+    public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
     public const userAgent = 'iPhone';
 
     public static function getResponse()

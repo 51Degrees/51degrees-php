@@ -280,6 +280,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
 
     private function getResourceKey()
     {
-        return $_ENV[self::resourceKey] ?? null;
+        return $_ENV[self::RESOURCE_KEY_ENV_VAR] ?? null;
     }
 }

@@ -78,7 +78,7 @@ class CloudAllEvidenceTests extends TestCase
 
         $this->assertSame('alpha', $fields['my-own-thing'] ?? null);
         $this->assertSame('Windows', $fields['sec-ch-ua-platform'] ?? null);
-        $this->assertSame('beta', $fields['51d_experiment'] ?? null);
+        $this->assertSame('beta', $fields['51D_experiment'] ?? null);
     }
 
     /**
@@ -89,12 +89,13 @@ class CloudAllEvidenceTests extends TestCase
     {
         $fields = $this->sentFields(self::UNLISTED + [self::acceptedKey => 'iPhone']);
 
-        $this->assertSame('iPhone', $fields['user-agent'] ?? null);
+        $this->assertSame('iPhone', $fields['User-Agent'] ?? null);
     }
 
     /**
      * Two spellings of one key are one key, so the request carries one
-     * field, holding the value set last, whichever spelling came first.
+     * field, holding the value set last, whichever spelling came first. The
+     * Evidence keeps the spelling set first, so the field has that name.
      */
     public function testTwoSpellingsOfOneKeySendTheValueSetLast(): void
     {
@@ -104,7 +105,7 @@ class CloudAllEvidenceTests extends TestCase
                 $last => 'last.example.com',
             ]);
 
-            $this->assertSame('last.example.com', $fields['host'] ?? null, $first);
+            $this->assertSame('last.example.com', $fields[explode('.', $first, 2)[1]] ?? null, $first);
         }
     }
 

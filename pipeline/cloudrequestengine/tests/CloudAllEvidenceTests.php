@@ -93,6 +93,29 @@ class CloudAllEvidenceTests extends TestCase
     }
 
     /**
+     * Where a value no element accepts and a value an element does accept
+     * give the request the same field, the accepted value is sent. The
+     * JavaScript Builder accepts header.host and no element accepts
+     * header.Host, and both become the field host.
+     */
+    public function testAnAcceptedValueIsSentOverAnUnacceptedOneForOneField(): void
+    {
+        // The Engine warns that the two values give one field, which is
+        // not what this test is about.
+        set_error_handler(fn () => true, E_USER_WARNING);
+        try {
+            $fields = $this->sentFields([
+                'header.Host' => 'unaccepted.example.com',
+                'header.host' => 'accepted.example.com',
+            ]);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame('accepted.example.com', $fields['host'] ?? null);
+    }
+
+    /**
      * The reserved names are left out under every prefix and in any letter
      * case, so that none of them puts a second field of the same name, or a
      * second spelling of a credential, in the request.

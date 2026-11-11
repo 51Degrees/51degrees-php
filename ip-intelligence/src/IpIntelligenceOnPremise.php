@@ -344,8 +344,9 @@ class IpIntelligenceOnPremise extends Engine
     private static function clientIpsFromEvidence(array $evidence): array
     {
         // Evidence keys ignore letter case and arrive in the letters they
-        // were first set with, so the two keys read by name are matched
-        // against each key lowered.
+        // were first set with, so every key is lowered before it is read.
+        // A key given twice in other letters is then one key holding its
+        // last value, as Evidence holds it.
         $lowered = [];
         foreach ($evidence as $key => $value) {
             $lowered[strtolower((string) $key)] = $value;
@@ -357,7 +358,7 @@ class IpIntelligenceOnPremise extends Engine
                 $ordered[] = $lowered[$key];
             }
         }
-        foreach ($evidence as $value) {
+        foreach ($lowered as $value) {
             if (!in_array($value, $ordered, true)) {
                 $ordered[] = $value;
             }

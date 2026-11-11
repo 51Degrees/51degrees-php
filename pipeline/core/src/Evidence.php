@@ -424,7 +424,7 @@ class Evidence
 
         $stored = $this->keys[$lower] ?? null;
 
-        return $stored === null ? null : $this->evidence[$stored];
+        return $stored === null ? null : ($this->evidence[$stored] ?? null);
     }
 
     /**

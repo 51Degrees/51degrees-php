@@ -22,15 +22,22 @@ $ErrorActionPreference = 'Stop'
 $digitInitial = '5' + '1DEGREES_'
 
 # A name is not matched when a name character comes before it, so a name with
-# a leading underscore is left alone.
+# a leading underscore is left alone. It is matched in any case, because
+# Windows reads an environment variable name in any case, so a lower case
+# name that starts with the digit is still one a shell cannot set.
 $script:DigitInitialPattern = [regex]::new(
-    "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*")
+    "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
+    [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
 # A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable,
 # or a constant holding a legacy name to fall back to. Only a read, a set or
 # such a constant is matched, so placeholder text such as a key written
 # between exclamation marks, and longer names that end in the same words, are
 # left alone.
+#
+# These keep their case. The IP Intelligence and location examples and tests
+# read resource_key as their one name, which differs from RESOURCE_KEY only by
+# case, so matching in any case would fail on a name that is not a fallback.
 $script:FallbackPattern = [regex]::new(
     '(?:getenv\(\s*[''"]|\$_(?:ENV|SERVER)\[\s*[''"]|\$env:|' +
     '<env\s+name="|SetEnvironmentVariable\(\s*[''"])' +
@@ -53,7 +60,9 @@ if ($MyInvocation.InvocationName -eq '.') {
 }
 
 $root = (Resolve-Path $RepoRoot).Path
-$tracked = & git -C $root ls-files
+# Paths are listed as they are, so a path holding a non-ASCII character is not
+# quoted and is still found.
+$tracked = & git -C $root -c core.quotePath=false ls-files
 if ($LASTEXITCODE -ne 0) {
     throw "git ls-files failed in $root"
 }
@@ -63,6 +72,8 @@ $ownTests = 'ci/check-environment-variable-names.Tests.ps1'
 
 $found = @()
 $fallbacks = @()
+$read = 0
+$skipped = @()
 foreach ($relative in $tracked) {
     if ($relative -eq $ownTests) {
         continue
@@ -71,8 +82,10 @@ foreach ($relative in $tracked) {
     # A submodule is tracked as a directory, and its files belong to another
     # repository.
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        $skipped += $relative
         continue
     }
+    $read++
     $lineNumber = 0
     foreach ($line in [IO.File]::ReadLines($path)) {
         $lineNumber++
@@ -87,6 +100,9 @@ foreach ($relative in $tracked) {
     }
 }
 
+Write-Output ("$read paths read, $($skipped.Count) skipped as not files: " +
+    "$($skipped -join ', '), and $ownTests left out")
+
 if ($found.Count -gt 0 -or $fallbacks.Count -gt 0) {
     Write-Output $found
     Write-Output $fallbacks
@@ -96,4 +112,4 @@ if ($found.Count -gt 0 -or $fallbacks.Count -gt 0) {
         'each variable has one name.')
 }
 
-Write-Output "No tracked file names a variable starting with a digit or a fallback name. $($tracked.Count) paths read."
+Write-Output 'No tracked file names a variable starting with a digit or a fallback name.'

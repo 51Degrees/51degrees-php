@@ -24,7 +24,6 @@
 namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
-use fiftyone\pipeline\devicedetection\Messages;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -159,20 +158,23 @@ class RequestTests extends TestCase
     }
 
     /**
-     * A property in the data set that the engine was not built with still
-     * says so, as it did when the table was built at construction.
+     * A property in the data set that the engine was not built with has no
+     * value, and the reason is the native code's, because every read goes
+     * by name.
      */
-    public function testAPropertyTheEngineWasNotBuiltWithSaysSo()
+    public function testAPropertyTheEngineWasNotBuiltWithHasNoValue()
     {
         $command = $this->php('IsMobile') . ' -r ' .
             escapeshellarg(self::OUTSIDE) . ' -- ' .
             escapeshellarg($this->autoload()) . ' ' .
             escapeshellarg(self::CHROME);
 
-        $this->assertSame(
-            [false, sprintf(Messages::PROPERTY_NOT_BUILT, 'PlatformVersion')],
-            $this->runPhp($command)
-        );
+        [$hasValue, $message] = $this->runPhp($command);
+
+        $this->assertFalse($hasValue);
+        $this->assertIsString($message);
+        $this->assertNotSame('', $message);
+        $this->assertStringNotContainsString('was not built with', $message);
     }
 
     private function assertARequest(?string $startup): void

@@ -21,7 +21,7 @@ use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleOnPremise;
 $dataFile = ExampleUtils::getDataFile(array_slice($argv, 1));
 
 if (!$dataFile) {
-    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the IPINTELLIGENCEDATAFILE environment variable.\n");
+    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the _51DEGREES_IPI_PATH environment variable.\n");
     exit(1);
 }
 

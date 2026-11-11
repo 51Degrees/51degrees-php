@@ -135,7 +135,7 @@ which always serves the latest Lite file and needs no License Key.
 
 Give the engine a data file with the `dataFile` setting. The on-premise
 examples take the file from their first argument, the
-`IPINTELLIGENCEDATAFILE` environment variable, `assets/` or
+`_51DEGREES_IPI_PATH` environment variable, `assets/` or
 `cxx/data/ip-intelligence`, in that order. When they find none, they run the
 script to download the Lite file. The tests look in the same places, apart
 from the argument, and skip when they find no file.

@@ -27,7 +27,7 @@ $dataFile = ExampleUtils::getDataFile(
 );
 
 if (!$dataFile) {
-    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the IPINTELLIGENCEDATAFILE environment variable.\n");
+    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the _51DEGREES_IPI_PATH environment variable.\n");
     exit(1);
 }
 

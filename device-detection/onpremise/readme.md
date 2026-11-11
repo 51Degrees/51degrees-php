@@ -161,7 +161,7 @@ To reload the data file, *refreshData()* needs to be called as described in this
 Before running the examples, the configuration for the native module MUST be
 added to the php.ini file. See [Configuration](#configuration).
 
-The gettingStartedWeb example uses the data file named by the `51DEGREES_DD_PATH`
+The gettingStartedWeb example uses the data file named by the `_51DEGREES_DD_PATH`
 environment variable in place of the php.ini one, when it is set. If that is a
 free file in `cxx/data` that has not been downloaded yet, the example runs the
 download script for it first.

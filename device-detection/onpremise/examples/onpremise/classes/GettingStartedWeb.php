@@ -42,7 +42,7 @@ class GettingStartedWeb
         // The pipeline is closed in the finally block, once the request has
         // been handled.
         try {
-            // Use the data file named by the 51DEGREES_DD_PATH environment
+            // Use the data file named by the _51DEGREES_DD_PATH environment
             // variable, when it is set, in place of the one set in php.ini.
             ExampleUtils::useDataFileFromEnv($pipeline->getElement('device'), $logger);
 

@@ -499,7 +499,7 @@ vendor/bin/phpunit
 ```
 
 The `Live` suite calls the cloud and is skipped unless
-`_51DEGREES_RESOURCE_KEY` (or the legacy `RESOURCE_KEY`) is set, with
+`_51DEGREES_RESOURCE_KEY` is set, with
 `_51DEGREES_LICENSE_KEY` and `FOD_CLOUD_API_URL` read as the demo reads
 them. Each live test costs uses against the subscription behind the key.
 
@@ -618,8 +618,8 @@ carrying any other.
 
 | Variable | Meaning |
 | --- | --- |
-| `_51DEGREES_RESOURCE_KEY` | Required. The resource key of your account, public by nature. The legacy `RESOURCE_KEY` is read when the aligned name is not set |
-| `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, server side only. The legacy `LICENSE_KEY` is read when the aligned name is not set. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
+| `_51DEGREES_RESOURCE_KEY` | Required. The resource key of your account, public by nature |
+| `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, server side only. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
 | `FOD_CLOUD_API_URL` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than `cloud.51degrees.com` would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons. This is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
 
 ### How to run

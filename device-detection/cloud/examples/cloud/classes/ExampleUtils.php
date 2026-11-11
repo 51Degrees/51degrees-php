@@ -32,11 +32,6 @@ class ExampleUtils
     // resource key variable starts with '_51DEGREES_RESOURCE_KEY'.
     public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
-    // The environment variable this repository used before the convention
-    // above was adopted. It is still read, so an existing setup keeps
-    // working, but new setups should use RESOURCE_KEY_ENV_VAR.
-    public const LEGACY_RESOURCE_KEY_ENV_VAR = 'resource_key';
-
     // The query string parameter the web examples accept a resource key on.
     // This is part of the URL rather than the environment, so it keeps its
     // own name.
@@ -46,13 +41,7 @@ class ExampleUtils
 
     public static function getResourceKeyFromEnv()
     {
-        $key = self::getEnvVariable(self::RESOURCE_KEY_ENV_VAR);
-
-        if (empty($key)) {
-            $key = self::getEnvVariable(self::LEGACY_RESOURCE_KEY_ENV_VAR);
-        }
-
-        return $key;
+        return self::getEnvVariable(self::RESOURCE_KEY_ENV_VAR);
     }
 
     public static function getCloudEndpoint()

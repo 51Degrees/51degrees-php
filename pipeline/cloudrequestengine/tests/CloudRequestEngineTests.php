@@ -617,6 +617,15 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
+     * @after
+     */
+    #[After]
+    protected function tearDowniCloudEndPoint()
+    {
+        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL));
+    }
+
+    /**
      * The content the engine builds for the evidence given, with the
      * conflict warnings it raises silenced.
      *
@@ -636,14 +645,5 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         }
 
         return @$engine->getContent($data);
-    }
-
-    /**
-     * @after
-     */
-    #[After]
-    protected function tearDowniCloudEndPoint()
-    {
-        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL));
     }
 }

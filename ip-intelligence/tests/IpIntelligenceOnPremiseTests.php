@@ -528,14 +528,19 @@ class IpIntelligenceOnPremiseTests extends TestCase
     {
         $pipeline = (new PipelineBuilder())->add($engine)->build();
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
-        $flowData->process();
-        $values = [];
-        foreach ($names as $name) {
-            $value = $flowData->ip->get(strtolower($name));
-            $values[$name] = $value->hasValue
-                ? $value->value
-                : $value->noValueMessage;
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $values = [];
+            foreach ($names as $name) {
+                $value = $flowData->ip->get(strtolower($name));
+                $values[$name] = $value->hasValue
+                    ? $value->value
+                    : $value->noValueMessage;
+            }
+        } finally {
+            $flowData->close();
+            $pipeline->close();
         }
 
         return $values;

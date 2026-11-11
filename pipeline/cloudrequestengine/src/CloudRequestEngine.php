@@ -241,7 +241,7 @@ class CloudRequestEngine extends Engine
         $evidence = $flowData->evidence->getAllIncludingUnaccepted();
 
         // Add the other evidence lowest precedence first.
-        $queryData =$this->addQueryData($queryData, $evidence, $this->getSelectedEvidence($evidence, Constants::EVIDENCE_OTHER));
+        $queryData = $this->addQueryData($queryData, $evidence, $this->getSelectedEvidence($evidence, Constants::EVIDENCE_OTHER));
         // Add cookie evidence.
         $queryData = $this->addQueryData($queryData, $evidence, $this->getSelectedEvidence($evidence, Constants::EVIDENCE_COOKIE_PREFIX));
         // Add header evidence.
@@ -269,20 +269,33 @@ class CloudRequestEngine extends Engine
             $prefix = strtolower($evidenceKeyParts[0]);
             // end() rather than [1], because a key with no dot at all
             // splits into one part and that part is both the prefix and
-            // the name, which is what the .NET engine does with it too.
-            $suffix = strtolower(end($evidenceKeyParts));
+            // the name, which is what the .NET engine does with it too. The
+            // name keeps the letter case of the key, as .NET sends it.
+            $suffix = (string) end($evidenceKeyParts);
 
             // Evidence never supplies the request's own fields, and a value
             // under the web request view's key is never one to send.
             if (
                 strtolower((string) $evidenceKey) === Evidence::HTTP_REQUEST_KEY ||
-                in_array($suffix, Constants::RESERVED_EVIDENCE_SUFFIXES, true)
+                in_array(strtolower($suffix), Constants::RESERVED_EVIDENCE_SUFFIXES, true)
             ) {
                 continue;
             }
 
+            // Evidence keys ignore letter case, so a name already added in
+            // other letters is the same name, and the later, higher
+            // precedence value replaces it under its own spelling.
+            $existing = null;
+            foreach (array_keys($queryData) as $name) {
+                if (strcasecmp((string) $name, $suffix) === 0) {
+                    $existing = $name;
+
+                    break;
+                }
+            }
+
             // Check and add the evidence to the query parameters.
-            if (!array_key_exists($suffix, $queryData)) {
+            if ($existing === null) {
                 $queryData[$suffix] = $evidenceValue;
             } else {
                 // The queryParameter exists already.
@@ -313,7 +326,9 @@ class CloudRequestEngine extends Engine
                     }
                 }
 
-                // Overwrite the existing queryParameter value.
+                // Replace the existing field, name and value, so the name
+                // sent is the winning key's.
+                unset($queryData[$existing]);
                 $queryData[$suffix] = $evidenceValue;
             }
         }

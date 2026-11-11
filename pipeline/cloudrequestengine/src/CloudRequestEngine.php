@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\cloudrequestengine;
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\ElementData;
+use fiftyone\pipeline\core\Evidence;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\LicenseKey;
 use fiftyone\pipeline\engines\AspectDataDictionary;
@@ -228,8 +229,9 @@ class CloudRequestEngine extends Engine
      *
      * Every Evidence value goes in, including a value no element in the
      * Pipeline accepts, because what the cloud service uses changes over
-     * time. The reserved names are left out by addQueryData, and the web
-     * request view is never in the Evidence values to begin with.
+     * time. The reserved names, and any value under the web request view's
+     * key, are left out by addQueryData. The view itself is never in the
+     * Evidence values.
      *
      * @return array<string, int|string>
      */
@@ -271,8 +273,12 @@ class CloudRequestEngine extends Engine
             // the name, which is what the .NET engine does with it too.
             $suffix = strtolower(end($evidenceKeyParts));
 
-            // Evidence never supplies the request's own fields.
-            if (in_array($suffix, Constants::RESERVED_EVIDENCE_SUFFIXES, true)) {
+            // Evidence never supplies the request's own fields, and a value
+            // under the web request view's key is never one to send.
+            if (
+                strtolower((string) $evidenceKey) === Evidence::HTTP_REQUEST_KEY ||
+                in_array($suffix, Constants::RESERVED_EVIDENCE_SUFFIXES, true)
+            ) {
                 continue;
             }
 

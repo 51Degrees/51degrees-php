@@ -138,6 +138,19 @@ class CloudAllEvidenceTests extends TestCase
     }
 
     /**
+     * A value set under the web request view's key, in any letter case, is
+     * left out of the request as the view itself is.
+     */
+    public function testTheWebRequestKeyIsNeverSentInAnyLetterCase(): void
+    {
+        foreach (['server.http-request', 'Server.HTTP-Request'] as $key) {
+            $fields = $this->sentFields([$key => 'not-a-value']);
+
+            $this->assertArrayNotHasKey('http-request', $fields, $key);
+        }
+    }
+
+    /**
      * The web request view a web integration adds under server.http-request
      * is a view of the whole request and not a value to send, so it is left
      * out of the request.

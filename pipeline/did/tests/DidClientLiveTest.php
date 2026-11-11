@@ -38,7 +38,7 @@ use PHPUnit\Framework\TestCase;
  * Live tests against the cloud, skipped without a resource key in
  * `_51DEGREES_RESOURCE_KEY`. The licence key is read from
  * `_51DEGREES_LICENSE_KEY` and the API base
- * from `FOD_CLOUD_API_URL`, the same variables the examples read. Each test
+ * from `_51DEGREES_CLOUD_ENDPOINT`, the same variables the examples read. Each test
  * costs uses against the subscription behind the resource key.
  */
 class DidClientLiveTest extends TestCase

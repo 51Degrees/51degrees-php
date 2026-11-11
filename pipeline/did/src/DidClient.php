@@ -84,7 +84,7 @@ final class DidClient
      * The environment variable read for the API base when the constructor
      * argument is absent, the same one the cloud request engine honours.
      */
-    public const ENDPOINT_VARIABLE = 'FOD_CLOUD_API_URL';
+    public const ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
     /** The Composer package name, sent in the User-Agent. */
     public const PACKAGE_NAME = '51degrees/fiftyone.pipeline.did';
@@ -145,8 +145,8 @@ final class DidClient
      * @param string|null $licenceKey The account's licence key, server side
      *     only, needed to redeem where the account holds licence keys.
      * @param string|null $endpoint The API base including `/api/v4/`. When
-     *     null the `FOD_CLOUD_API_URL` environment variable is read, then
-     *     {@see DidClient::DEFAULT_ENDPOINT}. A value with or without a
+     *     null the `_51DEGREES_CLOUD_ENDPOINT` environment variable is read,
+     *     then {@see DidClient::DEFAULT_ENDPOINT}. A value with or without a
      *     trailing slash is normalised to end in exactly one.
      * @param callable|null $transport An HTTP transport for tests, called as
      *     `$transport(string $method, string $url, string[] $headers,

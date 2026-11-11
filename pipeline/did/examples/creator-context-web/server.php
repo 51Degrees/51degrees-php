@@ -80,7 +80,7 @@ declare(strict_types=1);
  *
  *   _51DEGREES_RESOURCE_KEY  required
  *   _51DEGREES_LICENSE_KEY   optional
- *   FOD_CLOUD_API_URL        optional, the cloud API base including
+ *   _51DEGREES_CLOUD_ENDPOINT        optional, the cloud API base including
  *                            the /api/v4/ segment, defaulting to
  *                            https://cloud.51degrees.com/api/v4/
  */
@@ -114,7 +114,7 @@ if (!$resource) {
 $licence = getenv('_51DEGREES_LICENSE_KEY') ?: null;
 
 // One client for the server. The endpoint argument is left null so the
-// client reads FOD_CLOUD_API_URL itself, the same variable the 51Degrees
+// client reads _51DEGREES_CLOUD_ENDPOINT itself, the same variable the 51Degrees
 // cloud request engine honours, and falls back to the public cloud. A
 // host other than cloud.51degrees.com would be used to (a) use an on
 // premise web server, or (b) use a privately hosted version of the

@@ -14,7 +14,7 @@ if (Test-Path "$PWD/$RepoName/php.ini") {
 
 $liteFile = "$PWD/$RepoName/assets/51Degrees-LiteIpiV41.ipi"
 if (Test-Path $liteFile) {
-    $env:IPINTELLIGENCEDATAFILE = $liteFile
+    $env:_51DEGREES_IPI_PATH = $liteFile
 } else {
     Write-Output "::warning::No on-premise IP intelligence data file found; on-premise tests will be skipped."
 }

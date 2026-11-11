@@ -29,20 +29,43 @@ $script:DigitInitialPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable,
-# or a constant holding a legacy name to fall back to. Only a read, a set or
-# such a constant is matched, so placeholder text such as a key written
-# between exclamation marks, and longer names that end in the same words, are
-# left alone.
+# An old name read or set as an environment variable, or held in a constant
+# to read later. Only a read, a set or such a constant is matched, so
+# placeholder text such as a key written between exclamation marks, and longer
+# names that end in the same words, are left alone.
 #
-# These keep their case. The IP Intelligence and location examples and tests
-# read resource_key as their one name, which differs from RESOURCE_KEY only by
-# case, so matching in any case would fail on a name that is not a fallback.
+# These are matched in any case, as the digit-initial names are, because
+# Windows reads an environment variable name in any case. The pattern kept its
+# case while the IP Intelligence and location examples and tests read
+# resource_key, which differs from RESOURCE_KEY only by case. That name has
+# gone, so the reason has gone with it.
+#
+# Two kinds of old name. The old cloud endpoint name, the old IP Intelligence
+# data file name and the two FIFTYONE_ names the fork safety test read are
+# never anything but an environment variable, so they are matched wherever
+# they appear. Each is built from two pieces below so that this file does not
+# name one itself. RESOURCE_KEY, LICENSE_KEY and CLOUD_ENDPOINT also name
+# things that are not environment variables, being the resource_key query
+# string parameter the cloud service takes and the cloud_endpoint pipeline
+# setting, so those three are matched only where the line reads or sets a
+# variable, or names one in a constant whose own name says so.
+#
+# The env token is matched on its own, with a following backslash allowed,
+# rather than next to a dollar sign, because PowerShell braces a name as well
+# as prefixing it and reads one through the Env: drive, and a workflow
+# expression braces one too. Wanting the dollar beside the token misses every
+# braced form, which the CI scripts here write.
+$plainOld = '(?:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
+    'FIFTYONE_DATA' + '_FILE|FIFTYONE_UA' + '_CSV)'
+$sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|CLOUD_ENDPOINT)'
 $script:FallbackPattern = [regex]::new(
-    '(?:getenv\(\s*[''"]|\$_(?:ENV|SERVER)\[\s*[''"]|\$env:|' +
-    '<env\s+name="|SetEnvironmentVariable\(\s*[''"])' +
-    '(?:RESOURCE_KEY|LICENSE_KEY)(?![A-Za-z0-9_])|' +
-    '\bLEGACY_[A-Z_]*ENV_VARS?\b')
+    "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +
+    '(?:getenv\(\s*[''"]|\$_(?:ENV|SERVER)\[\s*[''"]|env[:.]\\?|' +
+    '<env\s+name="|SetEnvironmentVariable\(\s*[''"]|putenv\(\s*[''"]|' +
+    "[A-Za-z_][A-Za-z0-9_]*(?:ENV_VAR|ENVIRONMENT_VARIABLE|_VARIABLE)" +
+    "[A-Za-z0-9_]*\s*=\s*['`"])$sharedOld(?![A-Za-z0-9_])|" +
+    '\bLEGACY_[A-Z_]*ENV_VARS?\b',
+    [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
 # The problems on one line, each as its kind, 'digit' or 'fallback', and the
 # text matched.

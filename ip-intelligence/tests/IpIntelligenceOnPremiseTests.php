@@ -59,7 +59,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
             $this->markTestSkipped('The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.');
         }
         if (self::$dataFile === null) {
-            $this->markTestSkipped('No .ipi data file found (set IPINTELLIGENCEDATAFILE or place a file under assets or cxx/data/ip-intelligence).');
+            $this->markTestSkipped('No .ipi data file found (set _51DEGREES_IPI_PATH or place a file under assets or cxx/data/ip-intelligence).');
         }
     }
 

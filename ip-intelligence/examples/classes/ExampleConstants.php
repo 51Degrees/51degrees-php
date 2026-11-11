@@ -28,10 +28,10 @@ namespace fiftyone\pipeline\ipintelligence\examples\classes;
 class ExampleConstants
 {
     // Environment variable holding the cloud resource key.
-    public const CLOUD_RESOURCE_KEY_ENV_VAR = 'resource_key';
+    public const CLOUD_RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
     // Environment variable holding the path to an on-premise .ipi data file.
-    public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = 'IPINTELLIGENCEDATAFILE';
+    public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = '_51DEGREES_IPI_PATH';
 
     // The free Lite data file, as the data repository names it. The examples
     // download it into cxx/data/ip-intelligence when no other file is found.

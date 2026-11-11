@@ -32,8 +32,8 @@ namespace fiftyone\pipeline\ipintelligence\tests\classes;
  */
 class Constants
 {
-    public const RESOURCE_KEY_ENV_VAR = 'resource_key';
-    public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = 'IPINTELLIGENCEDATAFILE';
+    public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
+    public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = '_51DEGREES_IPI_PATH';
 
     public const IPV4_ADDRESS = '185.28.167.78';
     public const IPV6_ADDRESS = '2001:4860:4860::8888';

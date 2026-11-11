@@ -27,5 +27,5 @@ namespace fiftyone\pipeline\geolocation\examples\cloud\classes;
 
 class Constants
 {
-    const RESOURCE_KEY_ENV_VAR = 'resource_key';
+    const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 }

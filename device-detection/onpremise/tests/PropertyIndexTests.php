@@ -43,8 +43,9 @@ class PropertyIndexTests extends TestCase
 
     // Builds the engine, after setting required_properties for this
     // request where one is given, detects one User-Agent and prints as JSON
-    // the index table and three values. The arguments are the autoloader,
-    // the User-Agent and the value to set for the request.
+    // the index table, the native required names and three values. The
+    // arguments are the autoloader, the User-Agent and the value to set for
+    // the request.
     private const READ = <<<'PHP'
         require $argv[1];
         if ($argv[3] !== '') {
@@ -61,21 +62,35 @@ class PropertyIndexTests extends TestCase
             $value = $flowData->device->get($name);
             $values[$name] = $value->hasValue ? $value->value : null;
         }
+        $required = [];
+        $names = $engine->engine->getRequiredProperties();
+        for ($i = 0; $i < $names->size(); ++$i) {
+            $required[] = $names->get($i);
+        }
         echo json_encode([
             'indexes' => $engine->propertyIndexes,
+            'required' => $required,
             'values' => $values,
         ]);
         PHP;
 
     // Reads IsMobile from one native result 20,000 times by name and
-    // 20,000 times by its index, and prints both values and the time each
-    // way in nanoseconds per read.
+    // 20,000 times by its index among the engine's required names, and
+    // prints the index, both values and the time each way in nanoseconds
+    // per read.
     private const TIME = <<<'PHP'
         $evidence = new EvidenceDeviceDetectionSwig();
         $evidence->set('header.user-agent', $argv[1]);
         $engine = FiftyOneDegreesHashEngine::engine_get();
         $results = $engine->process($evidence);
-        $index = (int) $argv[2];
+        $required = $engine->getRequiredProperties();
+        $index = -1;
+        for ($i = 0; $i < $required->size(); ++$i) {
+            if ($required->get($i) === 'IsMobile') {
+                $index = $i;
+                break;
+            }
+        }
         $reads = 20000;
         $byName = $results->getValueAsBool('IsMobile')->getValue();
         $byIndex = $results->getValueAsBool($index)->getValue();
@@ -90,11 +105,26 @@ class PropertyIndexTests extends TestCase
         }
         $indexTime = hrtime(true) - $start;
         echo json_encode([
+            'index' => $index,
             'byName' => $byName,
             'byIndex' => $byIndex,
             'nameNs' => $nameTime / $reads,
             'indexNs' => $indexTime / $reads,
         ]);
+        PHP;
+
+    // Builds DeviceDetectionOnPremise 2,000 times from the start-up engine
+    // and prints the time each build takes in nanoseconds. The argument is
+    // the autoloader.
+    private const BUILD = <<<'PHP'
+        require $argv[1];
+        $builds = 2000;
+        new fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise();
+        $start = hrtime(true);
+        for ($i = 0; $i < $builds; ++$i) {
+            new fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise();
+        }
+        echo json_encode(['buildNs' => (hrtime(true) - $start) / $builds]);
         PHP;
 
     public static function setUpBeforeClass(): void
@@ -112,7 +142,7 @@ class PropertyIndexTests extends TestCase
     /**
      * An engine built with names in an order of their own reads each value
      * by its place in that list, and gets the values an engine built with
-     * no names gets by name.
+     * no names gets.
      */
     public function testAnEngineBuiltWithNamesReadsTheSameValuesByIndex()
     {
@@ -123,11 +153,26 @@ class PropertyIndexTests extends TestCase
             ['platformname' => 0, 'ismobile' => 1, 'browsername' => 2],
             $named['indexes']
         );
-        $this->assertSame([], $none['indexes']);
         $this->assertSame($none['values'], $named['values']);
         $this->assertSame('Chrome', $named['values']['browsername']);
         $this->assertSame('Windows', $named['values']['platformname']);
         $this->assertFalse($named['values']['ismobile']);
+    }
+
+    /**
+     * An engine built with no names takes the names native code gives after
+     * the first load as its list, so its table holds every one of them, in
+     * that order, and its values are read by index.
+     */
+    public function testAnEngineBuiltWithNoNamesReadsByIndex()
+    {
+        $none = $this->read(null);
+
+        $this->assertContains('IsMobile', $none['required']);
+        $this->assertSame(self::firstPlaces($none['required']), $none['indexes']);
+        $this->assertSame('Chrome', $none['values']['browsername']);
+        $this->assertSame('Windows', $none['values']['platformname']);
+        $this->assertFalse($none['values']['ismobile']);
     }
 
     /**
@@ -144,15 +189,16 @@ class PropertyIndexTests extends TestCase
 
     /**
      * A setting given for one request, after the engine was built with no
-     * names, does not turn indexes on, because the engine still holds every
-     * property in the data set's own order.
+     * names, does not change the table, which follows the names the engine
+     * was built with.
      */
-    public function testASettingForTheRequestDoesNotTurnOnIndexes()
+    public function testASettingForTheRequestDoesNotChangeTheTable()
     {
         $request = $this->read(null, 'IsMobile');
         $none = $this->read(null);
 
-        $this->assertSame([], $request['indexes']);
+        $this->assertNotSame([], $none['indexes']);
+        $this->assertSame($none['indexes'], $request['indexes']);
         $this->assertSame($none['values'], $request['values']);
     }
 
@@ -163,14 +209,38 @@ class PropertyIndexTests extends TestCase
      */
     public function testAReadByIndexGivesWhatAReadByNameGives()
     {
-        $timed = $this->time('BrowserName,IsMobile', 1);
+        $timed = $this->time('BrowserName,IsMobile');
 
+        $this->assertSame(1, $timed['index']);
         $this->assertSame($timed['byName'], $timed['byIndex']);
         fwrite(STDERR, sprintf(
             "\nIsMobile, 20,000 native reads each way: by name %.1f ns, " .
             "by index %.1f ns per read\n",
             $timed['nameNs'],
             $timed['indexNs']
+        ));
+    }
+
+    /**
+     * On an engine built with no names, a read by index gives what a read
+     * by name gives, and the time of each is printed with the time to build
+     * DeviceDetectionOnPremise, which is where the table is made.
+     */
+    public function testAnEngineBuiltWithNoNamesTimesEachRead()
+    {
+        $timed = $this->time(null);
+
+        $this->assertGreaterThanOrEqual(0, $timed['index']);
+        $this->assertSame($timed['byName'], $timed['byIndex']);
+        $built = $this->runPhp($this->php(null) . ' -r ' .
+            escapeshellarg(self::BUILD) . ' -- ' .
+            escapeshellarg($this->autoload()));
+        fwrite(STDERR, sprintf(
+            "\nNo names, IsMobile, 20,000 native reads each way: by name " .
+            "%.1f ns, by index %.1f ns per read, build %.0f ns\n",
+            $timed['nameNs'],
+            $timed['indexNs'],
+            $built['buildNs']
         ));
     }
 
@@ -191,16 +261,33 @@ class PropertyIndexTests extends TestCase
 
     /**
      * Starts PHP with the Lite data file and $startup as required_properties,
-     * runs TIME with the index given, and returns what it printed.
+     * runs TIME, and returns what it printed.
      *
-     * @return array{byName: bool, byIndex: bool, nameNs: float, indexNs: float}
+     * @return array{index: int, byName: bool, byIndex: bool, nameNs: float, indexNs: float}
      */
-    private function time(string $startup, int $index): array
+    private function time(?string $startup): array
     {
         $command = $this->php($startup) . ' -r ' . escapeshellarg(self::TIME) .
-            ' -- ' . escapeshellarg(self::CHROME) . ' ' . $index;
+            ' -- ' . escapeshellarg(self::CHROME);
 
         return $this->runPhp($command);
+    }
+
+    /**
+     * Each name in lower case against its first place in the list, which is
+     * the index native code gives.
+     *
+     * @param array<string> $names
+     * @return array<string, int>
+     */
+    private static function firstPlaces(array $names): array
+    {
+        $indexes = [];
+        foreach ($names as $index => $name) {
+            $indexes[strtolower($name)] ??= $index;
+        }
+
+        return $indexes;
     }
 
     private function php(?string $startup): string

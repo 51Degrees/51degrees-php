@@ -414,7 +414,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
     /**
      * An engine built with names in an order of their own reads each value
      * by its place in that list, and gets the values an engine built with
-     * no names gets by name.
+     * no names gets.
      */
     public function testAnEngineBuiltWithNamesReadsTheSameValuesByIndex(): void
     {
@@ -443,6 +443,29 @@ class IpIntelligenceOnPremiseTests extends TestCase
             $this->assertEquals($byName, $this->valuesOf($named, $names));
         } finally {
             $named->close();
+        }
+    }
+
+    /**
+     * An engine built with no names takes the names native code gives after
+     * the first load as its list, so its table holds every one of them, in
+     * that order, and a reload leaves the table and those names as they
+     * were.
+     */
+    public function testAnEngineBuiltWithNoNamesReadsByIndex(): void
+    {
+        $none = $this->buildEngine();
+        try {
+            $required = self::requiredNames($none->engine);
+            $this->assertNotSame([], $required);
+            $table = $none->propertyIndexes;
+            $this->assertSame(self::firstPlaces($required), $table);
+
+            $none->refreshData();
+            $this->assertSame($required, self::requiredNames($none->engine));
+            $this->assertSame($table, $none->propertyIndexes);
+        } finally {
+            $none->close();
         }
     }
 
@@ -476,10 +499,10 @@ class IpIntelligenceOnPremiseTests extends TestCase
 
     /**
      * A setting given for one request, after the start-up engine was built
-     * with no names, does not turn indexes on, because that engine still
-     * holds every property in the data set's own order.
+     * with no names, does not change the table, which follows the names
+     * that engine was built with.
      */
-    public function testASettingForTheRequestDoesNotTurnOnIndexes(): void
+    public function testASettingForTheRequestDoesNotChangeTheTable(): void
     {
         $dataFile = realpath($this->liteDataFile());
         $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
@@ -490,20 +513,69 @@ class IpIntelligenceOnPremiseTests extends TestCase
         exec($command, $lines, $status);
         $printed = implode("\n", $lines);
         $this->assertSame(0, $status, $printed);
-        $this->assertSame('[]', $printed);
+        $printed = json_decode($printed, true);
+        $this->assertIsArray($printed);
+        $this->assertNotSame([], $printed['required']);
+        $this->assertSame(
+            self::firstPlaces($printed['required']),
+            $printed['indexes']
+        );
     }
 
     // Sets required_properties for this request to the first property of
     // the start-up engine, builds IpIntelligenceOnPremise from that engine,
-    // and prints its index table as JSON. The argument is the autoloader.
+    // and prints as JSON its index table and the start-up engine's required
+    // names. The argument is the autoloader.
     private const INDEXES_PHP = <<<'PHP'
         require $argv[1];
         $first = ipi_engine_get()
             ->getMetaData()->getProperties()->getByIndex(0)->getName();
         ini_set('FiftyOneDegreesIpIntelligenceEngine.required_properties', $first);
         $engine = new fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise([]);
-        echo json_encode($engine->propertyIndexes);
+        $required = [];
+        $names = ipi_engine_get()->getRequiredProperties();
+        for ($i = 0; $i < $names->size(); ++$i) {
+            $required[] = $names->get($i);
+        }
+        echo json_encode([
+            'indexes' => $engine->propertyIndexes,
+            'required' => $required,
+        ]);
         PHP;
+
+    /**
+     * The names native code gives as the engine's required properties, in
+     * index order.
+     *
+     * @return array<string>
+     */
+    private static function requiredNames($engine): array
+    {
+        $required = [];
+        $names = $engine->getRequiredProperties();
+        for ($i = 0; $i < $names->size(); ++$i) {
+            $required[] = $names->get($i);
+        }
+
+        return $required;
+    }
+
+    /**
+     * Each name in lower case against its first place in the list, which is
+     * the index native code gives.
+     *
+     * @param array<string> $names
+     * @return array<string, int>
+     */
+    private static function firstPlaces(array $names): array
+    {
+        $indexes = [];
+        foreach ($names as $index => $name) {
+            $indexes[strtolower($name)] ??= $index;
+        }
+
+        return $indexes;
+    }
 
     /**
      * @param array<string> $names

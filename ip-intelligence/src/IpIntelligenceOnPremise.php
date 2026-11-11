@@ -343,10 +343,18 @@ class IpIntelligenceOnPremise extends Engine
      */
     private static function clientIpsFromEvidence(array $evidence): array
     {
+        // Evidence keys ignore letter case and arrive in the letters they
+        // were first set with, so the two keys read by name are matched
+        // against each key lowered.
+        $lowered = [];
+        foreach ($evidence as $key => $value) {
+            $lowered[strtolower((string) $key)] = $value;
+        }
+
         $ordered = [];
         foreach (['query.client-ip', 'server.client-ip'] as $key) {
-            if (isset($evidence[$key])) {
-                $ordered[] = $evidence[$key];
+            if (isset($lowered[$key])) {
+                $ordered[] = $lowered[$key];
             }
         }
         foreach ($evidence as $value) {

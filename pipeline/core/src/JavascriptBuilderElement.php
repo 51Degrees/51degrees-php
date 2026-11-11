@@ -410,6 +410,10 @@ class JavascriptBuilderElement extends FlowElement
      * snippets would run again on every page. Keys and values are encoded
      * as the .NET builder encodes them.
      *
+     * Evidence keys ignore letter case and arrive in the letters they were
+     * first set with, so each key is lowered before it is matched against
+     * the names left out, which are held in lower case.
+     *
      * @param array<string, mixed> $evidence All the evidence
      * @return array<string, string>
      */
@@ -419,7 +423,7 @@ class JavascriptBuilderElement extends FlowElement
         foreach ($evidence as $key => $value) {
             if (
                 stripos($key, 'query.') !== 0 ||
-                in_array($key, self::EXCLUDED_PARAMETERS, true) ||
+                in_array(strtolower($key), self::EXCLUDED_PARAMETERS, true) ||
                 !is_scalar($value)
             ) {
                 continue;

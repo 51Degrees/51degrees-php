@@ -8,6 +8,7 @@
       <file>tests/ExampleTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>
       <file>tests/IniSettingsTests.php</file>
+      <file>tests/PropertyIndexTests.php</file>
       <file>tests/ExampleWebTests.php</file>
       <file>tests/UACHHashTests.php</file>
     </testsuite>

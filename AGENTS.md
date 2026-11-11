@@ -187,12 +187,12 @@ needs can be created
 cd device-detection/cloud
 composer install
 cd examples
-resource_key=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
 cd ../../..
 ```
 
-The example reads `_51DEGREES_RESOURCE_KEY` first, then `resource_key`, or
-takes the key as its first argument. It prints the same `Input values:` and
+The example reads `_51DEGREES_RESOURCE_KEY`, or takes the key as its first
+argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
 its first argument or from `resource_key`, after a `composer install` in

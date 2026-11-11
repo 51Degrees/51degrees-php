@@ -102,12 +102,9 @@ class JsonBundlerSequenceTests extends TestCase
         $flowData->process();
 
         $this->assertArrayHasKey('jsonbundler', $flowData->errors);
-        $this->assertStringContainsString(
-            'Sequence Element',
-            $flowData->errors['jsonbundler']->getMessage()
-        );
-        $this->assertStringContainsString(
-            'before',
+        $this->assertSame(
+            'The JSON Bundler needs a sequence number. Place a Sequence ' .
+                'Element before the JSON Bundler in the Pipeline.',
             $flowData->errors['jsonbundler']->getMessage()
         );
     }

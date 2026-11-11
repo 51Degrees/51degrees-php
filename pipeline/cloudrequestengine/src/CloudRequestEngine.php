@@ -218,14 +218,13 @@ class CloudRequestEngine extends Engine
     }
 
     /**
-     * Generate the Content to send in the POST request. The evidence keys
-     * e.g. 'query.' and 'header.' have an order of precedence. These are
-     * added to the evidence in reverse order, if there is conflict then
-     * the queryData value is overwritten.
-     *
-     * 'query.' evidence should take precedence over all other evidence.
-     * If there are evidence keys other than 'query.' that conflict then
-     * this is unexpected so a warning will be logged.
+     * Generate the Content to send in the POST request. One name under
+     * several prefixes is sent once, with the value of the prefix that
+     * evidence.md ranks highest, being query, header, cookie, server,
+     * fiftyone and location, then any other prefix alphabetically. The
+     * groups are added lowest precedence first, so a later value replaces
+     * an earlier one, and a replacement by a key other than a query key
+     * is raised as a warning.
      *
      * Every Evidence value goes in, including a value no element in the
      * Pipeline accepts, because what the cloud service uses changes over
@@ -241,8 +240,8 @@ class CloudRequestEngine extends Engine
 
         $evidence = $flowData->evidence->getAllIncludingUnaccepted();
 
-        // Add evidence in reverse alphabetical order, excluding special keys.
-        $queryData = $this->addQueryData($queryData, $evidence, $this->getSelectedEvidence($evidence, Constants::EVIDENCE_OTHER));
+        // Add the other evidence lowest precedence first.
+        $queryData =$this->addQueryData($queryData, $evidence, $this->getSelectedEvidence($evidence, Constants::EVIDENCE_OTHER));
         // Add cookie evidence.
         $queryData = $this->addQueryData($queryData, $evidence, $this->getSelectedEvidence($evidence, Constants::EVIDENCE_COOKIE_PREFIX));
         // Add header evidence.
@@ -342,7 +341,10 @@ class CloudRequestEngine extends Engine
                     $selectedEvidence[$key] = $value;
                 }
             }
-            krsort($selectedEvidence);
+            // Lowest precedence first, so the value added last wins.
+            uksort($selectedEvidence, function ($a, $b): int {
+                return self::compareOtherKeys((string) $b, (string) $a);
+            });
         } else {
             foreach ($evidence as $key => $value) {
                 if ($this->keyHasPrefix($key, $type)) {
@@ -612,5 +614,47 @@ class CloudRequestEngine extends Engine
         if ($this->resourceKey === '' && count($this->requestedProperties) === 0) {
             throw new \Exception(Constants::MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES);
         }
+    }
+
+    /**
+     * Compares two Evidence keys that are not query, header or cookie
+     * Evidence by precedence. server, fiftyone and location come first, in
+     * the order evidence.md lists them, then any other prefix
+     * alphabetically, all ignoring letter case.
+     *
+     * @param string $a the first Evidence key
+     * @param string $b the second Evidence key
+     * @return int negative where $a has the higher precedence
+     */
+    private static function compareOtherKeys(string $a, string $b): int
+    {
+        $prefixA = strtolower(explode(Constants::EVIDENCE_SEPERATOR, $a, 2)[0]);
+        $prefixB = strtolower(explode(Constants::EVIDENCE_SEPERATOR, $b, 2)[0]);
+        $byRank = self::otherPrefixRank($prefixA) - self::otherPrefixRank($prefixB);
+        if ($byRank !== 0) {
+            return $byRank;
+        }
+        $byPrefix = strcmp($prefixA, $prefixB);
+        if ($byPrefix !== 0) {
+            return $byPrefix;
+        }
+
+        return strcasecmp($a, $b);
+    }
+
+    /**
+     * The rank of a lower case prefix that is not query, header or cookie,
+     * where a lower rank wins.
+     *
+     * @param string $prefix the prefix in lower case
+     * @return int the rank
+     */
+    private static function otherPrefixRank(string $prefix): int
+    {
+        $rank = array_search($prefix, Constants::OTHER_PREFIX_PRECEDENCE, true);
+
+        return $rank === false
+            ? count(Constants::OTHER_PREFIX_PRECEDENCE)
+            : (int) $rank;
     }
 }

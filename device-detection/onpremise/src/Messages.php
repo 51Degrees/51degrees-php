@@ -61,4 +61,13 @@ class Messages
         'These device detection results have been closed, so their ' .
         'properties cannot be read. Read the values needed before closing ' .
         'the FlowData.';
+
+    /**
+     * Message carried by a property the engine was not built with, which
+     * therefore has no index. Takes the property name.
+     */
+    public const PROPERTY_NOT_BUILT =
+        'The engine was not built with the property "%s", so it has no ' .
+        'value. Add the property to the required properties the engine is ' .
+        'built with, then build the engine again.';
 }

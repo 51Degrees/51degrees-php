@@ -113,18 +113,35 @@ class PropertyIndexTests extends TestCase
         ]);
         PHP;
 
-    // Builds DeviceDetectionOnPremise 2,000 times from the start-up engine
-    // and prints the time each build takes in nanoseconds. The argument is
-    // the autoloader.
+    // Builds DeviceDetectionOnPremise 2,000 times from the start-up engine,
+    // then builds its index table on its own 2,000 times, and prints the
+    // time of each in nanoseconds and the number of names in the table. The
+    // argument is the autoloader.
     private const BUILD = <<<'PHP'
         require $argv[1];
         $builds = 2000;
-        new fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise();
+        $class = fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise::class;
+        new $class();
         $start = hrtime(true);
         for ($i = 0; $i < $builds; ++$i) {
-            new fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise();
+            new $class();
         }
-        echo json_encode(['buildNs' => (hrtime(true) - $start) / $builds]);
+        $buildNs = (hrtime(true) - $start) / $builds;
+        $table = Closure::bind(
+            static fn ($engine) => $class::buildPropertyIndexes($engine),
+            null,
+            $class
+        );
+        $engine = FiftyOneDegreesHashEngine::engine_get();
+        $start = hrtime(true);
+        for ($i = 0; $i < $builds; ++$i) {
+            $table($engine);
+        }
+        echo json_encode([
+            'buildNs' => $buildNs,
+            'tableNs' => (hrtime(true) - $start) / $builds,
+            'names' => count($table($engine)),
+        ]);
         PHP;
 
     public static function setUpBeforeClass(): void
@@ -224,7 +241,8 @@ class PropertyIndexTests extends TestCase
     /**
      * On an engine built with no names, a read by index gives what a read
      * by name gives, and the time of each is printed with the time to build
-     * DeviceDetectionOnPremise, which is where the table is made.
+     * DeviceDetectionOnPremise and, within that, the time to build the
+     * index table, which is what an engine built with no names now adds.
      */
     public function testAnEngineBuiltWithNoNamesTimesEachRead()
     {
@@ -237,10 +255,13 @@ class PropertyIndexTests extends TestCase
             escapeshellarg($this->autoload()));
         fwrite(STDERR, sprintf(
             "\nNo names, IsMobile, 20,000 native reads each way: by name " .
-            "%.1f ns, by index %.1f ns per read, build %.0f ns\n",
+            "%.1f ns, by index %.1f ns per read, build %.0f ns, index " .
+            "table %.0f ns for %d names\n",
             $timed['nameNs'],
             $timed['indexNs'],
-            $built['buildNs']
+            $built['buildNs'],
+            $built['tableNs'],
+            $built['names']
         ));
     }
 

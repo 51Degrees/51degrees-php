@@ -59,6 +59,16 @@ class IpIntelligenceOnPremise extends Engine
 
     public $engine;
 
+    /**
+     * The index of each property the engine was built with, keyed by the
+     * lowercase name. The index is the place of the name in the build-time
+     * list, so it names the same property after any reload, and every read
+     * of a value goes by it rather than by name.
+     *
+     * @var array<string, int>
+     */
+    public array $propertyIndexes = [];
+
     private $config;
 
     /**
@@ -114,6 +124,9 @@ class IpIntelligenceOnPremise extends Engine
             }
 
             $this->engine = \ipi_engine_get();
+            $this->initPropertyIndexes(
+                (string) ini_get('FiftyOneDegreesIpIntelligenceEngine.required_properties') !== ''
+            );
             $this->initEngineMetaData();
             parent::__construct();
 
@@ -166,6 +179,7 @@ class IpIntelligenceOnPremise extends Engine
         // Build the native engine.
         $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
 
+        $this->initPropertyIndexes($restrictedProperties !== []);
         $this->initEngineMetaData();
 
         parent::__construct();
@@ -245,6 +259,9 @@ class IpIntelligenceOnPremise extends Engine
             $this->engine->refreshData($fileName);
         }
 
+        // The metadata follows the new data file. The index table does not,
+        // because an index is the place of a name in the list the engine was
+        // built with, which a reload never changes.
         $this->initEngineMetaData();
     }
 
@@ -255,6 +272,16 @@ class IpIntelligenceOnPremise extends Engine
     public function getProduct(): string
     {
         return $this->engine->getProduct();
+    }
+
+    /**
+     * The index of a property the engine was built with, or null when the
+     * engine was not built with the name. A caller with the index reads a
+     * value without the native code looking the name up.
+     */
+    public function getPropertyIndex(string $name): ?int
+    {
+        return $this->propertyIndexes[strtolower($name)] ?? null;
     }
 
     private function applyPerformanceProfile($config, string $profile): void
@@ -275,6 +302,34 @@ class IpIntelligenceOnPremise extends Engine
             case 'HighPerformance':
                 $config->setHighPerformance();
                 break;
+        }
+    }
+
+    /**
+     * Map each build-time property name to its index, once, so every read of
+     * a value goes by index rather than by name. The list comes from the
+     * engine, not from the data set, whose own order can change on a reload.
+     *
+     * Called at construction only, because an index is the place of a name
+     * in the build-time list and a reload never changes it.
+     *
+     * An engine built with no names is left with an empty table and keeps
+     * reading by name, because native code then gives each property its own
+     * place in the data set as its index, which a reload can move.
+     *
+     * @param bool $builtWithNames whether the engine was built with a list of
+     *   property names, which is what fixes an index to a name
+     */
+    private function initPropertyIndexes(bool $builtWithNames): void
+    {
+        $this->propertyIndexes = [];
+        if (!$builtWithNames) {
+            return;
+        }
+
+        $required = $this->engine->getRequiredProperties();
+        for ($i = 0; $i < $required->size(); ++$i) {
+            $this->propertyIndexes[strtolower($required->get($i))] = $i;
         }
     }
 

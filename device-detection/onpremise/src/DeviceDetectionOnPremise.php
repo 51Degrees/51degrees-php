@@ -36,6 +36,16 @@ class DeviceDetectionOnPremise extends Engine
     public \EngineHashSwig $engine;
 
     /**
+     * The index of each property the engine was built with, keyed by the
+     * lowercase name. The index is the place of the name in the build-time
+     * list, so it names the same property after any reload, and every read
+     * of a value goes by it rather than by name.
+     *
+     * @var array<string, int>
+     */
+    public array $propertyIndexes = [];
+
+    /**
      * @var array<string>
      */
     private array $evidenceKeys;
@@ -66,6 +76,16 @@ class DeviceDetectionOnPremise extends Engine
 
         if ($requiredProperties) {
             $this->setRestrictedProperties(explode(',', $requiredProperties));
+
+            // Map each build-time property name to its index, once, so every
+            // read of a value goes by index rather than by name. The list
+            // comes from the engine, not from the data set, whose own order
+            // can change on a reload.
+            //
+            // An engine built with no names keeps reading by name, because
+            // native code then gives each property its own place in the data
+            // set as its index, which a reload can move.
+            $this->propertyIndexes = self::buildPropertyIndexes($this->engine);
         }
 
         // Make properties list
@@ -172,6 +192,37 @@ class DeviceDetectionOnPremise extends Engine
             default: 
                 $this->engine->refreshData($fileName_or_data, $length);
         }
+    }
+
+    /**
+     * The index of a property the engine was built with, or null when the
+     * engine was not built with the name. A caller with the index reads a
+     * value without the native code looking the name up.
+     */
+    public function getPropertyIndex(string $name): ?int
+    {
+        return $this->propertyIndexes[strtolower($name)] ?? null;
+    }
+
+    /**
+     * Map each name the engine was built with to its place in that list.
+     *
+     * The order is the engine's required property order, which native code
+     * fixes at build and works out again for every data set it loads, so an
+     * index names the same property however the data set orders its own
+     * properties.
+     *
+     * @return array<string, int>
+     */
+    private static function buildPropertyIndexes(\EngineHashSwig $engine): array
+    {
+        $indexes = [];
+        $required = $engine->getRequiredProperties();
+        for ($i = 0; $i < $required->size(); ++$i) {
+            $indexes[strtolower($required->get($i))] = $i;
+        }
+
+        return $indexes;
     }
 
     private function getComponentName($property)

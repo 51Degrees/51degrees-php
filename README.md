@@ -52,6 +52,7 @@ Composer path repository.
 | The package directories above | One Composer package each, published to its mirror as it is |
 | `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code, and the [data](https://github.com/51Degrees/data) repository as its `data` submodule |
 | `pipeline/did/owid-php` | Submodule of [owid-php](https://github.com/SWAN-community/owid-php), the OWID library `pipeline/did` uses |
+| `javascript-templates` | Submodule of [javascript-templates](https://github.com/51Degrees/javascript-templates), the source of the template `pipeline/core` serves. The package commits a copy in `pipeline/core/javascript-templates`, because Packagist serves an archive of the tag and an archive has no submodules. `pipeline/core/ci/update-packages.ps1` refreshes the copy, and the JavaScript templates check fails when the copy differs from the submodule |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 | `.github/workflows` | The CI workflows, and the ones that keep the mirrors up to date |
 | `composer.json` | The development install for the whole repository. It is never published |

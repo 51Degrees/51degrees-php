@@ -4,3 +4,6 @@
 [submodule "pipeline/did/owid-php"]
 	path = pipeline/did/owid-php
 	url = https://github.com/SWAN-community/owid-php.git
+[submodule "javascript-templates"]
+	path = javascript-templates
+	url = ../javascript-templates

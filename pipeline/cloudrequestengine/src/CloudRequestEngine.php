@@ -226,13 +226,18 @@ class CloudRequestEngine extends Engine
      * If there are evidence keys other than 'query.' that conflict then
      * this is unexpected so a warning will be logged.
      *
+     * Every Evidence value goes in, including a value no element in the
+     * Pipeline accepts, because what the cloud service uses changes over
+     * time. The reserved names are left out by addQueryData, and the web
+     * request view is never in the Evidence values to begin with.
+     *
      * @return array<string, int|string>
      */
     public function getContent(FlowData $flowData): array
     {
         $queryData = [];
 
-        $evidence = $flowData->evidence->getAll();
+        $evidence = $flowData->evidence->getAllIncludingUnaccepted();
 
         // Add evidence in reverse alphabetical order, excluding special keys.
         $queryData = $this->addQueryData($queryData, $evidence, $this->getSelectedEvidence($evidence, Constants::EVIDENCE_OTHER));

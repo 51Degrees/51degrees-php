@@ -84,6 +84,20 @@ class ScriptDeviceElement extends FlowElement
  */
 class JavaScriptBuilderParametersTests extends TestCase
 {
+    /**
+     * The JavaScript Builder accepts a key that starts with query., in any
+     * letter case, and not one that only holds query. somewhere inside it.
+     */
+    public function testOnlyAKeyStartingWithQueryIsAccepted()
+    {
+        $element = new JavascriptBuilderElement();
+
+        $this->assertTrue($element->filterEvidenceKey('query.anything'));
+        $this->assertTrue($element->filterEvidenceKey('Query.Anything'));
+        $this->assertFalse($element->filterEvidenceKey('header.x-query.y'));
+        $this->assertFalse($element->filterEvidenceKey('cookie.query.z'));
+    }
+
     public function testOnlyQueryEvidenceBecomesAParameter()
     {
         $script = $this->render([
@@ -140,6 +154,53 @@ class JavaScriptBuilderParametersTests extends TestCase
         $script = $this->render(['header.host' => 'example.com']);
 
         $this->assertSame('{}', $this->parameters($script));
+    }
+
+    /**
+     * Evidence keys ignore letter case, and the evidence is handed back with
+     * each key in the letters it was first set with, so the session id and
+     * the sequence are left out of the parameters whatever those letters
+     * are. Both already travel in the request body as their own values, so a
+     * spelling that slipped past sent each of them a second time and the
+     * session id changing on every page view stopped the record of a
+     * request's inputs ever matching.
+     */
+    public function testSessionIdAndSequenceAreLeftOutInAnyLetterCase()
+    {
+        $spellings = [
+            ['Query.Session-ID', 'Query.Sequence'],
+            ['QUERY.SESSION-ID', 'QUERY.SEQUENCE'],
+            ['query.session-id', 'query.sequence'],
+        ];
+
+        foreach ($spellings as [$sessionId, $sequence]) {
+            $script = $this->render([
+                'header.host' => 'example.com',
+                $sessionId => 'abc',
+                $sequence => '2',
+                'query.mark' => 'kept'
+            ]);
+
+            $this->assertSame(
+                '{"mark":"kept"}',
+                $this->parameters($script),
+                $sessionId
+            );
+        }
+    }
+
+    /**
+     * The prefix is matched without regard to letter case already, so a
+     * query key in other letters still becomes a parameter.
+     */
+    public function testQueryEvidenceInAnyLetterCaseBecomesAParameter()
+    {
+        $script = $this->render([
+            'header.host' => 'example.com',
+            'Query.Mark' => 'kept'
+        ]);
+
+        $this->assertSame('{"Mark":"kept"}', $this->parameters($script));
     }
 
     /**

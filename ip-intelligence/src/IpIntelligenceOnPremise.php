@@ -124,7 +124,9 @@ class IpIntelligenceOnPremise extends Engine
             }
 
             $this->engine = \ipi_engine_get();
-            $this->initPropertyIndexes();
+            $this->initPropertyIndexes(self::startupSetting(
+                'FiftyOneDegreesIpIntelligenceEngine.required_properties'
+            ) !== '');
             $this->initEngineMetaData();
             parent::__construct();
 
@@ -177,7 +179,7 @@ class IpIntelligenceOnPremise extends Engine
         // Build the native engine.
         $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
 
-        $this->initPropertyIndexes();
+        $this->initPropertyIndexes($restrictedProperties !== []);
         $this->initEngineMetaData();
 
         parent::__construct();
@@ -309,13 +311,22 @@ class IpIntelligenceOnPremise extends Engine
      * engine, not from the data set, whose own order can change on a reload.
      *
      * Called at construction only, because an index is the place of a name
-     * in the build-time list and a reload never changes it. An engine built
-     * with no names takes every property of the first data set it loads,
-     * sorted by name, and a reload keeps them.
+     * in the build-time list and a reload never changes it.
+     *
+     * An engine built with no names is left with an empty table and keeps
+     * reading by name, because native code then gives each property its own
+     * place in the data set as its index, which a reload can move.
+     *
+     * @param bool $builtWithNames whether the engine was built with a list of
+     *   property names, which is what fixes an index to a name
      */
-    private function initPropertyIndexes(): void
+    private function initPropertyIndexes(bool $builtWithNames): void
     {
         $this->propertyIndexes = [];
+        if (!$builtWithNames) {
+            return;
+        }
+
         $required = $this->engine->getRequiredProperties();
         for ($i = 0; $i < $required->size(); ++$i) {
             // A name given twice keeps its first place, as native code does.
@@ -324,6 +335,19 @@ class IpIntelligenceOnPremise extends Engine
                 $this->propertyIndexes[$name] = $i;
             }
         }
+    }
+
+    /**
+     * The value a setting had when PHP started, which is the value the
+     * start-up engine was built with. ini_get gives the value for this
+     * request, which a per-directory setting or ini_set can change after the
+     * engine was built.
+     */
+    private static function startupSetting(string $name): string
+    {
+        $value = get_cfg_var($name);
+
+        return is_string($value) ? $value : '';
     }
 
     private function initEngineMetaData(): void

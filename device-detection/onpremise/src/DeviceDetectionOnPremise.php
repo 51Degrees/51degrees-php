@@ -78,13 +78,17 @@ class DeviceDetectionOnPremise extends Engine
 
         if ($requiredProperties) {
             $this->setRestrictedProperties(explode(',', $requiredProperties));
-        }
 
-        // Map each build-time property name to its index, once, so every
-        // read of a value goes by index rather than by name. The list comes
-        // from the engine, not from the data set, whose own order can change
-        // on a reload.
-        $this->propertyIndexes = self::buildPropertyIndexes($this->engine);
+            // Map each build-time property name to its index, once, so every
+            // read of a value goes by index rather than by name. The list
+            // comes from the engine, not from the data set, whose own order
+            // can change on a reload.
+            //
+            // An engine built with no names keeps reading by name, because
+            // native code then gives each property its own place in the data
+            // set as its index, which a reload can move.
+            $this->propertyIndexes = self::buildPropertyIndexes($this->engine);
+        }
 
         // Make properties list
         $propertiesInternal = $this->engine->getMetaData()->getProperties();
@@ -208,8 +212,7 @@ class DeviceDetectionOnPremise extends Engine
      * The order is the engine's required property order, which native code
      * fixes at build and works out again for every data set it loads, so an
      * index names the same property however the data set orders its own
-     * properties. An engine built with no names takes every property of the
-     * first data set it loads, sorted by name, and a reload keeps them.
+     * properties.
      *
      * @return array<string, int>
      */

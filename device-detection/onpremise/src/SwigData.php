@@ -71,14 +71,20 @@ class SwigData extends AspectData
     /**
      * What to hand a native value accessor for a property.
      *
-     * The property's index in the list of names the engine was built with,
-     * which is fixed at build and so names the same property after any
-     * reload, or null for a name outside the list.
+     * An engine built with a list of names gives the property's index in
+     * that list, which is fixed at build and so names the same property
+     * after any reload, and null for a name outside the list. An engine
+     * built with no names has no index table and gives the name back, which
+     * is the behaviour it had before indexes were used.
      *
-     * @return null|int
+     * @return null|int|string
      */
     private function readKey(string $name)
     {
+        if ($this->flowElement->propertyIndexes === []) {
+            return $name;
+        }
+
         return $this->flowElement->getPropertyIndex($name);
     }
 
@@ -142,8 +148,12 @@ class SwigData extends AspectData
             } else {
                 // Read by the property's index in the list the engine was
                 // built with, which saves the native code a name lookup on
-                // every read. A property that is in the data set but outside
-                // that list has no index and so carries no value.
+                // every read.
+                //
+                // An engine built with no names has no index table, so the
+                // read falls back to the name. A property that is in the
+                // data set but outside a build-time list has no index and so
+                // carries no value.
                 $readKey = $this->readKey($property['name']);
                 if ($readKey === null) {
                     return new AspectPropertyValue(sprintf(

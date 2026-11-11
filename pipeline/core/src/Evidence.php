@@ -452,6 +452,10 @@ class Evidence
      * it, because an unaccepted value is one no element in the Pipeline
      * asked for.
      *
+     * The unaccepted values come first. The request keeps the last value
+     * given for a field, so where an unaccepted value and an accepted one
+     * give the same field, the accepted value is sent.
+     *
      * @return array<string, int|string>
      */
     public function getAllIncludingUnaccepted(): array

@@ -57,6 +57,11 @@ class Pipeline
     public bool $autoCloseElements;
 
     /**
+     * The metadata of every element's properties, keyed by metadata name and
+     * then by value, which FlowData::getWhere searches. PHP builds the
+     * pipeline on every request and most requests never search, so it is
+     * built when it is first read.
+     *
      * @var array<string, array<string, array<string, array<string, string>>>>
      */
     public array $propertyDatabase;
@@ -82,7 +87,8 @@ class Pipeline
 
         $this->flowElements = $flowElements;
 
-        $this->propertyDatabase = [];
+        // Unset, so that the first read of it builds it (see __get).
+        unset($this->propertyDatabase);
 
         foreach ($flowElements as $flowElement) {
             $this->flowElementsList[$flowElement->dataKey] = $flowElement;
@@ -90,9 +96,32 @@ class Pipeline
             $flowElement->pipelines[] = $this;
 
             $flowElement->onRegistration($this);
-
-            $this->updatePropertyDatabaseForFlowElement($flowElement);
         }
+    }
+
+    /**
+     * Builds propertyDatabase from every element when it is first read.
+     *
+     * @return mixed
+     */
+    public function &__get(string $name)
+    {
+        if ($name !== 'propertyDatabase') {
+            trigger_error(
+                sprintf('Undefined property: %s::$%s', static::class, $name),
+                E_USER_WARNING
+            );
+            $none = null;
+
+            return $none;
+        }
+
+        $this->propertyDatabase = [];
+        foreach ($this->flowElements as $flowElement) {
+            $this->addToPropertyDatabase($flowElement);
+        }
+
+        return $this->propertyDatabase;
     }
 
     /**
@@ -153,6 +182,17 @@ class Pipeline
      * Update metadata store for a FlowElement based on its list of properties.
      */
     public function updatePropertyDatabaseForFlowElement(FlowElement $flowElement): void
+    {
+        // Before its first read there is no database, and the read builds
+        // it from the properties the elements have then.
+        if (!isset($this->propertyDatabase)) {
+            return;
+        }
+
+        $this->addToPropertyDatabase($flowElement);
+    }
+
+    private function addToPropertyDatabase(FlowElement $flowElement): void
     {
         $dataKey = $flowElement->dataKey;
 

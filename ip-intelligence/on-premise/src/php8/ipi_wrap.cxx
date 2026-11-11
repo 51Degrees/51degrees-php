@@ -23192,7 +23192,7 @@ static PHP_METHOD(ConfigIpiSwig,getComponents) {
     }
   }
   
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 1);
+  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 0);
   
   fail: SWIGUNUSED;
   return;
@@ -23290,7 +23290,7 @@ static PHP_METHOD(ConfigIpiSwig,getProperties) {
     }
   }
   
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 1);
+  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 0);
   
   fail: SWIGUNUSED;
   return;
@@ -23339,7 +23339,7 @@ static PHP_METHOD(ConfigIpiSwig,getValues) {
     }
   }
   
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 1);
+  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 0);
   
   fail: SWIGUNUSED;
   return;
@@ -23388,7 +23388,7 @@ static PHP_METHOD(ConfigIpiSwig,getProfiles) {
     }
   }
   
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 1);
+  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_CollectionConfig, 0);
   
   fail: SWIGUNUSED;
   return;

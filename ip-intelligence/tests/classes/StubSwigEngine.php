@@ -38,15 +38,43 @@ class StubSwigEngine extends Engine
     public string $dataKey = Constants::ELEMENT_DATA_KEY;
 
     /**
+     * The index of each build-time property name, keyed by the lowercase
+     * name, as the real engine builds it from getRequiredProperties().
+     *
+     * @var array<string, int>
+     */
+    public array $propertyIndexes = [];
+
+    /**
      * @param array<string, array<string, string>> $properties metadata keyed
      *   by lowercase property name, as the real engine builds it
+     * @param null|array<string> $requiredProperties the build-time names in
+     *   index order. Defaults to the metadata's own order, so tests that do
+     *   not vary the order keep their existing behaviour.
      */
-    public function __construct(array $properties)
+    public function __construct(array $properties, ?array $requiredProperties = null)
     {
         $this->pipelines = [];
         $this->properties = $properties;
 
+        $names = $requiredProperties ?? array_map(
+            static fn (array $property): string => $property['name'],
+            array_values($properties)
+        );
+        foreach ($names as $index => $name) {
+            $this->propertyIndexes[strtolower($name)] = $index;
+        }
+
         parent::__construct();
+    }
+
+    /**
+     * The index of a build-time property name, or null when the engine was
+     * not built with the name.
+     */
+    public function getPropertyIndex(string $name): ?int
+    {
+        return $this->propertyIndexes[strtolower($name)] ?? null;
     }
 
     public function processInternal(FlowData $flowData): void

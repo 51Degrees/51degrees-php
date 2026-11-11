@@ -215,15 +215,12 @@ class JavascriptBuilderElement extends FlowElement
      *
      * The template writes the sequence as bare code (var sequence = ...;), so
      * anything other than a whole number would stop the script parsing, or
-     * change what it does. The value is query.sequence when parseSequence
-     * can use it, up to the largest sequence the SequenceElement gives, and
-     * 1 otherwise, because the script counts its own requests up from this
-     * number and cannot use zero or a negative one. With a SequenceElement,
-     * query.sequence holds the element's output. Without one, it holds the
-     * query string's value, or nothing, and a usable value is rendered as
-     * it is.
+     * change what it does. The value is the SequenceElement's sequence when
+     * parseSequence can use it, up to the largest sequence the
+     * SequenceElement gives, and 1 otherwise, because the script counts its
+     * own requests up from this number and cannot use zero or a negative one.
      *
-     * @param mixed $value The query.sequence evidence, or null
+     * @param mixed $value The SequenceElement's sequence, or null
      */
     public static function getSequence($value): int
     {
@@ -232,15 +229,26 @@ class JavascriptBuilderElement extends FlowElement
     }
 
     /**
+     * The SequenceElement's Element Data, or null when the pipeline has no
+     * SequenceElement.
+     */
+    private static function sequenceData(FlowData $flowData): ?ElementData
+    {
+        try {
+            return $flowData->get('sequence');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
      * The session id to render into the script.
      *
      * The template writes the session id inside quotes without any escaping,
      * so a session id that is not 1 to 64 ASCII letters, digits and hyphens
-     * is rendered as an empty string, whether it came from the
-     * SequenceElement or from the query string, as the pipeline
-     * specification says.
+     * is rendered as an empty string, as the pipeline specification says.
      *
-     * @param mixed $value The query.session-id evidence, or null
+     * @param mixed $value The SequenceElement's session id, or null
      */
     public static function getSessionId($value): string
     {
@@ -257,7 +265,7 @@ class JavascriptBuilderElement extends FlowElement
         $filter = new EvidenceKeyFilter();
 
         $filter->filterEvidenceKey = function ($key) {
-            if (strpos($key, 'query.') !== false) {
+            if (strpos($key, 'query.') === 0) {
                 return true;
             }
 
@@ -348,12 +356,17 @@ class JavascriptBuilderElement extends FlowElement
 
         // Check if any delayedproperties exist in the json
         $vars['_hasDelayedProperties'] = strpos($vars['_jsonObject'], 'delayexecution') !== false;
-        // Both are written into the script, so each always has a safe value.
-        // The session id is written inside quotes and is empty when absent or
-        // not safe, and the sequence is written as bare code, so it is always
-        // a positive number.
-        $vars['_sessionId'] = self::getSessionId($flowData->evidence->get('query.session-id'));
-        $vars['_sequence'] = self::getSequence($flowData->evidence->get('query.sequence'));
+        // Both come from the SequenceElement's Element Data, and without a
+        // SequenceElement the session id is empty and the sequence is 1. Both
+        // are written into the script, so each always has a safe value. The
+        // session id is written inside quotes and is empty when absent or not
+        // safe, and the sequence is written as bare code, so it is always a
+        // positive number.
+        $sequence = self::sequenceData($flowData);
+        $vars['_sessionId'] = $sequence === null
+            ? '' : self::getSessionId($sequence->get('session-id'));
+        $vars['_sequence'] = $sequence === null
+            ? self::DEFAULT_SEQUENCE : self::getSequence($sequence->get('sequence'));
 
         $enableCookies = $flowData->evidence->get('query.fod-js-enable-cookies');
         if ($enableCookies !== null) {
@@ -410,6 +423,10 @@ class JavascriptBuilderElement extends FlowElement
      * snippets would run again on every page. Keys and values are encoded
      * as the .NET builder encodes them.
      *
+     * Evidence keys ignore letter case and arrive in the letters they were
+     * first set with, so each key is lowered before it is matched against
+     * the names left out, which are held in lower case.
+     *
      * @param array<string, mixed> $evidence All the evidence
      * @return array<string, string>
      */
@@ -419,7 +436,7 @@ class JavascriptBuilderElement extends FlowElement
         foreach ($evidence as $key => $value) {
             if (
                 stripos($key, 'query.') !== 0 ||
-                in_array($key, self::EXCLUDED_PARAMETERS, true) ||
+                in_array(strtolower($key), self::EXCLUDED_PARAMETERS, true) ||
                 !is_scalar($value)
             ) {
                 continue;

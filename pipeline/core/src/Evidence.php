@@ -54,6 +54,16 @@ class Evidence
     protected array $evidence = [];
 
     /**
+     * The key each value is held under, in $evidence or $unaccepted, by
+     * that key in lower case. Evidence keys ignore letter case, so a key set
+     * again in other letters replaces the value and keeps the letters it
+     * was first set with, in whichever collection it is held.
+     *
+     * @var array<string, string>
+     */
+    private array $keys = [];
+
+    /**
      * Values no element in the Pipeline accepts, kept apart from the values
      * above so that only a reader asking for them sees them. A Cloud
      * Request Engine sends them, because what the cloud service uses
@@ -103,6 +113,13 @@ class Evidence
                 $keep = true;
                 break;
             }
+        }
+
+        $lower = strtolower($key);
+        if (isset($this->keys[$lower])) {
+            $key = $this->keys[$lower];
+        } else {
+            $this->keys[$lower] = $key;
         }
 
         if ($keep) {
@@ -418,17 +435,20 @@ class Evidence
     }
 
     /**
-     * Get a piece of evidence by key.
+     * Get a piece of evidence by key, in any letter case.
      *
      * @return null|int|string|HttpRequest
      */
     public function get(string $key)
     {
-        if ($key === self::HTTP_REQUEST_KEY) {
+        $lower = strtolower($key);
+        if ($lower === self::HTTP_REQUEST_KEY) {
             return $this->httpRequest;
         }
 
-        return $this->evidence[$key] ?? null;
+        $stored = $this->keys[$lower] ?? null;
+
+        return $stored === null ? null : ($this->evidence[$stored] ?? null);
     }
 
     /**

@@ -5,6 +5,7 @@
   <testsuites>
     <testsuite name="Unit">
       <file>tests/TranslationEngineConfigTests.php</file>
+      <file>tests/TranslationEvidenceCaseTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

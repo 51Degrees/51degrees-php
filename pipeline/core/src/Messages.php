@@ -50,7 +50,7 @@ class Messages
     /**
      * The JSON Bundler found no sequence number from a Sequence Element.
      */
-    public const NO_SEQUENCE = 'The JSON Bundler needs a sequence number from the Sequence Element. Place a Sequence Element before the JSON Bundler in the Pipeline.';
+    public const NO_SEQUENCE = 'The JSON Bundler needs a sequence number. Place a Sequence Element before the JSON Bundler in the Pipeline.';
 
     /**
      * Property does not start with SetHeader. This takes the name of a property as a format argument.

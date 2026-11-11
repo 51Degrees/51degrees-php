@@ -33,8 +33,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Stands in for the JSON bundler, giving the JSON it builds when no other
  * element has data. The JSON bundler needs a sequence number in Evidence,
- * and these tests give the JavaScript builder the query string's values as
- * they were supplied.
+ * so this lets a pipeline without a SequenceElement render the script.
  */
 class FixedJsonElement extends FlowElement
 {
@@ -54,9 +53,10 @@ class FixedJsonElement extends FlowElement
 
 /**
  * The script must parse whatever the pipeline holds. The sequence is written
- * into the script as bare code and the session id inside quotes, and a
- * pipeline without a SequenceElement passes the query string's values, or
- * nothing at all, straight to the builder.
+ * into the script as bare code and the session id inside quotes. They come
+ * from the SequenceElement's Element Data, and without a SequenceElement the
+ * sequence is 1 and the session id is empty, whatever the query string
+ * holds.
  *
  * The script is checked with "node --check", which needs Node on the path.
  * Every GitHub hosted runner has it.
@@ -228,26 +228,44 @@ class JavaScriptBuilderSequenceTests extends TestCase
     public static function provider_usableSequence(): array
     {
         return [
-            'text' => ['7', 7],
-            'leading zeros' => ['007', 7],
-            'largest' => ['2147483647', 2147483647],
-            'number' => [12, 12]
+            'text' => ['7', 8],
+            'leading zeros' => ['007', 8],
+            'number' => [12, 13]
         ];
     }
 
     /**
+     * Without a SequenceElement a usable sequence in the query string is
+     * still rendered as 1.
      * @dataProvider provider_usableSequence
      */
     #[DataProvider('provider_usableSequence')]
-    public function testUsableSequenceFromQueryIsRendered($value, int $expected): void
+    public function testWithoutASequenceElementTheSequenceIsOne($value, int $next): void
     {
         $script = self::render([
             'query.session-id' => 'abc',
             'query.sequence' => $value
         ]);
 
+        $this->assertSame(['var sequence = 1;'], self::lines($script, 'sequence'));
+        $this->assertParses($script);
+    }
+
+    /**
+     * With a SequenceElement the sequence rendered is the one it gives.
+     * @dataProvider provider_usableSequence
+     */
+    #[DataProvider('provider_usableSequence')]
+    public function testWithASequenceElementItsSequenceIsRendered($value, int $next): void
+    {
+        $script = self::render(
+            ['query.session-id' => 'abc', 'query.sequence' => $value],
+            false,
+            true
+        );
+
         $this->assertSame(
-            ['var sequence = ' . $expected . ';'],
+            ['var sequence = ' . $next . ';'],
             self::lines($script, 'sequence')
         );
         $this->assertParses($script);
@@ -274,25 +292,30 @@ class JavaScriptBuilderSequenceTests extends TestCase
 
     public static function provider_sequenceElement(): array
     {
-        return ['without sequence element' => [false], 'with sequence element' => [true]];
+        return [
+            'without sequence element' => [false, ''],
+            'with sequence element' => [true, 'abc-123']
+        ];
     }
 
     /**
+     * The session id rendered is the SequenceElement's, and empty without
+     * one.
      * @dataProvider provider_sequenceElement
      */
     #[DataProvider('provider_sequenceElement')]
-    public function testSessionIdFromQueryIsRendered(bool $sequenceElement): void
+    public function testSessionIdFromTheSequenceElementIsRendered(bool $sequenceElement, string $expected): void
     {
         $script = self::render(['query.session-id' => 'abc-123'], false, $sequenceElement);
 
-        $this->assertSame(['var sessionId = "abc-123";'], self::lines($script, 'sessionId'));
+        $this->assertSame(['var sessionId = "' . $expected . '";'], self::lines($script, 'sessionId'));
         $this->assertParses($script);
     }
 
     public function testLongestSessionIdIsRendered(): void
     {
         $sessionId = str_repeat('a', 64);
-        $script = self::render(['query.session-id' => $sessionId]);
+        $script = self::render(['query.session-id' => $sessionId], false, true);
 
         $this->assertSame(
             ['var sessionId = "' . $sessionId . '";'],

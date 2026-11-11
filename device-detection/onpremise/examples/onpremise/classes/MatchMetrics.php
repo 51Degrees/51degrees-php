@@ -163,7 +163,11 @@ class MatchMetrics
 
                     // output property names, values and descriptions
                     // some property values are lists. $property["isList"] will be true
-                    if ($value->hasValue && is_array($value->value)) {
+                    // A property can have no value in the matched profile, and
+                    // reading `value` then throws with the reason.
+                    if ($value->hasValue === false) {
+                        $output("    {$name}: Unknown ({$value->noValueMessage})");
+                    } elseif (is_array($value->value)) {
                         $output("    {$name}: " . count($value->value) . ' Values');
                         foreach ($value->value as $x) {
                             $output("        : {$x}");

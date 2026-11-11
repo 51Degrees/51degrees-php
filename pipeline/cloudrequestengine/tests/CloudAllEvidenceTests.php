@@ -78,7 +78,7 @@ class CloudAllEvidenceTests extends TestCase
 
         $this->assertSame('alpha', $fields['my-own-thing'] ?? null);
         $this->assertSame('Windows', $fields['sec-ch-ua-platform'] ?? null);
-        $this->assertSame('beta', $fields['51d_experiment'] ?? null);
+        $this->assertSame('beta', $fields['51D_experiment'] ?? null);
     }
 
     /**
@@ -89,30 +89,24 @@ class CloudAllEvidenceTests extends TestCase
     {
         $fields = $this->sentFields(self::UNLISTED + [self::acceptedKey => 'iPhone']);
 
-        $this->assertSame('iPhone', $fields['user-agent'] ?? null);
+        $this->assertSame('iPhone', $fields['User-Agent'] ?? null);
     }
 
     /**
-     * Where a value no element accepts and a value an element does accept
-     * give the request the same field, the accepted value is sent. The
-     * JavaScript Builder accepts header.host and no element accepts
-     * header.Host, and both become the field host.
+     * Two spellings of one key are one key, so the request carries one
+     * field, holding the value set last, whichever spelling came first. The
+     * Evidence keeps the spelling set first, so the field has that name.
      */
-    public function testAnAcceptedValueIsSentOverAnUnacceptedOneForOneField(): void
+    public function testTwoSpellingsOfOneKeySendTheValueSetLast(): void
     {
-        // The Engine warns that the two values give one field, which is
-        // not what this test is about.
-        set_error_handler(fn () => true, E_USER_WARNING);
-        try {
+        foreach ([['header.Host', 'header.host'], ['header.host', 'header.Host']] as [$first, $last]) {
             $fields = $this->sentFields([
-                'header.Host' => 'unaccepted.example.com',
-                'header.host' => 'accepted.example.com',
+                $first => 'first.example.com',
+                $last => 'last.example.com',
             ]);
-        } finally {
-            restore_error_handler();
-        }
 
-        $this->assertSame('accepted.example.com', $fields['host'] ?? null);
+            $this->assertSame('last.example.com', $fields[explode('.', $first, 2)[1]] ?? null, $first);
+        }
     }
 
     /**

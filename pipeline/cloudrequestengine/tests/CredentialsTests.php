@@ -180,7 +180,7 @@ class CredentialsTests extends TestCase
         $this->assertSame('POST', $type);
         $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
         $this->assertSame(
-            ['user-agent' => 'iPhone', 'resource' => self::resourceKey],
+            ['User-Agent' => 'iPhone', 'resource' => self::resourceKey],
             $fields
         );
 
@@ -212,7 +212,7 @@ class CredentialsTests extends TestCase
         [, $url, $fields] = self::dataRequest($result['requests']);
         $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
         $this->assertSame([
-            'user-agent' => 'iPhone',
+            'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
             'license' => self::licenseKey
         ], $fields);
@@ -230,7 +230,7 @@ class CredentialsTests extends TestCase
         [, $url, $fields] = self::dataRequest($result['requests']);
         $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
         $this->assertSame([
-            'user-agent' => 'iPhone',
+            'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
             'license' => self::licenseKey,
             'values' => 'device.ismobile,device.istablet'
@@ -248,7 +248,7 @@ class CredentialsTests extends TestCase
         [, $url, $fields] = self::dataRequest($result['requests']);
         $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
         $this->assertSame([
-            'user-agent' => 'iPhone',
+            'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
             'values' => 'device.ismobile,device.istablet'
         ], $fields);
@@ -273,7 +273,7 @@ class CredentialsTests extends TestCase
         $this->assertSame('POST', $type);
         $this->assertSame(Constants::BASE_URL_DEFAULT . 'json', $url);
         $this->assertSame([
-            'user-agent' => 'iPhone',
+            'User-Agent' => 'iPhone',
             'license' => self::licenseKey,
             'values' => 'device.ismobile,device.istablet'
         ], $fields);

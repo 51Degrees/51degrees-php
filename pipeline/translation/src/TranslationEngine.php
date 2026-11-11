@@ -245,14 +245,16 @@ class TranslationEngine extends Engine
 
     /**
      * Read the first non-blank translation evidence value, in precedence
-     * order.
+     * order. Each key is read through the evidence, which matches without
+     * regard to letter case, because a key arrives in the letters it was
+     * first set with.
      */
     protected function getEvidenceValue(FlowData $flowData): ?string
     {
-        $evidence = $flowData->evidence->getAll();
         foreach (self::EVIDENCE_KEYS as $key) {
-            if (isset($evidence[$key]) && trim((string) $evidence[$key]) !== '') {
-                return (string) $evidence[$key];
+            $value = $flowData->evidence->get($key);
+            if ($value !== null && trim((string) $value) !== '') {
+                return (string) $value;
             }
         }
 

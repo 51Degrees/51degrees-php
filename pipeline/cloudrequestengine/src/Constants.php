@@ -106,6 +106,11 @@ class Constants
     // processing.
     public const EVIDENCE_QUERY_PREFIX = 'query';
 
+    // The prefixes after query, header and cookie, highest precedence
+    // first, as evidence.md lists them. Any other prefix ranks after these,
+    // alphabetically.
+    public const OTHER_PREFIX_PRECEDENCE = ['server', 'fiftyone', 'location'];
+
     // other evidence constant
     public const EVIDENCE_OTHER = 'other';
 

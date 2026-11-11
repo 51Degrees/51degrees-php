@@ -32,6 +32,7 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
+use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -408,6 +409,150 @@ class IpIntelligenceOnPremiseTests extends TestCase
         $lowMemory = $this->startPhp(null, 'LowMemory');
         $this->assertSame('OK', $lowMemory['result']);
         $this->assertGreaterThan(0, $lowMemory['handles']);
+    }
+
+    /**
+     * An engine built with names in an order of their own reads each value
+     * by its place in that list, and gets the values an engine built with
+     * no names gets by name.
+     */
+    public function testAnEngineBuiltWithNamesReadsTheSameValuesByIndex(): void
+    {
+        $none = $this->buildEngine();
+        try {
+            $names = [];
+            foreach ($none->getProperties() as $key => $property) {
+                if ($key !== 'ip' && $key !== 'ipv6') {
+                    $names[] = $property['name'];
+                }
+            }
+            $names = array_slice(array_reverse($names), 0, 3);
+            $this->assertNotEmpty($names);
+            $byName = $this->valuesOf($none, $names);
+        } finally {
+            $none->close();
+        }
+
+        $named = $this->buildEngineWith($names);
+        try {
+            $expected = [];
+            foreach ($names as $index => $name) {
+                $expected[strtolower($name)] = $index;
+            }
+            $this->assertSame($expected, $named->propertyIndexes);
+            $this->assertEquals($byName, $this->valuesOf($named, $names));
+        } finally {
+            $named->close();
+        }
+    }
+
+    /**
+     * A name given twice keeps the place it was first given, as the native
+     * code does.
+     */
+    public function testANameGivenTwiceKeepsItsFirstIndex(): void
+    {
+        $none = $this->buildEngine();
+        try {
+            $names = [];
+            foreach ($none->getProperties() as $key => $property) {
+                if ($key !== 'ip' && $key !== 'ipv6') {
+                    $names[] = $property['name'];
+                }
+            }
+        } finally {
+            $none->close();
+        }
+        $this->assertGreaterThanOrEqual(2, count($names));
+
+        $named = $this->buildEngineWith([$names[0], $names[1], $names[0]]);
+        try {
+            $this->assertSame(0, $named->propertyIndexes[strtolower($names[0])]);
+            $this->assertSame(1, $named->propertyIndexes[strtolower($names[1])]);
+        } finally {
+            $named->close();
+        }
+    }
+
+    /**
+     * A setting given for one request, after the start-up engine was built
+     * with no names, does not turn indexes on, because that engine still
+     * holds every property in the data set's own order.
+     */
+    public function testASettingForTheRequestDoesNotTurnOnIndexes(): void
+    {
+        $dataFile = realpath($this->liteDataFile());
+        $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
+        $command = escapeshellarg(PHP_BINARY) . ' -d ' . escapeshellarg(
+            "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}"
+        ) . ' -r ' . escapeshellarg(self::INDEXES_PHP) . ' -- ' .
+            escapeshellarg($this->autoload()) . ' 2>&1';
+        exec($command, $lines, $status);
+        $printed = implode("\n", $lines);
+        $this->assertSame(0, $status, $printed);
+        $this->assertSame('[]', $printed);
+    }
+
+    // Sets required_properties for this request to the first property of
+    // the start-up engine, builds IpIntelligenceOnPremise from that engine,
+    // and prints its index table as JSON. The argument is the autoloader.
+    private const INDEXES_PHP = <<<'PHP'
+        require $argv[1];
+        $first = ipi_engine_get()
+            ->getMetaData()->getProperties()->getByIndex(0)->getName();
+        ini_set('FiftyOneDegreesIpIntelligenceEngine.required_properties', $first);
+        $engine = new fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise([]);
+        echo json_encode($engine->propertyIndexes);
+        PHP;
+
+    /**
+     * @param array<string> $names
+     */
+    private function buildEngineWith(array $names): IpIntelligenceOnPremise
+    {
+        return new IpIntelligenceOnPremise([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'MaxPerformance',
+            'restrictedProperties' => $names
+        ]);
+    }
+
+    /**
+     * The value of each property named, or its no value message, for one
+     * IPv4 address.
+     *
+     * @param array<string> $names
+     * @return array<string, mixed>
+     */
+    private function valuesOf(IpIntelligenceOnPremise $engine, array $names): array
+    {
+        $pipeline = (new PipelineBuilder())->add($engine)->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $values = [];
+            foreach ($names as $name) {
+                $value = $flowData->ip->get(strtolower($name));
+                $values[$name] = $value->hasValue
+                    ? $value->value
+                    : $value->noValueMessage;
+            }
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+
+        return $values;
+    }
+
+    private function autoload(): string
+    {
+        return dirname(
+            (new \ReflectionClass(\Composer\Autoload\ClassLoader::class))
+                ->getFileName(),
+            2
+        ) . '/autoload.php';
     }
 
     // Builds IpIntelligenceOnPremise from the start-up engine, or from the

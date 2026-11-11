@@ -59,6 +59,16 @@ class IpIntelligenceOnPremise extends Engine
 
     public $engine;
 
+    /**
+     * The index of each property the engine was built with, keyed by the
+     * lowercase name. The index is the place of the name in the build-time
+     * list, so it names the same property after any reload, and every read
+     * of a value goes by it rather than by name.
+     *
+     * @var array<string, int>
+     */
+    public array $propertyIndexes = [];
+
     private $config;
 
     /**
@@ -114,6 +124,9 @@ class IpIntelligenceOnPremise extends Engine
             }
 
             $this->engine = \ipi_engine_get();
+            $this->initPropertyIndexes(self::startupSetting(
+                'FiftyOneDegreesIpIntelligenceEngine.required_properties'
+            ) !== '');
             $this->initEngineMetaData();
             parent::__construct();
 
@@ -166,6 +179,7 @@ class IpIntelligenceOnPremise extends Engine
         // Build the native engine.
         $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
 
+        $this->initPropertyIndexes($restrictedProperties !== []);
         $this->initEngineMetaData();
 
         parent::__construct();
@@ -245,6 +259,9 @@ class IpIntelligenceOnPremise extends Engine
             $this->engine->refreshData($fileName);
         }
 
+        // The metadata follows the new data file. The index table does not,
+        // because an index is the place of a name in the list the engine was
+        // built with, which a reload never changes.
         $this->initEngineMetaData();
     }
 
@@ -255,6 +272,16 @@ class IpIntelligenceOnPremise extends Engine
     public function getProduct(): string
     {
         return $this->engine->getProduct();
+    }
+
+    /**
+     * The index of a property the engine was built with, or null when the
+     * engine was not built with the name. A caller with the index reads a
+     * value without the native code looking the name up.
+     */
+    public function getPropertyIndex(string $name): ?int
+    {
+        return $this->propertyIndexes[strtolower($name)] ?? null;
     }
 
     private function applyPerformanceProfile($config, string $profile): void
@@ -276,6 +303,51 @@ class IpIntelligenceOnPremise extends Engine
                 $config->setHighPerformance();
                 break;
         }
+    }
+
+    /**
+     * Map each build-time property name to its index, once, so every read of
+     * a value goes by index rather than by name. The list comes from the
+     * engine, not from the data set, whose own order can change on a reload.
+     *
+     * Called at construction only, because an index is the place of a name
+     * in the build-time list and a reload never changes it.
+     *
+     * An engine built with no names is left with an empty table and keeps
+     * reading by name, because native code then gives each property its own
+     * place in the data set as its index, which a reload can move.
+     *
+     * @param bool $builtWithNames whether the engine was built with a list of
+     *   property names, which is what fixes an index to a name
+     */
+    private function initPropertyIndexes(bool $builtWithNames): void
+    {
+        $this->propertyIndexes = [];
+        if (!$builtWithNames) {
+            return;
+        }
+
+        $required = $this->engine->getRequiredProperties();
+        for ($i = 0; $i < $required->size(); ++$i) {
+            // A name given twice keeps its first place, as native code does.
+            $name = strtolower($required->get($i));
+            if (!isset($this->propertyIndexes[$name])) {
+                $this->propertyIndexes[$name] = $i;
+            }
+        }
+    }
+
+    /**
+     * The value a setting had when PHP started, which is the value the
+     * start-up engine was built with. ini_get gives the value for this
+     * request, which a per-directory setting or ini_set can change after the
+     * engine was built.
+     */
+    private static function startupSetting(string $name): string
+    {
+        $value = get_cfg_var($name);
+
+        return is_string($value) ? $value : '';
     }
 
     private function initEngineMetaData(): void
@@ -343,13 +415,22 @@ class IpIntelligenceOnPremise extends Engine
      */
     private static function clientIpsFromEvidence(array $evidence): array
     {
+        // Evidence keys ignore letter case and arrive in the letters they
+        // were first set with, so every key is lowered before it is read.
+        // A key given twice in other letters is then one key holding its
+        // last value, as Evidence holds it.
+        $lowered = [];
+        foreach ($evidence as $key => $value) {
+            $lowered[strtolower((string) $key)] = $value;
+        }
+
         $ordered = [];
         foreach (['query.client-ip', 'server.client-ip'] as $key) {
-            if (isset($evidence[$key])) {
-                $ordered[] = $evidence[$key];
+            if (isset($lowered[$key])) {
+                $ordered[] = $lowered[$key];
             }
         }
-        foreach ($evidence as $value) {
+        foreach ($lowered as $value) {
             if (!in_array($value, $ordered, true)) {
                 $ordered[] = $value;
             }

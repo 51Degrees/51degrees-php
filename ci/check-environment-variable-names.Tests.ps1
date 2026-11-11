@@ -31,6 +31,10 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '$_ENV["LICENSE_KEY"]' }
         @{ Line = '$_SERVER[''RESOURCE_KEY'']' }
         @{ Line = '$env:LICENSE_KEY = $Keys.TestResourceKey' }
+        @{ Line = '${env:LICENSE_KEY} = $Keys.TestResourceKey' }
+        @{ Line = '${Env:RESOURCE_KEY}' }
+        @{ Line = 'Remove-Item Env:\LICENSE_KEY' }
+        @{ Line = '          url: ${{ env.CLOUD_ENDPOINT }}' }
         @{ Line = '<env name="RESOURCE_KEY" value="x"/>' }
         @{ Line = '[Environment]::SetEnvironmentVariable("LICENSE_KEY", $k)' }
         @{ Line = 'const LEGACY_RESOURCE_KEY_ENV_VAR = "RESOURCE_KEY";' }
@@ -63,6 +67,8 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'getenv("_51DEGREES_CLOUD_ENDPOINT")' }
         @{ Line = '$env:_51DEGREES_DD_PATH = "file.hash"' }
         @{ Line = '$env:_51degrees_dd_path = "file.hash"' }
+        @{ Line = '${env:_51DEGREES_RESOURCE_KEY} = $Keys.TestResourceKey' }
+        @{ Line = '  PAID_RESOURCE_KEY: ${{ env.PAID_RESOURCE_KEY }}' }
         @{ Line = 'getenv("SUPER_RESOURCE_KEY")' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
     ) {

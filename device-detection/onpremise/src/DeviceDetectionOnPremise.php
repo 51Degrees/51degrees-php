@@ -36,17 +36,6 @@ class DeviceDetectionOnPremise extends Engine
     public \EngineHashSwig $engine;
 
     /**
-     * The index of each property the engine was built with, keyed by the
-     * lowercase name. The index is the place of the name in the build-time
-     * list, so it names the same property after any reload, and every read
-     * of a value goes by it rather than by name. It is built when it is
-     * first read, and is empty for an engine built with no names.
-     *
-     * @var array<string, int>
-     */
-    public array $propertyIndexes;
-
-    /**
      * The match metrics, which the results give rather than the data set.
      */
     private const METRIC_PROPERTIES = [
@@ -127,13 +116,11 @@ class DeviceDetectionOnPremise extends Engine
      */
     private array $evidenceKeys;
 
-    private bool $builtWithNames;
-
     /**
-     * Each name the engine was built with, keyed by the lowercase name, with
-     * its index in that list and the name as the engine gives it.
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it.
      *
-     * @var null|array<string, array{0: int, 1: string}>
+     * @var null|array<string, string>
      */
     private ?array $requiredNames = null;
 
@@ -171,20 +158,15 @@ class DeviceDetectionOnPremise extends Engine
             'FiftyOneDegreesHashEngine.required_properties'
         );
 
-        // An engine built with no names keeps reading by name, because
-        // native code then gives each property its own place in the data
-        // set as its index, which a reload can move.
-        $this->builtWithNames = (bool) $requiredProperties;
-        if ($this->builtWithNames) {
+        if ($requiredProperties) {
             $this->setRestrictedProperties(explode(',', $requiredProperties));
         }
 
         // PHP constructs this class on every request, while the native
         // engine is built once, when PHP starts. So the table of every
-        // property and the index table are built when they are first read
-        // (see __get), and a read looks up only its own property (see
-        // findProperty).
-        unset($this->properties, $this->propertyIndexes);
+        // property is built when it is first read (see __get), and a read
+        // looks up only its own property (see findProperty).
+        unset($this->properties);
 
         // Make evidence list
         $evidences = $this->engine->getKeys();
@@ -267,36 +249,23 @@ class DeviceDetectionOnPremise extends Engine
                 $this->engine->refreshData($fileName_or_data, $length);
         }
 
-        // The metadata follows the new data set. The index table does not,
-        // because an index is the place of a name in the list the engine
-        // was built with, which a reload never changes.
+        // The metadata follows the new data set.
         unset($this->properties);
         $this->requiredNames = null;
         $this->readProperties = [];
     }
 
     /**
-     * Builds the table of every property, or the index table, when it is
-     * first read.
+     * Builds the table of every property when it is first read.
      *
      * @return mixed
      */
     public function &__get(string $name)
     {
-        switch ($name) {
-            case 'properties':
-                $this->properties = $this->buildProperties();
+        if ($name === 'properties') {
+            $this->properties = $this->buildProperties();
 
-                return $this->properties;
-            case 'propertyIndexes':
-                $this->propertyIndexes = [];
-                if ($this->builtWithNames) {
-                    foreach ($this->requiredNames() as $key => $named) {
-                        $this->propertyIndexes[$key] = $named[0];
-                    }
-                }
-
-                return $this->propertyIndexes;
+            return $this->properties;
         }
 
         trigger_error(
@@ -340,16 +309,6 @@ class DeviceDetectionOnPremise extends Engine
     }
 
     /**
-     * The index of a property the engine was built with, or null when the
-     * engine was not built with the name. A caller with the index reads a
-     * value without the native code looking the name up.
-     */
-    public function getPropertyIndex(string $name): ?int
-    {
-        return $this->propertyIndexes[strtolower($name)] ?? null;
-    }
-
-    /**
      * The name, type and category of a property the engine was built with,
      * from native code, or null for any other name.
      *
@@ -357,12 +316,12 @@ class DeviceDetectionOnPremise extends Engine
      */
     private function lookUpProperty(string $key): ?array
     {
-        $named = $this->requiredNames()[$key] ?? null;
-        if ($named === null) {
+        $name = $this->requiredNames()[$key] ?? null;
+        if ($name === null) {
             return null;
         }
         $property = $this->engine->getMetaData()->getProperties()
-            ->getByKey($named[1]);
+            ->getByKey($name);
         if ($property === null) {
             return null;
         }
@@ -375,15 +334,11 @@ class DeviceDetectionOnPremise extends Engine
     }
 
     /**
-     * Each name the engine was built with, keyed by the lowercase name, with
-     * its index and the name as the engine gives it.
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it, which for a property the data set has is the
+     * data set's spelling.
      *
-     * The order is the engine's required property order, which native code
-     * fixes at build and works out again for every data set it loads, so an
-     * index names the same property however the data set orders its own
-     * properties.
-     *
-     * @return array<string, array{0: int, 1: string}>
+     * @return array<string, string>
      */
     private function requiredNames(): array
     {
@@ -392,13 +347,8 @@ class DeviceDetectionOnPremise extends Engine
             $required = $this->engine->getRequiredProperties();
             $count = $required->size();
             for ($i = 0; $i < $count; ++$i) {
-                // A name given twice keeps its first place, as native code
-                // does.
                 $name = $required->get($i);
-                $key = strtolower($name);
-                if (!isset($this->requiredNames[$key])) {
-                    $this->requiredNames[$key] = [$i, $name];
-                }
+                $this->requiredNames[strtolower($name)] ??= $name;
             }
         }
 

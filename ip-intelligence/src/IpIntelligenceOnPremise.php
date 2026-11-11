@@ -60,17 +60,6 @@ class IpIntelligenceOnPremise extends Engine
     public $engine;
 
     /**
-     * The index of each property the engine was built with, keyed by the
-     * lowercase name. The index is the place of the name in the build-time
-     * list, so it names the same property after any reload, and every read
-     * of a value goes by it rather than by name. It is built when it is
-     * first read, and is empty for an engine built with no names.
-     *
-     * @var array<string, int>
-     */
-    public array $propertyIndexes;
-
-    /**
      * The synthetic properties added by this engine. The IP address supplied
      * as evidence is echoed back in the results (ip-intelligence-dotnet
      * parity).
@@ -99,13 +88,11 @@ class IpIntelligenceOnPremise extends Engine
      */
     private array $evidenceKeys = [];
 
-    private bool $builtWithNames = false;
-
     /**
-     * Each name the engine was built with, keyed by the lowercase name, with
-     * its index in that list and the name as the engine gives it.
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it.
      *
-     * @var null|array<string, array{0: int, 1: string}>
+     * @var null|array<string, string>
      */
     private ?array $requiredNames = null;
 
@@ -137,9 +124,6 @@ class IpIntelligenceOnPremise extends Engine
     {
         $this->pipelines = [];
 
-        // Built when it is first read (see __get).
-        unset($this->propertyIndexes);
-
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             throw new \Exception(Messages::EXTENSION_NOT_LOADED);
         }
@@ -168,9 +152,6 @@ class IpIntelligenceOnPremise extends Engine
             }
 
             $this->engine = \ipi_engine_get();
-            $this->builtWithNames = self::startupSetting(
-                'FiftyOneDegreesIpIntelligenceEngine.required_properties'
-            ) !== '';
             $this->initEngineMetaData();
             parent::__construct();
 
@@ -223,7 +204,6 @@ class IpIntelligenceOnPremise extends Engine
         // Build the native engine.
         $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
 
-        $this->builtWithNames = $restrictedProperties !== [];
         $this->initEngineMetaData();
 
         parent::__construct();
@@ -303,9 +283,7 @@ class IpIntelligenceOnPremise extends Engine
             $this->engine->refreshData($fileName);
         }
 
-        // The metadata follows the new data file. The index table does not,
-        // because an index is the place of a name in the list the engine was
-        // built with, which a reload never changes.
+        // The metadata follows the new data file.
         $this->initEngineMetaData();
     }
 
@@ -319,38 +297,18 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * The index of a property the engine was built with, or null when the
-     * engine was not built with the name. A caller with the index reads a
-     * value without the native code looking the name up.
-     */
-    public function getPropertyIndex(string $name): ?int
-    {
-        return $this->propertyIndexes[strtolower($name)] ?? null;
-    }
-
-    /**
-     * Builds the table of every available property, or the index table,
-     * when it is first read.
+     * Builds the table of every available property when it is first
+     * read.
      *
      * @return mixed
      * @throws \Exception
      */
     public function &__get(string $name)
     {
-        switch ($name) {
-            case 'properties':
-                $this->properties = $this->buildProperties();
+        if ($name === 'properties') {
+            $this->properties = $this->buildProperties();
 
-                return $this->properties;
-            case 'propertyIndexes':
-                $this->propertyIndexes = [];
-                if ($this->builtWithNames) {
-                    foreach ($this->requiredNames() as $key => $named) {
-                        $this->propertyIndexes[$key] = $named[0];
-                    }
-                }
-
-                return $this->propertyIndexes;
+            return $this->properties;
         }
 
         trigger_error(
@@ -425,12 +383,12 @@ class IpIntelligenceOnPremise extends Engine
     private function lookUpProperty(string $key): ?array
     {
         $this->assertOpen();
-        $named = $this->requiredNames()[$key] ?? null;
-        if ($named === null) {
+        $name = $this->requiredNames()[$key] ?? null;
+        if ($name === null) {
             return null;
         }
         $property = $this->engine->getMetaData()->getProperties()
-            ->getByKey($named[1]);
+            ->getByKey($name);
         if ($property === null || !$property->getAvailable()) {
             return null;
         }
@@ -443,11 +401,11 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * Each name the engine was built with, keyed by the lowercase name, with
-     * its index and the name as the engine gives it. The list comes from the
-     * engine, not from the data set, whose own order can change on a reload.
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it, which for a property the data set has is the
+     * data set's spelling.
      *
-     * @return array<string, array{0: int, 1: string}>
+     * @return array<string, string>
      * @throws \Exception
      */
     private function requiredNames(): array
@@ -458,13 +416,8 @@ class IpIntelligenceOnPremise extends Engine
             $required = $this->engine->getRequiredProperties();
             $count = $required->size();
             for ($i = 0; $i < $count; ++$i) {
-                // A name given twice keeps its first place, as native code
-                // does.
                 $name = $required->get($i);
-                $key = strtolower($name);
-                if (!isset($this->requiredNames[$key])) {
-                    $this->requiredNames[$key] = [$i, $name];
-                }
+                $this->requiredNames[strtolower($name)] ??= $name;
             }
         }
 
@@ -482,19 +435,6 @@ class IpIntelligenceOnPremise extends Engine
         if ($this->engine === null) {
             throw new \Exception(Messages::ENGINE_CLOSED);
         }
-    }
-
-    /**
-     * The value a setting had when PHP started, which is the value the
-     * start-up engine was built with. ini_get gives the value for this
-     * request, which a per-directory setting or ini_set can change after the
-     * engine was built.
-     */
-    private static function startupSetting(string $name): string
-    {
-        $value = get_cfg_var($name);
-
-        return is_string($value) ? $value : '';
     }
 
     private function initEngineMetaData(): void

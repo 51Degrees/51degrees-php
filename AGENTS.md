@@ -136,7 +136,7 @@ cd ..
 ```
 
 The example uses the argument when that file is there. Otherwise it takes the
-file the `IPINTELLIGENCEDATAFILE` environment variable names, then any `.ipi`
+file the `_51DEGREES_IPI_PATH` environment variable names, then any `.ipi`
 file in `ip-intelligence/assets`, then a file in `cxx/data/ip-intelligence`
 with a name in `IPI_DATA_FILE_NAMES` in `examples/classes/ExampleConstants.php`.
 When it finds none, it downloads the Lite file into `cxx/data/ip-intelligence`

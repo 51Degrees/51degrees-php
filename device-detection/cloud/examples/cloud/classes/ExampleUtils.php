@@ -37,7 +37,7 @@ class ExampleUtils
     // own name.
     public const RESOURCE_KEY_QUERY_PARAM = 'resource_key';
 
-    public const ENDPOINT_ENV_VAR = 'cloud_endpoint';
+    public const ENDPOINT_ENV_VAR = '_51DEGREES_CLOUD_ENDPOINT';
 
     public static function getResourceKeyFromEnv()
     {

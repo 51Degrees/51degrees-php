@@ -37,7 +37,7 @@ class TranslationPaths
     /**
      * Find the Translations directory. Searches the ip-intelligence folder of
      * the data submodule inside the cxx submodule at the repository root,
-     * then the IPINTELLIGENCEDATAFILE directory as a fallback.
+     * then the _51DEGREES_IPI_PATH directory as a fallback.
      */
     public static function resolveTranslationsDir(): string
     {
@@ -45,7 +45,7 @@ class TranslationPaths
             __DIR__ . '/../../../cxx/data/ip-intelligence/Translations',
         ];
 
-        $env = getenv('IPINTELLIGENCEDATAFILE');
+        $env = getenv('_51DEGREES_IPI_PATH');
         if ($env) {
             $candidates[] = dirname($env) . '/Translations';
             $candidates[] = dirname($env) . '/data/ip-intelligence/Translations';

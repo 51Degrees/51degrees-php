@@ -43,7 +43,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     {
         $httpClient = $this->mockHttp();
 
-        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
 
         $engine = new CloudRequestEngine([
             'resourceKey' => CloudRequestEngineTests::resourceKey,
@@ -62,7 +62,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     {
         $httpClient = $this->mockHttp();
 
-        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
 
         $engine = new CloudRequestEngine([
             'resourceKey' => CloudRequestEngineTests::resourceKey,
@@ -508,6 +508,6 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     #[After]
     protected function tearDowniCloudEndPoint()
     {
-        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL));
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE));
     }
 }

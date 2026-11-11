@@ -103,7 +103,7 @@ class CloudRequestEngine extends Engine
             $this->baseURL = $settings['cloudEndPoint'];
         } else {
             // Check if base URL is set via environment variable
-            $envVarUrl = getenv(Constants::FOD_CLOUD_API_URL);
+            $envVarUrl = getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
             if (empty($envVarUrl)) {
                 // Use default if nothing else is set
                 $this->baseURL = Constants::BASE_URL_DEFAULT;

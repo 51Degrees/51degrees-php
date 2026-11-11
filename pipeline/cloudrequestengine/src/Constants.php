@@ -26,7 +26,7 @@ namespace fiftyone\pipeline\cloudrequestengine;
 class Constants
 {
     // Environment variable to set cloud endpoint
-    public const FOD_CLOUD_API_URL = 'FOD_CLOUD_API_URL';
+    public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
     // Default base url
     public const BASE_URL_DEFAULT = 'https://cloud.51degrees.com/api/v4/';
 

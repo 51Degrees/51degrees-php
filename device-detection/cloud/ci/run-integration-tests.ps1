@@ -32,7 +32,7 @@ try {
         composer install --working-dir=..
         $env:PORT = 8096
         $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-        $env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"
+        $env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
         $example = php -S "localhost:$env:PORT" cloud/gettingStartedWeb.php 2>&1 &
     } finally { Pop-Location }
 

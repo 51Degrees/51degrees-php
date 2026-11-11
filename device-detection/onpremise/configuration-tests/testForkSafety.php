@@ -51,8 +51,8 @@
  * expected behaviour was not observed.
  *
  * Inputs (env vars, with argv fallbacks):
- *   FIFTYONE_DATA_FILE  path to a .hash data file   (argv[1], or the module's configured data_file)
- *   FIFTYONE_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
+ *   _51DEGREES_DD_PATH  path to a .hash data file   (argv[1], or the module's configured data_file)
+ *   _51DEGREES_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
  */
 
 const CHILDREN = 8;     // forked workers that all share the inherited handles
@@ -69,12 +69,12 @@ function fail(string $message, int $code = 2): void
     exit($code);
 }
 
-$dataFile = getenv('FIFTYONE_DATA_FILE') ?: ($argv[1] ?? '');
+$dataFile = getenv('_51DEGREES_DD_PATH') ?: ($argv[1] ?? '');
 if ($dataFile === '' && function_exists('ini_get')) {
     $dataFile = (string) ini_get('FiftyOneDegreesHashEngine.data_file');
 }
 if ($dataFile === '' || !is_file($dataFile)) {
-    fail("data file not found (set FIFTYONE_DATA_FILE or pass it as the first argument): '{$dataFile}'");
+    fail("data file not found (set _51DEGREES_DD_PATH or pass it as the first argument): '{$dataFile}'");
 }
 
 if (!function_exists('pcntl_fork')) {
@@ -87,7 +87,7 @@ if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
 // Load a set of User-Agents to detect. The exact values do not matter, only
 // that there are enough distinct ones to exercise the data file.
 $userAgents = [];
-$uaCsv = getenv('FIFTYONE_UA_CSV') ?: ($argv[3] ?? '');
+$uaCsv = getenv('_51DEGREES_UA_CSV') ?: ($argv[3] ?? '');
 if ($uaCsv !== '' && is_file($uaCsv)) {
     $handle = fopen($uaCsv, 'r');
     while (($line = fgets($handle)) !== false && count($userAgents) < 200) {

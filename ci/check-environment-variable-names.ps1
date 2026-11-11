@@ -49,12 +49,18 @@ $script:DigitInitialPattern = [regex]::new(
 # string parameter the cloud service takes and the cloud_endpoint pipeline
 # setting, so those three are matched only where the line reads or sets a
 # variable, or names one in a constant whose own name says so.
+#
+# The env token is matched on its own, with a following backslash allowed,
+# rather than next to a dollar sign, because PowerShell braces a name as well
+# as prefixing it and reads one through the Env: drive, and a workflow
+# expression braces one too. Wanting the dollar beside the token misses every
+# braced form, which the CI scripts here write.
 $plainOld = '(?:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
     'FIFTYONE_DATA' + '_FILE|FIFTYONE_UA' + '_CSV)'
 $sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|CLOUD_ENDPOINT)'
 $script:FallbackPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +
-    '(?:getenv\(\s*[''"]|\$_(?:ENV|SERVER)\[\s*[''"]|\$env:|' +
+    '(?:getenv\(\s*[''"]|\$_(?:ENV|SERVER)\[\s*[''"]|env[:.]\\?|' +
     '<env\s+name="|SetEnvironmentVariable\(\s*[''"]|putenv\(\s*[''"]|' +
     "[A-Za-z_][A-Za-z0-9_]*(?:ENV_VAR|ENVIRONMENT_VARIABLE|_VARIABLE)" +
     "[A-Za-z0-9_]*\s*=\s*['`"])$sharedOld(?![A-Za-z0-9_])|" +

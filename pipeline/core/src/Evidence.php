@@ -54,10 +54,10 @@ class Evidence
     protected array $evidence = [];
 
     /**
-     * The key each value is held under in $evidence, by that key in lower
-     * case. Evidence keys ignore letter case, so a key set again in other
-     * letters replaces the value and keeps the letters it was first set
-     * with.
+     * The key each value is held under, in $evidence or $unaccepted, by
+     * that key in lower case. Evidence keys ignore letter case, so a key set
+     * again in other letters replaces the value and keeps the letters it
+     * was first set with, in whichever collection it is held.
      *
      * @var array<string, string>
      */
@@ -115,13 +115,14 @@ class Evidence
             }
         }
 
+        $lower = strtolower($key);
+        if (isset($this->keys[$lower])) {
+            $key = $this->keys[$lower];
+        } else {
+            $this->keys[$lower] = $key;
+        }
+
         if ($keep) {
-            $lower = strtolower($key);
-            if (isset($this->keys[$lower])) {
-                $key = $this->keys[$lower];
-            } else {
-                $this->keys[$lower] = $key;
-            }
             // A key accepted now may have been unaccepted when it was first
             // set, which happens where an element resolves its filter after
             // the Evidence was set, so the earlier copy goes.

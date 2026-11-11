@@ -257,7 +257,7 @@ class JavascriptBuilderElement extends FlowElement
         $filter = new EvidenceKeyFilter();
 
         $filter->filterEvidenceKey = function ($key) {
-            if (strpos($key, 'query.') !== false) {
+            if (strpos($key, 'query.') === 0) {
                 return true;
             }
 

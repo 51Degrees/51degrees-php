@@ -30,50 +30,23 @@ use fiftyone\pipeline\engines\Engine;
 
 /**
  * A stand-in for DeviceDetectionOnPremise carrying only the property
- * metadata and build-time indexes SwigData reads, so SwigData can be built
- * without the native extension.
+ * metadata SwigData reads, so SwigData can be built without the native
+ * extension.
  */
 class StubSwigEngine extends Engine
 {
     public string $dataKey = 'device';
 
     /**
-     * The index of each build-time property name, keyed by the lowercase
-     * name, as the real engine builds it from getRequiredProperties().
-     *
-     * @var array<string, int>
-     */
-    public array $propertyIndexes = [];
-
-    /**
      * @param array<string, array<string, string>> $properties metadata keyed
      *   by lowercase property name, as the real engine builds it
-     * @param null|array<string> $requiredProperties the build-time names in
-     *   index order, defaulting to the metadata's own order
      */
-    public function __construct(array $properties, ?array $requiredProperties = null)
+    public function __construct(array $properties)
     {
         $this->pipelines = [];
         $this->properties = $properties;
 
-        $names = $requiredProperties ?? array_map(
-            static fn (array $property): string => $property['name'],
-            array_values($properties)
-        );
-        foreach ($names as $index => $name) {
-            $this->propertyIndexes[strtolower($name)] = $index;
-        }
-
         parent::__construct();
-    }
-
-    /**
-     * The index of a build-time property name, or null when the engine was
-     * not built with the name.
-     */
-    public function getPropertyIndex(string $name): ?int
-    {
-        return $this->propertyIndexes[strtolower($name)] ?? null;
     }
 
     public function processInternal(FlowData $flowData): void

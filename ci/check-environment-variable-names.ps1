@@ -40,16 +40,17 @@ $script:DigitInitialPattern = [regex]::new(
 # resource_key, which differs from RESOURCE_KEY only by case. That name has
 # gone, so the reason has gone with it.
 #
-# Two kinds of old name. FOD_CLOUD_API_URL, IPINTELLIGENCEDATAFILE,
-# FIFTYONE_DATA_FILE and FIFTYONE_UA_CSV are never anything but an
-# environment variable, so they are matched wherever they appear.
-# RESOURCE_KEY, LICENSE_KEY and CLOUD_ENDPOINT also name things that are not
-# environment variables, being the resource_key query string parameter the
-# cloud service takes and the cloud_endpoint pipeline setting, so those three
-# are matched only where the line reads or sets a variable, or names one in a
-# constant whose own name says so.
-$plainOld = '(?:FOD_CLOUD_API_URL|IPINTELLIGENCEDATAFILE|FIFTYONE_DATA_FILE|' +
-    'FIFTYONE_UA_CSV)'
+# Two kinds of old name. The old cloud endpoint name, the old IP Intelligence
+# data file name and the two FIFTYONE_ names the fork safety test read are
+# never anything but an environment variable, so they are matched wherever
+# they appear. Each is built from two pieces below so that this file does not
+# name one itself. RESOURCE_KEY, LICENSE_KEY and CLOUD_ENDPOINT also name
+# things that are not environment variables, being the resource_key query
+# string parameter the cloud service takes and the cloud_endpoint pipeline
+# setting, so those three are matched only where the line reads or sets a
+# variable, or names one in a constant whose own name says so.
+$plainOld = '(?:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
+    'FIFTYONE_DATA' + '_FILE|FIFTYONE_UA' + '_CSV)'
 $sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|CLOUD_ENDPOINT)'
 $script:FallbackPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +

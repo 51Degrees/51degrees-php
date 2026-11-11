@@ -503,6 +503,95 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
+     * evidence.md lists query, header, cookie, server, fiftyone and location
+     * from highest to lowest precedence, and ranks any other prefix
+     * alphabetically after them. Each pair of prefixes gives one name, set
+     * higher first so the order set cannot decide it, and the higher
+     * prefix's value is the one sent.
+     */
+    public function testGetContent_eachPrefixWinsOverEveryLaterOne()
+    {
+        $order = ['query', 'header', 'cookie', 'server', 'fiftyone',
+            'location', 'apple', 'zebra'];
+        $evidence = [];
+        foreach ($order as $i => $higher) {
+            foreach (array_slice($order, $i + 1) as $lower) {
+                $name = "n-{$higher}-{$lower}";
+                $evidence[] = ["{$higher}.{$name}", $higher];
+                $evidence[] = ["{$lower}.{$name}", $lower];
+            }
+        }
+
+        $result = $this->precedenceContent($evidence);
+
+        $wrong = [];
+        foreach ($order as $i => $higher) {
+            foreach (array_slice($order, $i + 1) as $lower) {
+                $name = "n-{$higher}-{$lower}";
+                $sent = $result[$name] ?? null;
+                if ($sent !== $higher) {
+                    $wrong[] = "{$name} sent " . var_export($sent, true);
+                }
+            }
+        }
+        $this->assertSame([], $wrong);
+    }
+
+    /**
+     * Evidence keys ignore letter case, so Location ranks as location and
+     * SERVER as server.
+     */
+    public function testGetContent_aPrefixRanksTheSameInAnyLetterCase()
+    {
+        $result = $this->precedenceContent([
+            ['fiftyone.b', 'fiftyone'],
+            ['Location.b', 'location'],
+            ['SERVER.c', 'server'],
+            ['Location.c', 'location']
+        ]);
+
+        $this->assertSame('fiftyone', $result['b']);
+        $this->assertSame('server', $result['c']);
+    }
+
+    /**
+     * Other prefixes rank alphabetically by the prefix, so ab comes before
+     * ab-c, although the key ab-c.n sorts before ab.n because a hyphen
+     * sorts before a dot.
+     */
+    public function testGetContent_otherPrefixesRankByThePrefixAlone()
+    {
+        $result = $this->precedenceContent([
+            ['ab.n', 'ab'],
+            ['ab-c.n', 'ab-c']
+        ]);
+
+        $this->assertSame('ab', $result['n']);
+    }
+
+    /**
+     * The content the engine builds for the evidence given, with the
+     * conflict warnings it raises silenced.
+     *
+     * @param array<array{string, string}> $evidence keys and values, set in
+     * order
+     * @return array<string, int|string>
+     */
+    private function precedenceContent(array $evidence): array
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        foreach ($evidence as [$key, $value]) {
+            $data->evidence->set($key, $value);
+        }
+
+        return @$engine->getContent($data);
+    }
+
+    /**
      * @after
      */
     #[After]

@@ -65,7 +65,7 @@ class SwigData extends AspectData
 
     public function __isset($key)
     {
-        return isset($this->flowElement->properties[strtolower($key)]);
+        return $this->flowElement->findProperty($key) !== null;
     }
 
     /**
@@ -90,11 +90,9 @@ class SwigData extends AspectData
 
     public function getInternal($key)
     {
-        $key = strtolower($key);
+        $property = $this->flowElement->findProperty($key);
 
-        if (isset($this->flowElement->properties[$key])) {
-            $property = $this->flowElement->properties[$key];
-
+        if ($property !== null) {
             if ($property['category'] == 'DeviceMetrics') {
                 switch ($property['name']) {
                     case 'MatchedNodes':

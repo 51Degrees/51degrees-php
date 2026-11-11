@@ -216,9 +216,9 @@ a file back through the import.
 ## License
 
 The packages are licensed under the European Union Public Licence 1.2
-(EUPL-1.2), whose text is in [LICENSE](LICENSE). [NOTICE](NOTICE) holds the
-two additional terms, which the header of every source file repeats. Each
-package's `composer.json` declares `EUPL-1.2`, which is what Packagist shows.
+(EUPL-1.2), whose text is in [LICENSE](LICENSE), with the two additional
+terms stated in the header of every source file. Each package's
+`composer.json` declares `EUPL-1.2`, which is what Packagist shows.
 
 ## Find out more
 

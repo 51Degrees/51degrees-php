@@ -78,4 +78,45 @@ class ClientIpTests extends TestCase
         $this->assertSame([null, null], $this->clientIps(['query.client-ip' => 'not an address']));
         $this->assertSame([null, null], $this->clientIps([]));
     }
+
+    /**
+     * Evidence keys ignore letter case, and getAll() hands back each key in
+     * the letters it was first set with, so the two keys that are looked for
+     * by name are matched whatever those letters are.
+     */
+    public function testNamedKeysAreFoundInAnyLetterCase(): void
+    {
+        $spellings = [
+            ['Query.Client-IP', 'Server.Client-IP'],
+            ['QUERY.CLIENT-IP', 'SERVER.CLIENT-IP'],
+            ['query.client-ip', 'server.client-ip'],
+        ];
+
+        foreach ($spellings as [$query, $server]) {
+            $this->assertSame(
+                ['8.8.8.8', null],
+                $this->clientIps([$query => '8.8.8.8']),
+                $query
+            );
+            $this->assertSame(
+                ['9.9.9.9', null],
+                $this->clientIps([$server => '9.9.9.9']),
+                $server
+            );
+        }
+    }
+
+    /**
+     * The two named keys are read before anything else whatever letters they
+     * carry, so a header listed earlier does not take their place.
+     */
+    public function testNamedKeysKeepTheirPrecedenceInAnyLetterCase(): void
+    {
+        $evidence = [
+            'header.x-forwarded-for' => '9.9.9.9',
+            'Query.Client-IP' => '8.8.8.8',
+        ];
+
+        $this->assertSame(['8.8.8.8', null], $this->clientIps($evidence));
+    }
 }

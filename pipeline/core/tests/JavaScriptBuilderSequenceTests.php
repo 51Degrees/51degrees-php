@@ -304,7 +304,7 @@ class JavaScriptBuilderSequenceTests extends TestCase
      * @dataProvider provider_sequenceElement
      */
     #[DataProvider('provider_sequenceElement')]
-    public function testSessionIdFromQueryIsRendered(bool $sequenceElement, string $expected): void
+    public function testSessionIdFromTheSequenceElementIsRendered(bool $sequenceElement, string $expected): void
     {
         $script = self::render(['query.session-id' => 'abc-123'], false, $sequenceElement);
 

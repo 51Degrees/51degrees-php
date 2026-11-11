@@ -1,10 +1,10 @@
 # Tests for ci/check-environment-variable-names.ps1.
 #
 # Each case is one line of text and what the check must make of it. The
-# digit-initial name is matched in any case, because Windows reads an
-# environment variable name in any case, so a lower case old name is still
-# the old name there. The fallback names keep their case, for the reason the
-# check gives.
+# names are matched in any case, because Windows reads an environment
+# variable name in any case, so a lower case old name is still the old name
+# there. The old names kept their case while resource_key was read as a
+# variable, and that name has gone, so they are matched in any case now too.
 
 BeforeAll {
     $script:Check = Join-Path $PSScriptRoot 'check-environment-variable-names.ps1'
@@ -35,16 +35,32 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '[Environment]::SetEnvironmentVariable("LICENSE_KEY", $k)' }
         @{ Line = 'const LEGACY_RESOURCE_KEY_ENV_VAR = "RESOURCE_KEY";' }
         @{ Line = 'Constants::LEGACY_ENV_VARS' }
+        @{ Line = '$env:resource_key = $Keys.TestResourceKey' }
+        @{ Line = '<env name="resource_key" value="!!YOUR_RESOURCE_KEY!!"/>' }
+        @{ Line = 'getenv(''license_key'')' }
+        @{ Line = 'public const RESOURCE_KEY_ENV_VAR = ''resource_key'';' }
+        @{ Line = 'const ENDPOINT_ENV_VAR = ''cloud_endpoint'';' }
+        @{ Line = 'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';' }
+        @{ Line = '$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"' }
+        @{ Line = 'public const FOD_CLOUD_API_URL = ''FOD_CLOUD_API_URL'';' }
+        @{ Line = '<env name="IPINTELLIGENCEDATAFILE" value=""/>' }
+        @{ Line = '$env:FIFTYONE_DATA_FILE = "$PWD/assets/TAC-HashV41.hash"' }
+        @{ Line = 'getenv(''FIFTYONE_UA_CSV'')' }
     ) {
         Get-Kind $Line | Should -Contain 'fallback'
     }
 
-    # The IP Intelligence and location examples and tests read resource_key
-    # as their one name today, so the fallback names keep their case.
+    # RESOURCE_KEY and CLOUD_ENDPOINT also name things that are not
+    # environment variables, being the resource_key query string parameter
+    # and the cloud_endpoint pipeline setting, so those are matched only
+    # where a variable is read, set or named in a constant.
     It 'leaves <Line> alone' -ForEach @(
-        @{ Line = '$env:resource_key = $Keys.TestResourceKey' }
-        @{ Line = '<env name="resource_key" value="!!YOUR_RESOURCE_KEY!!"/>' }
+        @{ Line = 'public const RESOURCE_KEY_QUERY_PARAM = ''resource_key'';' }
+        @{ Line = 'public const resourceKey = ''resource_key'';' }
+        @{ Line = '$params = [''resourceKey'' => ''resource_key''];' }
+        @{ Line = '$settings["cloud_endpoint"] = $endpoint;' }
         @{ Line = 'getenv("_51DEGREES_RESOURCE_KEY")' }
+        @{ Line = 'getenv("_51DEGREES_CLOUD_ENDPOINT")' }
         @{ Line = '$env:_51DEGREES_DD_PATH = "file.hash"' }
         @{ Line = '$env:_51degrees_dd_path = "file.hash"' }
         @{ Line = 'getenv("SUPER_RESOURCE_KEY")' }

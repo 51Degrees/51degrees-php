@@ -40,6 +40,16 @@ class JsonBundlerElement extends FlowElement
      */
     private const NO_VALUE_MESSAGE = 'This instance does not have a set value';
 
+    /**
+     * The Data Keys of the elements whose data is left out of the JSON,
+     * being this element, the JavaScript builder, the Set Headers Element
+     * and the Cloud Request Engine, whose data is the cloud service's raw
+     * response.
+     */
+    private const EXCLUDED_DATA_KEYS = [
+        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud'
+    ];
+
     public string $dataKey = 'jsonbundler';
 
     /**
@@ -110,11 +120,7 @@ class JsonBundlerElement extends FlowElement
         }
 
         foreach ($flowData->pipeline->flowElements as $flowElement) {
-            if (
-                $flowElement->dataKey === 'jsonbundler' ||
-                $flowElement->dataKey === 'javascriptbuilder' ||
-                $flowElement->dataKey === 'set-headers'
-            ) {
+            if (in_array($flowElement->dataKey, self::EXCLUDED_DATA_KEYS, true)) {
                 continue;
             }
 

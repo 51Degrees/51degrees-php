@@ -62,6 +62,26 @@ class MixedCaseKeyElement extends FlowElement
 }
 
 /**
+ * Stands in for the Cloud Request Engine, whose Data Key is cloud and whose
+ * Element Data holds the cloud service's raw response.
+ */
+class CloudStandInElement extends FlowElement
+{
+    public string $dataKey = 'cloud';
+
+    public array $properties = [
+        'cloud' => ['type' => 'string']
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'cloud' => '{"device":{"ismobile":true}}',
+        ]));
+    }
+}
+
+/**
  * Every key the JSON Bundler writes is lower case, except
  * javascriptProperties.
  */
@@ -111,5 +131,19 @@ class JsonBundlerKeysTests extends TestCase
             ['mixedkey.delayedscript'],
             $this->json()['mixedkey']['needsscriptevidenceproperties']
         );
+    }
+
+    public function testTheCloudRequestEnginesDataIsLeftOut()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new CloudStandInElement())
+            ->add(new MixedCaseKeyElement())
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+        $json = $flowData->jsonbundler->json;
+
+        $this->assertArrayNotHasKey('cloud', $json);
+        $this->assertArrayHasKey('mixedkey', $json);
     }
 }

@@ -54,6 +54,18 @@ class Evidence
     protected array $evidence = [];
 
     /**
+     * Values no element in the Pipeline accepts, kept apart from the values
+     * above so that only a reader asking for them sees them. A Cloud
+     * Request Engine sends them, because what the cloud service uses
+     * changes over time. Every other reader, being an element's filtered
+     * view, the JavaScript served to the browser and the client side cache
+     * key, reads the accepted values alone.
+     *
+     * @var array<string, int|string>
+     */
+    protected array $unaccepted = [];
+
+    /**
      * The key the web request is held under.
      */
     public const HTTP_REQUEST_KEY = 'server.http-request';
@@ -75,8 +87,10 @@ class Evidence
     }
 
     /**
-     * If a flow element can use the key then add the key value pair to the
-     * evidence collection.
+     * Add the key value pair to the evidence collection where a flow
+     * element can use the key, and to the unaccepted collection where none
+     * can, so that a Cloud Request Engine can still send it. A key is held
+     * in one collection or the other and never in both.
      *
      * @param int|string $value
      */
@@ -92,8 +106,17 @@ class Evidence
         }
 
         if ($keep) {
+            // A key accepted now may have been unaccepted when it was first
+            // set, which happens where an element resolves its filter after
+            // the Evidence was set, so the earlier copy goes.
+            unset($this->unaccepted[$key]);
             $this->evidence[$key] = $value;
+
+            return;
         }
+
+        unset($this->evidence[$key]);
+        $this->unaccepted[$key] = $value;
     }
 
     /**
@@ -417,5 +440,26 @@ class Evidence
     public function getAll(): array
     {
         return $this->evidence;
+    }
+
+    /**
+     * Every value set on this Flow Data, both the values an element accepts
+     * and the values none does, apart from the web request that get()
+     * returns under server.http-request.
+     *
+     * A Cloud Request Engine sends this, as the Processing section of the
+     * cloud request engine specification requires. No other reader wants
+     * it, because an unaccepted value is one no element in the Pipeline
+     * asked for.
+     *
+     * The unaccepted values come first. The request keeps the last value
+     * given for a field, so where an unaccepted value and an accepted one
+     * give the same field, the accepted value is sent.
+     *
+     * @return array<string, int|string>
+     */
+    public function getAllIncludingUnaccepted(): array
+    {
+        return array_merge($this->unaccepted, $this->evidence);
     }
 }

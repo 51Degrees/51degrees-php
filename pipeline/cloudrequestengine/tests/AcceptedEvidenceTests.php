@@ -102,10 +102,11 @@ class AcceptedEvidenceTests extends TestCase
 
     /**
      * In a web Pipeline holding the Cloud Request Engine, a header the cloud
-     * service uses reaches it, and a header no element uses is neither kept
-     * nor sent.
+     * service uses reaches it, and a header no element uses is sent as well,
+     * because the cloud request carries every Evidence value but the
+     * reserved names. A header no element uses is still not kept for get().
      */
-    public function testACloudPipelineSendsTheHeadersTheCloudUses()
+    public function testACloudPipelineSendsEveryHeader()
     {
         $engine = $this->cloudEngine();
         $pipeline = (new PipelineBuilder())->add($engine)->build();
@@ -119,8 +120,8 @@ class AcceptedEvidenceTests extends TestCase
         $this->assertCount(1, $this->sent);
         parse_str($this->sent[0], $form);
         $this->assertSame('iPhone', $form['user-agent'] ?? null);
-        $this->assertArrayNotHasKey('if-none-match', $form);
-        $this->assertArrayNotHasKey('x-test', $form);
+        $this->assertSame('"etag"', $form['if-none-match'] ?? null);
+        $this->assertSame('not used', $form['x-test'] ?? null);
         $this->assertNull($flowData->evidence->get('header.x-test'));
     }
 }

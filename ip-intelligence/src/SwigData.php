@@ -83,7 +83,7 @@ class SwigData extends AspectData
 
     public function __isset($key)
     {
-        return isset($this->flowElement->properties[strtolower($key)]);
+        return $this->flowElement->findProperty($key) !== null;
     }
 
     public function getInternal($key)
@@ -104,11 +104,11 @@ class SwigData extends AspectData
                 : new AspectPropertyValue('IPv6 was not supplied as evidence.');
         }
 
-        if (!isset($this->flowElement->properties[$key])) {
+        $property = $this->flowElement->findProperty($key);
+        if ($property === null) {
             return null;
         }
 
-        $property = $this->flowElement->properties[$key];
         $name = $property['name'];
         $type = strtolower((string) $property['type']);
 

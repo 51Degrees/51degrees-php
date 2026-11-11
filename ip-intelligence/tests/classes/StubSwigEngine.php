@@ -69,6 +69,16 @@ class StubSwigEngine extends Engine
     }
 
     /**
+     * The metadata of a property, as the real engine gives it to a read.
+     *
+     * @return null|array<string, string>
+     */
+    public function findProperty(string $name): ?array
+    {
+        return $this->properties[strtolower($name)] ?? null;
+    }
+
+    /**
      * The index of a build-time property name, or null when the engine was
      * not built with the name.
      */

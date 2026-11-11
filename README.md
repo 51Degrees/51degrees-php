@@ -24,8 +24,8 @@ The folder table and product guides below show where to find usage examples and 
 
 Our PHP packages use the Pipeline API, which combines data services in one processing flow. The packages are grouped by product: `pipeline`,
 `device-detection`, `location` and `ip-intelligence`. Each package keeps its
-own `composer.json`, `readme.md` and license, and is still published to
-Composer as a separate package.
+own `composer.json` and `readme.md`, and is still published to Composer as
+a separate package.
 
 ## Directory map
 
@@ -215,7 +215,9 @@ a file back through the import.
 ## License
 
 The packages are licensed under the European Union Public Licence 1.2
-(EUPL-1.2). Each package directory has its own `LICENSE` file.
+(EUPL-1.2), whose text is in [LICENSE](LICENSE). [NOTICE](NOTICE) holds the
+two additional terms, which the header of every source file repeats. Each
+package's `composer.json` declares `EUPL-1.2`, which is what Packagist shows.
 
 ## Find out more
 

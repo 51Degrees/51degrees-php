@@ -31,6 +31,7 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
+use fiftyone\pipeline\ipintelligence\SwigHelpers;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
@@ -409,6 +410,108 @@ class IpIntelligenceOnPremiseTests extends TestCase
         $lowMemory = $this->startPhp(null, 'LowMemory');
         $this->assertSame('OK', $lowMemory['result']);
         $this->assertGreaterThan(0, $lowMemory['handles']);
+    }
+
+    /**
+     * PHP builds the engine class and the pipeline on every request, so a
+     * request that reads a few values builds neither the table of every
+     * property nor the pipeline's database of them. The table, when asked
+     * for, is the one the engine built when it was constructed.
+     */
+    public function testAnEngineBuiltWithNamesBuildsNoTableForARead(): void
+    {
+        $this->assertARequestBuildsNoTable(
+            $this->buildEngineWith(['RegisteredName', 'RegisteredCountry'])
+        );
+    }
+
+    /**
+     * An engine built with no names does the same.
+     */
+    public function testAnEngineBuiltWithNoNamesBuildsNoTableForARead(): void
+    {
+        $this->assertARequestBuildsNoTable($this->buildEngine());
+    }
+
+    private function assertARequestBuildsNoTable(IpIntelligenceOnPremise $engine): void
+    {
+        $names = ['registeredname', 'RegisteredCountry', 'ip'];
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+        ]))->add($engine)->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $values = $this->readEach($flowData, $names);
+
+            $this->assertFalse(
+                (new \ReflectionProperty($engine, 'properties'))->isInitialized($engine)
+            );
+            $this->assertFalse(
+                (new \ReflectionProperty($pipeline, 'propertyDatabase'))->isInitialized($pipeline)
+            );
+            $this->assertSame(Constants::IPV4_ADDRESS, $values['ip']);
+
+            // The table holds every available property in the data set as
+            // it did, and the two echoed addresses.
+            $expected = $this->tableOf($engine);
+            $table = $engine->getProperties();
+            $this->assertSame(['ip', 'ipv6'], array_keys(array_diff_key($table, $expected)));
+            $this->assertSame($expected, array_intersect_key($table, $expected));
+
+            // Read again, now through the table, which gives the same.
+            $this->assertEquals($values, $this->readEach($flowData, $names));
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
+     * The value of each property named, or its no value message.
+     *
+     * @param array<string> $names
+     * @return array<string, mixed>
+     */
+    private function readEach($flowData, array $names): array
+    {
+        $values = [];
+        foreach ($names as $name) {
+            $value = $flowData->ip->get($name);
+            $values[$name] = $value->hasValue ? $value->value : $value->noValueMessage;
+        }
+
+        return $values;
+    }
+
+    /**
+     * The table of every available property, built from the native metadata
+     * the way the engine class built it when it was constructed.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function tableOf(IpIntelligenceOnPremise $engine): array
+    {
+        $metaData = $engine->engine->getMetaData();
+        $native = $metaData->getProperties();
+        $table = [];
+        for ($i = 0; $i < $native->getSize(); ++$i) {
+            $property = $native->getByIndex($i);
+            if ($property->getAvailable()) {
+                $table[strtolower($property->getName())] = [
+                    'name' => $property->getName(),
+                    'type' => $property->getType(),
+                    'datafiles' => SwigHelpers::vectorToArray($property->getDataFilesWherePresent()),
+                    'category' => $property->getCategory(),
+                    'description' => $property->getDescription(),
+                    'component' => $metaData->getComponentForProperty($property)->getName(),
+                ];
+            }
+        }
+
+        return $table;
     }
 
     /**

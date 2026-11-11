@@ -72,7 +72,9 @@ class DeviceDetectionOnPremise extends Engine
 
         $this->engine = \FiftyOneDegreesHashEngine::engine_get();
 
-        $requiredProperties = ini_get('FiftyOneDegreesHashEngine.required_properties');
+        $requiredProperties = self::startupSetting(
+            'FiftyOneDegreesHashEngine.required_properties'
+        );
 
         if ($requiredProperties) {
             $this->setRestrictedProperties(explode(',', $requiredProperties));
@@ -219,10 +221,27 @@ class DeviceDetectionOnPremise extends Engine
         $indexes = [];
         $required = $engine->getRequiredProperties();
         for ($i = 0; $i < $required->size(); ++$i) {
-            $indexes[strtolower($required->get($i))] = $i;
+            // A name given twice keeps its first place, as native code does.
+            $name = strtolower($required->get($i));
+            if (!isset($indexes[$name])) {
+                $indexes[$name] = $i;
+            }
         }
 
         return $indexes;
+    }
+
+    /**
+     * The value a setting had when PHP started, which is the value the
+     * start-up engine was built with. ini_get gives the value for this
+     * request, which a per-directory setting or ini_set can change after the
+     * engine was built.
+     */
+    private static function startupSetting(string $name): string
+    {
+        $value = get_cfg_var($name);
+
+        return is_string($value) ? $value : '';
     }
 
     private function getComponentName($property)

@@ -124,9 +124,9 @@ class IpIntelligenceOnPremise extends Engine
             }
 
             $this->engine = \ipi_engine_get();
-            $this->initPropertyIndexes(
-                (string) ini_get('FiftyOneDegreesIpIntelligenceEngine.required_properties') !== ''
-            );
+            $this->initPropertyIndexes(self::startupSetting(
+                'FiftyOneDegreesIpIntelligenceEngine.required_properties'
+            ) !== '');
             $this->initEngineMetaData();
             parent::__construct();
 
@@ -329,8 +329,25 @@ class IpIntelligenceOnPremise extends Engine
 
         $required = $this->engine->getRequiredProperties();
         for ($i = 0; $i < $required->size(); ++$i) {
-            $this->propertyIndexes[strtolower($required->get($i))] = $i;
+            // A name given twice keeps its first place, as native code does.
+            $name = strtolower($required->get($i));
+            if (!isset($this->propertyIndexes[$name])) {
+                $this->propertyIndexes[$name] = $i;
+            }
         }
+    }
+
+    /**
+     * The value a setting had when PHP started, which is the value the
+     * start-up engine was built with. ini_get gives the value for this
+     * request, which a per-directory setting or ini_set can change after the
+     * engine was built.
+     */
+    private static function startupSetting(string $name): string
+    {
+        $value = get_cfg_var($name);
+
+        return is_string($value) ? $value : '';
     }
 
     private function initEngineMetaData(): void

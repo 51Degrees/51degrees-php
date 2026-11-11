@@ -177,6 +177,37 @@ class FlowDataTests extends TestCase
     }
 
     /**
+     * A key that has left the store answers null and raises nothing, so
+     * the index of spellings never has to stay in step with the store.
+     */
+    public function testAKeyThatLeftTheStoreAnswersNull()
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.Name', 'first');
+
+        // Takes the key out of the store alone, as a subclass of Evidence
+        // can, leaving the spelling it was set with behind.
+        $store = new \ReflectionProperty($flowData->evidence, 'evidence');
+        $store->setAccessible(true);
+        $store->setValue($flowData->evidence, []);
+
+        $raised = [];
+        set_error_handler(function ($number, $message) use (&$raised) {
+            $raised[] = $message;
+
+            return true;
+        });
+        try {
+            $value = $flowData->evidence->get('QUERY.name');
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $raised);
+        $this->assertNull($value);
+    }
+
+    /**
      * The web request's view is found under its key in any letter case.
      */
     public function testTheWebRequestIsFoundInOtherLetters()

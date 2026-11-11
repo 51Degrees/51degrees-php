@@ -119,4 +119,18 @@ class ClientIpTests extends TestCase
 
         $this->assertSame(['8.8.8.8', null], $this->clientIps($evidence));
     }
+
+    /**
+     * A key given twice in other letters is one key holding its last value,
+     * as Evidence holds it, so the earlier value is not read as an address.
+     */
+    public function testAKeyGivenTwiceInOtherLettersCountsOnce(): void
+    {
+        $evidence = [
+            'Query.Client-IP' => '8.8.8.8',
+            'query.client-ip' => '2001:db8::1',
+        ];
+
+        $this->assertSame([null, '2001:db8::1'], $this->clientIps($evidence));
+    }
 }

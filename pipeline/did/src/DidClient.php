@@ -143,7 +143,10 @@ final class DidClient
         . 'which is deprecated. %s replaces it, so set that to the same '
         . 'value.';
 
-    /** Whether this process has reported the deprecated variable. */
+    /**
+     * Whether the deprecated variable has been reported since PHP started
+     * the script, which under a web server is since the request began.
+     */
     private static bool $oldEndpointVariableReported = false;
 
     private string $resourceKey;
@@ -213,8 +216,10 @@ final class DidClient
     /**
      * The API base from the environment, or null when neither variable
      * holds a value. The deprecated variable is read only when the new
-     * one gives nothing. Its use is written to the PHP error log once in
-     * the life of the process, because the package has no logger.
+     * one gives nothing. Its use is written to the PHP error log, because
+     * the package has no logger, once for each time PHP runs the script.
+     * Under a web server that is once in each request that builds a
+     * client from the deprecated variable.
      */
     private static function endpointFromEnvironment(): ?string
     {

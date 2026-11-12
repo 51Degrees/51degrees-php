@@ -36,9 +36,9 @@ class Constants
      */
     public const FOD_CLOUD_API_URL = 'FOD_CLOUD_API_URL';
 
-    // Logged once when the cloud endpoint came from the deprecated
-    // environment variable, which is named first, then the one that
-    // replaces it.
+    // Logged once by each engine whose cloud endpoint came from the
+    // deprecated environment variable, which is named first, then the
+    // one that replaces it.
     public const MESSAGE_ENDPOINT_VARIABLE_DEPRECATED =
         'The cloud endpoint was read from the environment variable %s, ' .
         'which is deprecated. %s replaces it, so set that to the same ' .

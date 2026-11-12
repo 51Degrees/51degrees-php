@@ -136,9 +136,10 @@ class CloudRequestEngine extends Engine
     }
 
     /**
-     * Logs once, as a warning through the logger of the first pipeline
-     * the engine is added to, that the base URL came from the deprecated
-     * environment variable.
+     * Logs, as a warning through the logger of the first pipeline the
+     * engine is added to, that the base URL came from the deprecated
+     * environment variable. Each engine logs it once, so a site that
+     * builds its pipeline in every request logs it in every request.
      */
     public function onRegistration(Pipeline $pipeline): void
     {

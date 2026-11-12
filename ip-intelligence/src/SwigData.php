@@ -81,9 +81,18 @@ class SwigData extends AspectData
         return parent::get($key);
     }
 
+    /**
+     * Whether the engine has an available property of this name. Looking one
+     * up needs the engine, which close() releases, and isset must answer
+     * rather than throw, so a closed engine has no property of any name.
+     */
     public function __isset($key)
     {
-        return $this->flowElement->findProperty($key) !== null;
+        try {
+            return $this->flowElement->findProperty($key) !== null;
+        } catch (\Exception $exception) {
+            return false;
+        }
     }
 
     public function getInternal($key)

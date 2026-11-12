@@ -299,7 +299,10 @@ class DeviceDetectionOnPremise extends Engine
             $property = $this->lookUpProperty($key);
             if ($property === null) {
                 // Not a property the engine was built with, so the table
-                // says whether the data set has it.
+                // says whether the data set has it. Reading the table here
+                // builds it through __get, where the isset above does not,
+                // so an __isset on this class would make this line answer
+                // null with nothing built.
                 return $this->properties[$key] ?? null;
             }
             $this->readProperties[$key] = $property;

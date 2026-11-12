@@ -39,7 +39,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and set the RESOURCEKEY' .
+            'https://51degrees.com/configure and set the RESOURCEKEY' .
             'environment variable to its value before running tests'
         );
 
@@ -79,7 +79,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and paste it into the ' .
+            'https://51degrees.com/configure and paste it into the ' .
             'phpunit.xml config file, ' .
             'replacing !!YOUR_RESOURCE_KEY!!.'
         );
@@ -129,7 +129,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and paste it into the ' .
+            'https://51degrees.com/configure and paste it into the ' .
             'phpunit.xml config file, ' .
             'replacing !!YOUR_RESOURCE_KEY!!.'
         );
@@ -210,7 +210,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and set the RESOURCEKEY' .
+            'https://51degrees.com/configure and set the RESOURCEKEY' .
             'environment variable to its value before running tests'
         );
 
@@ -254,7 +254,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and set the RESOURCEKEY' .
+            'https://51degrees.com/configure and set the RESOURCEKEY' .
             'environment variable to its value before running tests'
         );
 

@@ -65,6 +65,6 @@ class ResourceKeys
     {
         return "No resource key found. Set the environment variable " .
             "'" . $name . "'. Create a resource key for free at " .
-            'https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=tests-classes-resourcekeys.php&utm_term=resource-key-required';
+            'https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=tests-classes-resourcekeys.php&utm_term=resource-key-required';
     }
 }

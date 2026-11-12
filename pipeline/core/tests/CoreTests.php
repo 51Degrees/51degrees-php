@@ -145,12 +145,15 @@ class CoreTests extends TestCase
             ->add(new ExampleFlowElement2())
             ->addLogger($logger)
             ->build();
-        $flowElement1->properties['integer']['testing'] = 'true';
         $flowData = $pipeline->createFlowData();
         $flowData->evidence->set('header.user-agent', 'test');
         $flowData->evidence->set('some.other-evidence', 'test');
         $flowData->process();
 
+        // The first search builds the property database, so the property
+        // added after it is not found until the element updates its list.
+        $this->assertCount(0, $flowData->getWhere('testing', 'true'));
+        $flowElement1->properties['integer']['testing'] = 'true';
         $this->assertCount(0, $flowData->getWhere('testing', 'true'));
 
         $flowElement1->updatePropertyList();

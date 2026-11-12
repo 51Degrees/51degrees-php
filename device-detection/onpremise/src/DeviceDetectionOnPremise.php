@@ -36,19 +36,101 @@ class DeviceDetectionOnPremise extends Engine
     public \EngineHashSwig $engine;
 
     /**
-     * The index of each property the engine was built with, keyed by the
-     * lowercase name. The index is the place of the name in the build-time
-     * list, so it names the same property after any reload, and every read
-     * of a value goes by it rather than by name.
-     *
-     * @var array<string, int>
+     * The match metrics, which the results give rather than the data set.
      */
-    public array $propertyIndexes = [];
+    private const METRIC_PROPERTIES = [
+        'matchednodes' => [
+            'name' => 'MatchedNodes',
+            'type' => 'Integer',
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'description' => Constants::MATCHED_NODES_DESCRIPTION,
+            'category' => 'DeviceMetrics',
+            'component' => 'MatchMetrics',
+            'isList' => false,
+            'available' => true
+        ],
+        'difference' => [
+            'name' => 'Difference',
+            'type' => 'Integer',
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'description' => Constants::DIFFERENCE_DESCRIPTION,
+            'category' => 'DeviceMetrics',
+            'component' => 'MatchMetrics',
+            'isList' => false,
+            'available' => true
+        ],
+        'drift' => [
+            'name' => 'Drift',
+            'type' => 'Integer',
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'description' => Constants::DRIFT_DESCRIPTION,
+            'category' => 'DeviceMetrics',
+            'component' => 'MatchMetrics',
+            'isList' => false,
+            'available' => true
+        ],
+        'deviceid' => [
+            'name' => 'DeviceId',
+            'type' => 'String',
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'description' => Constants::DEVICE_ID_DESCRIPTION,
+            'category' => 'DeviceMetrics',
+            'component' => 'MatchMetrics',
+            'isList' => false,
+            'available' => true
+        ],
+        'useragents' => [
+            'name' => 'UserAgents',
+            'type' => 'Array',
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'description' => Constants::USER_AGENTS_DESCRIPTION,
+            'category' => 'DeviceMetrics',
+            'component' => 'MatchMetrics',
+            'isList' => true,
+            'available' => true
+        ],
+        'iterations' => [
+            'name' => 'Iterations',
+            'type' => 'Integer',
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'description' => Constants::ITERATIONS_DESCRIPTION,
+            'category' => 'DeviceMetrics',
+            'component' => 'MatchMetrics',
+            'isList' => false,
+            'available' => true
+        ],
+        'method' => [
+            'name' => 'Method',
+            'type' => 'String',
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'description' => Constants::METHOD_DESCRIPTION,
+            'category' => 'DeviceMetrics',
+            'component' => 'MatchMetrics',
+            'isList' => false,
+            'available' => true
+        ]
+    ];
 
     /**
      * @var array<string>
      */
     private array $evidenceKeys;
+
+    /**
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it.
+     *
+     * @var null|array<string, string>
+     */
+    private ?array $requiredNames = null;
+
+    /**
+     * The name, type and category of each property read so far, keyed by
+     * the lowercase name.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private array $readProperties = [];
 
     public function __construct()
     {
@@ -78,41 +160,13 @@ class DeviceDetectionOnPremise extends Engine
 
         if ($requiredProperties) {
             $this->setRestrictedProperties(explode(',', $requiredProperties));
-
-            // Map each build-time property name to its index, once, so every
-            // read of a value goes by index rather than by name. The list
-            // comes from the engine, not from the data set, whose own order
-            // can change on a reload.
-            //
-            // An engine built with no names keeps reading by name, because
-            // native code then gives each property its own place in the data
-            // set as its index, which a reload can move.
-            $this->propertyIndexes = self::buildPropertyIndexes($this->engine);
         }
 
-        // Make properties list
-        $propertiesInternal = $this->engine->getMetaData()->getProperties();
-
-        $properties = [];
-        for ($i = 0; $i < $propertiesInternal->getSize(); ++$i) {
-            $property = $propertiesInternal->getByIndex($i);
-            $properties[strtolower($property->getName())] = [
-                'name' => $property->getName(),
-                'type' => $this->getPropertyType($property),
-                'dataFiles' => SwigHelpers::vectorToArray($property->getDataFilesWherePresent()),
-                'category' => $property->getCategory(),
-                'description' => $property->getDescription(),
-                'available' => $property->getAvailable(),
-                'isList' => $property->getIsList(),
-                'component' => $this->getComponentName($property)
-            ];
-        }
-
-        foreach ($this->getMetricProperties() as $name => $property) {
-            $properties[$name] = $property;
-        }
-
-        $this->properties = $properties;
+        // PHP constructs this class on every request, while the native
+        // engine is built once, when PHP starts. So the table of every
+        // property is built when it is first read (see __get), and a read
+        // looks up only its own property (see findProperty).
+        unset($this->properties);
 
         // Make evidence list
         $evidences = $this->engine->getKeys();
@@ -194,41 +248,146 @@ class DeviceDetectionOnPremise extends Engine
             default: 
                 $this->engine->refreshData($fileName_or_data, $length);
         }
+
+        // The metadata follows the new data set.
+        unset($this->properties);
+        $this->requiredNames = null;
+        $this->readProperties = [];
     }
 
     /**
-     * The index of a property the engine was built with, or null when the
-     * engine was not built with the name. A caller with the index reads a
-     * value without the native code looking the name up.
+     * Builds the table of every property when it is first read.
+     *
+     * @return mixed
      */
-    public function getPropertyIndex(string $name): ?int
+    public function &__get(string $name)
     {
-        return $this->propertyIndexes[strtolower($name)] ?? null;
+        if ($name === 'properties') {
+            $this->properties = $this->buildProperties();
+
+            return $this->properties;
+        }
+
+        trigger_error(
+            sprintf('Undefined property: %s::$%s', static::class, $name),
+            E_USER_WARNING
+        );
+        $none = null;
+
+        return $none;
     }
 
     /**
-     * Map each name the engine was built with to its place in that list.
+     * The metadata a read needs of a property, holding at least its name,
+     * type and category, or null when the engine has no property of that
+     * name. Until the table of every property is built, a property the
+     * engine was built with is looked up on its own in native code, so a
+     * request pays only for the properties it reads.
      *
-     * The order is the engine's required property order, which native code
-     * fixes at build and works out again for every data set it loads, so an
-     * index names the same property however the data set orders its own
-     * properties.
-     *
-     * @return array<string, int>
+     * @return null|array<string, mixed>
      */
-    private static function buildPropertyIndexes(\EngineHashSwig $engine): array
+    public function findProperty(string $name): ?array
     {
-        $indexes = [];
-        $required = $engine->getRequiredProperties();
-        for ($i = 0; $i < $required->size(); ++$i) {
-            // A name given twice keeps its first place, as native code does.
-            $name = strtolower($required->get($i));
-            if (!isset($indexes[$name])) {
-                $indexes[$name] = $i;
+        $key = strtolower($name);
+        if (isset($this->properties)) {
+            return $this->properties[$key] ?? null;
+        }
+        if (isset(self::METRIC_PROPERTIES[$key])) {
+            return self::METRIC_PROPERTIES[$key];
+        }
+        if (!isset($this->readProperties[$key])) {
+            $property = $this->lookUpProperty($key);
+            if ($property === null) {
+                // Not a property the engine was built with, so the table
+                // says whether the data set has it. Reading the table here
+                // builds it through __get, where the isset above does not,
+                // so an __isset on this class would make this line answer
+                // null with nothing built.
+                return $this->properties[$key] ?? null;
+            }
+            $this->readProperties[$key] = $property;
+        }
+
+        return $this->readProperties[$key];
+    }
+
+    /**
+     * The name, type and category of a property the engine was built with,
+     * from native code, or null for any other name.
+     *
+     * @return null|array<string, string>
+     */
+    private function lookUpProperty(string $key): ?array
+    {
+        $name = $this->requiredNames()[$key] ?? null;
+        if ($name === null) {
+            return null;
+        }
+        $property = $this->engine->getMetaData()->getProperties()
+            ->getByKey($name);
+        if ($property === null) {
+            return null;
+        }
+
+        return [
+            'name' => $property->getName(),
+            'type' => $this->getPropertyType($property),
+            'category' => $property->getCategory()
+        ];
+    }
+
+    /**
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it, which for a property the data set has is the
+     * data set's spelling.
+     *
+     * @return array<string, string>
+     */
+    private function requiredNames(): array
+    {
+        if ($this->requiredNames === null) {
+            $this->requiredNames = [];
+            $required = $this->engine->getRequiredProperties();
+            $count = $required->size();
+            for ($i = 0; $i < $count; ++$i) {
+                $name = $required->get($i);
+                $this->requiredNames[strtolower($name)] ??= $name;
             }
         }
 
-        return $indexes;
+        return $this->requiredNames;
+    }
+
+    /**
+     * The table of every property in the data set, and the match metrics,
+     * keyed by the lowercase name.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function buildProperties(): array
+    {
+        $propertiesInternal = $this->engine->getMetaData()->getProperties();
+
+        $properties = [];
+        for ($i = 0; $i < $propertiesInternal->getSize(); ++$i) {
+            $property = $propertiesInternal->getByIndex($i);
+            $properties[strtolower($property->getName())] = [
+                'name' => $property->getName(),
+                'type' => $this->getPropertyType($property),
+                'dataFiles' => SwigHelpers::vectorToArray($property->getDataFilesWherePresent()),
+                'category' => $property->getCategory(),
+                'description' => $property->getDescription(),
+                'available' => $property->getAvailable(),
+                'isList' => $property->getIsList(),
+                'component' => $this->getComponentName($property)
+            ];
+        }
+
+        foreach (self::METRIC_PROPERTIES as $name => $property) {
+            $properties[$name] = $property;
+        }
+
+        return $properties;
     }
 
     /**
@@ -269,86 +428,5 @@ class DeviceDetectionOnPremise extends Engine
             default: 
                 return 'String';
         }
-    }
-
-    /**
-     * @return array<string, array<string, bool|string|array<string>>>
-     */
-    private function getMetricProperties(): array
-    {
-        $dataFiles = ['Lite', 'Premium', 'Enterprise'];
-
-        return [
-            'matchednodes' => [
-                'name' => 'MatchedNodes',
-                'type' => 'Integer',
-                'dataFiles' => $dataFiles,
-                'description' => Constants::MATCHED_NODES_DESCRIPTION,
-                'category' => 'DeviceMetrics',
-                'component' => 'MatchMetrics',
-                'isList' => false,
-                'available' => true
-            ],
-            'difference' => [
-                'name' => 'Difference',
-                'type' => 'Integer',
-                'dataFiles' => $dataFiles,
-                'description' => Constants::DIFFERENCE_DESCRIPTION,
-                'category' => 'DeviceMetrics',
-                'component' => 'MatchMetrics',
-                'isList' => false,
-                'available' => true
-            ],
-            'drift' => [
-                'name' => 'Drift',
-                'type' => 'Integer',
-                'dataFiles' => $dataFiles,
-                'description' => Constants::DRIFT_DESCRIPTION,
-                'category' => 'DeviceMetrics',
-                'component' => 'MatchMetrics',
-                'isList' => false,
-                'available' => true
-            ],
-            'deviceid' => [
-                'name' => 'DeviceId',
-                'type' => 'String',
-                'dataFiles' => $dataFiles,
-                'description' => Constants::DEVICE_ID_DESCRIPTION,
-                'category' => 'DeviceMetrics',
-                'component' => 'MatchMetrics',
-                'isList' => false,
-                'available' => true
-            ],
-            'useragents' => [
-                'name' => 'UserAgents',
-                'type' => 'Array',
-                'dataFiles' => $dataFiles,
-                'description' => Constants::USER_AGENTS_DESCRIPTION,
-                'category' => 'DeviceMetrics',
-                'component' => 'MatchMetrics',
-                'isList' => true,
-                'available' => true
-            ],
-            'iterations' => [
-                'name' => 'Iterations',
-                'type' => 'Integer',
-                'dataFiles' => $dataFiles,
-                'description' => Constants::ITERATIONS_DESCRIPTION,
-                'category' => 'DeviceMetrics',
-                'component' => 'MatchMetrics',
-                'isList' => false,
-                'available' => true
-            ],
-            'method' => [
-                'name' => 'Method',
-                'type' => 'String',
-                'dataFiles' => $dataFiles,
-                'description' => Constants::METHOD_DESCRIPTION,
-                'category' => 'DeviceMetrics',
-                'component' => 'MatchMetrics',
-                'isList' => false,
-                'available' => true
-            ]
-        ];
     }
 }

@@ -249,8 +249,10 @@ class IpIntelligenceOnPremiseTests extends TestCase
         $this->assertSame(Messages::RESULTS_CLOSED, $message);
 
         // The engine has no metadata left to search, so it has no property
-        // of that name, and asking answers rather than throwing.
-        $this->assertFalse(isset($flowData->ip->registeredname));
+        // of that name, and asking answers rather than throwing. The name
+        // has to be one nothing asked about while the engine was open,
+        // because the engine keeps what it has already looked up.
+        $this->assertFalse(isset($flowData->ip->registeredcountry));
 
         $after = $pipeline->createFlowData();
         try {

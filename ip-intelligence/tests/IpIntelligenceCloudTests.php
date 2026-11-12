@@ -180,7 +180,7 @@ class IpIntelligenceCloudTests extends TestCase
         }
 
         $settings = ['resourceKey' => $resourceKey];
-        $endPoint = getenv('FOD_CLOUD_API_URL');
+        $endPoint = getenv('_51DEGREES_CLOUD_ENDPOINT');
         if ($endPoint) {
             $settings['cloudEndPoint'] = $endPoint;
         }

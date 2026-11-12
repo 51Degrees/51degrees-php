@@ -1,0 +1,33 @@
+name: Temporary red for pull request 72
+
+# Throwaway. This branch is pull request 72's head with only the catch
+# removed from SwigData::__isset, so the two closed engine tests should
+# fail here. The IP Intelligence Unit suite needs no native extension and
+# no data file, which is why it can run on its own like this.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-72-isset-red'
+
+jobs:
+  Red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Take the one submodule the root composer file needs
+        run: git submodule update --init pipeline/did/owid-php
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Link every package from the root composer file
+        run: composer install --no-interaction --no-progress
+
+      - name: The IP Intelligence SwigData tests
+        run: >
+          vendor/bin/phpunit
+          --bootstrap vendor/autoload.php
+          ip-intelligence/tests/SwigDataTests.php

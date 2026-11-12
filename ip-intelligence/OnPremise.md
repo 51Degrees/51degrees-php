@@ -103,13 +103,12 @@ out, or set it to `MaxPerformance`. Any other profile there raises an
 exception when `IpIntelligenceOnPremise` takes up that engine, explaining that
 `MaxPerformance` is the only supported profile for it.
 
-`IpIntelligenceOnPremise` still takes a `dataFile` setting, which builds a
-new engine from the data file every time the class is constructed, with its
-own file handles and any `performanceProfile`. Under a web server PHP
-constructs the class in every request, so the data file is opened and read
-in every request, the whole file with `MaxPerformance`. Outside the command
-line such an engine logs a warning saying so, through the Pipeline's logger.
-Use the engine built when PHP starts instead.
+`IpIntelligenceOnPremise` still takes a `dataFile` setting, for command-line
+tools only. It builds a new engine from the data file every time the class is
+constructed, with its own file handles and any `performanceProfile`. Under a
+web server PHP constructs the class in every request, so the data file would
+be loaded in every request, and under any SAPI other than `cli` the setting
+is refused with an exception. Use the engine built when PHP starts instead.
 
 ## Data file
 

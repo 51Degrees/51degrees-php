@@ -40,9 +40,9 @@ class IpIntelligenceOnPremisePipelineBuilder extends PipelineBuilder
      * The settings are passed straight through to IpIntelligenceOnPremise.
      * With none, the pipeline uses the engine the extension builds once,
      * when PHP starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file
-     * php.ini setting. A "dataFile" setting builds a new engine from the
-     * data file every time, which under a web server is every request, as
-     * IpIntelligenceOnPremise describes.
+     * php.ini setting. A "dataFile" setting, for command-line tools only,
+     * builds a new engine from the data file every time, and is refused
+     * outside the command line, as IpIntelligenceOnPremise describes.
      *
      * @param array<string, mixed> $settings
      * @throws \Exception

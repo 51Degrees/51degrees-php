@@ -56,15 +56,14 @@ class Messages
         'path of an .ipi data file, so that PHP builds the engine once when ' .
         'it starts. See OnPremise.md.';
 
-    // Logged once when an engine is built from a "dataFile" setting outside
-    // the command line.
-    public const DATA_FILE_SETTING_COST =
-        'An IP intelligence engine was built from the "dataFile" setting, ' .
-        'which opens the data file and builds a new engine from it every ' .
-        'time, and under a web server that is every request. Set ' .
-        'FiftyOneDegreesIpIntelligenceEngine.data_file in php.ini to the ' .
-        'data file and leave the "dataFile" setting out, so that PHP builds ' .
-        'the engine once when it starts.';
+    // Raised when the "dataFile" setting is given outside the command line.
+    public const DATA_FILE_SETTING_REFUSED =
+        'The "dataFile" setting builds a new IP intelligence engine from the ' .
+        'data file every time, so under a web server the data file would be ' .
+        'loaded on every request, and it is refused outside the command ' .
+        'line. Set FiftyOneDegreesIpIntelligenceEngine.data_file in php.ini ' .
+        'to the data file and leave the "dataFile" setting out, so that PHP ' .
+        'builds the engine once, when it starts.';
 
     public const DATA_FILE_NOT_FOUND =
         'There is no IP intelligence data file at %s';

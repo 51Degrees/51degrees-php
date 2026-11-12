@@ -34,7 +34,6 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
 use fiftyone\pipeline\ipintelligence\SwigHelpers;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
-use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
 
@@ -357,142 +356,137 @@ class IpIntelligenceOnPremiseTests extends TestCase
     }
 
     /**
-     * Outside the command line, the first engine built from a "dataFile"
-     * setting logs through the Pipeline's logger that it builds a new engine
-     * from the data file every time, which under a web server is every
-     * request. Nothing more is logged in the same run of PHP, by that engine
-     * in another Pipeline or by another engine built the same way.
+     * Under a web server, here PHP's built-in one, whose SAPI is not 'cli',
+     * PHP builds this class in every request, so the "dataFile" setting,
+     * which would load the data file in every request, is refused. The
+     * engine built when PHP started is used with no settings.
      */
-    public function testDataFileSettingOutsideTheCommandLineIsLoggedOnce(): void
+    public function testDataFileSettingIsRefusedUnderAWebServer(): void
     {
-        $this->forgetDataFileSettingLogged();
-        $logger = $this->memoryLogger();
-        $first = $this->engineOutsideTheCommandLine();
-        $second = $this->engineOutsideTheCommandLine();
-        try {
-            (new PipelineBuilder())->addLogger($logger)->add($first)->build();
-            (new PipelineBuilder())->addLogger($logger)->add($first)->build();
-            (new PipelineBuilder())->addLogger($logger)->add($second)->build();
-        } finally {
-            $first->close();
-            $second->close();
-        }
-
+        $answers = $this->askWebServer(['dataFile', 'startup']);
         $this->assertSame(
-            [['level' => 'warning', 'message' => Messages::DATA_FILE_SETTING_COST]],
-            $this->aboutTheDataFileSetting($logger)
+            Messages::DATA_FILE_SETTING_REFUSED,
+            $answers['dataFile']
         );
-        $this->assertStringContainsString(
-            'FiftyOneDegreesIpIntelligenceEngine.data_file',
-            Messages::DATA_FILE_SETTING_COST
-        );
+        $this->assertSame('OK', $answers['startup']);
     }
 
     /**
-     * On the command line a script builds its engine once for the whole run,
-     * so an engine built from a "dataFile" setting logs nothing.
+     * On the command line a tool builds its engine once for its whole run,
+     * so the "dataFile" setting is accepted there.
      */
-    public function testDataFileSettingOnTheCommandLineIsNotLogged(): void
+    public function testDataFileSettingIsAcceptedOnTheCommandLine(): void
     {
-        $this->forgetDataFileSettingLogged();
-        $logger = $this->memoryLogger();
+        $this->assertSame('cli', PHP_SAPI);
         $engine = new IpIntelligenceOnPremise([
             'dataFile' => self::$dataFile,
             'performanceProfile' => 'LowMemory'
         ]);
         try {
-            (new PipelineBuilder())->addLogger($logger)->add($engine)->build();
+            $this->assertSame('ip', $engine->dataKey);
         } finally {
             $engine->close();
         }
-
-        $this->assertSame([], $this->aboutTheDataFileSetting($logger));
     }
 
-    /**
-     * The engine built when PHP starts logs nothing outside the command line
-     * either.
-     */
-    public function testStartupEngineIsNotLogged(): void
-    {
-        $this->requireStartupEngine();
-        $this->forgetDataFileSettingLogged();
-        $logger = $this->memoryLogger();
-        $engine = new class () extends IpIntelligenceOnPremise {
-            protected function isCommandLine(): bool
-            {
-                return false;
-            }
-        };
+    // Answers each request to PHP's built-in web server with OK, or the
+    // message of the exception, after building IpIntelligenceOnPremise from
+    // the "dataFile" setting when the path is /dataFile, and with no
+    // settings otherwise. The placeholders are the autoloader and the data
+    // file.
+    private const SERVE_PHP = <<<'PHP'
+        <?php
+        require %s;
+        $settings = $_SERVER['REQUEST_URI'] === '/dataFile'
+            ? ['dataFile' => %s, 'performanceProfile' => 'LowMemory']
+            : [];
         try {
-            (new PipelineBuilder())->addLogger($logger)->add($engine)->build();
-        } finally {
+            $engine = new fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise(
+                $settings
+            );
             $engine->close();
+            echo 'OK';
+        } catch (Throwable $e) {
+            echo $e->getMessage();
         }
-
-        $this->assertSame([], $this->aboutTheDataFileSetting($logger));
-    }
+        PHP;
 
     /**
-     * An engine built from the data file that takes PHP to be running
-     * outside the command line, as under a web server.
-     */
-    private function engineOutsideTheCommandLine(): IpIntelligenceOnPremise
-    {
-        return new class ([
-            'dataFile' => self::$dataFile,
-            'performanceProfile' => 'LowMemory'
-        ]) extends IpIntelligenceOnPremise {
-            protected function isCommandLine(): bool
-            {
-                return false;
-            }
-        };
-    }
-
-    /**
-     * Makes the once-only log entry possible again, as it is when PHP starts
-     * a script.
-     */
-    private function forgetDataFileSettingLogged(): void
-    {
-        \Closure::bind(static function (): void {
-            self::$dataFileCostLogged = false;
-        }, null, IpIntelligenceOnPremise::class)();
-    }
-
-    private function memoryLogger(): Logger
-    {
-        return new class ('trace') extends Logger {
-            /** @var array<int, array<string, string>> */
-            public array $entries = [];
-
-            public function logInternal(array $log): void
-            {
-                $this->entries[] = $log;
-            }
-        };
-    }
-
-    /**
-     * The level and message of each entry the logger kept that names the
-     * "dataFile" setting.
+     * Starts PHP's built-in web server with the php.ini data file naming the
+     * Lite file, asks it for each path, and returns its answers by path.
      *
-     * @return array<int, array<string, string>>
+     * @param array<string> $paths
+     * @return array<string, string>
      */
-    private function aboutTheDataFileSetting(Logger $logger): array
+    private function askWebServer(array $paths): array
     {
-        $found = [];
-        foreach ($logger->entries as $entry) {
-            if (strpos($entry['message'], '"dataFile"') !== false) {
-                $found[] = [
-                    'level' => $entry['level'],
-                    'message' => $entry['message']
-                ];
-            }
-        }
+        $dataFile = realpath($this->liteDataFile());
+        $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
+        $autoload = dirname(
+            (new \ReflectionClass(\Composer\Autoload\ClassLoader::class))
+                ->getFileName(),
+            2
+        ) . '/autoload.php';
+        $folder = sys_get_temp_dir() . '/ipi-web-server-' . uniqid();
+        mkdir($folder);
+        $router = $folder . '/router.php';
+        $log = $folder . '/server.log';
+        file_put_contents($router, sprintf(
+            self::SERVE_PHP,
+            var_export($autoload, true),
+            var_export($dataFile, true)
+        ));
 
-        return $found;
+        // A free port, from a socket the system gives one to and then closes.
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        $address = stream_socket_get_name($socket, false);
+        fclose($socket);
+
+        $server = proc_open(
+            [
+                PHP_BINARY,
+                '-d',
+                "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}",
+                '-S',
+                $address,
+                $router
+            ],
+            [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']],
+            $pipes
+        );
+        $this->assertIsResource($server);
+        try {
+            $answers = [];
+            foreach ($paths as $path) {
+                $answers[$path] = $this->ask("http://{$address}/{$path}", $log);
+            }
+
+            return $answers;
+        } finally {
+            proc_terminate($server);
+            proc_close($server);
+            @unlink($router);
+            @unlink($log);
+            @rmdir($folder);
+        }
+    }
+
+    /**
+     * The body of the answer from the URL, waiting up to 30 seconds for the
+     * server to start.
+     */
+    private function ask(string $url, string $log): string
+    {
+        $deadline = microtime(true) + 30;
+        do {
+            $answer = @file_get_contents($url);
+            if ($answer !== false) {
+                return $answer;
+            }
+            usleep(200000);
+        } while (microtime(true) < $deadline);
+
+        $this->fail("No answer from {$url}. " . @file_get_contents($log));
     }
 
     /**

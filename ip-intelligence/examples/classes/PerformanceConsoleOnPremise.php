@@ -81,10 +81,32 @@ class PerformanceConsoleOnPremise
             return;
         }
 
-        // The native engine the extension built when PHP started, so the
-        // benchmark measures lookups and not loading the data file.
-        $engine = (new IpIntelligenceOnPremise())->engine;
+        // The engine the extension built when PHP started, so the benchmark
+        // measures lookups and not loading the data file. The element is
+        // closed in the finally block, and the engine belongs to the
+        // extension and stays loaded.
+        $element = new IpIntelligenceOnPremise();
+        try {
+            $this->measure($element->engine, $ipAddresses, $maxSeconds, $output);
+        } finally {
+            $element->close();
+        }
+    }
 
+    /**
+     * Times lookups of the IP addresses with the native engine, and writes
+     * the throughput.
+     *
+     * @param mixed $engine The native engine
+     * @param array<string> $ipAddresses
+     * @param resource $output
+     */
+    private function measure(
+        $engine,
+        array $ipAddresses,
+        float $maxSeconds,
+        $output
+    ): void {
         // The free ASN data file has AsnName in place of RegisteredName, so
         // the benchmark reads whichever the data file has.
         $property = ExampleUtils::hasProperty($engine, 'RegisteredName')

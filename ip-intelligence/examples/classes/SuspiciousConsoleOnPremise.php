@@ -65,21 +65,28 @@ class SuspiciousConsoleOnPremise
             return;
         }
 
-        // The native engine the extension built when PHP started, from the
-        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
-        $engine = (new IpIntelligenceOnPremise())->engine;
-        if (ExampleUtils::lacksEnterpriseProperties(
-            $engine,
-            'Finding suspicious IP addresses',
-            self::SUSPICIOUS_PROPERTIES,
-            $output,
-            self::CONTACT_US
-        )) {
-            return;
-        }
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting. The
+        // element is closed in the finally block, and the engine belongs to
+        // the extension and stays loaded.
+        $element = new IpIntelligenceOnPremise();
+        try {
+            $engine = $element->engine;
+            if (ExampleUtils::lacksEnterpriseProperties(
+                $engine,
+                'Finding suspicious IP addresses',
+                self::SUSPICIOUS_PROPERTIES,
+                $output,
+                self::CONTACT_US
+            )) {
+                return;
+            }
 
-        foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
-            $this->analyseEvidence($evidence, $engine, $output);
+            foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
+                $this->analyseEvidence($evidence, $engine, $output);
+            }
+        } finally {
+            $element->close();
         }
     }
 

@@ -147,10 +147,13 @@ class ExamplesWithoutSettingsTests extends TestCase
     }
 
     /**
-     * An example started without the engine says how to start PHP with it,
-     * naming the data file, and stops.
+     * With no data file in php.ini, an example runs again in a PHP that
+     * builds the engine when it starts, from the data file the example
+     * finds, so that it runs with nothing set in php.ini. The Lite file is
+     * named, because CI also has the Enterprise file, which the example
+     * would find first.
      */
-    public function testWithoutTheEngineTheExampleSaysHowToStartIt(): void
+    public function testWithNoDataFileInPhpIniTheExampleStillRuns(): void
     {
         $dataFile = realpath($this->liteDataFile());
         $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
@@ -161,13 +164,14 @@ class ExamplesWithoutSettingsTests extends TestCase
             ) . ' ' . escapeshellarg($dataFile) . ' 2>&1';
         exec($command, $lines, $status);
         $printed = implode("\n", $lines);
-        $this->assertSame(1, $status, $printed);
+        $this->assertSame(0, $status, $printed);
         $this->assertStringContainsString(
-            'No IP intelligence engine was built when PHP started.',
+            'No IP intelligence engine was built when PHP started, so the ' .
+            "example runs again in a PHP that builds one from {$dataFile}.",
             $printed
         );
         $this->assertStringContainsString(
-            ExampleUtils::DATA_FILE_SETTING . '=' . $dataFile,
+            "\tCountry: " . ExampleUtils::NEEDS_ENTERPRISE,
             $printed
         );
     }

@@ -248,8 +248,12 @@ class EnvironmentVariableTests extends TestCase
         $about = $this->aboutTheDeprecatedName($logger);
         $this->assertCount(1, $about);
         $this->assertSame('warning', $about[0]['level']);
-        $this->assertStringContainsString('deprecated', $about[0]['message']);
-        $this->assertStringContainsString('_51DEGREES_IPI_PATH', $about[0]['message']);
+        $this->assertSame(
+            'A value was read from the environment variable ' .
+            'IPINTELLIGENCEDATAFILE, which is deprecated. ' .
+            '_51DEGREES_IPI_PATH replaces it, so set that to the same value.',
+            $about[0]['message']
+        );
     }
 
     public function testDataFileNameIsReadFirstAndNothingIsLogged(): void

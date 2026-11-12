@@ -38,9 +38,9 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     public const testEnvVarEndPoint = 'http://testEnvVarEndPoint/';
     public const testOldEnvVarEndPoint = 'http://testOldEnvVarEndPoint/';
 
-    // The environment variable the endpoint was read from before
-    // Constants::CLOUD_ENDPOINT_VARIABLE, written out so that a test of
-    // what the engine reads does not depend on the constant.
+    // The deprecated environment variable for the endpoint, written out
+    // so that a test of what the engine reads does not depend on the
+    // constant that holds the name.
     private const oldEndPointVariable = 'FOD_CLOUD_API_URL';
 
     /**

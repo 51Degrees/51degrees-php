@@ -71,10 +71,12 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_UNSET', null);
         $this->set('OLD_TEST_UNSET', 'old');
 
-        $this->assertSame(
-            'old',
-            EnvironmentVariable::read('_51DEGREES_TEST_UNSET', 'OLD_TEST_UNSET')
-        );
+        $this->logged(function (): void {
+            $this->assertSame(
+                'old',
+                EnvironmentVariable::read('_51DEGREES_TEST_UNSET', 'OLD_TEST_UNSET')
+            );
+        });
     }
 
     public function testDeprecatedNameIsReadWhenTheNameIsEmpty(): void
@@ -82,10 +84,12 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_EMPTY', '');
         $this->set('OLD_TEST_EMPTY', 'old');
 
-        $this->assertSame(
-            'old',
-            EnvironmentVariable::read('_51DEGREES_TEST_EMPTY', 'OLD_TEST_EMPTY')
-        );
+        $this->logged(function (): void {
+            $this->assertSame(
+                'old',
+                EnvironmentVariable::read('_51DEGREES_TEST_EMPTY', 'OLD_TEST_EMPTY')
+            );
+        });
     }
 
     public function testNeitherNameSetGivesAnEmptyString(): void
@@ -107,11 +111,13 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
         $this->set('OLD_TEST_PLACEHOLDER', 'old');
 
-        $this->assertSame('old', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            'OLD_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
+        $this->logged(function (): void {
+            $this->assertSame('old', EnvironmentVariable::read(
+                '_51DEGREES_TEST_PLACEHOLDER',
+                'OLD_TEST_PLACEHOLDER',
+                '!!NOT_SET!!'
+            ));
+        });
 
         $this->set('OLD_TEST_PLACEHOLDER', '!!NOT_SET!!');
         $this->assertSame('', EnvironmentVariable::read(
@@ -142,11 +148,13 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_RESOURCE_KEY', '!!YOUR_RESOURCE_KEY!!');
         $this->set('resource_key', 'old-key');
 
-        $this->assertSame('old-key', EnvironmentVariable::read(
-            constant(Constants::class . '::RESOURCE_KEY_VARIABLE'),
-            Constants::RESOURCE_KEY_ENV_VAR,
-            '!!YOUR_RESOURCE_KEY!!'
-        ));
+        $this->logged(function (): void {
+            $this->assertSame('old-key', EnvironmentVariable::read(
+                constant(Constants::class . '::RESOURCE_KEY_VARIABLE'),
+                Constants::RESOURCE_KEY_ENV_VAR,
+                '!!YOUR_RESOURCE_KEY!!'
+            ));
+        });
     }
 
     public function testDeprecatedConstantKeepsItsNameAndValue(): void

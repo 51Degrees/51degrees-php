@@ -82,10 +82,12 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_UNSET', null);
         $this->set('OLD_TEST_UNSET', 'old');
 
-        $this->assertSame(
-            'old',
-            EnvironmentVariable::read('_51DEGREES_TEST_UNSET', 'OLD_TEST_UNSET')
-        );
+        $this->logged(function (): void {
+            $this->assertSame(
+                'old',
+                EnvironmentVariable::read('_51DEGREES_TEST_UNSET', 'OLD_TEST_UNSET')
+            );
+        });
     }
 
     public function testDeprecatedNameIsReadWhenTheNameIsEmpty(): void
@@ -93,10 +95,12 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_EMPTY', '');
         $this->set('OLD_TEST_EMPTY', 'old');
 
-        $this->assertSame(
-            'old',
-            EnvironmentVariable::read('_51DEGREES_TEST_EMPTY', 'OLD_TEST_EMPTY')
-        );
+        $this->logged(function (): void {
+            $this->assertSame(
+                'old',
+                EnvironmentVariable::read('_51DEGREES_TEST_EMPTY', 'OLD_TEST_EMPTY')
+            );
+        });
     }
 
     public function testNeitherNameSetGivesAnEmptyString(): void
@@ -118,11 +122,13 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
         $this->set('OLD_TEST_PLACEHOLDER', 'old');
 
-        $this->assertSame('old', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            'OLD_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
+        $this->logged(function (): void {
+            $this->assertSame('old', EnvironmentVariable::read(
+                '_51DEGREES_TEST_PLACEHOLDER',
+                'OLD_TEST_PLACEHOLDER',
+                '!!NOT_SET!!'
+            ));
+        });
 
         $this->set('OLD_TEST_PLACEHOLDER', '!!NOT_SET!!');
         $this->assertSame('', EnvironmentVariable::read(
@@ -153,7 +159,9 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_RESOURCE_KEY', '!!YOUR_RESOURCE_KEY!!');
         $this->set('resource_key', 'old-key');
 
-        $this->assertSame('old-key', ExampleUtils::getResourceKey());
+        $this->logged(function (): void {
+            $this->assertSame('old-key', ExampleUtils::getResourceKey());
+        });
     }
 
     public function testExampleKeyNameWinsOverItsDeprecatedName(): void
@@ -178,7 +186,9 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_IPI_PATH', '');
         $this->set('IPINTELLIGENCEDATAFILE', $old);
 
-        $this->assertSame($old, ExampleUtils::getDataFile());
+        $this->logged(function () use ($old): void {
+            $this->assertSame($old, ExampleUtils::getDataFile());
+        });
     }
 
     public function testExampleDataFileNameWinsOverItsDeprecatedName(): void
@@ -196,6 +206,12 @@ class EnvironmentVariableTests extends TestCase
         mkdir(dirname($old) . '/Translations');
         $this->set('_51DEGREES_IPI_PATH', '');
         $this->set('IPINTELLIGENCEDATAFILE', $old);
+
+        // The package reports the deprecated name once for each time PHP
+        // runs the script, so the report is made possible again first.
+        \Closure::bind(static function (): void {
+            self::$oldIpiPathVariableReported = false;
+        }, null, TranslationPaths::class)();
 
         $found = '';
         $logged = $this->logged(function () use (&$found): void {

@@ -81,9 +81,24 @@ class SwigData extends AspectData
         return parent::get($key);
     }
 
+    /**
+     * Whether the engine has an available property of this name. Looking one
+     * up needs the engine, which close() releases, and isset must answer
+     * rather than throw, so a closed engine has no property of any name.
+     * Any other failure is a real one and is left to the caller, rather
+     * than read as the engine having no property of that name.
+     */
     public function __isset($key)
     {
-        return isset($this->flowElement->properties[strtolower($key)]);
+        try {
+            return $this->flowElement->findProperty($key) !== null;
+        } catch (\Exception $exception) {
+            if ($exception->getMessage() !== Messages::ENGINE_CLOSED) {
+                throw $exception;
+            }
+
+            return false;
+        }
     }
 
     public function getInternal($key)
@@ -104,24 +119,13 @@ class SwigData extends AspectData
                 : new AspectPropertyValue('IPv6 was not supplied as evidence.');
         }
 
-        if (!isset($this->flowElement->properties[$key])) {
+        $property = $this->flowElement->findProperty($key);
+        if ($property === null) {
             return null;
         }
 
-        $property = $this->flowElement->properties[$key];
         $name = $property['name'];
         $type = strtolower((string) $property['type']);
-
-        // Read by the property's index in the list the engine was built
-        // with, which saves the native code a name lookup on every read.
-        //
-        // An engine built with no names has no index table, so the read
-        // falls back to the name. A property that is in the data set but
-        // outside a build-time list has no index and so carries no value.
-        $readKey = $this->readKey($name);
-        if ($readKey === null) {
-            return new AspectPropertyValue(sprintf(Messages::PROPERTY_NOT_BUILT, $name));
-        }
 
         // Mcc is weighted even though its metadata type is "string"
         // (ip-intelligence-dotnet parity).
@@ -133,14 +137,14 @@ class SwigData extends AspectData
             case 'weightedstring':
             case 'weightedwkbr':
             case 'weightedwkb':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedStringList($readKey));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedStringList($name));
             case 'weightedint':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedIntegerList($readKey));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedIntegerList($name));
             case 'weighteddouble':
             case 'weightedsingle':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedDoubleList($readKey));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedDoubleList($name));
             case 'weightedbool':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedBoolList($readKey));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedBoolList($name));
             case 'wkb':
             case 'wkbr':
             case 'ipaddress':
@@ -148,44 +152,24 @@ class SwigData extends AspectData
             case 'javascript':
                 // WKB geometry (e.g. Areas) and IP address properties are
                 // exposed via their string form, matching the .NET binding.
-                return $this->singleValue($this->result->getValueAsString($readKey));
+                return $this->singleValue($this->result->getValueAsString($name));
             case 'int':
-                return $this->singleValue($this->result->getValueAsInteger($readKey));
+                return $this->singleValue($this->result->getValueAsInteger($name));
             case 'double':
             case 'single':
-                return $this->singleValue($this->result->getValueAsDouble($readKey));
+                return $this->singleValue($this->result->getValueAsDouble($name));
             case 'bool':
-                return $this->singleValue($this->result->getValueAsBool($readKey));
+                return $this->singleValue($this->result->getValueAsBool($name));
             case 'string[]':
-                $value = $this->result->getValues($readKey);
+                $value = $this->result->getValues($name);
                 if ($value->hasValue()) {
                     return new AspectPropertyValue(null, SwigHelpers::vectorToArray($value->getValue()));
                 }
 
                 return new AspectPropertyValue($value->getNoValueMessage());
             default:
-                return $this->singleValue($this->result->getValueAsString($readKey));
+                return $this->singleValue($this->result->getValueAsString($name));
         }
-    }
-
-    /**
-     * What to hand a native value accessor for a property.
-     *
-     * An engine built with a list of names gives the property's index in
-     * that list, which is fixed at build and so names the same property
-     * after any reload, and null for a name outside the list. An engine
-     * built with no names has no index table and gives the name back, which
-     * is the behaviour it had before indexes were used.
-     *
-     * @return null|int|string
-     */
-    private function readKey(string $name)
-    {
-        if ($this->flowElement->propertyIndexes === []) {
-            return $name;
-        }
-
-        return $this->flowElement->getPropertyIndex($name);
     }
 
     /**

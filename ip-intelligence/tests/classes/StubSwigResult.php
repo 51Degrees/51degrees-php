@@ -54,7 +54,7 @@ class StubSwigResult
 
     /**
      * Every argument an accessor was called with, in call order, so a test
-     * can assert that reads went by index rather than by name.
+     * can assert that reads went by name rather than by index.
      *
      * @var array<int|string>
      */

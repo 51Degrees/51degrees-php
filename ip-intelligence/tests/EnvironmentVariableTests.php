@@ -42,25 +42,8 @@ class EnvironmentVariableTests extends TestCase
     /** @var array<string, array{0: string|false, 1: mixed}> */
     private $previous = [];
 
-    /** @var string */
-    private $log = '';
-
-    /** @var string|false */
-    private $previousLog = false;
-
-    protected function setUp(): void
-    {
-        $this->log = (string) tempnam(sys_get_temp_dir(), 'env');
-        $this->previousLog = ini_get('error_log');
-        ini_set('error_log', $this->log);
-    }
-
     protected function tearDown(): void
     {
-        ini_set('error_log', (string) $this->previousLog);
-        if (is_file($this->log)) {
-            unlink($this->log);
-        }
         foreach ($this->previous as $name => $was) {
             putenv($was[0] === false ? $name : $name . '=' . $was[0]);
             if ($was[1] === null) {
@@ -85,11 +68,13 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_BOTH', 'new');
         $this->set('OLD_TEST_BOTH', 'old');
 
-        $this->assertSame(
-            'new',
-            EnvironmentVariable::read('_51DEGREES_TEST_BOTH', 'OLD_TEST_BOTH')
-        );
-        $this->assertSame([], $this->logged());
+        $logged = $this->logged(function (): void {
+            $this->assertSame(
+                'new',
+                EnvironmentVariable::read('_51DEGREES_TEST_BOTH', 'OLD_TEST_BOTH')
+            );
+        });
+        $this->assertSame([], $logged);
     }
 
     public function testDeprecatedNameIsReadWhenTheNameIsNotSet(): void
@@ -119,11 +104,13 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_NEITHER', null);
         $this->set('OLD_TEST_NEITHER', null);
 
-        $this->assertSame(
-            '',
-            EnvironmentVariable::read('_51DEGREES_TEST_NEITHER', 'OLD_TEST_NEITHER')
-        );
-        $this->assertSame([], $this->logged());
+        $logged = $this->logged(function (): void {
+            $this->assertSame(
+                '',
+                EnvironmentVariable::read('_51DEGREES_TEST_NEITHER', 'OLD_TEST_NEITHER')
+            );
+        });
+        $this->assertSame([], $logged);
     }
 
     public function testPlaceholderCountsAsNotSet(): void
@@ -150,10 +137,11 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_TEST_ONCE', null);
         $this->set('OLD_TEST_ONCE', 'old');
 
-        EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
-        EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
+        $logged = $this->logged(function (): void {
+            EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
+            EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
+        });
 
-        $logged = $this->logged();
         $this->assertCount(1, $logged);
         $this->assertStringContainsString('OLD_TEST_ONCE', $logged[0]);
         $this->assertStringContainsString('deprecated', $logged[0]);
@@ -209,8 +197,11 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_IPI_PATH', '');
         $this->set('IPINTELLIGENCEDATAFILE', $old);
 
-        $found = TranslationPaths::resolveTranslationsDir();
-        TranslationPaths::resolveTranslationsDir();
+        $found = '';
+        $logged = $this->logged(function () use (&$found): void {
+            $found = TranslationPaths::resolveTranslationsDir();
+            TranslationPaths::resolveTranslationsDir();
+        });
 
         // The folder in the repository is looked in first, whatever the
         // environment names, and is there once the submodules are.
@@ -222,7 +213,6 @@ class EnvironmentVariableTests extends TestCase
             realpath($found)
         );
 
-        $logged = $this->logged();
         $this->assertCount(1, $logged);
         $this->assertStringContainsString('IPINTELLIGENCEDATAFILE', $logged[0]);
         $this->assertStringContainsString('deprecated', $logged[0]);
@@ -236,7 +226,10 @@ class EnvironmentVariableTests extends TestCase
         $this->set('_51DEGREES_IPI_PATH', $new);
         $this->set('IPINTELLIGENCEDATAFILE', $this->dataFile('old'));
 
-        $found = TranslationPaths::resolveTranslationsDir();
+        $found = '';
+        $logged = $this->logged(function () use (&$found): void {
+            $found = TranslationPaths::resolveTranslationsDir();
+        });
 
         $inRepository = __DIR__ . '/../../cxx/data/ip-intelligence/Translations';
         $this->assertSame(
@@ -245,7 +238,7 @@ class EnvironmentVariableTests extends TestCase
                 : dirname($new) . '/Translations'),
             realpath($found)
         );
-        $this->assertSame([], $this->logged());
+        $this->assertSame([], $logged);
     }
 
     public function testDeprecatedConstantsKeepTheirNamesAndValues(): void
@@ -348,15 +341,26 @@ class EnvironmentVariableTests extends TestCase
     }
 
     /**
-     * The lines written to the PHP error log since the test began.
+     * Runs the action and returns the lines it wrote to the PHP error log.
+     * The log is pointed at a file from inside the test, because PHPUnit
+     * points it at a file of its own while a test runs.
      *
      * @return string[]
      */
-    private function logged(): array
+    private function logged(callable $action): array
     {
-        return array_values(array_filter(
-            array_map('trim', (array) file($this->log)),
-            'strlen'
-        ));
+        $log = (string) tempnam(sys_get_temp_dir(), 'env');
+        $previous = ini_set('error_log', $log);
+        try {
+            $action();
+
+            return array_values(array_filter(
+                array_map('trim', (array) file($log)),
+                'strlen'
+            ));
+        } finally {
+            ini_set('error_log', (string) $previous);
+            unlink($log);
+        }
     }
 }

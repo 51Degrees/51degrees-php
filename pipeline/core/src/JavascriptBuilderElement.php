@@ -53,11 +53,15 @@ class JavascriptBuilderElement extends FlowElement
     private const EXCLUDED_PARAMETERS = ['query.session-id', 'query.sequence'];
 
     /**
-     * Names the object cannot have. These are the reserved words of the
-     * language, including those reserved only in strict mode and the literals
-     * null, true and false, plus the three global values a top level var
-     * cannot replace, so the object would silently never be created, and the
-     * name of the constructor the script itself defines.
+     * Names the object cannot have, in the groups the specification lists.
+     * - The reserved words, including those reserved only in strict mode and
+     *   the literals null, true and false.
+     * - eval and arguments, which strict mode code cannot declare.
+     * - Infinity, NaN and undefined, and the Window properties a top level
+     *   var cannot replace, so the object would never be created.
+     * - location, because a top level var of that name navigates the page
+     *   away.
+     * - fiftyoneDegreesManager, the constructor the script itself defines.
      */
     private const RESERVED_WORDS = [
         'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
@@ -67,7 +71,16 @@ class JavascriptBuilderElement extends FlowElement
         'package', 'private', 'protected', 'public', 'return', 'static',
         'super', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 'var',
         'void', 'while', 'with', 'yield',
-        'Infinity', 'NaN', 'undefined', 'fiftyoneDegreesManager'
+        'Infinity', 'NaN', 'undefined',
+        'eval', 'arguments',
+        'window', 'document', 'top', 'name', 'status', 'history',
+        'navigator', 'closed', 'location', 'frameElement', 'isSecureContext',
+        'crossOriginIsolated', 'trustedTypes', 'crypto', 'indexedDB',
+        'localStorage', 'sessionStorage', 'caches', 'cookieStore',
+        'speechSynthesis', 'styleMedia', 'crashReport', 'credentialless',
+        'customElements', 'documentPictureInPicture', 'fence', 'launchQueue',
+        'originAgentCluster',
+        'fiftyoneDegreesManager'
     ];
 
     /**
@@ -77,9 +90,16 @@ class JavascriptBuilderElement extends FlowElement
     private const DEFAULT_SEQUENCE = 1;
 
     /**
-     * The largest sequence, which is the largest 32 bit signed integer.
+     * The largest sequence the SequenceElement counts from, so that adding
+     * one stays within a 32 bit signed integer.
      */
-    public const MAX_SEQUENCE = 2147483647;
+    public const MAX_SEQUENCE = 2147483646;
+
+    /**
+     * The largest sequence rendered into the script, which is the largest
+     * the SequenceElement gives.
+     */
+    private const MAX_RENDERED_SEQUENCE = self::MAX_SEQUENCE + 1;
 
     /**
      * @var array<string, mixed>
@@ -101,7 +121,10 @@ class JavascriptBuilderElement extends FlowElement
      * A name must be a JavaScript identifier (ASCII letters, digits, '_' and
      * '$', not starting with a digit) and not a reserved word. An invalid
      * 'objName', the empty string included, throws an \InvalidArgumentException, and an invalid
-     * requested name is ignored with a warning logged.
+     * requested name is ignored with a warning logged. 'protocol', when set,
+     * must be http or https in any case of its ASCII letters, or the
+     * constructor throws an \InvalidArgumentException. Left out, the
+     * 'header.protocol' evidence is used, or https when there is none.
      */
     public function __construct(array $settings = [])
     {
@@ -111,6 +134,18 @@ class JavascriptBuilderElement extends FlowElement
                 "The JavaScript builder's objName setting must be a " .
                 "JavaScript identifier (ASCII letters, digits, '_' and '$', " .
                 'not starting with a digit) and not a reserved word.'
+            );
+        }
+
+        // A protocol given here is used for every request, so one the script
+        // cannot send its request with is refused now rather than logged on
+        // the first request.
+        $protocol = $settings['protocol'] ?? null;
+        if ($protocol !== null && $protocol !== '' &&
+            !CallbackUrl::isScheme($protocol)) {
+            throw new \InvalidArgumentException(
+                "The JavaScript builder's protocol setting must be http or " .
+                'https.'
             );
         }
 
@@ -144,28 +179,31 @@ class JavascriptBuilderElement extends FlowElement
     }
 
     /**
-     * A sequence as a positive 32 bit integer, or null when the value cannot
-     * be used as one.
+     * A sequence as a whole number, or a string of the digits 0 to 9 only,
+     * from 1 up to $max, or null when the value cannot be used as one. A
+     * sign or white space gives null. So does 0, which the SequenceElement
+     * then counts as absent, giving 1 as a sequence of 0 does.
      *
      * @param mixed $value The query.sequence evidence, or null
+     * @param int $max The largest usable sequence
      */
-    public static function parseSequence($value): ?int
+    public static function parseSequence($value, int $max = self::MAX_SEQUENCE): ?int
     {
         if (is_int($value)) {
-            return $value >= 1 && $value <= self::MAX_SEQUENCE ? $value : null;
+            return $value >= 1 && $value <= $max ? $value : null;
         }
 
-        if (!is_string($value) || preg_match('/^\s*\+?[0-9]+\s*$/D', $value) !== 1) {
+        if (!is_string($value) || preg_match('/^[0-9]+$/D', $value) !== 1) {
             return null;
         }
 
         // The range is checked on the digits, because casting a number that
         // is too large gives the largest integer rather than failing. Every
-        // leading zero is dropped first, so no digits left means zero, which
-        // is not a sequence.
-        $digits = ltrim(ltrim(trim($value, " \t\n\r\v\f"), '+'), '0');
-        if ($digits === '' || strlen($digits) > 10 ||
-            (strlen($digits) === 10 && strcmp($digits, '2147483647') > 0)) {
+        // leading zero is dropped first, so no digits left means zero.
+        $digits = ltrim($value, '0');
+        $maxDigits = (string) $max;
+        if ($digits === '' || strlen($digits) > strlen($maxDigits) ||
+            (strlen($digits) === strlen($maxDigits) && strcmp($digits, $maxDigits) > 0)) {
             return null;
         }
 
@@ -177,19 +215,30 @@ class JavascriptBuilderElement extends FlowElement
      *
      * The template writes the sequence as bare code (var sequence = ...;), so
      * anything other than a whole number would stop the script parsing, or
-     * change what it does. A pipeline without a SequenceElement passes the
-     * query string's value, or nothing at all, straight through, and the
-     * pipeline specification requires 1 in that case. This builder goes a
-     * little further than the specification currently says and renders 1
-     * for any value that is not a positive 32 bit integer, because the
-     * script counts its own requests up from this number and cannot use
-     * zero or a negative one.
+     * change what it does. The value is the SequenceElement's sequence when
+     * parseSequence can use it, up to the largest sequence the
+     * SequenceElement gives, and 1 otherwise, because the script counts its
+     * own requests up from this number and cannot use zero or a negative one.
      *
-     * @param mixed $value The query.sequence evidence, or null
+     * @param mixed $value The SequenceElement's sequence, or null
      */
     public static function getSequence($value): int
     {
-        return self::parseSequence($value) ?? self::DEFAULT_SEQUENCE;
+        return self::parseSequence($value, self::MAX_RENDERED_SEQUENCE) ??
+            self::DEFAULT_SEQUENCE;
+    }
+
+    /**
+     * The SequenceElement's Element Data, or null when the pipeline has no
+     * SequenceElement.
+     */
+    private static function sequenceData(FlowData $flowData): ?ElementData
+    {
+        try {
+            return $flowData->get('sequence');
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -197,11 +246,9 @@ class JavascriptBuilderElement extends FlowElement
      *
      * The template writes the session id inside quotes without any escaping,
      * so a session id that is not 1 to 64 ASCII letters, digits and hyphens
-     * is rendered as an empty string, whether it came from the
-     * SequenceElement or from the query string, as the pipeline
-     * specification says.
+     * is rendered as an empty string, as the pipeline specification says.
      *
-     * @param mixed $value The query.session-id evidence, or null
+     * @param mixed $value The SequenceElement's session id, or null
      */
     public static function getSessionId($value): string
     {
@@ -218,7 +265,7 @@ class JavascriptBuilderElement extends FlowElement
         $filter = new EvidenceKeyFilter();
 
         $filter->filterEvidenceKey = function ($key) {
-            if (strpos($key, 'query.') !== false) {
+            if (strpos($key, 'query.') === 0) {
                 return true;
             }
 
@@ -309,12 +356,17 @@ class JavascriptBuilderElement extends FlowElement
 
         // Check if any delayedproperties exist in the json
         $vars['_hasDelayedProperties'] = strpos($vars['_jsonObject'], 'delayexecution') !== false;
-        // Both are written into the script, so each always has a safe value.
-        // The session id is written inside quotes and is empty when absent or
-        // not safe, and the sequence is written as bare code, so it is always
-        // a positive number.
-        $vars['_sessionId'] = self::getSessionId($flowData->evidence->get('query.session-id'));
-        $vars['_sequence'] = self::getSequence($flowData->evidence->get('query.sequence'));
+        // Both come from the SequenceElement's Element Data, and without a
+        // SequenceElement the session id is empty and the sequence is 1. Both
+        // are written into the script, so each always has a safe value. The
+        // session id is written inside quotes and is empty when absent or not
+        // safe, and the sequence is written as bare code, so it is always a
+        // positive number.
+        $sequence = self::sequenceData($flowData);
+        $vars['_sessionId'] = $sequence === null
+            ? '' : self::getSessionId($sequence->get('session-id'));
+        $vars['_sequence'] = $sequence === null
+            ? self::DEFAULT_SEQUENCE : self::getSequence($sequence->get('sequence'));
 
         $enableCookies = $flowData->evidence->get('query.fod-js-enable-cookies');
         if ($enableCookies !== null) {
@@ -371,6 +423,10 @@ class JavascriptBuilderElement extends FlowElement
      * snippets would run again on every page. Keys and values are encoded
      * as the .NET builder encodes them.
      *
+     * Evidence keys ignore letter case and arrive in the letters they were
+     * first set with, so each key is lowered before it is matched against
+     * the names left out, which are held in lower case.
+     *
      * @param array<string, mixed> $evidence All the evidence
      * @return array<string, string>
      */
@@ -380,7 +436,7 @@ class JavascriptBuilderElement extends FlowElement
         foreach ($evidence as $key => $value) {
             if (
                 stripos($key, 'query.') !== 0 ||
-                in_array($key, self::EXCLUDED_PARAMETERS, true) ||
+                in_array(strtolower($key), self::EXCLUDED_PARAMETERS, true) ||
                 !is_scalar($value)
             ) {
                 continue;

@@ -40,16 +40,41 @@ use fiftyone\pipeline\ipintelligence\translation\CountryCodeTranslationEngine;
  */
 class TranslationConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-translationconsoleonpremise.php&utm_term=enterprise-data-file';
+
+    // The properties the country lists are built from, which only the
+    // Enterprise data file has.
+    private const COUNTRY_PROPERTIES = [
+        'CountryCodesGeographical',
+        'CountryCodesPopulation'
+    ];
+
     /**
      * Build the on-premise pipeline (IP intelligence + the two translation
      * engines) and analyse the example IP addresses.
      *
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $engine = new IpIntelligenceOnPremise();
+        if (ExampleUtils::lacksEnterpriseProperties(
+            $engine,
+            'Listing the countries an IP address is most likely in',
+            self::COUNTRY_PROPERTIES,
+            $output,
+            self::CONTACT_US
+        )) {
+            $engine->close();
+
+            return;
+        }
         $pipeline = (new PipelineBuilder([]))
-            ->add(new IpIntelligenceOnPremise(['dataFile' => $dataFile, 'performanceProfile' => 'MaxPerformance']))
+            ->add($engine)
             ->add(new CountryCodeTranslationEngine())
             ->add(new CountriesTranslationEngine())
             ->build();

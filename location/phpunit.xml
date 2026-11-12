@@ -1,12 +1,13 @@
 <phpunit bootstrap="vendor/autoload.php">
   <php>
-    <env name="resource_key" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="FOD_CLOUD_API_URL" value=""/>
+    <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
+    <env name="_51DEGREES_CLOUD_ENDPOINT" value=""/>
   </php>
   <testsuites>
     <testsuite name="Integration">
       <file>tests/ExampleTests.php</file>
       <file>tests/GeoLocationTests.php</file>
+      <file>tests/EnvironmentVariableTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

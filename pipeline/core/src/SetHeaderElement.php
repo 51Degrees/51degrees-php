@@ -40,6 +40,15 @@ class SetHeaderElement extends FlowElement
     private array $setHeaderProperties = [];
 
     /**
+     * The element reads only the element data of the elements before it, so
+     * it accepts no Evidence.
+     */
+    public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
+    {
+        return new BasicListEvidenceKeyFilter([]);
+    }
+
+    /**
      * Add the response header dictionary to the FlowData.
      */
     public function processInternal(FlowData $flowData): void

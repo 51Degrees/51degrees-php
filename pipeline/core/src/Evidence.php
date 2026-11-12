@@ -36,12 +36,55 @@ class Evidence
      */
     private const DEFAULT_MAX_INPUT_VARS = 1000;
 
+    /**
+     * The two request headers PHP puts in $_SERVER without the HTTP_ prefix,
+     * by their $_SERVER name, with the header name each is given in the web
+     * request.
+     */
+    private const UNPREFIXED_HEADERS = [
+        'CONTENT_TYPE' => 'content-type',
+        'CONTENT_LENGTH' => 'content-length',
+    ];
+
     protected FlowData $flowData;
 
     /**
      * @var array<string, int|string>
      */
     protected array $evidence = [];
+
+    /**
+     * The key each value is held under, in $evidence or $unaccepted, by
+     * that key in lower case. Evidence keys ignore letter case, so a key set
+     * again in other letters replaces the value and keeps the letters it
+     * was first set with, in whichever collection it is held.
+     *
+     * @var array<string, string>
+     */
+    private array $keys = [];
+
+    /**
+     * Values no element in the Pipeline accepts, kept apart from the values
+     * above so that only a reader asking for them sees them. A Cloud
+     * Request Engine sends them, because what the cloud service uses
+     * changes over time. Every other reader, being an element's filtered
+     * view, the JavaScript served to the browser and the client side cache
+     * key, reads the accepted values alone.
+     *
+     * @var array<string, int|string>
+     */
+    protected array $unaccepted = [];
+
+    /**
+     * The key the web request is held under.
+     */
+    public const HTTP_REQUEST_KEY = 'server.http-request';
+
+    /**
+     * The web request, kept apart from the values above so that it never
+     * reaches an element's filter, a cache key or a request to the cloud.
+     */
+    protected ?HttpRequest $httpRequest = null;
 
     /**
      * Evidence container constructor.
@@ -54,8 +97,10 @@ class Evidence
     }
 
     /**
-     * If a flow element can use the key then add the key value pair to the
-     * evidence collection.
+     * Add the key value pair to the evidence collection where a flow
+     * element can use the key, and to the unaccepted collection where none
+     * can, so that a Cloud Request Engine can still send it. A key is held
+     * in one collection or the other and never in both.
      *
      * @param int|string $value
      */
@@ -70,9 +115,25 @@ class Evidence
             }
         }
 
-        if ($keep) {
-            $this->evidence[$key] = $value;
+        $lower = strtolower($key);
+        if (isset($this->keys[$lower])) {
+            $key = $this->keys[$lower];
+        } else {
+            $this->keys[$lower] = $key;
         }
+
+        if ($keep) {
+            // A key accepted now may have been unaccepted when it was first
+            // set, which happens where an element resolves its filter after
+            // the Evidence was set, so the earlier copy goes.
+            unset($this->unaccepted[$key]);
+            $this->evidence[$key] = $value;
+
+            return;
+        }
+
+        unset($this->evidence[$key]);
+        $this->unaccepted[$key] = $value;
     }
 
     /**
@@ -117,6 +178,7 @@ class Evidence
         }
 
         $evidence = [];
+        $headers = [];
 
         foreach ($server as $name => $value) {
             if (substr($name, 0, 5) == 'HTTP_') {
@@ -125,6 +187,13 @@ class Evidence
                 $key = strtolower($key);
 
                 $evidence['header.' . $key] = $value;
+                $headers[$key] = (string) $value;
+            }
+        }
+
+        foreach (self::UNPREFIXED_HEADERS as $name => $key) {
+            if (isset($server[$name]) && !isset($headers[$key])) {
+                $headers[$key] = (string) $server[$name];
             }
         }
 
@@ -152,6 +221,11 @@ class Evidence
             $protocol = 'http';
         }
 
+        // The web request's view keeps the request's own protocol, so the
+        // Referer below, which is the scheme of the page that made the
+        // request, changes only the header.protocol Evidence.
+        $requestProtocol = $protocol;
+
         // Override protocol with referer header if set
 
         if (isset($server['HTTP_REFERER']) && $server['HTTP_REFERER']) {
@@ -161,6 +235,28 @@ class Evidence
         $evidence['header.protocol'] = $protocol;
 
         $this->setArray($evidence);
+
+        $this->httpRequest = new HttpRequest(
+            $headers,
+            $cookies,
+            $query,
+            isset($_SESSION) && is_array($_SESSION) ? $_SESSION : [],
+            (string) ($server['REMOTE_ADDR'] ?? ''),
+            $requestProtocol,
+            (string) ($server['REQUEST_METHOD'] ?? ''),
+            self::pathOf((string) ($server['REQUEST_URI'] ?? ''))
+        );
+    }
+
+    /**
+     * The path of a request target, being everything before the first ? or #,
+     * left as sent.
+     */
+    private static function pathOf(string $target): string
+    {
+        $end = strcspn($target, '?#');
+
+        return substr($target, 0, $end);
     }
 
     /**
@@ -339,22 +435,51 @@ class Evidence
     }
 
     /**
-     * Get a piece of evidence by key.
+     * Get a piece of evidence by key, in any letter case.
      *
-     * @return null|int|string
+     * @return null|int|string|HttpRequest
      */
     public function get(string $key)
     {
-        return $this->evidence[$key] ?? null;
+        $lower = strtolower($key);
+        if ($lower === self::HTTP_REQUEST_KEY) {
+            return $this->httpRequest;
+        }
+
+        $stored = $this->keys[$lower] ?? null;
+
+        return $stored === null ? null : ($this->evidence[$stored] ?? null);
     }
 
     /**
-     * Get all evidence.
+     * Get all evidence, apart from the web request that get() returns under
+     * server.http-request.
      *
      * @return array<string, int|string>
      */
     public function getAll(): array
     {
         return $this->evidence;
+    }
+
+    /**
+     * Every value set on this Flow Data, both the values an element accepts
+     * and the values none does, apart from the web request that get()
+     * returns under server.http-request.
+     *
+     * A Cloud Request Engine sends this, as the Processing section of the
+     * cloud request engine specification requires. No other reader wants
+     * it, because an unaccepted value is one no element in the Pipeline
+     * asked for.
+     *
+     * The unaccepted values come first. The request keeps the last value
+     * given for a field, so where an unaccepted value and an accepted one
+     * give the same field, the accepted value is sent.
+     *
+     * @return array<string, int|string>
+     */
+    public function getAllIncludingUnaccepted(): array
+    {
+        return array_merge($this->unaccepted, $this->evidence);
     }
 }

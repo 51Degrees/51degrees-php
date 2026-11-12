@@ -9,6 +9,16 @@
  *
  * If a copy of the EUPL was not distributed with this file, You can obtain
  * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
 /*
@@ -29,6 +39,11 @@ use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\translation\CountriesTranslationEngine;
 use fiftyone\pipeline\ipintelligence\translation\CountryCodeTranslationEngine;
+use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
+
+// Where to ask for a copy of the Enterprise data file, tagged with this
+// example.
+$contactUs = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-web-index.php&utm_term=enterprise-data-file';
 
 $ip = isset($_GET['client-ip']) && $_GET['client-ip'] !== '' ? trim((string) $_GET['client-ip']) : '8.8.8.8';
 $acceptLanguage = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
@@ -39,6 +54,7 @@ $dropdown = [];
 $areas = '';
 $latitude = '';
 $longitude = '';
+$countriesNeedEnterprise = false;
 
 $displayProperties = [
     'Registered Name' => 'registeredname',
@@ -81,13 +97,12 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
     $error = 'The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.';
 } else {
     try {
-        // IpIntelligenceOnPremise([]) reuses the engine built once at module
-        // load, so this example requires the
-        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting to
-        // point at an .ipi file (see OnPremise.md). Pass ['dataFile' => ...]
-        // instead to build a per-request engine.
+        // IpIntelligenceOnPremise uses the engine the extension builds once,
+        // when PHP starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file
+        // php.ini setting (see OnPremise.md), so no request loads the data
+        // file.
         $pipeline = (new PipelineBuilder([]))
-            ->add(new IpIntelligenceOnPremise([]))
+            ->add(new IpIntelligenceOnPremise())
             ->add(new CountryCodeTranslationEngine())
             ->add(new CountriesTranslationEngine())
             ->build();
@@ -99,19 +114,29 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
         }
         $result = $flowData->process();
 
+        // A property the data file does not have needs the Enterprise data
+        // file, and its value is not read.
         $ipData = $result->ip;
+        $ipEngine = $pipeline->getElement('ip');
         foreach ($displayProperties as $label => $key) {
-            $rows[$label] = apvStr($ipData, $key);
+            $rows[$label] = ExampleUtils::hasProperty($ipEngine, $key)
+                ? apvStr($ipData, $key)
+                : ExampleUtils::NEEDS_ENTERPRISE;
         }
-        $areas = ($rows['Areas'] === 'Unknown') ? '' : $rows['Areas'];
-        $latitude = ($rows['Latitude'] === 'Unknown') ? '' : $rows['Latitude'];
-        $longitude = ($rows['Longitude'] === 'Unknown') ? '' : $rows['Longitude'];
+        $located = static fn (string $value): string =>
+            in_array($value, ['Unknown', ExampleUtils::NEEDS_ENTERPRISE], true) ? '' : $value;
+        $areas = $located($rows['Areas']);
+        $latitude = $located($rows['Latitude']);
+        $longitude = $located($rows['Longitude']);
 
-        // The ordered dropdown, built by the countries translation engine.
+        // The ordered dropdown, built by the countries translation engine
+        // from the country codes, which only the Enterprise data file has.
+        $countriesNeedEnterprise =
+            !ExampleUtils::hasProperty($ipEngine, 'CountryCodesGeographical');
         $translated = $result->countrynamestranslated;
         $names = $translated->get('countrynamesgeographicalalltranslated');
         $codes = $translated->get('countrycodesgeographicalall');
-        if ($names->hasValue && $codes->hasValue) {
+        if (!$countriesNeedEnterprise && $names->hasValue && $codes->hasValue) {
             $nameList = $names->value;
             $codeList = $codes->value;
             for ($i = 0, $n = min(count($nameList), count($codeList)); $i < $n; ++$i) {
@@ -202,12 +227,19 @@ function renderRows(array $rows): string
             <p class="c-eg-page__lead">
                 Geographical countries ordered by probability, then every other country alphabetically.
             </p>
+            <?php if ($countriesNeedEnterprise): ?>
+                <p class="c-eg-page__lead">
+                    The country list <?= h(ExampleUtils::NEEDS_ENTERPRISE) ?>.
+                    <a href="<?= h($contactUs) ?>">Contact us</a> for a copy.
+                </p>
+            <?php else: ?>
             <select id="CountryNamesGeographicalAllTranslated"
                     name="CountryNamesGeographicalAllTranslated" class="b-input">
                 <?php foreach ($dropdown as $entry): ?>
                     <option value="<?= h($entry['code']) ?>"><?= h($entry['name']) ?></option>
                 <?php endforeach; ?>
             </select>
+            <?php endif; ?>
 
             <h3 class="c-eg-page__heading">Detection results</h3>
             <table class="c-eg-table">
@@ -219,6 +251,11 @@ function renderRows(array $rows): string
                 </thead>
                 <tbody><?= renderRows($rows) ?></tbody>
             </table>
+            <?php if (in_array(ExampleUtils::NEEDS_ENTERPRISE, $rows, true)): ?>
+                <div class="c-eg-message">
+                    <p class="c-eg-message__text">Some of these properties need the Enterprise data file. <a href="<?= h($contactUs) ?>">Contact us</a> for a copy.</p>
+                </div>
+            <?php endif; ?>
 
             <h3 class="c-eg-page__heading">Evidence used</h3>
             <table class="c-eg-table">

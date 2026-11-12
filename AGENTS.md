@@ -31,6 +31,9 @@ use the Linux commands below.
   and `device-detection/onpremise/readme.md` adds `libatomic1`.
 - SWIG 4.1 or later for IP Intelligence, which generates its wrapper when it
   builds. On macOS, CI installs it with `brew install swig`.
+- SWIG 4.5.1 only to regenerate the Device Detection wrapper. That wrapper is
+  committed, and `device-detection/onpremise/on-premise/generate-wrapper.sh`
+  rewrites it (`--check` compares it), so never edit `hash_wrap.cxx` by hand.
 - For the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS), which the
   data repository's shell script needs, and network access to
   `distributor.51degrees.com`.
@@ -133,7 +136,7 @@ cd ..
 ```
 
 The example uses the argument when that file is there. Otherwise it takes the
-file the `IPINTELLIGENCEDATAFILE` environment variable names, then any `.ipi`
+file the `_51DEGREES_IPI_PATH` environment variable names, then any `.ipi`
 file in `ip-intelligence/assets`, then a file in `cxx/data/ip-intelligence`
 with a name in `IPI_DATA_FILE_NAMES` in `examples/classes/ExampleConstants.php`.
 When it finds none, it downloads the Lite file into `cxx/data/ip-intelligence`
@@ -184,12 +187,12 @@ needs can be created
 cd device-detection/cloud
 composer install
 cd examples
-resource_key=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
 cd ../../..
 ```
 
-The example reads `_51DEGREES_RESOURCE_KEY` first, then `resource_key`, or
-takes the key as its first argument. It prints the same `Input values:` and
+The example reads `_51DEGREES_RESOURCE_KEY`, or takes the key as its first
+argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
 its first argument or from `resource_key`, after a `composer install` in
@@ -278,7 +281,7 @@ cd pipeline/core
 `vendor` is `../vendor`.
 
 Check the suite names in the package's `phpunit.xml`. `location` has
-only `Integration`. `pipeline/translation` has `Translation`.
+only `Integration`.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 

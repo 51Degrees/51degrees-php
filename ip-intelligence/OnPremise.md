@@ -78,6 +78,38 @@ or add to `php.ini`:
 extension=/full/path/to/FiftyOneDegreesIpIntelligenceEngine.so
 ```
 
+The engine is built once, when PHP starts, so that no request opens the data
+file again, and every on-premise example uses it. Name the data file in
+`php.ini` as well, for example the free Lite file:
+
+```ini
+FiftyOneDegreesIpIntelligenceEngine.data_file=/full/path/to/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
+```
+
+## Running under a process manager
+
+The engine the extension builds when PHP starts, from the `data_file` setting
+above, always holds the whole data file in memory, which is the
+`MaxPerformance` performance profile, as device detection does. PHP is
+normally run under a process manager, such as Apache MPM prefork or php-fpm,
+that forks the worker processes after that engine is built. Every other
+profile keeps the data file open, and forking would share those file handles
+and their read positions between the workers, which corrupts the results.
+Loading the whole file leaves no handle to share, and it uses more memory than
+the other profiles, which read parts of the file as they need them.
+
+Leave the `FiftyOneDegreesIpIntelligenceEngine.performance_profile` setting
+out, or set it to `MaxPerformance`. Any other profile there raises an
+exception when `IpIntelligenceOnPremise` takes up that engine, explaining that
+`MaxPerformance` is the only supported profile for it.
+
+`IpIntelligenceOnPremise` still takes a `dataFile` setting, for command-line
+tools only. It builds a new engine from the data file every time the class is
+constructed, with its own file handles and any `performanceProfile`. Under a
+web server PHP constructs the class in every request, so the data file would
+be loaded in every request, and under any SAPI other than `cli` the setting
+is refused with an exception. Use the engine built when PHP starts instead.
+
 ## Data file
 
 The tests and examples use the free Lite `.ipi` data file. Download it into
@@ -94,9 +126,11 @@ PowerShell instead. The script downloads the file from the 51Degrees
 Distributor, https://distributor.51degrees.com/api/v2/free/ipi-lite-v41,
 which always serves the latest Lite file and needs no License Key.
 
-Give the engine a data file with the `dataFile` setting. The on-premise
-examples take the file from their first argument, the
-`IPINTELLIGENCEDATAFILE` environment variable, `assets/` or
-`cxx/data/ip-intelligence`, in that order. When they find none, they run the
-script to download the Lite file. The tests look in the same places, apart
-from the argument, and skip when they find no file.
+Name the data file in `php.ini`, as above, and PHP builds the engine from it
+when it starts. A console example started without that engine runs again in
+a PHP started with a data file, keeping the options PHP was started with
+where the system gives them, such as one loading the extension. The data
+file is the one in its first argument, the `_51DEGREES_IPI_PATH` environment
+variable, `assets/` or `cxx/data/ip-intelligence`, in that order, and when it
+finds none it runs the script to download the Lite file. The tests look in
+the same places, apart from the argument, and skip when they find no file.

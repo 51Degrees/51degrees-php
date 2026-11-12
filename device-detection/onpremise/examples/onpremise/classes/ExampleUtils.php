@@ -31,14 +31,29 @@ class ExampleUtils
 
     // Environment variable that can name the device detection data file. It
     // is the name the 51Degrees examples in every language read.
+    public const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
+
+    /**
+     * Environment variable read for the data file when DD_PATH_VARIABLE is
+     * not set or is empty.
+     *
+     * @deprecated use {@see ExampleUtils::DD_PATH_VARIABLE}
+     */
     public const DATA_FILE_ENV_VAR = '51DEGREES_DD_PATH';
 
     // Sent with each download of a data file, so that downloads can be
-    // counted by where they come from.
+    // counted by where they come from. It is left out inside GitHub Actions,
+    // where the data repository's script names the build instead, so that
+    // test runs are not counted as people using the examples.
     public const DATA_DOWNLOAD_SOURCE = 'examples-51degrees-php';
 
+    // Shown in place of a value for a property that the data file in use
+    // does not have. Every property the examples ask for is in the
+    // Enterprise data file.
+    public const NEEDS_ENTERPRISE = 'needs the Enterprise data file';
+
     /**
-     * Use the data file named by the 51DEGREES_DD_PATH environment variable,
+     * Use the data file named by the _51DEGREES_DD_PATH environment variable,
      * when it is set, in place of the one set in php.ini.
      *
      * The engine is created once, when PHP starts, from the
@@ -55,7 +70,10 @@ class ExampleUtils
      */
     public static function useDataFileFromEnv($engine, $logger)
     {
-        $path = ExampleUtils::getEnvVariable(ExampleUtils::DATA_FILE_ENV_VAR);
+        $path = EnvironmentVariable::read(
+            ExampleUtils::DD_PATH_VARIABLE,
+            ExampleUtils::DATA_FILE_ENV_VAR
+        );
         if ($path === '') {
             return;
         }
@@ -65,7 +83,7 @@ class ExampleUtils
         if ($wanted === false) {
             throw new \Exception(
                 "The data file '{$path}' named by the environment variable '" .
-                ExampleUtils::DATA_FILE_ENV_VAR . "' does not exist."
+                ExampleUtils::DD_PATH_VARIABLE . "' does not exist."
             );
         }
 
@@ -76,7 +94,7 @@ class ExampleUtils
         $logger->log(
             'info',
             "Loading the data file '{$wanted}' named by the environment " .
-            "variable '" . ExampleUtils::DATA_FILE_ENV_VAR . "'."
+            "variable '" . ExampleUtils::DD_PATH_VARIABLE . "'."
         );
         $engine->refreshData($wanted);
     }
@@ -142,15 +160,26 @@ class ExampleUtils
         }
         $data = dirname($link, 2);
         $name = escapeshellarg(basename($path));
-        $source = ExampleUtils::DATA_DOWNLOAD_SOURCE;
+        $source = getenv('GITHUB_ACTIONS') === 'true'
+            ? ''
+            : ExampleUtils::DATA_DOWNLOAD_SOURCE;
         if (PHP_OS_FAMILY === 'Windows') {
-            return 'powershell -NoProfile -ExecutionPolicy Bypass -File ' .
-                escapeshellarg($data . '\\get-data-files.ps1') .
-                " {$name} -Source {$source}";
+            // PowerShell 7 when it is on the path, otherwise Windows
+            // PowerShell, which, started from PowerShell 7, inherits its
+            // module path and then cannot load its own commands.
+            exec('where pwsh 2>NUL', $found, $status);
+            $shell = $status === 0 ? 'pwsh' : 'set "PSModulePath=" && powershell';
+            $command = "{$shell} -NoProfile -ExecutionPolicy Bypass -File " .
+                escapeshellarg($data . '\\get-data-files.ps1') . " {$name}";
+
+            return $source === '' ? $command : "{$command} -Source {$source}";
         }
 
-        return 'sh ' . escapeshellarg($data . '/get-data-files.sh') .
-            " -s {$source} {$name}";
+        $command = 'sh ' . escapeshellarg($data . '/get-data-files.sh');
+
+        return $source === ''
+            ? "{$command} {$name}"
+            : "{$command} -s {$source} {$name}";
     }
 
     public static function output($message)
@@ -213,23 +242,89 @@ class ExampleUtils
                     'or cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash ' .
                     '-Update on Windows. The scripts are in the data ' .
                     'repository https://github.com/51Degrees/data. ' .
-                    'Find out about the Enterprise data file, which ' .
-                    'includes automatic updates, on our pricing page: ' .
-                    'https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-exampleutils.php&utm_term=data-file-age-warning'
-                );
-            }
-
-            if (ExampleUtils::getDataFileTier($engine) === 'Lite') {
-                $logger->log(
-                    'warn',
-                    "This example is using the 'Lite' " .
-                    'data file. This is used for illustration, and ' .
-                    'has limited accuracy and capabilities. Find ' .
-                    'out about the Enterprise data file on our ' .
-                    'pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-exampleutils.php&utm_term=lite-data-file'
+                    'Contact us about the Enterprise data file, which ' .
+                    'includes automatic updates, at ' .
+                    'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-exampleutils.php&utm_term=data-file-age-warning'
                 );
             }
         }
+    }
+
+    /**
+     * True when the engine uses the free Lite data file.
+     *
+     * @param mixed $engine The device detection engine
+     */
+    public static function isLiteDataFile($engine)
+    {
+        return ExampleUtils::getDataFileTier($engine) === 'Lite';
+    }
+
+    /**
+     * True when the engine's data file has the property. The Lite data file
+     * leaves out the properties only the Enterprise data file has, such as
+     * HardwareVendor, HardwareName and DeviceType. The data file's own list
+     * is read, so the answer follows a data file loaded with refreshData.
+     *
+     * @param mixed $engine The device detection engine
+     * @param string $name The property name, in any case
+     */
+    public static function hasProperty($engine, $name)
+    {
+        $properties = $engine->engine->getMetaData()->getProperties();
+        for ($i = 0; $i < $properties->getSize(); ++$i) {
+            if (strcasecmp($properties->getByIndex($i)->getName(), $name) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Format a property for display, or say that it needs the Enterprise
+     * data file when the engine's data file does not have it. The value is
+     * only read when the data file has the property.
+     *
+     * @param mixed $engine The device detection engine
+     * @param mixed $device The device results
+     * @param string $name The property name, in lower case
+     */
+    public static function getEnterpriseValue($engine, $device, $name)
+    {
+        if (!ExampleUtils::hasProperty($engine, $name)) {
+            return ExampleUtils::NEEDS_ENTERPRISE;
+        }
+
+        return ExampleUtils::getHumanReadable($device, $name);
+    }
+
+    /**
+     * Where to ask for a copy of the Enterprise data file, written after an
+     * example has shown properties that the data file in use does not have.
+     *
+     * @param string $contactUs The contact page, tagged with the example's
+     * file, so that an enquiry can be traced to the example
+     */
+    public static function getEnterpriseNote($contactUs)
+    {
+        return 'Some of these properties need the Enterprise data file. ' .
+            "Contact us for a copy at {$contactUs}";
+    }
+
+    /**
+     * What the Enterprise data file adds and where to ask for a copy,
+     * written after an example that shows no properties has run on the free
+     * Lite data file.
+     *
+     * @param string $contactUs The contact page, tagged with the example's
+     * file
+     */
+    public static function getEnterpriseOffer($contactUs)
+    {
+        return 'This example used the free Lite data file. The Enterprise ' .
+            'data file adds many more properties, such as HardwareVendor, ' .
+            "HardwareName and DeviceType. Contact us for a copy at {$contactUs}";
     }
 
     public static function getHumanReadable($device, $name)
@@ -239,6 +334,9 @@ class ExampleUtils
             if ($value->hasValue) {
                 if (is_array($value->value)) {
                     return implode(', ', $value->value);
+                }
+                if (is_bool($value->value)) {
+                    return $value->value ? 'True' : 'False';
                 }
 
                 return $value->value;
@@ -260,13 +358,6 @@ class ExampleUtils
         }
 
         return false;
-    }
-
-    private static function getEnvVariable($name)
-    {
-        $env = getenv();
-
-        return $env[$name] ?? '';
     }
 
     /**

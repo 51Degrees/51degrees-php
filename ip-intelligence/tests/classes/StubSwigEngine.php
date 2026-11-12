@@ -49,6 +49,16 @@ class StubSwigEngine extends Engine
         parent::__construct();
     }
 
+    /**
+     * The metadata of a property, as the real engine gives it to a read.
+     *
+     * @return null|array<string, string>
+     */
+    public function findProperty(string $name): ?array
+    {
+        return $this->properties[strtolower($name)] ?? null;
+    }
+
     public function processInternal(FlowData $flowData): void
     {
         // Never processed - SwigData is built directly by the tests.

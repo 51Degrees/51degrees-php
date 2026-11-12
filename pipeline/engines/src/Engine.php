@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\engines;
 
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\FlowElement;
 
@@ -82,7 +83,7 @@ class Engine extends FlowElement
 
         $cached = $this->cache->get($keys);
 
-        if ($cached) {
+        if ($cached && !$this->holdsValueForOneRequest($cached)) {
             $flowData->setElementData($cached);
 
             return true;
@@ -109,7 +110,21 @@ class Engine extends FlowElement
         if ($this->cache) {
             $keys = $this->filterEvidence($flowData);
 
-            $this->cache->set($keys, $flowData->get($this->dataKey));
+            $data = $flowData->get($this->dataKey);
+
+            if (!$this->holdsValueForOneRequest($data)) {
+                $this->cache->set($keys, $data);
+            }
         }
+    }
+
+    /**
+     * Whether a result holds a value created for the one request that asked
+     * for it, such as a 51Did. A cache neither stores nor serves such a
+     * result. An engine whose results can hold one overrides this.
+     */
+    protected function holdsValueForOneRequest(ElementData $data): bool
+    {
+        return false;
     }
 }

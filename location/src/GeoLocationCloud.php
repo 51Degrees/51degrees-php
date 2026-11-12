@@ -26,7 +26,6 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\geolocation;
 
 use fiftyone\pipeline\cloudrequestengine\CloudEngine;
-use fiftyone\pipeline\core\FlowData;
 
 class GeoLocationCloud extends CloudEngine
 {
@@ -53,14 +52,5 @@ class GeoLocationCloud extends CloudEngine
         } else {
             $this->dataKey = 'location';
         }
-    }
-
-    public function processInternal(FlowData $flowData): void
-    {
-        if (!array_key_exists($this->dataKey, $flowData->pipeline->flowElementsList['cloud']->flowElementProperties)) {
-            throw new \Exception('Location data was not available. Check that this key is authorised for geolocation data');
-        }
-
-        parent::processInternal($flowData);
     }
 }

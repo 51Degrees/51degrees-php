@@ -9,6 +9,16 @@
  *
  * If a copy of the EUPL was not distributed with this file, You can obtain
  * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
 /*
@@ -80,22 +90,24 @@ if (!$resourceKey) {
         // request came from.
         $flowData->evidence->setFromWebRequest();
         $flowData->evidence->set('query.client-ip', $ip);
-        $result = $flowData->process();
 
-        // Ask the browser for the User-Agent Client Hints detection uses.
-        Utils::setResponseHeader($flowData);
-
+        // The script and its callback. Utils processes the flow data itself
+        // and sets the cache headers, so a browser revalidating its copy
+        // gets a 304 without any processing.
         if ($path === '/51Degrees.core.js') {
-            header('Content-Type: application/x-javascript');
-            echo $flowData->javascriptbuilder->javascript;
+            Utils::javascriptResponse($flowData)->send();
             exit;
         }
 
         if ($path === '/json') {
-            header('Content-Type: application/json');
-            echo json_encode($flowData->jsonbundler->json);
+            Utils::jsonResponse($flowData)->send();
             exit;
         }
+
+        $result = $flowData->process();
+
+        // Ask the browser for the User-Agent Client Hints detection uses.
+        Utils::setResponseHeader($flowData);
 
         $device = $result->device;
         $dd = [

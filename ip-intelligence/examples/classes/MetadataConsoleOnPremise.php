@@ -28,23 +28,27 @@ namespace fiftyone\pipeline\ipintelligence\examples\classes;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 
 /**
- * Metadata (on-premise) example. Lists the properties present in a local
- * .ipi data file along with their type, category and component.
+ * Metadata (on-premise) example. Lists the properties in the data file of
+ * the engine the extension builds when PHP starts, along with their type,
+ * category and component.
  */
 class MetadataConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-metadataconsoleonpremise.php&utm_term=enterprise-data-file';
+
     /**
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
-        $engine = new IpIntelligenceOnPremise([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
-        ]);
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $engine = new IpIntelligenceOnPremise();
 
-        // The engine is closed in the finally block, which releases the
-        // native data it loaded from the data file.
+        // The element is closed in the finally block. The engine it uses
+        // belongs to the extension and stays loaded.
         try {
             $properties = $engine->getProperties();
 
@@ -65,6 +69,9 @@ class MetadataConsoleOnPremise
                 if ($filter->filterEvidenceKey($key)) {
                     fwrite($output, sprintf("\t%s\n", $key));
                 }
+            }
+            if (ExampleUtils::isFreeDataFile($engine)) {
+                fwrite($output, "\n" . ExampleUtils::getEnterpriseOffer(self::CONTACT_US) . "\n");
             }
         } finally {
             $engine->close();

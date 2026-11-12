@@ -81,4 +81,24 @@ class HttpClientFailureTests extends TestCase
             );
         }
     }
+
+    public function testAFailedRequestHoldsOnlyTheMaskedLicenseKey()
+    {
+        $client = new HttpClient();
+        $url = self::UNREACHABLE . '?license=SECRETKEY1234';
+
+        try {
+            $client->makeCloudRequest('GET', $url, null, null);
+            $this->fail('The request answered rather than failing.');
+        } catch (CloudRequestException $exception) {
+            $this->assertStringNotContainsString(
+                'SECRETKEY',
+                $exception->getMessage()
+            );
+            $this->assertStringContainsString(
+                'license=*********1234',
+                $exception->getMessage()
+            );
+        }
+    }
 }

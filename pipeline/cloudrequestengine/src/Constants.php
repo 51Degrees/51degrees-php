@@ -26,7 +26,24 @@ namespace fiftyone\pipeline\cloudrequestengine;
 class Constants
 {
     // Environment variable to set cloud endpoint
+    public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
+
+    /**
+     * Environment variable read for the cloud endpoint when
+     * CLOUD_ENDPOINT_VARIABLE is not set or is empty.
+     *
+     * @deprecated use {@see Constants::CLOUD_ENDPOINT_VARIABLE}
+     */
     public const FOD_CLOUD_API_URL = 'FOD_CLOUD_API_URL';
+
+    // Logged once by each engine whose cloud endpoint came from the
+    // deprecated environment variable, which is named first, then the
+    // one that replaces it.
+    public const MESSAGE_ENDPOINT_VARIABLE_DEPRECATED =
+        'The cloud endpoint was read from the environment variable %s, ' .
+        'which is deprecated. %s replaces it, so set that to the same ' .
+        'value.';
+
     // Default base url
     public const BASE_URL_DEFAULT = 'https://cloud.51degrees.com/api/v4/';
 
@@ -51,6 +68,47 @@ class Constants
     // the certificate cannot be checked or the request times out.
     public const MESSAGE_REQUEST_FAILED = "The request to the cloud service at '%s' could not be made: %s";
 
+    // The names the cloud service reads the keys and the requested
+    // properties from, in the query string of a GET and the body of a POST.
+    public const RESOURCE_PARAMETER = 'resource';
+    public const LICENSE_PARAMETER = 'license';
+    public const VALUES_PARAMETER = 'values';
+
+    // The path below the base URL of the data route that takes no resource
+    // key, used when the engine authenticates on a license key alone.
+    public const LICENSE_DATA_PATH = 'json';
+
+    // Refused when the engine is built, each saying why the cloud service
+    // would refuse every request.
+    public const MESSAGE_NO_CREDENTIAL =
+        'CloudRequestEngine needs a resourceKey or a licenseKey to ' .
+        'authenticate with, as the cloud service answers 401 to a request ' .
+        'that carries neither. Create a resource key for free at ' .
+        'https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-constants.php&utm_term=no-credential';
+    public const MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES =
+        'CloudRequestEngine has a licenseKey and no resourceKey or ' .
+        'requestedProperties. A license key names no properties of its own, ' .
+        'so the cloud service answers 400 to every request made with one ' .
+        'that does not list the properties it wants. Set ' .
+        'requestedProperties to the fully qualified names wanted, for ' .
+        "example ['device.ismobile', 'device.iscrawler'].";
+
+    // Logged once when an answer leaves out requested properties.
+    public const MESSAGE_PROPERTIES_NOT_COVERED =
+        'The cloud service did not return the requested properties %s. ' .
+        'They are not covered by the keys in use, so they will be missing ' .
+        'from every result. The other requested properties came back and ' .
+        'are usable.';
+
+    // Logged once when an answer to a resource key with no license key
+    // leaves out requested properties.
+    public const MESSAGE_NOT_PROPERTIES =
+        'The cloud service did not return the requested properties %s. ' .
+        'They are not properties the cloud service knows, so they will be ' .
+        'missing from every result. Check each name against the property ' .
+        'dictionary. The other requested properties came back and are ' .
+        'usable.';
+
     // Evidence key seperator
     public const EVIDENCE_SEPERATOR = '.';
 
@@ -65,8 +123,19 @@ class Constants
     // processing.
     public const EVIDENCE_QUERY_PREFIX = 'query';
 
+    // The prefixes after query, header and cookie, highest precedence
+    // first, as evidence.md lists them. Any other prefix ranks after these,
+    // alphabetically.
+    public const OTHER_PREFIX_PRECEDENCE = ['server', 'fiftyone', 'location'];
+
     // other evidence constant
     public const EVIDENCE_OTHER = 'other';
+
+    // Names the engine sends from its own settings, which Evidence must
+    // not supply.
+    public const RESERVED_EVIDENCE_SUFFIXES = [
+        'resource', 'license', 'licence', 'values',
+    ];
 
     // warning message to be shown for conflicted evidences
     public const WARNING_MESSAGE = "'%s=>%s' evidence conflicts with ";

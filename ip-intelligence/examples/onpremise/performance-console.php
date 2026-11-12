@@ -9,25 +9,36 @@
  *
  * If a copy of the EUPL was not distributed with this file, You can obtain
  * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\examples\classes\PerformanceConsoleOnPremise;
 
-$dataFile = ExampleUtils::getDataFile(array_slice($argv, 1));
-
-if (!$dataFile) {
-    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the IPINTELLIGENCEDATAFILE environment variable.\n");
-    exit(1);
-}
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+// Without it, the example runs again in a PHP started with a data file. Any
+// data file will do for a benchmark, so unless another is named it is the
+// far smaller free ASN file, downloaded when it is missing.
+ExampleUtils::startWithEngine($argv, ExampleConstants::ASN_DATA_FILE_NAME);
 
 // Wall-clock time cap in seconds (the benchmark samples throughput over this
 // window rather than running a fixed - and potentially very long - number of
 // lookups against the multi-million-profile enterprise data file).
 $maxSeconds = (count($argv) > 2 && is_numeric($argv[2])) ? (float) $argv[2] : 10.0;
 
-(new PerformanceConsoleOnPremise())->run($dataFile, $maxSeconds, STDOUT);
+(new PerformanceConsoleOnPremise())->run($maxSeconds, STDOUT);

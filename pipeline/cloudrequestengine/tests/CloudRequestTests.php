@@ -280,6 +280,13 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
 
     private function getResourceKey()
     {
-        return $_ENV[self::resourceKey] ?? null;
+        $key = EnvironmentVariable::read(
+            self::RESOURCE_KEY_ENV_VAR,
+            self::OLD_RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
+        );
+
+        // With no key under either name the tests see what phpunit.xml set.
+        return $key === '' ? ($_ENV[self::RESOURCE_KEY_ENV_VAR] ?? null) : $key;
     }
 }

@@ -27,20 +27,17 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
-use fiftyone\pipeline\ipintelligence\examples\classes\GettingStartedConsoleOnPremise;
-use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleOnPremise;
 use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleOnPremise;
-use fiftyone\pipeline\ipintelligence\examples\classes\OfflineProcessingConsoleOnPremise;
-use fiftyone\pipeline\ipintelligence\examples\classes\PerformanceConsoleOnPremise;
-use fiftyone\pipeline\ipintelligence\examples\classes\SuspiciousConsoleOnPremise;
-use fiftyone\pipeline\ipintelligence\examples\classes\TranslationConsoleOnPremise;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Runs the on-premise examples on the free data files a fresh clone
- * downloads, the Lite file and, for the performance example, the ASN file.
- * Each example must finish, show the properties only the Enterprise data
- * file has as needing it, and give the link to ask for a copy.
+ * Runs the on-premise console examples as they run once php.ini names a
+ * free data file, as OnPremise.md says to set it up, with no other
+ * settings. That is the Lite file and, for the performance example, the ASN
+ * file. Each runs in its own PHP process, because the extension builds its
+ * engine from the data file when PHP starts. Each example must finish, show
+ * the properties only the Enterprise data file has as needing it, and give
+ * the link to ask for a copy.
  */
 class ExamplesWithoutSettingsTests extends TestCase
 {
@@ -61,9 +58,7 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     public function testGettingStarted(): void
     {
-        $output = $this->memoryStream();
-        (new GettingStartedConsoleOnPremise())->run($this->liteDataFile(), $output);
-        $text = $this->readStream($output);
+        $text = $this->runExample('gettingstarted-console.php');
         $this->assertStringContainsString(
             "\tCountry: " . ExampleUtils::NEEDS_ENTERPRISE,
             $text
@@ -77,9 +72,7 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     public function testMetadata(): void
     {
-        $output = $this->memoryStream();
-        (new MetadataConsoleOnPremise())->run($this->liteDataFile(), $output);
-        $text = $this->readStream($output);
+        $text = $this->runExample('metadata-console.php');
         $this->assertStringContainsString(
             'This example used a free data file.',
             $text
@@ -89,13 +82,7 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     public function testOfflineProcessing(): void
     {
-        $output = $this->memoryStream();
-        (new OfflineProcessingConsoleOnPremise())->run(
-            $this->liteDataFile(),
-            ['116.154.188.222', '1.3.32.31'],
-            $output
-        );
-        $text = $this->readStream($output);
+        $text = $this->runExample('offlineprocessing-console.php');
         $this->assertStringContainsString(
             "\tCountry: " . ExampleUtils::NEEDS_ENTERPRISE,
             $text
@@ -108,13 +95,11 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     public function testPerformance(): void
     {
-        $output = $this->memoryStream();
-        (new PerformanceConsoleOnPremise())->run(
+        $text = $this->runExample(
+            'performance-console.php',
             $this->freeDataFile(ExampleConstants::ASN_DATA_FILE_NAME),
-            1.0,
-            $output
+            ['', '1']
         );
-        $text = $this->readStream($output);
         $this->assertMatchesRegularExpression('/Detections: [1-9]/', $text);
         $this->assertStringContainsString(
             'This example used a free data file.',
@@ -125,9 +110,7 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     public function testSuspicious(): void
     {
-        $output = $this->memoryStream();
-        (new SuspiciousConsoleOnPremise())->run($this->liteDataFile(), $output);
-        $text = $this->readStream($output);
+        $text = $this->runExample('suspicious-console.php');
         $this->assertStringContainsString(
             'Finding suspicious IP addresses needs the',
             $text
@@ -138,9 +121,7 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     public function testTranslation(): void
     {
-        $output = $this->memoryStream();
-        (new TranslationConsoleOnPremise())->run($this->liteDataFile(), $output);
-        $text = $this->readStream($output);
+        $text = $this->runExample('translation-console.php');
         $this->assertStringContainsString(
             'Listing the countries an IP address is most likely in needs ' .
             'the CountryCodesGeographical and CountryCodesPopulation properties',
@@ -157,14 +138,64 @@ class ExamplesWithoutSettingsTests extends TestCase
                 'The device detection on-premise package and extension are not installed.'
             );
         }
-        $output = $this->memoryStream();
-        (new MixedConsoleOnPremise())->run($this->liteDataFile(), $output);
-        $text = $this->readStream($output);
+        $text = $this->runExample('mixed/gettingstarted-console.php');
         $this->assertStringContainsString(ExampleUtils::NEEDS_ENTERPRISE, $text);
         $this->assertStringContainsString(
             'Some of these properties need the Enterprise data file.',
             $text
         );
+    }
+
+    /**
+     * An example started without the engine says how to start PHP with it,
+     * naming the data file, and stops.
+     */
+    public function testWithoutTheEngineTheExampleSaysHowToStartIt(): void
+    {
+        $dataFile = realpath($this->liteDataFile());
+        $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
+        $command = escapeshellarg(PHP_BINARY) . ' -d ' .
+            escapeshellarg(ExampleUtils::DATA_FILE_SETTING . '=') . ' ' .
+            escapeshellarg(
+                __DIR__ . '/../examples/onpremise/gettingstarted-console.php'
+            ) . ' ' . escapeshellarg($dataFile) . ' 2>&1';
+        exec($command, $lines, $status);
+        $printed = implode("\n", $lines);
+        $this->assertSame(1, $status, $printed);
+        $this->assertStringContainsString(
+            'No IP intelligence engine was built when PHP started.',
+            $printed
+        );
+        $this->assertStringContainsString(
+            ExampleUtils::DATA_FILE_SETTING . '=' . $dataFile,
+            $printed
+        );
+    }
+
+    /**
+     * Runs an example script with php.ini's data file set to $dataFile, the
+     * Lite file unless another is given, and returns what it printed.
+     *
+     * @param array<string> $args
+     */
+    private function runExample(
+        string $script,
+        ?string $dataFile = null,
+        array $args = []
+    ): string {
+        $dataFile = realpath($dataFile ?? $this->liteDataFile());
+        $this->assertNotFalse($dataFile, 'The data file is missing.');
+        $command = escapeshellarg(PHP_BINARY) . ' -d ' .
+            escapeshellarg(ExampleUtils::DATA_FILE_SETTING . "={$dataFile}") .
+            ' ' . escapeshellarg(__DIR__ . "/../examples/onpremise/{$script}");
+        foreach ($args as $arg) {
+            $command .= ' ' . escapeshellarg($arg);
+        }
+        exec($command . ' 2>&1', $lines, $status);
+        $printed = implode("\n", $lines);
+        $this->assertSame(0, $status, $printed);
+
+        return $printed;
     }
 
     /**
@@ -195,23 +226,5 @@ class ExamplesWithoutSettingsTests extends TestCase
         );
 
         return $path;
-    }
-
-    /**
-     * @return resource
-     */
-    private function memoryStream()
-    {
-        return fopen('php://memory', 'rw+');
-    }
-
-    /**
-     * @param resource $stream
-     */
-    private function readStream($stream): string
-    {
-        rewind($stream);
-
-        return (string) stream_get_contents($stream);
     }
 }

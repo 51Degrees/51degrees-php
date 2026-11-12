@@ -34,6 +34,7 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
 use fiftyone\pipeline\ipintelligence\SwigHelpers;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
+use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
 
@@ -353,6 +354,145 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             ini_set($setting, $original === false ? '' : $original);
         }
+    }
+
+    /**
+     * Outside the command line, the first engine built from a "dataFile"
+     * setting logs through the Pipeline's logger that it builds a new engine
+     * from the data file every time, which under a web server is every
+     * request. Nothing more is logged in the same run of PHP, by that engine
+     * in another Pipeline or by another engine built the same way.
+     */
+    public function testDataFileSettingOutsideTheCommandLineIsLoggedOnce(): void
+    {
+        $this->forgetDataFileSettingLogged();
+        $logger = $this->memoryLogger();
+        $first = $this->engineOutsideTheCommandLine();
+        $second = $this->engineOutsideTheCommandLine();
+        try {
+            (new PipelineBuilder())->addLogger($logger)->add($first)->build();
+            (new PipelineBuilder())->addLogger($logger)->add($first)->build();
+            (new PipelineBuilder())->addLogger($logger)->add($second)->build();
+        } finally {
+            $first->close();
+            $second->close();
+        }
+
+        $this->assertSame(
+            [['level' => 'warning', 'message' => Messages::DATA_FILE_SETTING_COST]],
+            $this->aboutTheDataFileSetting($logger)
+        );
+        $this->assertStringContainsString(
+            'FiftyOneDegreesIpIntelligenceEngine.data_file',
+            Messages::DATA_FILE_SETTING_COST
+        );
+    }
+
+    /**
+     * On the command line a script builds its engine once for the whole run,
+     * so an engine built from a "dataFile" setting logs nothing.
+     */
+    public function testDataFileSettingOnTheCommandLineIsNotLogged(): void
+    {
+        $this->forgetDataFileSettingLogged();
+        $logger = $this->memoryLogger();
+        $engine = new IpIntelligenceOnPremise([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'LowMemory'
+        ]);
+        try {
+            (new PipelineBuilder())->addLogger($logger)->add($engine)->build();
+        } finally {
+            $engine->close();
+        }
+
+        $this->assertSame([], $this->aboutTheDataFileSetting($logger));
+    }
+
+    /**
+     * The engine built when PHP starts logs nothing outside the command line
+     * either.
+     */
+    public function testStartupEngineIsNotLogged(): void
+    {
+        $this->requireStartupEngine();
+        $this->forgetDataFileSettingLogged();
+        $logger = $this->memoryLogger();
+        $engine = new class () extends IpIntelligenceOnPremise {
+            protected function isCommandLine(): bool
+            {
+                return false;
+            }
+        };
+        try {
+            (new PipelineBuilder())->addLogger($logger)->add($engine)->build();
+        } finally {
+            $engine->close();
+        }
+
+        $this->assertSame([], $this->aboutTheDataFileSetting($logger));
+    }
+
+    /**
+     * An engine built from the data file that takes PHP to be running
+     * outside the command line, as under a web server.
+     */
+    private function engineOutsideTheCommandLine(): IpIntelligenceOnPremise
+    {
+        return new class ([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'LowMemory'
+        ]) extends IpIntelligenceOnPremise {
+            protected function isCommandLine(): bool
+            {
+                return false;
+            }
+        };
+    }
+
+    /**
+     * Makes the once-only log entry possible again, as it is when PHP starts
+     * a script.
+     */
+    private function forgetDataFileSettingLogged(): void
+    {
+        \Closure::bind(static function (): void {
+            self::$dataFileCostLogged = false;
+        }, null, IpIntelligenceOnPremise::class)();
+    }
+
+    private function memoryLogger(): Logger
+    {
+        return new class ('trace') extends Logger {
+            /** @var array<int, array<string, string>> */
+            public array $entries = [];
+
+            public function logInternal(array $log): void
+            {
+                $this->entries[] = $log;
+            }
+        };
+    }
+
+    /**
+     * The level and message of each entry the logger kept that names the
+     * "dataFile" setting.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private function aboutTheDataFileSetting(Logger $logger): array
+    {
+        $found = [];
+        foreach ($logger->entries as $entry) {
+            if (strpos($entry['message'], '"dataFile"') !== false) {
+                $found[] = [
+                    'level' => $entry['level'],
+                    'message' => $entry['message']
+                ];
+            }
+        }
+
+        return $found;
     }
 
     /**
@@ -683,12 +823,12 @@ class IpIntelligenceOnPremiseTests extends TestCase
                 ->getFileName(),
             2
         ) . '/autoload.php';
-        $command = escapeshellarg(PHP_BINARY);
-        if ($dataFileProfile === '') {
-            $command .= ' -d ' . escapeshellarg(
-                "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}"
-            );
-        }
+        // An empty data file setting overrides one in php.ini, so that PHP
+        // builds no engine when it starts.
+        $command = escapeshellarg(PHP_BINARY) . ' -d ' . escapeshellarg(
+            'FiftyOneDegreesIpIntelligenceEngine.data_file=' .
+            ($dataFileProfile === '' ? $dataFile : '')
+        );
         if ($iniProfile !== null) {
             $command .= ' -d ' . escapeshellarg(
                 "FiftyOneDegreesIpIntelligenceEngine.performance_profile={$iniProfile}"

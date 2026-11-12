@@ -199,7 +199,7 @@ class EnvironmentVariableTests extends TestCase
 
     public function testNoExampleEndpointGivesNull(): void
     {
-        $this->set('_51DEGREES_CLOUD_ENDPOINT', '');
+        $this->set('_51DEGREES_CLOUD_ENDPOINT', null);
         $this->set('cloud_endpoint', null);
 
         $this->assertNull(ExampleUtils::getCloudEndpoint());

@@ -110,7 +110,9 @@ class RequestTests extends TestCase
 
     // Builds the engine and reads one property that is in the data set but
     // not among the names the engine was built with, then prints its no
-    // value message. The arguments are the autoloader and the User-Agent.
+    // value message and whether the table of every property was built, which
+    // only the fallback in findProperty does here. The arguments are the
+    // autoloader and the User-Agent.
     private const OUTSIDE = <<<'PHP'
         require $argv[1];
         $engine = new fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise();
@@ -122,9 +124,10 @@ class RequestTests extends TestCase
         $flowData->evidence->set('header.user-agent', $argv[2]);
         $flowData->process();
         $value = $flowData->device->get('platformversion');
+        $table = (new ReflectionProperty($engine, 'properties'))->isInitialized($engine);
         $flowData->close();
         $pipeline->close();
-        echo json_encode([$value->hasValue, $value->noValueMessage]);
+        echo json_encode([$value->hasValue, $value->noValueMessage, $table]);
         PHP;
 
     public static function setUpBeforeClass(): void
@@ -169,12 +172,23 @@ class RequestTests extends TestCase
             escapeshellarg($this->autoload()) . ' ' .
             escapeshellarg(self::CHROME);
 
-        [$hasValue, $message] = $this->runPhp($command);
+        [$hasValue, $message, $table] = $this->runPhp($command);
 
         $this->assertFalse($hasValue);
         $this->assertIsString($message);
         $this->assertNotSame('', $message);
         $this->assertStringNotContainsString('was not built with', $message);
+
+        // The name is not one the engine was built with, so the read went to
+        // the table, which building it here is the proof of.
+        $this->assertTrue($table);
+
+        // The reason is the native code's, so it is not the one the missing
+        // property service writes, whose text starts with this.
+        $this->assertStringNotContainsString(
+            'not found in data for element',
+            $message
+        );
     }
 
     private function assertARequest(?string $startup): void

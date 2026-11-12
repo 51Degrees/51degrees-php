@@ -216,6 +216,8 @@ class IpIntelligenceOnPremiseTests extends TestCase
     /**
      * Closing the FlowData releases its results and closing the pipeline
      * releases the engine, and each throws an exception if used afterwards.
+     * Asking whether a property exists is the one thing that still answers,
+     * because isset must not throw.
      */
     public function testCloseReleasesResultsAndEngine(): void
     {
@@ -228,12 +230,14 @@ class IpIntelligenceOnPremiseTests extends TestCase
         try {
             $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
             $echo = $flowData->process()->ip->ip->value;
+            $known = isset($flowData->ip->registeredname);
         } finally {
             $flowData->close();
             $pipeline->close();
         }
 
         $this->assertSame(Constants::IPV4_ADDRESS, $echo);
+        $this->assertTrue($known);
         $this->assertNull($pipeline->getElement('ip')->engine);
 
         $message = null;
@@ -243,6 +247,10 @@ class IpIntelligenceOnPremiseTests extends TestCase
             $message = $e->getMessage();
         }
         $this->assertSame(Messages::RESULTS_CLOSED, $message);
+
+        // The engine has no metadata left to search, so it has no property
+        // of that name, and asking answers rather than throwing.
+        $this->assertFalse(isset($flowData->ip->registeredname));
 
         $after = $pipeline->createFlowData();
         try {

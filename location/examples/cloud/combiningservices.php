@@ -36,7 +36,7 @@
  * The resource key is used as short-hand to store the particular set of
  * properties you are interested in as well as any associated license keys
  * that entitle you to increased request limits and/or paid-for properties.
- * You can create a resource key using the 51Degrees [Configurator](https://51degrees.com/configure/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=header).
+ * You can create a resource key using the 51Degrees [configuration page](https://51degrees.com/configure/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=header).
  * 
  * This example uses the 'Country' and 'IsMobile' properties, which are
  * pre-populated when creating a key using the link above.

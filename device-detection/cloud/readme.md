@@ -20,7 +20,7 @@ versions, but additional caution should be applied.
 
 You will require a [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies)
 to use the Cloud API. You can create resource keys using our 
-[configurator](https://51degrees.com/configure/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies), see our 
+[configuration page](https://51degrees.com/configure/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies), see our 
 [documentation](https://51degrees.com/documentation/_services__configurator.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies) on how to use this.
 
 ## Examples

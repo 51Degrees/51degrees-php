@@ -25,11 +25,11 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
-use PHPUnit\Framework\TestCase;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
+use PHPUnit\Framework\TestCase;
 
 /**
  * A variable is read by its name first and, when that is not set or is

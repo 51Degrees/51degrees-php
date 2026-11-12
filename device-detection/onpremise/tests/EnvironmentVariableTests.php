@@ -25,9 +25,9 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
-use PHPUnit\Framework\TestCase;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\EnvironmentVariable;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
+use PHPUnit\Framework\TestCase;
 
 /**
  * A variable is read by its name first and, when that is not set or is

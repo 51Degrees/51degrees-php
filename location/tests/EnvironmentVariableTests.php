@@ -25,9 +25,9 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\geolocation\tests;
 
-use PHPUnit\Framework\TestCase;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
+use PHPUnit\Framework\TestCase;
 
 /**
  * A variable is read by its name first and, when that is not set or is

@@ -25,12 +25,16 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
-use PHPUnit\Framework\TestCase;
+use fiftyone\pipeline\core\Logger;
+use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\ipintelligence\examples\classes\EnvironmentVariable;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
+use fiftyone\pipeline\ipintelligence\translation\CountriesTranslationEngine;
+use fiftyone\pipeline\ipintelligence\translation\CountryCodeTranslationEngine;
 use fiftyone\pipeline\ipintelligence\translation\TranslationPaths;
+use PHPUnit\Framework\TestCase;
 
 /**
  * A variable is read by its name first and, when that is not set or is
@@ -54,11 +58,21 @@ class EnvironmentVariableTests extends TestCase
         }
         $this->previous = [];
         foreach ($this->folders as $folder) {
-            if (is_dir($folder . '/Translations')) {
-                rmdir($folder . '/Translations');
+            $files = [
+                '/Translations/OSM/countries.fr_FR.yml',
+                '/Translations/countrycodes.en_GB.yml',
+            ];
+            foreach (array_merge($files, glob($folder . '/*.ipi') ?: []) as $file) {
+                $file = strpos($file, $folder) === 0 ? $file : $folder . $file;
+                if (is_file($file)) {
+                    unlink($file);
+                }
             }
-            array_map('unlink', glob($folder . '/*.ipi') ?: []);
-            rmdir($folder);
+            foreach (['/Translations/OSM', '/Translations', ''] as $inner) {
+                if (is_dir($folder . $inner)) {
+                    rmdir($folder . $inner);
+                }
+            }
         }
         $this->folders = [];
     }
@@ -203,21 +217,10 @@ class EnvironmentVariableTests extends TestCase
     public function testTranslationsAreFoundFromTheDeprecatedName(): void
     {
         $old = $this->dataFile('old');
-        mkdir(dirname($old) . '/Translations');
+        $this->translations(dirname($old));
         $this->set('_51DEGREES_IPI_PATH', '');
         $this->set('IPINTELLIGENCEDATAFILE', $old);
-
-        // The package reports the deprecated name once for each time PHP
-        // runs the script, so the report is made possible again first.
-        \Closure::bind(static function (): void {
-            self::$oldIpiPathVariableReported = false;
-        }, null, TranslationPaths::class)();
-
-        $found = '';
-        $logged = $this->logged(function () use (&$found): void {
-            $found = TranslationPaths::resolveTranslationsDir();
-            TranslationPaths::resolveTranslationsDir();
-        });
+        $this->forgetDeprecatedVariable();
 
         // The folder in the repository is looked in first, whatever the
         // environment names, and is there once the submodules are.
@@ -226,35 +229,66 @@ class EnvironmentVariableTests extends TestCase
             realpath(is_dir($inRepository)
                 ? $inRepository
                 : dirname($old) . '/Translations'),
-            realpath($found)
+            realpath(TranslationPaths::resolveTranslationsDir())
         );
-
-        $this->assertCount(1, $logged);
-        $this->assertStringContainsString('IPINTELLIGENCEDATAFILE', $logged[0]);
-        $this->assertStringContainsString('deprecated', $logged[0]);
-        $this->assertStringContainsString('_51DEGREES_IPI_PATH', $logged[0]);
     }
 
-    public function testTranslationsNameIsReadFirst(): void
+    public function testDeprecatedDataFileNameIsLoggedOnceByThePipeline(): void
+    {
+        $old = $this->dataFile('old');
+        $this->translations(dirname($old));
+        $this->set('_51DEGREES_IPI_PATH', '');
+        $this->set('IPINTELLIGENCEDATAFILE', $old);
+        $this->forgetDeprecatedVariable();
+
+        $logger = $this->memoryLogger();
+        $this->buildTranslationPipeline($logger);
+        $this->buildTranslationPipeline($logger);
+
+        $about = $this->aboutTheDeprecatedName($logger);
+        $this->assertCount(1, $about);
+        $this->assertSame('warning', $about[0]['level']);
+        $this->assertStringContainsString('deprecated', $about[0]['message']);
+        $this->assertStringContainsString('_51DEGREES_IPI_PATH', $about[0]['message']);
+    }
+
+    public function testDataFileNameIsReadFirstAndNothingIsLogged(): void
     {
         $new = $this->dataFile('new');
-        mkdir(dirname($new) . '/Translations');
+        $this->translations(dirname($new));
         $this->set('_51DEGREES_IPI_PATH', $new);
         $this->set('IPINTELLIGENCEDATAFILE', $this->dataFile('old'));
-
-        $found = '';
-        $logged = $this->logged(function () use (&$found): void {
-            $found = TranslationPaths::resolveTranslationsDir();
-        });
+        $this->forgetDeprecatedVariable();
 
         $inRepository = __DIR__ . '/../../cxx/data/ip-intelligence/Translations';
         $this->assertSame(
             realpath(is_dir($inRepository)
                 ? $inRepository
                 : dirname($new) . '/Translations'),
-            realpath($found)
+            realpath(TranslationPaths::resolveTranslationsDir())
         );
-        $this->assertSame([], $logged);
+
+        $logger = $this->memoryLogger();
+        $this->buildTranslationPipeline($logger);
+        $this->assertSame([], $this->aboutTheDeprecatedName($logger));
+    }
+
+    public function testExplicitTranslationsFolderLogsNothing(): void
+    {
+        $old = $this->dataFile('old');
+        $folder = $this->translations(dirname($old));
+        $this->set('_51DEGREES_IPI_PATH', '');
+        $this->set('IPINTELLIGENCEDATAFILE', $old);
+        $this->forgetDeprecatedVariable();
+
+        $logger = $this->memoryLogger();
+        (new PipelineBuilder([]))
+            ->addLogger($logger)
+            ->add(new CountryCodeTranslationEngine($folder))
+            ->add(new CountriesTranslationEngine($folder))
+            ->build();
+
+        $this->assertSame([], $this->aboutTheDeprecatedName($logger));
     }
 
     public function testDeprecatedConstantsKeepTheirNamesAndValues(): void
@@ -291,6 +325,83 @@ class EnvironmentVariableTests extends TestCase
                 '_51DEGREES_IPI_PATH'
             );
         }
+    }
+
+    /**
+     * Builds a pipeline of the two translation engines, each finding the
+     * translation files for itself.
+     */
+    private function buildTranslationPipeline(Logger $logger): void
+    {
+        (new PipelineBuilder([]))
+            ->addLogger($logger)
+            ->add(new CountryCodeTranslationEngine())
+            ->add(new CountriesTranslationEngine())
+            ->build();
+    }
+
+    /**
+     * A logger that keeps every entry.
+     */
+    private function memoryLogger(): Logger
+    {
+        return new class ('trace') extends Logger {
+            /** @var array<int, array<string, string>> */
+            public array $entries = [];
+
+            public function logInternal(array $log): void
+            {
+                $this->entries[] = $log;
+            }
+        };
+    }
+
+    /**
+     * The entries the logger kept that name the deprecated variable.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private function aboutTheDeprecatedName(Logger $logger): array
+    {
+        return array_values(array_filter(
+            $logger->entries,
+            static fn (array $entry): bool => strpos(
+                $entry['message'],
+                'IPINTELLIGENCEDATAFILE'
+            ) !== false
+        ));
+    }
+
+    /**
+     * Makes the package's once-only log entry possible again, as it is
+     * when PHP starts a script.
+     */
+    private function forgetDeprecatedVariable(): void
+    {
+        \Closure::bind(static function (): void {
+            self::$oldIpiPathVariableRead = false;
+            self::$oldIpiPathVariableReported = false;
+        }, null, TranslationPaths::class)();
+    }
+
+    /**
+     * A Translations folder beside a data file, holding one country in
+     * English and in French.
+     */
+    private function translations(string $folder): string
+    {
+        $translations = $folder . '/Translations';
+        mkdir($translations . '/OSM', 0777, true);
+        file_put_contents(
+            $translations . '/countrycodes.en_GB.yml',
+            "GB: United Kingdom\n"
+        );
+        file_put_contents(
+            $translations . '/OSM/countries.fr_FR.yml',
+            "United Kingdom: Royaume-Uni\n"
+        );
+
+        return $translations;
     }
 
     /**

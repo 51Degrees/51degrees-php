@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   environment-variable-names:
-    name: No tracked file names a variable starting with a digit or a fallback name
+    name: No variable starting with a digit, and no old name outside the files that read one
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

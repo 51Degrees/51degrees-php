@@ -37,10 +37,7 @@ $script:DigitInitialPattern = [regex]::new(
 # names that end in the same words, are left alone.
 #
 # These are matched in any case, as the digit-initial names are, because
-# Windows reads an environment variable name in any case. The pattern kept its
-# case while the IP Intelligence and location examples and tests read
-# resource_key, which differs from RESOURCE_KEY only by case. That name has
-# gone, so the reason has gone with it.
+# Windows reads an environment variable name in any case.
 #
 # Two kinds of old name. The old IP Intelligence data file name, the three
 # FIFTYONE_ names the fork safety test read and the old cloud endpoint name

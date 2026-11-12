@@ -85,12 +85,18 @@ class SwigData extends AspectData
      * Whether the engine has an available property of this name. Looking one
      * up needs the engine, which close() releases, and isset must answer
      * rather than throw, so a closed engine has no property of any name.
+     * Any other failure is a real one and is left to the caller, rather
+     * than read as the engine having no property of that name.
      */
     public function __isset($key)
     {
         try {
             return $this->flowElement->findProperty($key) !== null;
         } catch (\Exception $exception) {
+            if ($exception->getMessage() !== Messages::ENGINE_CLOSED) {
+                throw $exception;
+            }
+
             return false;
         }
     }

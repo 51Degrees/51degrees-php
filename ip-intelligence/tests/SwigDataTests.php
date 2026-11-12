@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\ipintelligence\Messages;
 use fiftyone\pipeline\ipintelligence\SwigData;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubLegacyWeightedValue;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubSwigEngine;
@@ -239,5 +240,46 @@ class SwigDataTests extends TestCase
         $this->assertSame([['value' => '234', 'rawweighting' => 65535]], $data->getInternal('mcc')->value);
 
         $this->assertSame(['RegisteredName', 'IsCrawler', 'Mcc'], $result->requestedKeys);
+    }
+
+    /**
+     * A closed engine has no property of any name, because looking one up
+     * needs the engine, and isset must answer rather than throw.
+     */
+    public function testIssetOnAClosedEngineAnswersFalse(): void
+    {
+        $engine = new class([]) extends StubSwigEngine {
+            public function findProperty(string $name): ?array
+            {
+                throw new \Exception(Messages::ENGINE_CLOSED);
+            }
+        };
+        $data = new SwigData($engine, new StubSwigResult([]));
+
+        $this->assertFalse(isset($data->registeredname));
+    }
+
+    /**
+     * Any other failure of the lookup is a real one and reaches the caller,
+     * rather than being read as the engine having no property of that name.
+     */
+    public function testIssetLetsAnyOtherFailureOut(): void
+    {
+        $engine = new class([]) extends StubSwigEngine {
+            public function findProperty(string $name): ?array
+            {
+                throw new \Exception('The native metadata could not be read.');
+            }
+        };
+        $data = new SwigData($engine, new StubSwigResult([]));
+
+        $message = null;
+        try {
+            isset($data->registeredname);
+        } catch (\Exception $exception) {
+            $message = $exception->getMessage();
+        }
+
+        $this->assertSame('The native metadata could not be read.', $message);
     }
 }

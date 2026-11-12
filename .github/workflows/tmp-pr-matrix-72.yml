@@ -1,0 +1,27 @@
+name: Temporary full build of pull request 72
+
+on:
+  push:
+    branches:
+      - 'tmp/pr-matrix-72'
+
+jobs:
+  Build:
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-request.yml@main
+    with:
+      repo-name: 51degrees-php
+      org-name: 51Degrees
+      pull-request-id: 72
+      dryrun: 'true'
+      branch: rc
+      cache-assets: true
+      build-test-timeout-minutes: 300
+      skip-compare-performance: true
+      common-ci-ref: tmp/no-macos
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
+      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
+      CsvUrl: ${{ secrets.CSV_URL }}
+      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}

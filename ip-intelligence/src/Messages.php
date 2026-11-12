@@ -46,8 +46,15 @@ class Messages
         "file open and shares those file handles across the fork, which " .
         "corrupts the results. Remove the " .
         "'FiftyOneDegreesIpIntelligenceEngine.performance_profile' setting, " .
-        "or set it to 'MaxPerformance'. An engine built from a \"dataFile\" " .
-        "setting may use any profile.";
+        "or set it to 'MaxPerformance'.";
+
+    // Raised when no settings are given and PHP started without building an
+    // engine.
+    public const NO_STARTUP_ENGINE =
+        'No IP intelligence engine was built when PHP started. Set ' .
+        'FiftyOneDegreesIpIntelligenceEngine.data_file in php.ini to the ' .
+        'path of an .ipi data file, so that PHP builds the engine once when ' .
+        'it starts. See OnPremise.md.';
 
     public const DATA_FILE_NOT_FOUND =
         'There is no IP intelligence data file at %s';
@@ -59,9 +66,9 @@ class Messages
         'The shared global IP intelligence engine is built once at module ' .
         'load from the FiftyOneDegreesIpIntelligenceEngine.* php.ini ' .
         'settings and cannot be reconfigured per instance, so these ' .
-        'setting(s) would have no effect: %s. Either configure them through ' .
-        'php.ini (data_file, required_properties) or ' .
-        'supply a "dataFile" setting to build a dedicated engine.';
+        'setting(s) would have no effect: %s. Remove them, and set the data ' .
+        'file and the required properties in php.ini (data_file, ' .
+        'required_properties).';
 
     public const EXTENSION_NOT_LOADED =
         'The FiftyOneDegreesIpIntelligenceEngine extension is not loaded. The ' .

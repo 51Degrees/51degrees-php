@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\examples\classes;
 
+use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
+
 /**
  * Suspicious IP analysis (on-premise). Mirrors
  * ip-intelligence-dotnet-examples OnPremise/Suspicious-Console: it combines the
@@ -56,19 +58,16 @@ class SuspiciousConsoleOnPremise
     /**
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             fwrite($output, "The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.\n");
             return;
         }
 
-        $config = new \ConfigIpiSwig();
-        // The example uses the Enterprise data file when it finds one, which
-        // is several gigabytes, and LowMemory keeps the memory it needs small.
-        $config->setLowMemory();
-        $config->setUseUpperPrefixHeaders(false);
-        $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
+        // The native engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $engine = (new IpIntelligenceOnPremise())->engine;
         if (ExampleUtils::lacksEnterpriseProperties(
             $engine,
             'Finding suspicious IP addresses',

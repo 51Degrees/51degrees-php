@@ -70,13 +70,22 @@ ip-intelligence-dotnet exposes as `IWeightedValue.RawWeighting`.
 
 ## On-premise
 
+The on-premise engine requires the native extension, which builds the engine
+once, when PHP starts, from the data file php.ini names, so that no request
+loads the data file. See [OnPremise.md](OnPremise.md) for how to build the
+extension, and set these in php.ini:
+
+```ini
+extension=/full/path/to/FiftyOneDegreesIpIntelligenceEngine.so
+FiftyOneDegreesIpIntelligenceEngine.data_file=/full/path/to/51Degrees-LiteV41.ipi
+```
+
+The pipeline then takes no settings.
+
 ```php
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 
-$pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-    'dataFile' => '/path/to/51Degrees-LiteV41.ipi',
-    'performanceProfile' => 'MaxPerformance'
-]))->build();
+$pipeline = (new IpIntelligenceOnPremisePipelineBuilder())->build();
 
 $flowData = $pipeline->createFlowData();
 $flowData->evidence->set('query.client-ip', '116.154.188.222');
@@ -85,10 +94,7 @@ $result = $flowData->process();
 echo $result->ip->registeredname->value;
 ```
 
-The on-premise engine requires the native extension. See
-[OnPremise.md](OnPremise.md) for how to build it. The engine the extension
-builds when PHP starts always holds the whole data file in memory, and an
-engine built from a `dataFile` setting takes any performance profile, as
+That engine always holds the whole data file in memory, as
 [Running under a process manager](OnPremise.md#running-under-a-process-manager)
 explains.
 
@@ -118,16 +124,24 @@ In-repo under `examples/`:
 | `onpremise/web/index.php` | On-premise | Web page with the country list. |
 | `onpremise/web-mixed/index.php` | On-premise | Web page with device detection + IP intelligence. |
 
-The on-premise examples use the free Lite data file when no other is given,
-and download it the first time. The performance example downloads the far
-smaller free ASN file instead, as any data file will do for a benchmark. Each
-example shows the properties only the Enterprise data file has as needing it,
-and gives a link to
+Every on-premise example, console and web alike, uses the engine the
+extension builds when PHP starts, from the data file php.ini names in
+`FiftyOneDegreesIpIntelligenceEngine.data_file`, as
+[OnPremise.md](OnPremise.md) describes. Name the free Lite data file there,
+or start PHP with it, as in this command from the root of the repository.
+
+```bash
+php -d FiftyOneDegreesIpIntelligenceEngine.data_file="$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi" ip-intelligence/examples/onpremise/gettingstarted-console.php
+```
+
+A console example started without the engine downloads the Lite file when
+it is missing and prints the command that starts PHP with it. The
+performance example names the far smaller free ASN file instead, as any data
+file will do for a benchmark. Each example shows the properties only the
+Enterprise data file has as needing it, and gives a link to
 [contact us](https://51degrees.com/contact-us?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=examples)
 about a copy. The suspicious and translation examples need those properties
-throughout, so with a free data file they say which and stop. The web pages
-use the engine php.ini names in `FiftyOneDegreesIpIntelligenceEngine.data_file`,
-as [OnPremise.md](OnPremise.md) describes.
+throughout, so with a free data file they say which and stop.
 
 ## Tests
 
@@ -141,4 +155,8 @@ the `resource_key` environment variable is set. On-premise tests run when the
 native extension is built and an `.ipi` data file is available, and are
 skipped otherwise. Set `_51DEGREES_IPI_PATH`, place a file under `assets/`,
 or download the Lite file into `cxx/data/ip-intelligence` at the root of the
-repository with `sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi`.
+repository with `sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi`. The
+tests of the examples run each example in its own PHP, started with
+`FiftyOneDegreesIpIntelligenceEngine.data_file` naming a free data file,
+and the other tests that need the engine built when PHP starts run when
+php.ini names a data file.

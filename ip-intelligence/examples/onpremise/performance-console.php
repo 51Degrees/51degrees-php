@@ -29,15 +29,12 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\examples\classes\PerformanceConsoleOnPremise;
 
-// Any data file will do for a benchmark, so without one the far smaller free
-// ASN file is downloaded rather than the Lite file.
-$dataFile = ExampleUtils::getDataFile(
-    array_slice($argv, 1),
-    ExampleConstants::ASN_DATA_FILE_NAME
-);
-
-if (!$dataFile) {
-    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the _51DEGREES_IPI_PATH environment variable.\n");
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+// Without it, the example says how to start PHP with it and stops. Any data
+// file will do for a benchmark, so without one the far smaller free ASN file
+// is downloaded rather than the Lite file.
+if (!ExampleUtils::hasStartupEngine($argv, ExampleConstants::ASN_DATA_FILE_NAME)) {
     exit(1);
 }
 
@@ -46,8 +43,4 @@ if (!$dataFile) {
 // lookups against the multi-million-profile enterprise data file).
 $maxSeconds = (count($argv) > 2 && is_numeric($argv[2])) ? (float) $argv[2] : 10.0;
 
-// The performance profile, LowMemory unless the third argument is
-// MaxPerformance.
-$profile = $argv[3] ?? 'LowMemory';
-
-(new PerformanceConsoleOnPremise())->run($dataFile, $maxSeconds, STDOUT, $profile);
+(new PerformanceConsoleOnPremise())->run($maxSeconds, STDOUT);

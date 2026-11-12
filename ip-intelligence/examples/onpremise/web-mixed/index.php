@@ -38,13 +38,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
 
-use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
+use fiftyone\pipeline\ipintelligence\Messages;
 
 // ---- Inputs -------------------------------------------------------------
 $ip = isset($_GET['client-ip']) && $_GET['client-ip'] !== '' ? trim((string) $_GET['client-ip']) : '8.8.8.8';
 $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-$ipiDataFile = ExampleUtils::getDataFile();
 
 $error = null;
 $dd = [];   // device detection results (label => value)
@@ -102,20 +100,12 @@ if (!extension_loaded('FiftyOneDegreesHashEngine')) {
         ];
 
         // ---- IP intelligence --------------------------------------------
-        // Reuse the global engine built once at module load (ipi_engine_get)
-        // so the multi-gigabyte data file is not re-opened on every request.
-        // Fall back to direct construction when the global engine is not
-        // configured (the FiftyOneDegreesIpIntelligenceEngine.data_file ini is
-        // not set). The fallback engine is built inside the request's worker
-        // and opens its own file handles, so it can use LowMemory, which
-        // keeps the memory each request needs small.
-        if (function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
-            $ipiEngine = \ipi_engine_get();
-        } else {
-            $ipiConfig = new \ConfigIpiSwig();
-            $ipiConfig->setLowMemory();
-            $ipiConfig->setUseUpperPrefixHeaders(false);
-            $ipiEngine = new \EngineIpiSwig($ipiDataFile, $ipiConfig, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
+        // The IP intelligence extension also builds its engine once, when PHP
+        // starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file
+        // php.ini setting, so no request opens the data file again.
+        $ipiEngine = \ipi_engine_get();
+        if ($ipiEngine === null) {
+            throw new \Exception(Messages::NO_STARTUP_ENGINE);
         }
         $ipiResults = $ipiEngine->process($ip);
 

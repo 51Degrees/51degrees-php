@@ -28,11 +28,11 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\examples\classes\TranslationConsoleOnPremise;
 
-$dataFile = ExampleUtils::getDataFile(array_slice($argv, 1));
-
-if (!$dataFile) {
-    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the _51DEGREES_IPI_PATH environment variable.\n");
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+// Without it, the example says how to start PHP with it and stops.
+if (!ExampleUtils::hasStartupEngine($argv)) {
     exit(1);
 }
 
-(new TranslationConsoleOnPremise())->run($dataFile, STDOUT);
+(new TranslationConsoleOnPremise())->run(STDOUT);

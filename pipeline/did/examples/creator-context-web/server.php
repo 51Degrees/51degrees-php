@@ -99,8 +99,30 @@ if (!is_file($autoload)) {
 }
 require $autoload;
 
+/**
+ * The value of an environment variable, read by its name and, when that
+ * is not set or is empty, by the deprecated name it replaced, whose use is
+ * written to the PHP error log.
+ */
+function readVariable(string $name, string $deprecated): string
+{
+    $value = (string) getenv($name);
+    if ($value !== '') {
+        return $value;
+    }
+
+    $value = (string) getenv($deprecated);
+    if ($value !== '') {
+        error_log("A value was read from the environment variable {$deprecated}, "
+            . "which is deprecated. {$name} replaces it, so set that to the "
+            . 'same value.');
+    }
+
+    return $value;
+}
+
 // The resource key is public by nature and names the account.
-$resource = getenv('_51DEGREES_RESOURCE_KEY');
+$resource = readVariable('_51DEGREES_RESOURCE_KEY', 'RESOURCE_KEY');
 if (!$resource) {
     http_response_code(500);
     exit('Set _51DEGREES_RESOURCE_KEY to the resource key of the page.');
@@ -111,7 +133,7 @@ if (!$resource) {
 // servers. An account holding none has nothing to check against, so the
 // demo runs without it, and where the account does hold some the
 // redemption reports the context unreadable.
-$licence = getenv('_51DEGREES_LICENSE_KEY') ?: null;
+$licence = readVariable('_51DEGREES_LICENSE_KEY', 'LICENSE_KEY') ?: null;
 
 // One client for the server. The endpoint argument is left null so the
 // client reads _51DEGREES_CLOUD_ENDPOINT itself, the same variable the 51Degrees

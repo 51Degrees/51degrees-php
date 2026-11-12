@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
+use fiftyone\pipeline\cloudrequestengine\Constants as CloudConstants;
+use fiftyone\pipeline\ipintelligence\examples\classes\EnvironmentVariable;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceCloud;
 use fiftyone\pipeline\ipintelligence\IpIntelligencePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
@@ -174,13 +176,20 @@ class IpIntelligenceCloudTests extends TestCase
      */
     public function testLiveCloud(): void
     {
-        $resourceKey = getenv(Constants::RESOURCE_KEY_ENV_VAR);
-        if (!$resourceKey || $resourceKey === '!!YOUR_RESOURCE_KEY!!') {
+        $resourceKey = EnvironmentVariable::read(
+            Constants::RESOURCE_KEY_VARIABLE,
+            Constants::RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
+        );
+        if ($resourceKey === '') {
             $this->markTestSkipped('No resource_key environment variable set - skipping live cloud test.');
         }
 
         $settings = ['resourceKey' => $resourceKey];
-        $endPoint = getenv('_51DEGREES_CLOUD_ENDPOINT');
+        $endPoint = EnvironmentVariable::read(
+            CloudConstants::CLOUD_ENDPOINT_VARIABLE,
+            CloudConstants::FOD_CLOUD_API_URL
+        );
         if ($endPoint) {
             $settings['cloudEndPoint'] = $endPoint;
         }

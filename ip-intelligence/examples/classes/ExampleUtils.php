@@ -47,12 +47,13 @@ class ExampleUtils
             return $args[0];
         }
 
-        $key = getenv(ExampleConstants::CLOUD_RESOURCE_KEY_ENV_VAR);
-        if ($key && $key !== '!!YOUR_RESOURCE_KEY!!') {
-            return $key;
-        }
+        $key = EnvironmentVariable::read(
+            ExampleConstants::RESOURCE_KEY_VARIABLE,
+            ExampleConstants::CLOUD_RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
+        );
 
-        return null;
+        return $key === '' ? null : $key;
     }
 
     /**
@@ -73,7 +74,10 @@ class ExampleUtils
             return $args[0];
         }
 
-        $env = getenv(ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR);
+        $env = EnvironmentVariable::read(
+            ExampleConstants::IPI_PATH_VARIABLE,
+            ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+        );
         if ($env && file_exists($env)) {
             return $env;
         }

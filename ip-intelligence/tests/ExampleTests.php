@@ -32,6 +32,7 @@ use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleCloud;
 use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleOnPremise;
 use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleCloud;
 use fiftyone\pipeline\ipintelligence\examples\classes\OfflineProcessingConsoleOnPremise;
+use fiftyone\pipeline\ipintelligence\examples\classes\EnvironmentVariable;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use fiftyone\pipeline\ipintelligence\tests\classes\MockHttpClient;
 use PHPUnit\Framework\TestCase;
@@ -62,17 +63,21 @@ class ExampleTests extends TestCase
 
     private function liveResourceKey(): ?string
     {
-        $key = getenv(Constants::RESOURCE_KEY_ENV_VAR);
-        if (!$key || $key === '!!YOUR_RESOURCE_KEY!!') {
-            return null;
-        }
+        $key = EnvironmentVariable::read(
+            Constants::RESOURCE_KEY_VARIABLE,
+            Constants::RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
+        );
 
-        return $key;
+        return $key === '' ? null : $key;
     }
 
     private function onPremiseDataFile(): ?string
     {
-        $env = getenv(Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR);
+        $env = EnvironmentVariable::read(
+            Constants::IPI_PATH_VARIABLE,
+            Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+        );
         if ($env && file_exists($env)) {
             return $env;
         }

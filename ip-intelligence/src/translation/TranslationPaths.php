@@ -34,6 +34,28 @@ use fiftyone\pipeline\translation\YamlMap;
  */
 class TranslationPaths
 {
+    // Environment variable that names the IP Intelligence data file.
+    private const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
+
+    // The name IPI_PATH_VARIABLE replaced, read when that one is not set
+    // or is empty.
+    private const OLD_IPI_PATH_VARIABLE = 'IPINTELLIGENCEDATAFILE';
+
+    // Written when the data file came from the deprecated environment
+    // variable, which is named first, then the one that replaces it.
+    private const OLD_IPI_PATH_VARIABLE_MESSAGE =
+        'The IP Intelligence data file was read from the environment ' .
+        'variable %s, which is deprecated. %s replaces it, so set that to ' .
+        'the same value.';
+
+    /**
+     * Whether the deprecated variable has been reported since PHP started
+     * the script, which under a web server is since the request began.
+     *
+     * @var bool
+     */
+    private static $oldIpiPathVariableReported = false;
+
     /**
      * Find the Translations directory. Searches the ip-intelligence folder of
      * the data submodule inside the cxx submodule at the repository root,
@@ -45,7 +67,7 @@ class TranslationPaths
             __DIR__ . '/../../../cxx/data/ip-intelligence/Translations',
         ];
 
-        $env = getenv('_51DEGREES_IPI_PATH');
+        $env = self::dataFileFromEnvironment();
         if ($env) {
             $candidates[] = dirname($env) . '/Translations';
             $candidates[] = dirname($env) . '/data/ip-intelligence/Translations';
@@ -63,6 +85,33 @@ class TranslationPaths
             'with "git submodule update --init --recursive". Otherwise pass ' .
             'its path to the translation engines.'
         );
+    }
+
+    /**
+     * The data file named in the environment, or an empty string. The
+     * deprecated variable is read only when the new one gives nothing. Its
+     * use is written to the PHP error log, because nothing has a logger
+     * when the translation files are found, once for each time PHP runs
+     * the script.
+     */
+    private static function dataFileFromEnvironment(): string
+    {
+        $new = (string) getenv(self::IPI_PATH_VARIABLE);
+        if ($new !== '') {
+            return $new;
+        }
+
+        $old = (string) getenv(self::OLD_IPI_PATH_VARIABLE);
+        if ($old !== '' && !self::$oldIpiPathVariableReported) {
+            self::$oldIpiPathVariableReported = true;
+            error_log(sprintf(
+                self::OLD_IPI_PATH_VARIABLE_MESSAGE,
+                self::OLD_IPI_PATH_VARIABLE,
+                self::IPI_PATH_VARIABLE
+            ));
+        }
+
+        return $old;
     }
 
     /**

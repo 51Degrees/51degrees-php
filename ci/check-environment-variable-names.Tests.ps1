@@ -44,9 +44,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'getenv(''license_key'')' }
         @{ Line = 'public const RESOURCE_KEY_ENV_VAR = ''resource_key'';' }
         @{ Line = 'const ENDPOINT_ENV_VAR = ''cloud_endpoint'';' }
-        @{ Line = 'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';' }
         @{ Line = '$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"' }
-        @{ Line = 'public const FOD_CLOUD_API_URL = ''FOD_CLOUD_API_URL'';' }
         @{ Line = '<env name="IPINTELLIGENCEDATAFILE" value=""/>' }
         @{ Line = '$env:FIFTYONE_DATA_FILE = "$PWD/assets/TAC-HashV41.hash"' }
         @{ Line = 'getenv(''FIFTYONE_UA_CSV'')' }
@@ -71,6 +69,18 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '  PAID_RESOURCE_KEY: ${{ env.PAID_RESOURCE_KEY }}' }
         @{ Line = 'getenv("SUPER_RESOURCE_KEY")' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
+    ) {
+        Get-Kind $Line | Should -BeNullOrEmpty
+    }
+
+    # The packages still read the old cloud endpoint name when the new one
+    # is not set, and keep the constants that hold it, so the check does not
+    # fail on it.
+    It 'leaves the old cloud endpoint name alone in <Line>' -ForEach @(
+        @{ Line = 'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';' }
+        @{ Line = 'public const FOD_CLOUD_API_URL = ''FOD_CLOUD_API_URL'';' }
+        @{ Line = 'getenv(Constants::FOD_CLOUD_API_URL)' }
+        @{ Line = 'getenv(''fod_cloud_api_url'')' }
     ) {
         Get-Kind $Line | Should -BeNullOrEmpty
     }

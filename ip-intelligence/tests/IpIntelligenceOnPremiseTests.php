@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\Constants as IpiConstants;
+use fiftyone\pipeline\ipintelligence\examples\classes\EnvironmentVariable;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
@@ -66,7 +67,10 @@ class IpIntelligenceOnPremiseTests extends TestCase
 
     private static function locateDataFile(): ?string
     {
-        $env = getenv(Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR);
+        $env = EnvironmentVariable::read(
+            Constants::IPI_PATH_VARIABLE,
+            Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+        );
         if ($env && file_exists($env)) {
             return $env;
         }

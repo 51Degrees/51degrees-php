@@ -48,14 +48,14 @@ class DidClientLiveTest extends TestCase
 
     protected function setUp(): void
     {
-        $resource = getenv('_51DEGREES_RESOURCE_KEY');
+        $resource = EnvironmentVariable::read('_51DEGREES_RESOURCE_KEY', 'RESOURCE_KEY');
         if (!$resource) {
             $this->markTestSkipped(
                 'Set _51DEGREES_RESOURCE_KEY to run the live tests.'
             );
         }
         $this->resource = $resource;
-        $licence = getenv('_51DEGREES_LICENSE_KEY');
+        $licence = EnvironmentVariable::read('_51DEGREES_LICENSE_KEY', 'LICENSE_KEY');
         $this->client = new DidClient($resource, $licence ?: null);
     }
 

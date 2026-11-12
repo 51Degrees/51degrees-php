@@ -92,6 +92,14 @@ class CloudRequestEngineTestsBase extends TestCase
     // The environment variable the integration tests read a real resource key
     // from.
     public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
+
+    /**
+     * The environment variable read for the resource key when
+     * RESOURCE_KEY_ENV_VAR is not set.
+     *
+     * @deprecated use {@see CloudRequestEngineTestsBase::RESOURCE_KEY_ENV_VAR}
+     */
+    public const OLD_RESOURCE_KEY_ENV_VAR = 'resource_key';
     public const userAgent = 'iPhone';
 
     public static function getResponse()

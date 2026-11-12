@@ -14,6 +14,7 @@
       <file>tests/SwigDataTests.php</file>
       <file>tests/ClientIpTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
+      <file>tests/EnvironmentVariableTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/IpIntelligenceCloudTests.php</file>

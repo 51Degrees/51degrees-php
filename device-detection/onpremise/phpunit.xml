@@ -11,6 +11,7 @@
       <file>tests/RequestTests.php</file>
       <file>tests/ExampleWebTests.php</file>
       <file>tests/UACHHashTests.php</file>
+      <file>tests/EnvironmentVariableTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

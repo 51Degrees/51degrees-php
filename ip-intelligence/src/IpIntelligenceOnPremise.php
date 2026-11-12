@@ -34,6 +34,7 @@ if (file_exists($fiftyoneIpiSwigWrapper)) {
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\DataKeyedCache;
 use fiftyone\pipeline\engines\Engine;
 
@@ -104,6 +105,14 @@ class IpIntelligenceOnPremise extends Engine
      */
     private array $readProperties = [];
 
+    // Whether this engine was built from a "dataFile" setting outside the
+    // command line and has yet to log what that costs.
+    private bool $dataFileCostToLog = false;
+
+    // Whether that has been logged since PHP started the script, which
+    // under a web server is since the request began.
+    private static bool $dataFileCostLogged = false;
+
     /**
      * Uses the engine the extension builds once, when PHP starts, from the
      * FiftyOneDegreesIpIntelligenceEngine.* php.ini settings. Set
@@ -122,6 +131,10 @@ class IpIntelligenceOnPremise extends Engine
      *                         the whole file with MaxPerformance. A web
      *                         server constructs this class in every request,
      *                         so the data file is loaded in every request.
+     *                         Outside the command line the first engine
+     *                         built this way logs a warning saying so,
+     *                         through the logger of the first Pipeline it is
+     *                         added to.
      *   performanceProfile  - (optional, with dataFile) one of
      *                         Constants::PERFORMANCE_PROFILES, defaulting to
      *                         Constants::DEFAULT_PERFORMANCE_PROFILE.
@@ -214,10 +227,44 @@ class IpIntelligenceOnPremise extends Engine
 
         // Build the native engine.
         $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
+        $this->dataFileCostToLog = !$this->isCommandLine();
 
         $this->initEngineMetaData();
 
         parent::__construct();
+    }
+
+    /**
+     * Logs, as a warning through the logger of the first Pipeline the engine
+     * is added to, that an engine built from a "dataFile" setting outside the
+     * command line builds a new engine from the data file in every request.
+     * It is logged once for each time PHP runs the script, by the first such
+     * engine.
+     */
+    public function onRegistration(Pipeline $pipeline): void
+    {
+        parent::onRegistration($pipeline);
+
+        if (!$this->dataFileCostToLog) {
+            return;
+        }
+
+        $this->dataFileCostToLog = false;
+        if (self::$dataFileCostLogged) {
+            return;
+        }
+
+        self::$dataFileCostLogged = true;
+        $pipeline->log('warning', Messages::DATA_FILE_SETTING_COST);
+    }
+
+    /**
+     * True when PHP is running from the command line, where a script builds
+     * its engine once for the whole run.
+     */
+    protected function isCommandLine(): bool
+    {
+        return in_array(PHP_SAPI, ['cli', 'phpdbg'], true);
     }
 
     /**

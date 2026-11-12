@@ -107,8 +107,9 @@ exception when `IpIntelligenceOnPremise` takes up that engine, explaining that
 new engine from the data file every time the class is constructed, with its
 own file handles and any `performanceProfile`. Under a web server PHP
 constructs the class in every request, so the data file is opened and read
-in every request, the whole file with `MaxPerformance`. Use the engine built
-when PHP starts instead.
+in every request, the whole file with `MaxPerformance`. Outside the command
+line such an engine logs a warning saying so, through the Pipeline's logger.
+Use the engine built when PHP starts instead.
 
 ## Data file
 

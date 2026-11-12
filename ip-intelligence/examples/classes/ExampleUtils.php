@@ -40,29 +40,31 @@ class ExampleUtils
     public const DATA_FILE_SETTING = 'FiftyOneDegreesIpIntelligenceEngine.data_file';
 
     /**
-     * True when the extension built its engine when PHP started, which is
-     * the engine every on-premise example uses. Otherwise writes to standard
-     * error how to start PHP with it, naming the data file getDataFile finds
-     * (downloading the free file when there is none), and returns false.
+     * Returns when the extension built its engine when PHP started, which is
+     * the engine every on-premise example uses. Otherwise runs the example
+     * again in a new PHP started with the data file getDataFile finds, the
+     * free file downloaded when there is none, so that the example runs with
+     * nothing set, and exits with that PHP's status. It exits with 1 and a
+     * message on standard error when it cannot.
      *
-     * A data file named by the first argument or the _51DEGREES_IPI_PATH
-     * environment variable that is not the one php.ini names is not loaded.
-     * The example says so and how to start PHP with it.
+     * When the engine is there, a data file named by the first argument or
+     * the _51DEGREES_IPI_PATH environment variable that is not the one
+     * php.ini names is not loaded. The example says so and how to start PHP
+     * with it.
      *
      * @param array<string> $argv The script's arguments, its own name first
      * @param string $freeFile The free file to download when none is found
      */
-    public static function hasStartupEngine(
+    public static function startWithEngine(
         array $argv,
         string $freeFile = ExampleConstants::LITE_DATA_FILE_NAME
-    ): bool {
+    ): void {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             self::writeError(
                 'The FiftyOneDegreesIpIntelligenceEngine extension is not ' .
                 'loaded. OnPremise.md says how to build and enable it.'
             );
-
-            return false;
+            exit(1);
         }
 
         $args = array_slice($argv, 1);
@@ -78,27 +80,45 @@ class ExampleUtils
                 );
             }
 
-            return true;
+            return;
         }
 
         $path = self::getDataFile($args, $freeFile);
-        $message = 'No IP intelligence engine was built when PHP started. ';
-        if ($configured !== '') {
-            $message .= "There is no data file at {$configured}, which " .
-                self::DATA_FILE_SETTING . ' names. ';
-        }
         if ($path === null) {
-            self::writeError($message . 'Set ' . self::DATA_FILE_SETTING .
-                ' in php.ini to the path of an .ipi data file.');
-
-            return false;
+            self::writeError(
+                'No IP intelligence engine was built when PHP started and ' .
+                'no data file was found. Set ' . self::DATA_FILE_SETTING .
+                ' in php.ini to the path of an .ipi data file.'
+            );
+            exit(1);
         }
-        self::writeError($message . 'Set ' . self::DATA_FILE_SETTING .
-            " in php.ini to {$path}, so that PHP builds the engine " .
-            "once when it starts, or run\n" .
-            self::startCommand($path, $argv));
+        if ($configured !== '' && realpath($configured) === realpath($path)) {
+            // This PHP was started with the data file and built no engine
+            // from it, so a new one would do the same.
+            self::writeError(
+                "No IP intelligence engine was built from {$path}, which " .
+                self::DATA_FILE_SETTING . ' names.'
+            );
+            exit(1);
+        }
 
-        return false;
+        $command = self::startCommand($path, $argv);
+        if (!function_exists('passthru')) {
+            self::writeError(
+                'No IP intelligence engine was built when PHP started. Set ' .
+                self::DATA_FILE_SETTING . " in php.ini to {$path}, or run\n" .
+                $command
+            );
+            exit(1);
+        }
+        self::writeError(
+            'No IP intelligence engine was built when PHP started, so the ' .
+            "example runs again in a PHP that builds one from {$path}. Set " .
+            self::DATA_FILE_SETTING . ' in php.ini, so that PHP builds the ' .
+            "engine once when it starts.\n{$command}"
+        );
+        passthru($command, $status);
+        exit($status);
     }
 
     /**
@@ -122,20 +142,36 @@ class ExampleUtils
 
     /**
      * The command that runs the script again with PHP building its engine
-     * from the data file when it starts.
+     * from the data file when it starts. Where the system gives PHP's own
+     * command line, its options, such as one loading the extension, are
+     * kept, and the data file setting goes after them, just before the
+     * script, so that it replaces any setting of the same name.
      *
      * @param array<string> $argv The script's arguments, its own name first
      */
     private static function startCommand(string $path, array $argv): string
     {
-        return implode(' ', array_merge(
-            [
-                escapeshellarg(PHP_BINARY),
-                '-d',
-                escapeshellarg(self::DATA_FILE_SETTING . '=' . $path)
-            ],
-            array_map('escapeshellarg', $argv)
-        ));
+        $parts = array_merge([PHP_BINARY], $argv);
+        $script = 1;
+        $line = is_readable('/proc/self/cmdline')
+            ? (string) file_get_contents('/proc/self/cmdline')
+            : '';
+        $started = $line === '' ? [] : explode("\0", rtrim($line, "\0"));
+        $found = array_search($argv[0], array_slice($started, 1), true);
+        if ($found !== false &&
+            array_slice($started, $found + 1) === $argv) {
+            $parts = $started;
+            $parts[0] = PHP_BINARY;
+            $script = $found + 1;
+        }
+
+        $quoted = array_map('escapeshellarg', $parts);
+        array_splice($quoted, $script, 0, [
+            '-d',
+            escapeshellarg(self::DATA_FILE_SETTING . '=' . $path)
+        ]);
+
+        return implode(' ', $quoted);
     }
 
     /**

@@ -134,10 +134,14 @@ or start PHP with it, as in this command from the root of the repository.
 php -d FiftyOneDegreesIpIntelligenceEngine.data_file="$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi" ip-intelligence/examples/onpremise/gettingstarted-console.php
 ```
 
-A console example started without the engine downloads the Lite file when
-it is missing and prints the command that starts PHP with it. The
-performance example names the far smaller free ASN file instead, as any data
-file will do for a benchmark. Each example shows the properties only the
+A console example started without the engine runs again in a PHP started
+with a data file, so it runs with nothing set in php.ini. The file is the
+one its first argument or `_51DEGREES_IPI_PATH` names, else one in `assets/`
+or `cxx/data/ip-intelligence`, else the Lite file, downloaded the first
+time. The performance example takes the far smaller free ASN file instead
+of the Lite file, as any data file will do for a benchmark. The engine
+always holds the whole data file in memory, so an example run with the
+Enterprise data file needs memory for all of it. Each example shows the properties only the
 Enterprise data file has as needing it, and gives a link to
 [contact us](https://51degrees.com/contact-us?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=examples)
 about a copy. The suspicious and translation examples need those properties

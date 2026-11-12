@@ -31,10 +31,9 @@ use fiftyone\pipeline\ipintelligence\examples\classes\OfflineProcessingConsoleOn
 
 // The example uses the engine the extension builds once, when PHP starts,
 // from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
-// Without it, the example says how to start PHP with it and stops.
-if (!ExampleUtils::hasStartupEngine($argv)) {
-    exit(1);
-}
+// Without it, the example runs again in a PHP started with a data file, the
+// free Lite file unless another is named, downloaded when it is missing.
+ExampleUtils::startWithEngine($argv);
 
 $ipAddresses = [];
 foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {

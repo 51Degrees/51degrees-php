@@ -128,9 +128,10 @@ Distributor, https://distributor.51degrees.com/api/v2/free/ipi-lite-v41,
 which always serves the latest Lite file and needs no License Key.
 
 Name the data file in `php.ini`, as above, and PHP builds the engine from it
-when it starts. A console example started without that engine prints the
-command that starts PHP with a data file and stops. The data file it names is
-the one in its first argument, the `_51DEGREES_IPI_PATH` environment
+when it starts. A console example started without that engine runs again in
+a PHP started with a data file, keeping the options PHP was started with
+where the system gives them, such as one loading the extension. The data
+file is the one in its first argument, the `_51DEGREES_IPI_PATH` environment
 variable, `assets/` or `cxx/data/ip-intelligence`, in that order, and when it
 finds none it runs the script to download the Lite file. The tests look in
 the same places, apart from the argument, and skip when they find no file.

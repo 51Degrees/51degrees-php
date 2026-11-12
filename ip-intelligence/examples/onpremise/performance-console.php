@@ -31,12 +31,10 @@ use fiftyone\pipeline\ipintelligence\examples\classes\PerformanceConsoleOnPremis
 
 // The example uses the engine the extension builds once, when PHP starts,
 // from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
-// Without it, the example says how to start PHP with it and stops. Any data
-// file will do for a benchmark, so without one the far smaller free ASN file
-// is downloaded rather than the Lite file.
-if (!ExampleUtils::hasStartupEngine($argv, ExampleConstants::ASN_DATA_FILE_NAME)) {
-    exit(1);
-}
+// Without it, the example runs again in a PHP started with a data file. Any
+// data file will do for a benchmark, so unless another is named it is the
+// far smaller free ASN file, downloaded when it is missing.
+ExampleUtils::startWithEngine($argv, ExampleConstants::ASN_DATA_FILE_NAME);
 
 // Wall-clock time cap in seconds (the benchmark samples throughput over this
 // window rather than running a fixed - and potentially very long - number of

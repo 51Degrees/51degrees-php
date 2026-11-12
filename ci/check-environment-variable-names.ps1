@@ -1,8 +1,11 @@
 # Every 51Degrees environment variable name in this repository starts with an
 # underscore, because a POSIX shell cannot set a name that starts with a digit,
-# and each variable has one name with nothing read in its place. This reads
-# every file git tracks, which leaves out build output and the submodules, and
-# fails on any name that starts with the digit and on any fallback name.
+# and each variable has one name with nothing read in its place. The one
+# exception is the cloud endpoint, whose old name the Cloud Request Engine and
+# the 51Did client still read, as a deprecated name, when the new one is not
+# set. This reads every file git tracks, which leaves out build output and the
+# submodules, and fails on any name that starts with the digit and on any
+# other fallback name.
 #
 # Dot-sourcing the script defines Find-EnvironmentNameProblem without reading
 # the repository, which is how its tests use it.
@@ -40,11 +43,12 @@ $script:DigitInitialPattern = [regex]::new(
 # resource_key, which differs from RESOURCE_KEY only by case. That name has
 # gone, so the reason has gone with it.
 #
-# Two kinds of old name. The old cloud endpoint name, the old IP Intelligence
-# data file name and the two FIFTYONE_ names the fork safety test read are
-# never anything but an environment variable, so they are matched wherever
-# they appear. Each is built from two pieces below so that this file does not
-# name one itself. RESOURCE_KEY, LICENSE_KEY and CLOUD_ENDPOINT also name
+# Two kinds of old name. The old IP Intelligence data file name and the two
+# FIFTYONE_ names the fork safety test read are never anything but an
+# environment variable, so they are matched wherever they appear. Each is
+# built from two pieces below so that this file does not name one itself. The
+# old cloud endpoint name is not matched, because the packages still read it.
+# RESOURCE_KEY, LICENSE_KEY and CLOUD_ENDPOINT also name
 # things that are not environment variables, being the resource_key query
 # string parameter the cloud service takes and the cloud_endpoint pipeline
 # setting, so those three are matched only where the line reads or sets a
@@ -55,8 +59,8 @@ $script:DigitInitialPattern = [regex]::new(
 # as prefixing it and reads one through the Env: drive, and a workflow
 # expression braces one too. Wanting the dollar beside the token misses every
 # braced form, which the CI scripts here write.
-$plainOld = '(?:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
-    'FIFTYONE_DATA' + '_FILE|FIFTYONE_UA' + '_CSV)'
+$plainOld = '(?:IPINTELLIGENCE' + 'DATAFILE|FIFTYONE_DATA' + '_FILE|' +
+    'FIFTYONE_UA' + '_CSV)'
 $sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|CLOUD_ENDPOINT)'
 $script:FallbackPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +

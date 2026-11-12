@@ -30,6 +30,7 @@ use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\Evidence;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\LicenseKey;
+use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\engines\Engine;
 
@@ -62,6 +63,10 @@ class CloudRequestEngine extends Engine
 
     // Set once the requested properties have been compared with an answer.
     private bool $notCoveredReported = false;
+
+    // Set while the base URL came from the deprecated environment
+    // variable and that has yet to be logged.
+    private bool $oldEndPointVariableToReport = false;
 
     /**
      * @var array<string>
@@ -105,6 +110,12 @@ class CloudRequestEngine extends Engine
             // Check if base URL is set via environment variable
             $envVarUrl = getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
             if (empty($envVarUrl)) {
+                // The deprecated variable is read only when the new one
+                // gives nothing.
+                $envVarUrl = getenv(Constants::FOD_CLOUD_API_URL);
+                $this->oldEndPointVariableToReport = !empty($envVarUrl);
+            }
+            if (empty($envVarUrl)) {
                 // Use default if nothing else is set
                 $this->baseURL = Constants::BASE_URL_DEFAULT;
             } else {
@@ -122,6 +133,25 @@ class CloudRequestEngine extends Engine
         $this->cloudRequestOrigin = $settings['cloudRequestOrigin'] ?? null;
 
         parent::__construct();
+    }
+
+    /**
+     * Logs once, as a warning through the logger of the first pipeline
+     * the engine is added to, that the base URL came from the deprecated
+     * environment variable.
+     */
+    public function onRegistration(Pipeline $pipeline): void
+    {
+        if (!$this->oldEndPointVariableToReport) {
+            return;
+        }
+
+        $this->oldEndPointVariableToReport = false;
+        $pipeline->log('warning', sprintf(
+            Constants::MESSAGE_ENDPOINT_VARIABLE_DEPRECATED,
+            Constants::FOD_CLOUD_API_URL,
+            Constants::CLOUD_ENDPOINT_VARIABLE
+        ));
     }
 
     /**

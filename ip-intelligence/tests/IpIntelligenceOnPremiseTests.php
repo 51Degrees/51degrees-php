@@ -216,8 +216,6 @@ class IpIntelligenceOnPremiseTests extends TestCase
     /**
      * Closing the FlowData releases its results and closing the pipeline
      * releases the engine, and each throws an exception if used afterwards.
-     * Asking whether a property exists is the one thing that still answers,
-     * because isset must not throw.
      */
     public function testCloseReleasesResultsAndEngine(): void
     {
@@ -230,14 +228,12 @@ class IpIntelligenceOnPremiseTests extends TestCase
         try {
             $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
             $echo = $flowData->process()->ip->ip->value;
-            $known = isset($flowData->ip->registeredname);
         } finally {
             $flowData->close();
             $pipeline->close();
         }
 
         $this->assertSame(Constants::IPV4_ADDRESS, $echo);
-        $this->assertTrue($known);
         $this->assertNull($pipeline->getElement('ip')->engine);
 
         $message = null;
@@ -248,12 +244,6 @@ class IpIntelligenceOnPremiseTests extends TestCase
         }
         $this->assertSame(Messages::RESULTS_CLOSED, $message);
 
-        // The engine has no metadata left to search, so it has no property
-        // of that name, and asking answers rather than throwing. The name
-        // has to be one nothing asked about while the engine was open,
-        // because the engine keeps what it has already looked up.
-        $this->assertFalse(isset($flowData->ip->registeredcountry));
-
         $after = $pipeline->createFlowData();
         try {
             $after->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
@@ -262,6 +252,52 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             $after->close();
         }
+    }
+
+    /**
+     * Asking a closed engine whether it has a property answers rather than
+     * throwing, because isset must not throw. Looking a name up needs the
+     * engine, which closing the pipeline releases.
+     *
+     * The pipeline leaves out the two elements that read every property,
+     * because each of them builds the table of every property, and the
+     * table answers without the engine, so the closed engine would never
+     * be reached.
+     */
+    public function testAskingAClosedEngineAboutAPropertyAnswersFalse(): void
+    {
+        $engine = new IpIntelligenceOnPremise([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'MaxPerformance'
+        ]);
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false
+        ]))->add($engine)->build();
+
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $known = isset($flowData->ip->registeredname);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+
+        // A name the engine was built with is looked up on its own, so the
+        // table is still unbuilt. Without this the test would pass on the
+        // table alone and never reach the closed engine.
+        $this->assertTrue($known);
+        $this->assertFalse(
+            (new \ReflectionProperty($engine, 'properties'))
+                ->isInitialized($engine)
+        );
+        $this->assertNull($engine->engine);
+
+        // The name has to be one nothing asked about while the engine was
+        // open, because the engine keeps what it has already looked up.
+        $this->assertFalse(isset($flowData->ip->registeredcountry));
     }
 
     public function testInvalidPerformanceProfileRejected(): void

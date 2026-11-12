@@ -96,8 +96,8 @@ function readVariable(string $name, string $deprecated): string
 $dataFile = readVariable('_51DEGREES_DD_PATH', 'FIFTYONE_DATA_FILE') ?: ($argv[1] ?? '');
 $uaCsv = readVariable('_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV') ?: ($argv[3] ?? '');
 
-// The extension defines the engine classes itself, so the wrapper file this
-// variable named is no longer loaded.
+// The extension defines the engine classes itself, so no wrapper file is
+// loaded for this variable.
 if ((string) getenv('FIFTYONE_WRAPPER') !== '') {
     fwrite(STDERR, 'The environment variable FIFTYONE_WRAPPER is deprecated and ' .
         "nothing replaces it. No wrapper file is loaded, so stop setting it.\n");

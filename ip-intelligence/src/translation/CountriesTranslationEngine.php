@@ -105,8 +105,8 @@ class CountriesTranslationEngine extends TranslationEngine
     }
 
     /**
-     * Logs that the data file was read from the deprecated environment
-     * variable, when it was and has not been logged yet.
+     * Logs that a value was read from the deprecated environment variable,
+     * when one was and that has not been logged yet.
      */
     public function onRegistration(Pipeline $pipeline): void
     {

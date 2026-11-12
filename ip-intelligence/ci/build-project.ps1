@@ -28,8 +28,12 @@ try {
     Pop-Location
 }
 
+# The extension builds its engine once, when PHP starts, from the free Lite
+# data file that fetch-assets links into the package's assets folder, as
+# OnPremise.md says to set it up. The examples use that engine.
 @"
 extension = "$PWD/$RepoName/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so"
+FiftyOneDegreesIpIntelligenceEngine.data_file = "$PWD/$RepoName/assets/51Degrees-LiteIpiV41.ipi"
 "@ | Out-File $RepoName/php.ini
 
 # composer.json resolves 51degrees/fiftyone.pipeline.translation through a path

@@ -38,8 +38,11 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
  *  - the device detection Hash engine (51degrees/fiftyone.devicedetection
  *    on-premise package and its FiftyOneDegreesHashEngine extension, with its
  *    data file configured via php.ini), and
- *  - the IP intelligence engine (FiftyOneDegreesIpIntelligenceEngine extension)
- *    with an .ipi data file.
+ *  - the IP intelligence engine (FiftyOneDegreesIpIntelligenceEngine
+ *    extension, with its data file configured via php.ini).
+ *
+ * Each extension builds its engine once, when PHP starts, so no request
+ * loads either data file.
  */
 class MixedConsoleOnPremise
 {
@@ -55,7 +58,7 @@ class MixedConsoleOnPremise
      * @throws \Exception when the device detection on-premise engine is not
      *   available in the environment.
      */
-    public function run(string $ipDataFile, $output): void
+    public function run($output): void
     {
         $ddClass = self::DEVICE_DETECTION_ONPREMISE_CLASS;
         if (!class_exists($ddClass)) {
@@ -70,13 +73,9 @@ class MixedConsoleOnPremise
         // FiftyOneDegreesHashEngine.data_file php.ini setting.
         $deviceEngine = new $ddClass();
 
-        $ipEngine = new IpIntelligenceOnPremise([
-            'dataFile' => $ipDataFile,
-            // The example uses the Enterprise data file when it finds one,
-            // which is several gigabytes, and LowMemory keeps the memory it
-            // needs small.
-            'performanceProfile' => 'LowMemory'
-        ]);
+        // The IP intelligence engine reads its data file from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $ipEngine = new IpIntelligenceOnPremise();
 
         $pipeline = (new PipelineBuilder([]))
             ->add($deviceEngine)

@@ -38,20 +38,16 @@ class IpIntelligenceOnPremisePipelineBuilder extends PipelineBuilder
 {
     /**
      * The settings are passed straight through to IpIntelligenceOnPremise.
+     * With none, the pipeline uses the engine the extension builds once,
+     * when PHP starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file
+     * php.ini setting. A "dataFile" setting, for command-line tools only,
+     * builds a new engine from the data file every time, and is refused
+     * outside the command line, as IpIntelligenceOnPremise describes.
      *
      * @param array<string, mixed> $settings
-     *   dataFile            - (required, unless the global engine is used)
-     *                         path to the .ipi data file.
-     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES,
-     *                         defaulting to Constants::DEFAULT_PERFORMANCE_PROFILE.
-     *   restrictedProperties- (optional) list of properties to populate.
-     *   concurrency         - (optional) expected concurrent accesses.
-     *
-     * Omitting "dataFile" reuses the shared global engine when one exists;
-     * see IpIntelligenceOnPremise for what that rejects.
      * @throws \Exception
      */
-    public function __construct(array $settings)
+    public function __construct(array $settings = [])
     {
         parent::__construct($settings);
 

@@ -105,19 +105,32 @@ class IpIntelligenceOnPremise extends Engine
     private array $readProperties = [];
 
     /**
-     * @param array<string, mixed> $settings
-     *   dataFile            - (required, unless the global engine is used)
-     *                         path to the .ipi data file.
-     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES,
-     *                         defaulting to Constants::DEFAULT_PERFORMANCE_PROFILE.
-     *   restrictedProperties- (optional) list of properties to populate.
-     *   concurrency         - (optional) expected concurrent accesses.
+     * Uses the engine the extension builds once, when PHP starts, from the
+     * FiftyOneDegreesIpIntelligenceEngine.* php.ini settings. Set
+     * FiftyOneDegreesIpIntelligenceEngine.data_file to the .ipi data file and
+     * pass no settings. That engine always holds the whole data file in
+     * memory, so a performance_profile ini setting other than
+     * Constants::STARTUP_PERFORMANCE_PROFILE is rejected, as are
+     * ENGINE_SETTINGS.
      *
-     * Omitting "dataFile" reuses the shared global engine when one exists.
-     * That engine comes from the FiftyOneDegreesIpIntelligenceEngine.* ini
-     * settings, so ENGINE_SETTINGS are rejected on that path. It is always
-     * built in memory, so a performance_profile ini setting other than
-     * Constants::STARTUP_PERFORMANCE_PROFILE is rejected too.
+     * @param array<string, mixed> $settings
+     *   dataFile            - (optional, command-line tools only) path to
+     *                         an .ipi data file to build a new engine from,
+     *                         in place of the one built when PHP starts.
+     *                         Each construction opens the data file again
+     *                         and reads as much of it into memory as the
+     *                         performance profile asks for, the whole file
+     *                         with MaxPerformance. A web server constructs
+     *                         this class in every request, so under any SAPI
+     *                         other than 'cli' the setting is refused with an
+     *                         exception.
+     *   performanceProfile  - (optional, with dataFile) one of
+     *                         Constants::PERFORMANCE_PROFILES, defaulting to
+     *                         Constants::DEFAULT_PERFORMANCE_PROFILE.
+     *   restrictedProperties- (optional, with dataFile) list of properties
+     *                         to populate.
+     *   concurrency         - (optional, with dataFile) expected concurrent
+     *                         accesses.
      * @throws \Exception
      */
     public function __construct(array $settings = [])
@@ -159,7 +172,12 @@ class IpIntelligenceOnPremise extends Engine
         }
 
         if (!$dataFile) {
-            throw new \Exception('A "dataFile" setting is required for the on-premise IP intelligence engine, or set the FiftyOneDegreesIpIntelligenceEngine.data_file ini to build a shared global engine.');
+            throw new \Exception(Messages::NO_STARTUP_ENGINE);
+        }
+
+        // Only a command-line tool builds its engine once for its whole run.
+        if (PHP_SAPI !== 'cli') {
+            throw new \Exception(Messages::DATA_FILE_SETTING_REFUSED);
         }
 
         if (substr($dataFile, -strlen(Constants::DATA_FILE_EXTENSION)) !== Constants::DATA_FILE_EXTENSION) {

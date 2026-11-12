@@ -356,6 +356,140 @@ class IpIntelligenceOnPremiseTests extends TestCase
     }
 
     /**
+     * Under a web server, here PHP's built-in one, whose SAPI is not 'cli',
+     * PHP builds this class in every request, so the "dataFile" setting,
+     * which would load the data file in every request, is refused. The
+     * engine built when PHP started is used with no settings.
+     */
+    public function testDataFileSettingIsRefusedUnderAWebServer(): void
+    {
+        $answers = $this->askWebServer(['dataFile', 'startup']);
+        $this->assertSame(
+            Messages::DATA_FILE_SETTING_REFUSED,
+            $answers['dataFile']
+        );
+        $this->assertSame('OK', $answers['startup']);
+    }
+
+    /**
+     * On the command line a tool builds its engine once for its whole run,
+     * so the "dataFile" setting is accepted there.
+     */
+    public function testDataFileSettingIsAcceptedOnTheCommandLine(): void
+    {
+        $this->assertSame('cli', PHP_SAPI);
+        $engine = new IpIntelligenceOnPremise([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'LowMemory'
+        ]);
+        try {
+            $this->assertSame('ip', $engine->dataKey);
+        } finally {
+            $engine->close();
+        }
+    }
+
+    // Answers each request to PHP's built-in web server with OK, or the
+    // message of the exception, after building IpIntelligenceOnPremise from
+    // the "dataFile" setting when the path is /dataFile, and with no
+    // settings otherwise. The placeholders are the autoloader and the data
+    // file.
+    private const SERVE_PHP = <<<'PHP'
+        <?php
+        require %s;
+        $settings = $_SERVER['REQUEST_URI'] === '/dataFile'
+            ? ['dataFile' => %s, 'performanceProfile' => 'LowMemory']
+            : [];
+        try {
+            $engine = new fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise(
+                $settings
+            );
+            $engine->close();
+            echo 'OK';
+        } catch (Throwable $e) {
+            echo $e->getMessage();
+        }
+        PHP;
+
+    /**
+     * Starts PHP's built-in web server with the php.ini data file naming the
+     * Lite file, asks it for each path, and returns its answers by path.
+     *
+     * @param array<string> $paths
+     * @return array<string, string>
+     */
+    private function askWebServer(array $paths): array
+    {
+        $dataFile = realpath($this->liteDataFile());
+        $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
+        $autoload = dirname(
+            (new \ReflectionClass(\Composer\Autoload\ClassLoader::class))
+                ->getFileName(),
+            2
+        ) . '/autoload.php';
+        $folder = sys_get_temp_dir() . '/ipi-web-server-' . uniqid();
+        mkdir($folder);
+        $router = $folder . '/router.php';
+        $log = $folder . '/server.log';
+        file_put_contents($router, sprintf(
+            self::SERVE_PHP,
+            var_export($autoload, true),
+            var_export($dataFile, true)
+        ));
+
+        // A free port, from a socket the system gives one to and then closes.
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        $address = stream_socket_get_name($socket, false);
+        fclose($socket);
+
+        $server = proc_open(
+            [
+                PHP_BINARY,
+                '-d',
+                "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}",
+                '-S',
+                $address,
+                $router
+            ],
+            [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']],
+            $pipes
+        );
+        $this->assertIsResource($server);
+        try {
+            $answers = [];
+            foreach ($paths as $path) {
+                $answers[$path] = $this->ask("http://{$address}/{$path}", $log);
+            }
+
+            return $answers;
+        } finally {
+            proc_terminate($server);
+            proc_close($server);
+            @unlink($router);
+            @unlink($log);
+            @rmdir($folder);
+        }
+    }
+
+    /**
+     * The body of the answer from the URL, waiting up to 30 seconds for the
+     * server to start.
+     */
+    private function ask(string $url, string $log): string
+    {
+        $deadline = microtime(true) + 30;
+        do {
+            $answer = @file_get_contents($url);
+            if ($answer !== false) {
+                return $answer;
+            }
+            usleep(200000);
+        } while (microtime(true) < $deadline);
+
+        $this->fail("No answer from {$url}. " . @file_get_contents($log));
+    }
+
+    /**
      * The engine the extension builds when PHP starts only exists when the
      * data_file php.ini setting was given at start-up.
      */
@@ -683,12 +817,12 @@ class IpIntelligenceOnPremiseTests extends TestCase
                 ->getFileName(),
             2
         ) . '/autoload.php';
-        $command = escapeshellarg(PHP_BINARY);
-        if ($dataFileProfile === '') {
-            $command .= ' -d ' . escapeshellarg(
-                "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}"
-            );
-        }
+        // An empty data file setting overrides one in php.ini, so that PHP
+        // builds no engine when it starts.
+        $command = escapeshellarg(PHP_BINARY) . ' -d ' . escapeshellarg(
+            'FiftyOneDegreesIpIntelligenceEngine.data_file=' .
+            ($dataFileProfile === '' ? $dataFile : '')
+        );
         if ($iniProfile !== null) {
             $command .= ' -d ' . escapeshellarg(
                 "FiftyOneDegreesIpIntelligenceEngine.performance_profile={$iniProfile}"

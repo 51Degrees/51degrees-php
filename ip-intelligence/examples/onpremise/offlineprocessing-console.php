@@ -29,16 +29,15 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\examples\classes\OfflineProcessingConsoleOnPremise;
 
-$dataFile = ExampleUtils::getDataFile(array_slice($argv, 1));
-
-if (!$dataFile) {
-    fwrite(STDERR, "An IP intelligence data file (.ipi) is required. Supply its path as the first argument or via the _51DEGREES_IPI_PATH environment variable.\n");
-    exit(1);
-}
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+// Without it, the example runs again in a PHP started with a data file, the
+// free Lite file unless another is named, downloaded when it is missing.
+ExampleUtils::startWithEngine($argv);
 
 $ipAddresses = [];
 foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
     $ipAddresses[] = $evidence['query.client-ip'];
 }
 
-(new OfflineProcessingConsoleOnPremise())->run($dataFile, $ipAddresses, STDOUT);
+(new OfflineProcessingConsoleOnPremise())->run($ipAddresses, STDOUT);

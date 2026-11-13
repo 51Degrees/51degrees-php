@@ -31,6 +31,14 @@ class ExampleUtils
 
     // Environment variable that can name the device detection data file. It
     // is the name the 51Degrees examples in every language read.
+    public const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
+
+    /**
+     * Environment variable read for the data file when DD_PATH_VARIABLE is
+     * not set or is empty.
+     *
+     * @deprecated use {@see ExampleUtils::DD_PATH_VARIABLE}
+     */
     public const DATA_FILE_ENV_VAR = '51DEGREES_DD_PATH';
 
     // Sent with each download of a data file, so that downloads can be
@@ -45,7 +53,7 @@ class ExampleUtils
     public const NEEDS_ENTERPRISE = 'needs the Enterprise data file';
 
     /**
-     * Use the data file named by the 51DEGREES_DD_PATH environment variable,
+     * Use the data file named by the _51DEGREES_DD_PATH environment variable,
      * when it is set, in place of the one set in php.ini.
      *
      * The engine is created once, when PHP starts, from the
@@ -62,7 +70,10 @@ class ExampleUtils
      */
     public static function useDataFileFromEnv($engine, $logger)
     {
-        $path = ExampleUtils::getEnvVariable(ExampleUtils::DATA_FILE_ENV_VAR);
+        $path = EnvironmentVariable::read(
+            ExampleUtils::DD_PATH_VARIABLE,
+            ExampleUtils::DATA_FILE_ENV_VAR
+        );
         if ($path === '') {
             return;
         }
@@ -72,7 +83,7 @@ class ExampleUtils
         if ($wanted === false) {
             throw new \Exception(
                 "The data file '{$path}' named by the environment variable '" .
-                ExampleUtils::DATA_FILE_ENV_VAR . "' does not exist."
+                ExampleUtils::DD_PATH_VARIABLE . "' does not exist."
             );
         }
 
@@ -83,7 +94,7 @@ class ExampleUtils
         $logger->log(
             'info',
             "Loading the data file '{$wanted}' named by the environment " .
-            "variable '" . ExampleUtils::DATA_FILE_ENV_VAR . "'."
+            "variable '" . ExampleUtils::DD_PATH_VARIABLE . "'."
         );
         $engine->refreshData($wanted);
     }
@@ -347,13 +358,6 @@ class ExampleUtils
         }
 
         return false;
-    }
-
-    private static function getEnvVariable($name)
-    {
-        $env = getenv();
-
-        return $env[$name] ?? '';
     }
 
     /**

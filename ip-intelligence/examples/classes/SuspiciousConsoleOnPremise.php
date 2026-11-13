@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\examples\classes;
 
+use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
+
 /**
  * Suspicious IP analysis (on-premise). Mirrors
  * ip-intelligence-dotnet-examples OnPremise/Suspicious-Console: it combines the
@@ -56,29 +58,35 @@ class SuspiciousConsoleOnPremise
     /**
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             fwrite($output, "The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.\n");
             return;
         }
 
-        $config = new \ConfigIpiSwig();
-        $config->setLowMemory();
-        $config->setUseUpperPrefixHeaders(false);
-        $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
-        if (ExampleUtils::lacksEnterpriseProperties(
-            $engine,
-            'Finding suspicious IP addresses',
-            self::SUSPICIOUS_PROPERTIES,
-            $output,
-            self::CONTACT_US
-        )) {
-            return;
-        }
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting. The
+        // element is closed in the finally block, and the engine belongs to
+        // the extension and stays loaded.
+        $element = new IpIntelligenceOnPremise();
+        try {
+            $engine = $element->engine;
+            if (ExampleUtils::lacksEnterpriseProperties(
+                $engine,
+                'Finding suspicious IP addresses',
+                self::SUSPICIOUS_PROPERTIES,
+                $output,
+                self::CONTACT_US
+            )) {
+                return;
+            }
 
-        foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
-            $this->analyseEvidence($evidence, $engine, $output);
+            foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
+                $this->analyseEvidence($evidence, $engine, $output);
+            }
+        } finally {
+            $element->close();
         }
     }
 

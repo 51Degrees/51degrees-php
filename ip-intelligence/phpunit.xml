@@ -4,9 +4,9 @@
          colors="true"
          cacheResult="false">
   <php>
-    <env name="resource_key" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="FOD_CLOUD_API_URL" value=""/>
-    <env name="IPINTELLIGENCEDATAFILE" value=""/>
+    <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
+    <env name="_51DEGREES_CLOUD_ENDPOINT" value=""/>
+    <env name="_51DEGREES_IPI_PATH" value=""/>
   </php>
   <testsuites>
     <!-- Runs everywhere: no native extension, data file or network needed. -->
@@ -14,6 +14,8 @@
       <file>tests/SwigDataTests.php</file>
       <file>tests/ClientIpTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
+      <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/ExamplesUseStartupEngineTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/IpIntelligenceCloudTests.php</file>

@@ -29,6 +29,7 @@ use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -83,6 +84,20 @@ class ScriptDeviceElement extends FlowElement
  */
 class JavaScriptBuilderParametersTests extends TestCase
 {
+    /**
+     * The JavaScript Builder accepts a key that starts with query., in any
+     * letter case, and not one that only holds query. somewhere inside it.
+     */
+    public function testOnlyAKeyStartingWithQueryIsAccepted()
+    {
+        $element = new JavascriptBuilderElement();
+
+        $this->assertTrue($element->filterEvidenceKey('query.anything'));
+        $this->assertTrue($element->filterEvidenceKey('Query.Anything'));
+        $this->assertFalse($element->filterEvidenceKey('header.x-query.y'));
+        $this->assertFalse($element->filterEvidenceKey('cookie.query.z'));
+    }
+
     public function testOnlyQueryEvidenceBecomesAParameter()
     {
         $script = $this->render([
@@ -139,6 +154,53 @@ class JavaScriptBuilderParametersTests extends TestCase
         $script = $this->render(['header.host' => 'example.com']);
 
         $this->assertSame('{}', $this->parameters($script));
+    }
+
+    /**
+     * Evidence keys ignore letter case, and the evidence is handed back with
+     * each key in the letters it was first set with, so the session id and
+     * the sequence are left out of the parameters whatever those letters
+     * are. Both already travel in the request body as their own values, so a
+     * spelling that slipped past sent each of them a second time and the
+     * session id changing on every page view stopped the record of a
+     * request's inputs ever matching.
+     */
+    public function testSessionIdAndSequenceAreLeftOutInAnyLetterCase()
+    {
+        $spellings = [
+            ['Query.Session-ID', 'Query.Sequence'],
+            ['QUERY.SESSION-ID', 'QUERY.SEQUENCE'],
+            ['query.session-id', 'query.sequence'],
+        ];
+
+        foreach ($spellings as [$sessionId, $sequence]) {
+            $script = $this->render([
+                'header.host' => 'example.com',
+                $sessionId => 'abc',
+                $sequence => '2',
+                'query.mark' => 'kept'
+            ]);
+
+            $this->assertSame(
+                '{"mark":"kept"}',
+                $this->parameters($script),
+                $sessionId
+            );
+        }
+    }
+
+    /**
+     * The prefix is matched without regard to letter case already, so a
+     * query key in other letters still becomes a parameter.
+     */
+    public function testQueryEvidenceInAnyLetterCaseBecomesAParameter()
+    {
+        $script = $this->render([
+            'header.host' => 'example.com',
+            'Query.Mark' => 'kept'
+        ]);
+
+        $this->assertSame('{"Mark":"kept"}', $this->parameters($script));
     }
 
     /**
@@ -283,6 +345,67 @@ class JavaScriptBuilderParametersTests extends TestCase
             '"https://exa mple.com/json"',
             $errors[0]
         );
+    }
+
+    public static function provider_loggedHosts(): array
+    {
+        return [
+            ['user:secret@example.com', 'https://***@example.com/json'],
+            ['a@b@example.com', 'https://***@example.com/json'],
+            ['u@[::1]:80x', 'https://***@[::1]:80x/json'],
+            ['user:pa/ss@example.com', 'https://***@example.com/json'],
+            ['user:pa?ss@example.com', 'https://***@example.com/json'],
+            ['exa mple.com/a@b', 'https://***@b/json']
+        ];
+    }
+
+    /**
+     * The log never holds what comes before the last '@' of the host value.
+     * Each host has an element of its own because a refusal is logged once
+     * per element.
+     *
+     * @dataProvider provider_loggedHosts
+     */
+    #[DataProvider('provider_loggedHosts')]
+    public function testRefusedHostIsLoggedWithoutItsUserInformation(
+        string $host,
+        string $logged
+    ) {
+        [$scripts, $errors] = $this->renderWithHosts([$host]);
+
+        $this->assertSame([], $this->requestUrls($scripts[0]));
+        $this->assertCount(1, $errors, json_encode($errors));
+        $this->assertStringContainsString('"' . $logged . '"', $errors[0]);
+        $this->assertStringNotContainsString('secret', $errors[0]);
+        $this->assertDoesNotMatchRegularExpression('/\\bpa\\b/', $errors[0]);
+    }
+
+    /**
+     * A host from the settings is refused and logged the same way.
+     */
+    public function testRefusedConfiguredHostIsLoggedWithoutUserInformation()
+    {
+        $logger = new CallbackUrlTestLogger('error');
+        $pipeline = (new PipelineBuilder([
+            'javascriptBuilderSettings' => [
+                'host' => 'user:secret@example.com',
+                'endpoint' => '/json',
+                'minify' => false
+            ]
+        ]))->addLogger($logger)->build();
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(
+            [],
+            $this->requestUrls($flowData->javascriptbuilder->javascript)
+        );
+        $this->assertCount(1, $logger->errors, json_encode($logger->errors));
+        $this->assertStringContainsString(
+            '"https://***@example.com/json"',
+            $logger->errors[0]
+        );
+        $this->assertStringNotContainsString('secret', $logger->errors[0]);
     }
 
     /**

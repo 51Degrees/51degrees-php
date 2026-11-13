@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\cloudrequestengine;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\AspectDataDictionary;
@@ -36,7 +37,8 @@ use fiftyone\pipeline\engines\CloudEngineBase;
  * It requires the 51Degrees cloudRequestEngine to be placed in a
  *  pipeline before it. It takes that raw JSON response and
  * parses it to extract the device part.
- * It also uses this data to generate a list of properties and an evidence key filter.
+ * It also uses this data to generate a list of properties. It reads no
+ * Evidence, so it accepts none.
  */
 class CloudEngine extends CloudEngineBase
 {
@@ -46,6 +48,11 @@ class CloudEngine extends CloudEngineBase
      * @var array<string, array<string, mixed>>
      */
     public array $aspectProperties;
+
+    /**
+     * Whether the missing product has been logged for this engine.
+     */
+    private bool $missingProductLogged = false;
 
     /**
      * Callback called when an engine is added to a pipeline.
@@ -61,6 +68,15 @@ class CloudEngine extends CloudEngineBase
         throw new \Exception(Constants::CLOUDREQUESTENGINE_EXCEPTION_MESSAGE);
     }
 
+    /**
+     * A cloud engine reads only the Cloud Request Engine's response, so it
+     * accepts no Evidence.
+     */
+    public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
+    {
+        return new BasicListEvidenceKeyFilter([]);
+    }
+
     public function processInternal(FlowData $flowData): void
     {
         if (isset($flowData->pipeline->flowElementsList['cloud']->flowElementProperties[$this->dataKey])) {
@@ -70,10 +86,20 @@ class CloudEngine extends CloudEngineBase
 
         $cloudData = $flowData->get('cloud')->get('cloud');
 
+        $this->logMissingProduct($flowData);
+
         if ($cloudData) {
             $cloudData = json_decode($cloudData, true);
 
             $result = [];
+
+            // A response with no portion for this engine gives empty data,
+            // and is not an error.
+            if (!isset($cloudData[$this->dataKey]) || !is_array($cloudData[$this->dataKey])) {
+                $flowData->setElementData(new AspectDataDictionary($this, $result));
+
+                return;
+            }
 
             foreach ($cloudData[$this->dataKey] as $key => $value) {
                 if (isset($cloudData[$this->dataKey][$key . 'nullreason'])) {
@@ -87,5 +113,26 @@ class CloudEngine extends CloudEngineBase
 
             $flowData->setElementData($data);
         }
+    }
+
+    /**
+     * Log once, at warning level, when the products the Cloud Request Engine
+     * found hold nothing for this engine's Data Key. A Resource Key with no
+     * product for the engine is not an error. Call this after reading the
+     * Cloud Request Engine's Element Data, because the products are found
+     * before that data is set.
+     */
+    protected function logMissingProduct(FlowData $flowData): void
+    {
+        $products = $flowData->pipeline->flowElementsList['cloud']->flowElementProperties;
+        if ($this->missingProductLogged || isset($products[$this->dataKey])) {
+            return;
+        }
+
+        $this->missingProductLogged = true;
+        $flowData->pipeline->log('warning', sprintf(
+            "The Resource Key includes no product for '%s', so the engine gives no data.",
+            $this->dataKey
+        ));
     }
 }

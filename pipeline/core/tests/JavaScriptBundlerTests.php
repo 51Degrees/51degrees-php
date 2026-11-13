@@ -186,7 +186,14 @@ class JavaScriptBundlerTests extends TestCase
             ]
         ];
 
-        $this->assertSame($expected, $flowData->jsonbundler->json);
+        // The Sequence Element's data is in the JSON, with a session id that
+        // changes on every run.
+        $json = $flowData->jsonbundler->json;
+        $this->assertSame(['session-id', 'sequence'], array_keys($json['sequence']));
+        $this->assertSame(1, $json['sequence']['sequence']);
+        unset($json['sequence']);
+
+        $this->assertSame($expected, $json);
     }
 
     public function testJavaScriptBuilderMinify()

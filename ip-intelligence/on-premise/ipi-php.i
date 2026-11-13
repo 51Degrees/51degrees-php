@@ -64,8 +64,7 @@
 
     PHP_INI_BEGIN()
     PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.data_file", "", PHP_INI_ALL, NULL)
-    /* Keep in step with Constants::DEFAULT_PERFORMANCE_PROFILE. */
-    PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.performance_profile", "Balanced", PHP_INI_ALL, NULL)
+    PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.performance_profile", NULL, PHP_INI_ALL, NULL)
     PHP_INI_ENTRY("FiftyOneDegreesIpIntelligenceEngine.required_properties", "", PHP_INI_ALL, NULL)
     PHP_INI_END()
 %}
@@ -78,21 +77,16 @@ EngineIpi *ipi_engine;
     char *filePath = INI_STR("FiftyOneDegreesIpIntelligenceEngine.data_file");
     struct stat sb;
     if (filePath != NULL && strlen(filePath) > 0 && stat(filePath, &sb) == 0) {
-        char *profile = INI_STR("FiftyOneDegreesIpIntelligenceEngine.performance_profile");
         char *propertyList = INI_STR("FiftyOneDegreesIpIntelligenceEngine.required_properties");
         ipi_engine_config = new ConfigIpi();
-        if (profile != NULL && strcmp(profile, "MaxPerformance") == 0) {
-            ipi_engine_config->setMaxPerformance();
-        } else if (profile != NULL && strcmp(profile, "HighPerformance") == 0) {
-            ipi_engine_config->setHighPerformance();
-        } else if (profile != NULL && strcmp(profile, "BalancedTemp") == 0) {
-            ipi_engine_config->setBalancedTemp();
-        } else if (profile != NULL && strcmp(profile, "LowMemory") == 0) {
-            ipi_engine_config->setLowMemory();
-        } else {
-            /* "Balanced" and anything unrecognised. */
-            ipi_engine_config->setBalanced();
-        }
+        /*
+         * The engine built when PHP starts is shared by the workers a process
+         * manager forks from this process. Every profile but MaxPerformance
+         * keeps the data file open, and forked workers sharing those handles
+         * corrupt each other's reads, so this engine always loads the whole
+         * file. IpIntelligenceOnPremise refuses any other php.ini profile.
+         */
+        ipi_engine_config->setMaxPerformance();
         ipi_engine_config->setUseUpperPrefixHeaders(false);
         if (propertyList != NULL && strlen(propertyList) > 0) {
             ipi_engine_properties = new RequiredPropertiesConfig(propertyList);

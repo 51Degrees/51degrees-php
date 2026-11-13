@@ -28,8 +28,9 @@ namespace fiftyone\pipeline\ipintelligence\examples\classes;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 
 /**
- * Metadata (on-premise) example. Lists the properties present in a local
- * .ipi data file along with their type, category and component.
+ * Metadata (on-premise) example. Lists the properties in the data file of
+ * the engine the extension builds when PHP starts, along with their type,
+ * category and component.
  */
 class MetadataConsoleOnPremise
 {
@@ -40,15 +41,14 @@ class MetadataConsoleOnPremise
     /**
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
-        $engine = new IpIntelligenceOnPremise([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
-        ]);
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $engine = new IpIntelligenceOnPremise();
 
-        // The engine is closed in the finally block, which releases the
-        // native data it loaded from the data file.
+        // The element is closed in the finally block. The engine it uses
+        // belongs to the extension and stays loaded.
         try {
             $properties = $engine->getProperties();
 

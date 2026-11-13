@@ -42,12 +42,12 @@ class OfflineProcessingConsoleOnPremise
      * @param array<string> $ipAddresses
      * @param resource $output
      */
-    public function run(string $dataFile, array $ipAddresses, $output): void
+    public function run(array $ipAddresses, $output): void
     {
-        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
-        ]))->build();
+        // The engine is the one the extension built when PHP started, from
+        // the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting,
+        // so the pipeline takes no settings.
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder())->build();
 
         // The pipeline is closed in the finally block, which releases the
         // native data it holds.

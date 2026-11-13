@@ -31,6 +31,45 @@ base language (`en`), resolution stops and the values are left untranslated
 (the source data is already English). A two letter candidate falls back to the
 first available locale that starts with it (`fr` matches `fr_FR`).
 
+## Configuration file
+
+`PipelineBuilder::buildFromConfig` builds the engine from a configuration file,
+as it builds any element, passing the `BuildParameters` to the constructor as
+one settings array. The settings use the option names of the Translation Engine
+specification, or the same names in camelCase, the style other PHP elements'
+settings use.
+
+- `SourceElementDataKey`, the element whose values are translated. Required.
+- `FixedLanguage`, a locale to always translate into, such as `en_GB`.
+  Otherwise the locale comes from the evidence.
+- `MissingTranslationBehavior`, being `Original` (the default), `EmptyString`
+  or `FlowError`, in any case.
+
+```json
+{
+  "PipelineOptions": {
+    "Elements": [
+      {
+        "BuilderName": "fiftyone\\pipeline\\translation\\TranslationEngine",
+        "BuildParameters": {
+          "SourceElementDataKey": "ip",
+          "FixedLanguage": "en_GB",
+          "MissingTranslationBehavior": "Original"
+        }
+      }
+    ]
+  }
+}
+```
+
+An engine built this way uses the element data key `translation`. This engine
+does not read sources and translations from settings, so it has none and
+returns no properties. An engine for one particular translation adds its own
+and is the one to name in a configuration file. The country translation
+engines in ip-intelligence are engines of that kind, named with no
+`BuildParameters`, because their constructors take the folder of translation
+files rather than settings.
+
 ## Classes
 
 - `TranslationEngine` - the base pipeline engine.
@@ -42,6 +81,6 @@ first available locale that starts with it (`fr` matches `fr_FR`).
 ## Find out more
 
 - [Build your own](https://51degrees.com/build-your-own?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.translation&utm_term=find-out-more-build-your-own)
-- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.translation&utm_term=find-out-more-documentation)
+- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.translation&utm_term=find-out-more-documentation)
 - [Pipeline API examples](https://51degrees.com/documentation/_pipeline_api__examples__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.translation&utm_term=find-out-more-examples)
 - https://github.com/51Degrees/51degrees-php

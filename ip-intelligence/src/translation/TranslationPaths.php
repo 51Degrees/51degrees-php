@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\translation;
 
+use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\translation\Languages;
 use fiftyone\pipeline\translation\YamlMap;
 
@@ -34,10 +35,30 @@ use fiftyone\pipeline\translation\YamlMap;
  */
 class TranslationPaths
 {
+    // Environment variable that names the IP Intelligence data file.
+    private const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
+
+    // The name IPI_PATH_VARIABLE replaced, read when that one is not set
+    // or is empty.
+    private const OLD_IPI_PATH_VARIABLE = 'IPINTELLIGENCEDATAFILE';
+
+    // Logged when a value was read from the deprecated environment
+    // variable, which is named first, then the one that replaces it.
+    private const OLD_IPI_PATH_VARIABLE_MESSAGE =
+        'A value was read from the environment variable %s, which is ' .
+        'deprecated. %s replaces it, so set that to the same value.';
+
+    // Whether a value has been read from the deprecated variable.
+    private static bool $oldIpiPathVariableRead = false;
+
+    // Whether that has been logged since PHP started the script, which
+    // under a web server is since the request began.
+    private static bool $oldIpiPathVariableReported = false;
+
     /**
      * Find the Translations directory. Searches the ip-intelligence folder of
      * the data submodule inside the cxx submodule at the repository root,
-     * then the IPINTELLIGENCEDATAFILE directory as a fallback.
+     * then the _51DEGREES_IPI_PATH directory as a fallback.
      */
     public static function resolveTranslationsDir(): string
     {
@@ -45,7 +66,7 @@ class TranslationPaths
             __DIR__ . '/../../../cxx/data/ip-intelligence/Translations',
         ];
 
-        $env = getenv('IPINTELLIGENCEDATAFILE');
+        $env = self::dataFileFromEnvironment();
         if ($env) {
             $candidates[] = dirname($env) . '/Translations';
             $candidates[] = dirname($env) . '/data/ip-intelligence/Translations';
@@ -63,6 +84,45 @@ class TranslationPaths
             'with "git submodule update --init --recursive". Otherwise pass ' .
             'its path to the translation engines.'
         );
+    }
+
+    /**
+     * Logs, as a warning through the pipeline's logger, that a value was
+     * read from the deprecated environment variable. It is logged once for
+     * each time PHP runs the script, by the first translation engine added
+     * to a pipeline after the variable was read.
+     */
+    public static function reportDeprecatedVariable(Pipeline $pipeline): void
+    {
+        if (!self::$oldIpiPathVariableRead || self::$oldIpiPathVariableReported) {
+            return;
+        }
+
+        self::$oldIpiPathVariableReported = true;
+        $pipeline->log('warning', sprintf(
+            self::OLD_IPI_PATH_VARIABLE_MESSAGE,
+            self::OLD_IPI_PATH_VARIABLE,
+            self::IPI_PATH_VARIABLE
+        ));
+    }
+
+    /**
+     * The data file named in the environment, or an empty string. The
+     * deprecated variable is read only when the new one gives nothing.
+     */
+    private static function dataFileFromEnvironment(): string
+    {
+        $new = (string) getenv(self::IPI_PATH_VARIABLE);
+        if ($new !== '') {
+            return $new;
+        }
+
+        $old = (string) getenv(self::OLD_IPI_PATH_VARIABLE);
+        if ($old !== '') {
+            self::$oldIpiPathVariableRead = true;
+        }
+
+        return $old;
     }
 
     /**

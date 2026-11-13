@@ -1,10 +1,10 @@
 /* *********************************************************************
  * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
- * Copyright 2019 51 Degrees Mobile Experts Limited, 5 Charlotte Close,
- * Caversham, Reading, Berkshire, United Kingdom RG4 7BY.
+ * Copyright 2019 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
  *
- * This Original Work is licensed under the European Union Public Licence (EUPL) 
- * v.1.2 and is subject to its terms as set out below.
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
  *
  * If a copy of the EUPL was not distributed with this file, You can obtain
  * one at https://opensource.org/licenses/EUPL-1.2.
@@ -13,10 +13,10 @@
  * amended by the European Commission) shall be deemed incompatible for
  * the purposes of the Work and the provisions of the compatibility
  * clause in Article 5 of the EUPL shall not apply.
- * 
- * If using the Work as, or as part of, a network application, by 
+ *
+ * If using the Work as, or as part of, a network application, by
  * including the attribution notice(s) required under Article 5 of the EUPL
- * in the end user terms of the application under an appropriate heading, 
+ * in the end user terms of the application under an appropriate heading,
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
@@ -41,6 +41,46 @@ public:
 
 };
 
+// SWIG's PHP wrapper hands the stored pointer straight to the methods that
+// EvidenceDeviceDetection inherits from std::map, without converting it to
+// the map. The evidence classes have virtual methods, so the map sits after
+// the vtable pointer and the inherited methods would read and write the wrong
+// memory. These definitions take the pointer as an EvidenceDeviceDetection
+// instead, and replace the inherited methods of the same names with the
+// behaviour of SWIG's std_map.i.
+%extend EvidenceDeviceDetection {
+public:
+    unsigned int size() const {
+        return (unsigned int)self->size();
+    }
+    void clear() {
+        self->clear();
+    }
+    const std::string& get(const std::string& key) throw (std::out_of_range) {
+        std::map<std::string, std::string>::iterator i = self->find(key);
+        if (i == self->end()) {
+            throw std::out_of_range("key not found");
+        }
+        return i->second;
+    }
+    void set(const std::string& key, const std::string& value) {
+        (*self)[key] = value;
+    }
+    void del(const std::string& key) throw (std::out_of_range) {
+        std::map<std::string, std::string>::iterator i = self->find(key);
+        if (i == self->end()) {
+            throw std::out_of_range("key not found");
+        }
+        self->erase(i);
+    }
+    bool has_key(const std::string& key) {
+        return self->find(key) != self->end();
+    }
+    bool is_empty() const {
+        return self->empty();
+    }
+}
+
 %{
     EngineHash *engine;
     ConfigHash *config;
@@ -60,6 +100,19 @@ public:
     PHP_INI_ENTRY("FiftyOneDegreesHashEngine.max_matched_useragent_length", NULL, PHP_INI_ALL, NULL)
 
     PHP_INI_END()
+
+    // Whether the text of an on or off setting means on, read the way PHP
+    // reads its own settings. "true", "yes" and "on" in any case, and text
+    // starting with a number other than zero such as "1", are on, and
+    // anything else, an empty value included, is off. PHP's ini parser turns
+    // a bare true in php.ini into "1", so comparing with "true" alone would
+    // read it as off.
+    static bool settingIsOn(const char *value) {
+        zend_string *text = zend_string_init(value, strlen(value), 1);
+        bool on = zend_ini_parse_bool(text);
+        zend_string_release_ex(text, 1);
+        return on;
+    }
 %}
 
 %immutable engine;
@@ -103,15 +156,15 @@ EngineHash *engine;
     }
     // Set allow unmatched.
     if (allowUnmatched != NULL) {
-        config->setAllowUnmatched(strcmp(allowUnmatched, "true") == 0);
+        config->setAllowUnmatched(settingIsOn(allowUnmatched));
     }
     // Set use predictive graph.
     if (usePredictiveGraph != NULL) {
-        config->setUsePredictiveGraph(strcmp(usePredictiveGraph, "true") == 0);
+        config->setUsePredictiveGraph(settingIsOn(usePredictiveGraph));
     }
     // Set use performance graph.
     if (usePerformanceGraph != NULL) {
-        config->setUsePerformanceGraph(strcmp(usePerformanceGraph, "true") == 0);
+        config->setUsePerformanceGraph(settingIsOn(usePerformanceGraph));
     }
 	// Set concurrency.
     if (concurrency <= 0) {
@@ -122,7 +175,7 @@ EngineHash *engine;
     }
     // Set update matched User-Agent.
 	if (updateMatchedUa != NULL) {
-		config->setUpdateMatchedUserAgent(strcmp(updateMatchedUa, "true") == 0);
+		config->setUpdateMatchedUserAgent(settingIsOn(updateMatchedUa));
 	}
 	// Set max matched User-Agent length.
 	if (maxUaLength != 0) {

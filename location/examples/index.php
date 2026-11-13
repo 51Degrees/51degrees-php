@@ -27,9 +27,15 @@ require(__DIR__ . "/../vendor/autoload.php");
 
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
+$resourceKey = EnvironmentVariable::read(
+    Constants::RESOURCE_KEY_VARIABLE,
+    Constants::RESOURCE_KEY_ENV_VAR,
+    "!!YOUR_RESOURCE_KEY!!"
+);
 $params = array(
-    "resourceKey" => $_ENV[Constants::RESOURCE_KEY_ENV_VAR],
+    "resourceKey" => $resourceKey === '' ? "!!YOUR_RESOURCE_KEY!!" : $resourceKey,
     "locationProvider" => "fiftyonedegrees");
 
 if ($params["resourceKey"] === "!!YOUR_RESOURCE_KEY!!") {

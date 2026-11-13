@@ -9,6 +9,16 @@
  *
  * If a copy of the EUPL was not distributed with this file, You can obtain
  * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
 /*
@@ -87,13 +97,12 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
     $error = 'The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.';
 } else {
     try {
-        // IpIntelligenceOnPremise([]) reuses the engine built once at module
-        // load, so this example requires the
-        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting to
-        // point at an .ipi file (see OnPremise.md). Pass ['dataFile' => ...]
-        // instead to build a per-request engine.
+        // IpIntelligenceOnPremise uses the engine the extension builds once,
+        // when PHP starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file
+        // php.ini setting (see OnPremise.md), so no request loads the data
+        // file.
         $pipeline = (new PipelineBuilder([]))
-            ->add(new IpIntelligenceOnPremise([]))
+            ->add(new IpIntelligenceOnPremise())
             ->add(new CountryCodeTranslationEngine())
             ->add(new CountriesTranslationEngine())
             ->build();

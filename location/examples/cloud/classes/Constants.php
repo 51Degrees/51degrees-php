@@ -27,5 +27,14 @@ namespace fiftyone\pipeline\geolocation\examples\cloud\classes;
 
 class Constants
 {
+    // The environment variable the examples read the resource key from.
+    const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
+
+    /**
+     * The environment variable read for the resource key when
+     * RESOURCE_KEY_VARIABLE is not set or is empty.
+     *
+     * @deprecated use {@see Constants::RESOURCE_KEY_VARIABLE}
+     */
     const RESOURCE_KEY_ENV_VAR = 'resource_key';
 }

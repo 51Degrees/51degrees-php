@@ -31,6 +31,9 @@ use the Linux commands below.
   and `device-detection/onpremise/readme.md` adds `libatomic1`.
 - SWIG 4.1 or later for IP Intelligence, which generates its wrapper when it
   builds. On macOS, CI installs it with `brew install swig`.
+- SWIG 4.5.1 only to regenerate the Device Detection wrapper. That wrapper is
+  committed, and `device-detection/onpremise/on-premise/generate-wrapper.sh`
+  rewrites it (`--check` compares it), so never edit `hash_wrap.cxx` by hand.
 - For the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS), which the
   data repository's shell script needs, and network access to
   `distributor.51degrees.com`.
@@ -133,7 +136,7 @@ cd ..
 ```
 
 The example uses the argument when that file is there. Otherwise it takes the
-file the `IPINTELLIGENCEDATAFILE` environment variable names, then any `.ipi`
+file the `_51DEGREES_IPI_PATH` environment variable names, then any `.ipi`
 file in `ip-intelligence/assets`, then a file in `cxx/data/ip-intelligence`
 with a name in `IPI_DATA_FILE_NAMES` in `examples/classes/ExampleConstants.php`.
 When it finds none, it downloads the Lite file into `cxx/data/ip-intelligence`
@@ -184,12 +187,12 @@ needs can be created
 cd device-detection/cloud
 composer install
 cd examples
-resource_key=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
 cd ../../..
 ```
 
-The example reads `_51DEGREES_RESOURCE_KEY` first, then `resource_key`, or
-takes the key as its first argument. It prints the same `Input values:` and
+The example reads `_51DEGREES_RESOURCE_KEY`, or takes the key as its first
+argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
 its first argument or from `resource_key`, after a `composer install` in
@@ -225,6 +228,19 @@ its first argument or from `resource_key`, after a `composer install` in
   tests Device Detection with a paid data file (`ci/run-unit-tests.ps1` skips
   the tests without one), and IP Intelligence with the Lite file that
   `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
+
+## Environment variable names
+
+[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.md)
+holds every environment variable name that the packages, tests, examples and
+CI scripts of every language read, with what each name holds and the
+deprecated names each replaced. The list decides. Use the names it gives, and
+when a change needs a new name, or reads an old name again, change
+[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.json)
+in common-ci in the same piece of work. This repository's own name
+check, [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1), still keeps a
+list of its own. Where the two differ, common-ci's list is the one to
+follow.
 
 ## Directories
 
@@ -282,7 +298,7 @@ cd pipeline/core
 `vendor` is `../vendor`.
 
 Check the suite names in the package's `phpunit.xml`. `location` has
-only `Integration`. `pipeline/translation` has `Translation`.
+only `Integration`.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 
@@ -322,3 +338,11 @@ tag, so do not push one by hand, and never move the major or minor number.
 ## More
 
 `README.md` explains the mirrors, the releases and the on-premise build.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.

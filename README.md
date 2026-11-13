@@ -24,8 +24,8 @@ The folder table and product guides below show where to find usage examples and 
 
 Our PHP packages use the Pipeline API, which combines data services in one processing flow. The packages are grouped by product: `pipeline`,
 `device-detection`, `location` and `ip-intelligence`. Each package keeps its
-own `composer.json`, `readme.md` and license, and is still published to
-Composer as a separate package.
+own `composer.json` and `readme.md`, and is still published to Composer as
+a separate package.
 
 ## Directory map
 
@@ -52,6 +52,7 @@ Composer path repository.
 | The package directories above | One Composer package each, published to its mirror as it is, apart from its requirements on the other packages here |
 | `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code, and the [data](https://github.com/51Degrees/data) repository as its `data` submodule |
 | `pipeline/did/owid-php` | Submodule of [owid-php](https://github.com/SWAN-community/owid-php), the OWID library `pipeline/did` uses |
+| `javascript-templates` | Submodule of [javascript-templates](https://github.com/51Degrees/javascript-templates), the source of the template `pipeline/core` serves. The package commits a copy in `pipeline/core/javascript-templates`, because Packagist serves an archive of the tag and an archive has no submodules. `pipeline/core/ci/update-packages.ps1` refreshes the copy, and the JavaScript templates check fails when the copy differs from the submodule |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 | `.github/workflows` | The CI workflows, and the ones that keep the mirrors up to date |
 | `composer.json` | The development install for the whole repository. It is never published |
@@ -166,8 +167,6 @@ cd pipeline/core
 Each package's `phpunit.xml` names its test suites. Some packages differ:
 
 - `location` has only an `Integration` suite.
-- `pipeline/translation` has a `Translation` suite and no `tests`
-  directory.
 - `device-detection/onpremise` is not in the root `composer.json`. The
   root autoloader maps its namespace to `device-detection/cloud`.
 
@@ -238,7 +237,9 @@ a file back through the import.
 ## License
 
 The packages are licensed under the European Union Public Licence 1.2
-(EUPL-1.2). Each package directory has its own `LICENSE` file.
+(EUPL-1.2), whose text is in [LICENSE](LICENSE), with the two additional
+terms stated in the header of every source file. Each package's
+`composer.json` declares `EUPL-1.2`, which is what Packagist shows.
 
 ## Find out more
 

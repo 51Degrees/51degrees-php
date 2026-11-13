@@ -32,20 +32,25 @@
 
 require(__DIR__ . "/../../vendor/autoload.php");
 
+use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 
 // Check if there is a resource key in the environment variable and use
 // it if there is one. (This is used for automated testing)
-if (isset($_ENV[Constants::RESOURCE_KEY_ENV_VAR])) {
-    $resourceKey = $_ENV[Constants::RESOURCE_KEY_ENV_VAR];
-} else {
+$resourceKey = EnvironmentVariable::read(
+    Constants::RESOURCE_KEY_VARIABLE,
+    Constants::RESOURCE_KEY_ENV_VAR,
+    "!!YOUR_RESOURCE_KEY!!"
+);
+if ($resourceKey === '') {
     $resourceKey = "!!YOUR_RESOURCE_KEY!!";
 }
 
 if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
-    $message .= '"' . Constants::RESOURCE_KEY_ENV_VAR . '"' . '<br/>';
+    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . '<br/>';
     $message .= 'Create a resource key with the properties required by this example';
     $message .= 'at https://configure.51degrees.com/v399y42f?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-webintegration.php&utm_term=resource-key-required' . '<br/>';
     $message .= 'Once complete, populate the environment variable ';
@@ -93,19 +98,19 @@ $flowData = $pipeline->createFlowData();
 // We set headers, cookies and more information from the web request
 $flowData->evidence->setFromWebRequest();
 
-// Now we process the flowData
-$result = $flowData->process();
-
 // Following the JavaScript bundler settings where we created an endpoint called
-// ?json, we now use this endpoint (if called) to send back JSON to the client side
+// ?json, we now use this endpoint (if called) to send back JSON to the client side.
+// Utils processes the flowData itself and sets the cache headers, so a
+// revalidation with a matching ETag is answered without any processing.
 
 if (isset($_GET["json"])) {
-    header('Content-Type: application/json');
+    Utils::jsonResponse($flowData)->send();
 
-    echo json_encode($flowData->jsonbundler->json);
-    
     return;
 }
+
+// Now we process the flowData
+$result = $flowData->process();
 
 // In the standard call we check if the required properties exist
 $properties = $pipeline->getElement("location")->getProperties();

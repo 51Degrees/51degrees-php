@@ -31,7 +31,10 @@ class CloudRequestEngineTestsBase extends TestCase
 {
     public const expectedUrl = 'https://cloud.51degrees.com/api/v4/resource_key.json';
     public const jsonResponse = '{"device":{"value":"1"}}';
-    public const evidenceKeysResponse = '["query.User-Agent"]';
+    public const evidenceKeysResponse = '["query.User-Agent","header.User-Agent",' .
+        '"cookie.User-Agent","query.id.usage","header.id.usage",' .
+        '"derived.id.usage","query.robotstxt.train","51D_ProfileIds",' .
+        '"a.User-Agent","b.User-Agent","z.User-Agent"]';
     public const accessiblePropertiesResponse =
             '{"Products": {"device": {"DataTier": "tier","Properties": [{"Name": "value","Type": "String","Category": "Device"}]}}}';
     public const invalidKey = 'invalidkey';
@@ -83,7 +86,20 @@ class CloudRequestEngineTestsBase extends TestCase
         "        }\n" .
         "    }\n" .
         '}';
+    // The fake resource key the stubbed responses are keyed on. It goes on
+    // the wire and is not an environment variable.
     public const resourceKey = 'resource_key';
+    // The environment variable the integration tests read a real resource key
+    // from.
+    public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
+
+    /**
+     * The environment variable read for the resource key when
+     * RESOURCE_KEY_ENV_VAR is not set.
+     *
+     * @deprecated use {@see CloudRequestEngineTestsBase::RESOURCE_KEY_ENV_VAR}
+     */
+    public const OLD_RESOURCE_KEY_ENV_VAR = 'resource_key';
     public const userAgent = 'iPhone';
 
     public static function getResponse()

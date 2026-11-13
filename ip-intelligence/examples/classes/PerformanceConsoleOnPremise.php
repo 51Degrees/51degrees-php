@@ -25,12 +25,14 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\examples\classes;
 
+use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
+
 /**
  * Performance benchmark (on-premise). Mirrors
- * ip-intelligence-dotnet-examples OnPremise/Performance-Console: it builds the
- * engine once, performs a warm-up pass, then a timed pass over a set of IP
- * addresses and reports throughput (detections per second and average
- * milliseconds per detection).
+ * ip-intelligence-dotnet-examples OnPremise/Performance-Console: it uses the
+ * engine built once when PHP starts, performs a warm-up pass, then a timed
+ * pass over a set of IP addresses and reports throughput (detections per
+ * second and average milliseconds per detection).
  *
  * PHP has no shared-memory threading in a plain CLI, so this is a
  * single-threaded benchmark (the .NET example also exposes a single-thread
@@ -48,7 +50,10 @@ class PerformanceConsoleOnPremise
     private const MAX_DETECTIONS = 2000000;
 
     /**
-     * Run a time-bounded benchmark.
+     * Run a time-bounded benchmark of the engine the extension built when
+     * PHP started, from the FiftyOneDegreesIpIntelligenceEngine.data_file
+     * php.ini setting. That engine holds the whole data file in memory, which
+     * is the MaxPerformance profile.
      *
      * The benchmark runs for at most $maxSeconds of wall-clock time (and at
      * most MAX_DETECTIONS lookups). This matters because an enterprise .ipi
@@ -57,7 +62,7 @@ class PerformanceConsoleOnPremise
      *
      * @param resource $output
      */
-    public function run(string $dataFile, float $maxSeconds, $output): void
+    public function run(float $maxSeconds, $output): void
     {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             fwrite($output, "The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.\n");
@@ -76,15 +81,32 @@ class PerformanceConsoleOnPremise
             return;
         }
 
-        // Build the engine once and time how long that takes.
-        $startupStart = microtime(true);
-        $config = new \ConfigIpiSwig();
-        // The .NET Performance example benchmarks the LowMemory profile.
-        $config->setLowMemory();
-        $config->setUseUpperPrefixHeaders(false);
-        $engine = new \EngineIpiSwig($dataFile, $config, new \RequiredPropertiesConfigSwig(new \VectorStringSwig()));
-        $startupMs = (microtime(true) - $startupStart) * 1000.0;
+        // The engine the extension built when PHP started, so the benchmark
+        // measures lookups and not loading the data file. The element is
+        // closed in the finally block, and the engine belongs to the
+        // extension and stays loaded.
+        $element = new IpIntelligenceOnPremise();
+        try {
+            $this->measure($element->engine, $ipAddresses, $maxSeconds, $output);
+        } finally {
+            $element->close();
+        }
+    }
 
+    /**
+     * Times lookups of the IP addresses with the native engine, and writes
+     * the throughput.
+     *
+     * @param mixed $engine The native engine
+     * @param array<string> $ipAddresses
+     * @param resource $output
+     */
+    private function measure(
+        $engine,
+        array $ipAddresses,
+        float $maxSeconds,
+        $output
+    ): void {
         // The free ASN data file has AsnName in place of RegisteredName, so
         // the benchmark reads whichever the data file has.
         $property = ExampleUtils::hasProperty($engine, 'RegisteredName')
@@ -92,8 +114,11 @@ class PerformanceConsoleOnPremise
             : 'AsnName';
 
         fwrite($output, "Performance benchmark (on-premise IP intelligence)\n");
-        fwrite($output, sprintf("\tData file: %s\n", $dataFile));
-        fwrite($output, sprintf("\tEngine startup: %.0f ms\n", $startupMs));
+        fwrite($output, sprintf(
+            "\tData file: %s\n",
+            ini_get(ExampleUtils::DATA_FILE_SETTING)
+        ));
+        fwrite($output, "\tProfile: MaxPerformance\n");
         fwrite($output, sprintf("\tIP addresses: %d, time cap: %.1f s\n", count($ipAddresses), $maxSeconds));
 
         // Warm-up pass (not timed) so the data file pages and caches are hot.

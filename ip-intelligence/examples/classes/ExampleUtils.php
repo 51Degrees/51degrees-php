@@ -35,6 +35,145 @@ class ExampleUtils
     // Enterprise data file.
     public const NEEDS_ENTERPRISE = 'needs the Enterprise data file';
 
+    // The php.ini setting naming the data file the extension builds its
+    // engine from when PHP starts.
+    public const DATA_FILE_SETTING = 'FiftyOneDegreesIpIntelligenceEngine.data_file';
+
+    /**
+     * Returns when the extension built its engine when PHP started, which is
+     * the engine every on-premise example uses. Otherwise runs the example
+     * again in a new PHP started with the data file getDataFile finds, the
+     * free file downloaded when there is none, so that the example runs with
+     * nothing set, and exits with that PHP's status. It exits with 1 and a
+     * message on standard error when it cannot.
+     *
+     * When the engine is there, a data file named by the first argument or
+     * the _51DEGREES_IPI_PATH environment variable that is not the one
+     * php.ini names is not loaded. The example says so and how to start PHP
+     * with it.
+     *
+     * @param array<string> $argv The script's arguments, its own name first
+     * @param string $freeFile The free file to download when none is found
+     */
+    public static function startWithEngine(
+        array $argv,
+        string $freeFile = ExampleConstants::LITE_DATA_FILE_NAME
+    ): void {
+        if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
+            self::writeError(
+                'The FiftyOneDegreesIpIntelligenceEngine extension is not ' .
+                'loaded. OnPremise.md says how to build and enable it.'
+            );
+            exit(1);
+        }
+
+        $args = array_slice($argv, 1);
+        $configured = (string) ini_get(self::DATA_FILE_SETTING);
+        if (function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
+            $named = self::getNamedDataFile($args);
+            if ($named !== null && realpath($named) !== realpath($configured)) {
+                self::writeError(
+                    "This example uses the engine PHP built when it started " .
+                    "from {$configured}, which php.ini names. To use " .
+                    "{$named} instead, run\n" .
+                    self::startCommand($named, $argv)
+                );
+            }
+
+            return;
+        }
+
+        $path = self::getDataFile($args, $freeFile);
+        if ($path === null) {
+            self::writeError(
+                'No IP intelligence engine was built when PHP started and ' .
+                'no data file was found. Set ' . self::DATA_FILE_SETTING .
+                ' in php.ini to the path of an .ipi data file.'
+            );
+            exit(1);
+        }
+        if ($configured !== '' && realpath($configured) === realpath($path)) {
+            // This PHP was started with the data file and built no engine
+            // from it, so a new one would do the same.
+            self::writeError(
+                "No IP intelligence engine was built from {$path}, which " .
+                self::DATA_FILE_SETTING . ' names.'
+            );
+            exit(1);
+        }
+
+        $command = self::startCommand($path, $argv);
+        if (!function_exists('passthru')) {
+            self::writeError(
+                'No IP intelligence engine was built when PHP started. Set ' .
+                self::DATA_FILE_SETTING . " in php.ini to {$path}, or run\n" .
+                $command
+            );
+            exit(1);
+        }
+        self::writeError(
+            'No IP intelligence engine was built when PHP started, so the ' .
+            "example runs again in a PHP that builds one from {$path}. Set " .
+            self::DATA_FILE_SETTING . ' in php.ini, so that PHP builds the ' .
+            "engine once when it starts.\n{$command}"
+        );
+        passthru($command, $status);
+        exit($status);
+    }
+
+    /**
+     * The data file named by the first argument or the _51DEGREES_IPI_PATH
+     * environment variable, when it exists.
+     *
+     * @param array<string> $args
+     */
+    private static function getNamedDataFile(array $args): ?string
+    {
+        if (count($args) > 0 && !empty($args[0]) && file_exists($args[0])) {
+            return $args[0];
+        }
+        $env = EnvironmentVariable::read(
+            ExampleConstants::IPI_PATH_VARIABLE,
+            ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+        );
+
+        return $env !== '' && file_exists($env) ? $env : null;
+    }
+
+    /**
+     * The command that runs the script again with PHP building its engine
+     * from the data file when it starts. Where the system gives PHP's own
+     * command line, its options, such as one loading the extension, are
+     * kept, and the data file setting goes after them, just before the
+     * script, so that it replaces any setting of the same name.
+     *
+     * @param array<string> $argv The script's arguments, its own name first
+     */
+    private static function startCommand(string $path, array $argv): string
+    {
+        $parts = array_merge([PHP_BINARY], $argv);
+        $script = 1;
+        $line = is_readable('/proc/self/cmdline')
+            ? (string) file_get_contents('/proc/self/cmdline')
+            : '';
+        $started = $line === '' ? [] : explode("\0", rtrim($line, "\0"));
+        $found = array_search($argv[0], array_slice($started, 1), true);
+        if ($found !== false &&
+            array_slice($started, $found + 1) === $argv) {
+            $parts = $started;
+            $parts[0] = PHP_BINARY;
+            $script = $found + 1;
+        }
+
+        $quoted = array_map('escapeshellarg', $parts);
+        array_splice($quoted, $script, 0, [
+            '-d',
+            escapeshellarg(self::DATA_FILE_SETTING . '=' . $path)
+        ]);
+
+        return implode(' ', $quoted);
+    }
+
     /**
      * Resolve the cloud resource key from a CLI argument or environment
      * variable.
@@ -47,12 +186,13 @@ class ExampleUtils
             return $args[0];
         }
 
-        $key = getenv(ExampleConstants::CLOUD_RESOURCE_KEY_ENV_VAR);
-        if ($key && $key !== '!!YOUR_RESOURCE_KEY!!') {
-            return $key;
-        }
+        $key = EnvironmentVariable::read(
+            ExampleConstants::RESOURCE_KEY_VARIABLE,
+            ExampleConstants::CLOUD_RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
+        );
 
-        return null;
+        return $key === '' ? null : $key;
     }
 
     /**
@@ -73,7 +213,10 @@ class ExampleUtils
             return $args[0];
         }
 
-        $env = getenv(ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR);
+        $env = EnvironmentVariable::read(
+            ExampleConstants::IPI_PATH_VARIABLE,
+            ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+        );
         if ($env && file_exists($env)) {
             return $env;
         }

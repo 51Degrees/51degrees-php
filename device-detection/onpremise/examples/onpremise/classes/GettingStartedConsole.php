@@ -75,15 +75,15 @@ class GettingStartedConsole
      */
     public function run($logger, callable $output)
     {
-        $engine = new DeviceDetectionOnPremise([
-            // We use the low memory profile as its performance is
-            // sufficient for this example. See the documentation for
-            // more detail on this and other configuration options:
-            // https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
-            // https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
-            // https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
-            'performanceProfile' => 'LowMemory',
-        ]);
+        // The engine is the one the extension builds when PHP starts, from
+        // the FiftyOneDegreesHashEngine.* php.ini settings, so it takes no
+        // settings here, and it always holds the whole data file in memory.
+        // See the documentation for more detail on this and other
+        // configuration options:
+        // https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+        // https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+        // https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+        $engine = new DeviceDetectionOnPremise();
         $pipeline = (new PipelineBuilder())
             ->add($engine)
             ->addLogger($logger)

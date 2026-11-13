@@ -57,9 +57,11 @@ class TranslationConsoleOnPremise
      *
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
-        $engine = new IpIntelligenceOnPremise(['dataFile' => $dataFile, 'performanceProfile' => 'MaxPerformance']);
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $engine = new IpIntelligenceOnPremise();
         if (ExampleUtils::lacksEnterpriseProperties(
             $engine,
             'Listing the countries an IP address is most likely in',

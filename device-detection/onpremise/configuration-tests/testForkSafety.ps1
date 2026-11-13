@@ -13,9 +13,8 @@ if ($IsWindows) {
 
 # Load the extension the same way the unit tests do.
 $env:PHP_INI_SCAN_DIR = "$([IO.Path]::PathSeparator)$PWD/$RepoName"
-$env:FIFTYONE_DATA_FILE = "$PWD/assets/TAC-HashV41.hash"
-$env:FIFTYONE_WRAPPER = "$PWD/$RepoName/on-premise/FiftyOneDegreesHashEngine.php"
-$env:FIFTYONE_UA_CSV = "$PWD/assets/20000 User Agents.csv"
+$env:_51DEGREES_DD_PATH = "$PWD/assets/TAC-HashV41.hash"
+$env:_51DEGREES_UA_CSV = "$PWD/assets/20000 User Agents.csv"
 
 Write-Output "Running fork-safety reproduction (issue #38)..."
 php "$RepoName/configuration-tests/testForkSafety.php"

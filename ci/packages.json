@@ -82,7 +82,7 @@
     "Publish": false,
     "Mirror": null,
     "Vendor": "Root",
-    "Ci": false
+    "Ci": true
   },
   {
     "Name": "fiftyone.devicedetection",

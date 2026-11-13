@@ -26,9 +26,15 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests\classes;
 
 /**
- * Stands in for a SWIG wrapped ResultsIpi. Each accessor returns the
- * StubSwigValue registered under the property name, and records which
- * accessor family was used.
+ * Stands in for a SWIG wrapped ResultsIpi. Each accessor takes either a
+ * property name or a required property index, as the native wrapper does,
+ * returns the StubSwigValue registered under the property name, and records
+ * which accessor family was used.
+ *
+ * An index is resolved through the required property names given at
+ * construction, which stand for the list the engine was built with. A name
+ * that list does not hold gives no value, which is what the native results
+ * do for a property the loaded data set lacks.
  */
 class StubSwigResult
 {
@@ -47,79 +53,161 @@ class StubSwigResult
     public array $scalarRequests = [];
 
     /**
+     * Every argument an accessor was called with, in call order, so a test
+     * can assert that reads went by name rather than by index.
+     *
+     * @var array<int|string>
+     */
+    public array $requestedKeys = [];
+
+    /**
      * @var array<string, StubSwigValue>
      */
     private array $values;
 
     /**
-     * @param array<string, StubSwigValue> $values keyed by property name
+     * The build-time required property names, in index order.
+     *
+     * @var array<string>
      */
-    public function __construct(array $values)
+    private array $requiredProperties;
+
+    /**
+     * @param array<string, StubSwigValue> $values keyed by property name
+     * @param null|array<string> $requiredProperties build-time names in index
+     *   order. Defaults to the value keys, so tests that do not vary the
+     *   order keep their existing behaviour.
+     */
+    public function __construct(array $values, ?array $requiredProperties = null)
     {
         $this->values = $values;
+        $this->requiredProperties = $requiredProperties ?? array_keys($values);
     }
 
-    public function getValuesAsWeightedStringList(string $name): StubSwigValue
+    /**
+     * The name at a required property index, as the native wrapper gives it.
+     */
+    public function getPropertyName(int $requiredPropertyIndex): string
     {
-        return $this->weighted($name);
+        return $this->requiredProperties[$requiredPropertyIndex] ?? '';
     }
 
-    public function getValuesAsWeightedIntegerList(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValuesAsWeightedStringList($key): StubSwigValue
     {
-        return $this->weighted($name);
+        return $this->weighted($key);
     }
 
-    public function getValuesAsWeightedDoubleList(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValuesAsWeightedIntegerList($key): StubSwigValue
     {
-        return $this->weighted($name);
+        return $this->weighted($key);
     }
 
-    public function getValuesAsWeightedBoolList(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValuesAsWeightedDoubleList($key): StubSwigValue
     {
-        return $this->weighted($name);
+        return $this->weighted($key);
     }
 
-    public function getValueAsString(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValuesAsWeightedBoolList($key): StubSwigValue
     {
-        return $this->scalar($name);
+        return $this->weighted($key);
     }
 
-    public function getValueAsInteger(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValueAsString($key): StubSwigValue
     {
-        return $this->scalar($name);
+        return $this->scalar($key);
     }
 
-    public function getValueAsDouble(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValueAsInteger($key): StubSwigValue
     {
-        return $this->scalar($name);
+        return $this->scalar($key);
     }
 
-    public function getValueAsBool(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValueAsDouble($key): StubSwigValue
     {
-        return $this->scalar($name);
+        return $this->scalar($key);
     }
 
-    public function getValues(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValueAsBool($key): StubSwigValue
     {
-        return $this->scalar($name);
+        return $this->scalar($key);
     }
 
-    private function weighted(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    public function getValues($key): StubSwigValue
     {
-        $this->weightedRequests[] = $name;
-
-        return $this->valueOf($name);
+        return $this->scalar($key);
     }
 
-    private function scalar(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    private function weighted($key): StubSwigValue
     {
-        $this->scalarRequests[] = $name;
+        $this->requestedKeys[] = $key;
+        $this->weightedRequests[] = $this->nameOf($key);
 
-        return $this->valueOf($name);
+        return $this->valueOf($key);
     }
 
-    private function valueOf(string $name): StubSwigValue
+    /**
+     * @param int|string $key property name or required property index
+     */
+    private function scalar($key): StubSwigValue
     {
+        $this->requestedKeys[] = $key;
+        $this->scalarRequests[] = $this->nameOf($key);
+
+        return $this->valueOf($key);
+    }
+
+    /**
+     * The property name an accessor argument stands for. An index outside
+     * the build-time list has no name.
+     *
+     * @param int|string $key property name or required property index
+     */
+    private function nameOf($key): string
+    {
+        return is_int($key) ? $this->getPropertyName($key) : $key;
+    }
+
+    /**
+     * @param int|string $key property name or required property index
+     */
+    private function valueOf($key): StubSwigValue
+    {
+        $name = $this->nameOf($key);
+
+        if ($name === '' || !in_array($name, $this->requiredProperties, true)) {
+            return new StubSwigValue(false, null);
+        }
+
         return $this->values[$name] ?? new StubSwigValue(false, null);
     }
 }

@@ -39,19 +39,29 @@ use PHPUnit\Framework\TestCase;
 class BuiltInScriptsTests extends TestCase
 {
     /**
-     * The copy holds every script in the submodule with the same bytes, and
+     * The text of a file with its line ends as line feeds. A checkout on
+     * Windows may write this repository's files with CR LF, whilst the
+     * submodule's .gitattributes keeps its files at LF.
+     */
+    private static function text(string $file): string
+    {
+        return str_replace("\r\n", "\n", (string) file_get_contents($file));
+    }
+
+    /**
+     * The copy holds every script in the submodule with the same text, and
      * no other script, so the package offers what .NET and Rust offer.
      */
     public function testTheCopyIsTheScriptsFolderOfTheSubmodule(): void
     {
         $shared = [];
         foreach (SharedFolder::files('scripts', '/\.(ya?ml|json)$/i') as $file) {
-            $shared[basename($file)] = hash_file('sha256', $file);
+            $shared[basename($file)] = hash('sha256', self::text($file));
         }
         $copied = [];
         foreach (BuiltInScripts::names() as $name) {
             $file = (string) BuiltInScripts::path($name);
-            $copied[basename($file)] = hash_file('sha256', $file);
+            $copied[basename($file)] = hash('sha256', self::text($file));
         }
         ksort($shared);
         ksort($copied);

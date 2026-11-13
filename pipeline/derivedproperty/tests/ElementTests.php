@@ -45,22 +45,14 @@ use PHPUnit\Framework\TestCase;
 class ElementTests extends TestCase
 {
     /**
-     * A script producing yes where src.N is below 2, and no otherwise.
+     * A script producing yes where src.N is below 2, and no otherwise. The
+     * line ends are written out, so that the tests that edit the text work
+     * on a checkout that turns them into CR LF.
      */
-    private const DEMO = <<<'YAML'
-        Format: 1
-        Name: Demo
-        Version: 1.0.0
-        Output:
-          Name: Demo
-          Description: A demonstration.
-          ValueType: string
-          IsList: false
-        Rules:
-          - When: { Property: src.N, Lt: 2 }
-            Then: "yes"
-          - Else: "no"
-        YAML;
+    private const DEMO = "Format: 1\nName: Demo\nVersion: 1.0.0\nOutput:\n" .
+        "  Name: Demo\n  Description: A demonstration.\n  ValueType: string\n" .
+        "  IsList: false\nRules:\n  - When: { Property: src.N, Lt: 2 }\n" .
+        "    Then: \"yes\"\n  - Else: \"no\"\n";
 
     private static function demo(): DerivedPropertyElement
     {

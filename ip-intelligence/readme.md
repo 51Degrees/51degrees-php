@@ -25,7 +25,7 @@ and [ip-intelligence-dotnet](https://github.com/51Degrees/51degrees-dotnet/tree/
 
 - PHP 8.0 or above with the `curl`, `json` and `mbstring` extensions.
 - For **cloud** operation: a 51Degrees resource key, obtained from
-  [configure.51degrees.com](https://configure.51degrees.com/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=cloud), authorised for IP
+  [51degrees.com/configure](https://51degrees.com/configure/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=cloud), authorised for IP
   intelligence (`ip.*`) properties.
 - For **on-premise** operation: the native `FiftyOneDegreesIpIntelligenceEngine`
   extension (built from the `cxx` submodule at the root of the repository via SWIG) and

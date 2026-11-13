@@ -197,7 +197,7 @@ The cloud examples need no extension and no data file, but they need a
 resource key, which a person creates in the configurator, so ask for one if
 none is set. The Device Detection example says a key with the properties it
 needs can be created
-[here](https://configure.51degrees.com/g3gMZdPY?utm_source=github&utm_medium=docs&utm_campaign=51degrees-php&utm_content=agents.md&utm_term=cloud-examples).
+[here](https://51degrees.com/configure/g3gMZdPY?utm_source=github&utm_medium=docs&utm_campaign=51degrees-php&utm_content=agents.md&utm_term=cloud-examples).
 
 `device-detection/cloud/readme.md` runs the example from the package's
 `examples` folder after a `composer install` in the package.

@@ -212,8 +212,17 @@ class ElementTests extends TestCase
         );
     }
 
-    public function testElementDataNotThereIsLoggedOnce(): void
+    /**
+     * One element logs missing element data once, however many requests it
+     * processes. A new element, as PHP builds on every request where the
+     * pipeline is built per request, logs it again.
+     */
+    public function testElementDataNotThereIsLoggedOnceByEachElement(): void
     {
+        $message = "The script 'Demo' reads 'src.N', and the request carried " .
+            "no element data 'src' at all, so the script has no value. The " .
+            'usual cause is the element that supplies it running after this ' .
+            'element rather than before it. This element reports it once.';
         $logger = new RecordingLogger('error');
         $element = self::demo();
         $source = new StubSourceElement('src', null, ['N']);
@@ -221,12 +230,10 @@ class ElementTests extends TestCase
         $flowData = self::process([$source, $element], $logger);
 
         $this->assertFalse($flowData->derived->demo->hasValue);
-        $this->assertSame([
-            "The script 'Demo' reads 'src.N', and the request carried no " .
-                "element data 'src' at all, so the script has no value. The " .
-                'usual cause is the element that supplies it running after ' .
-                'this element rather than before it. This is reported once.',
-        ], $logger->messages('error'));
+        $this->assertSame([$message], $logger->messages('error'));
+
+        self::process([$source, self::demo()], $logger);
+        $this->assertSame([$message, $message], $logger->messages('error'));
     }
 
     public function testBuildingThePipelineLogsWhatEachScriptProduces(): void

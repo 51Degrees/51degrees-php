@@ -62,8 +62,10 @@ class DerivedPropertyElement extends FlowElement
     private array $scripts;
 
     /**
-     * The scripts whose missing element data has been logged, so it is
-     * logged once rather than on every request.
+     * The scripts whose missing element data this element has logged, so
+     * one element logs it once for each script rather than on every request
+     * it processes. PHP keeps nothing between requests, so where the
+     * pipeline is built on every request each request logs it again.
      *
      * @var array<int, bool>
      */
@@ -685,7 +687,7 @@ class DerivedPropertyElement extends FlowElement
             "The script '%s' reads '%s', and the request carried no element " .
                 "data '%s' at all, so the script has no value. The usual cause " .
                 'is the element that supplies it running after this element ' .
-                'rather than before it. This is reported once.',
+                'rather than before it. This element reports it once.',
             $this->scripts[$index]->name,
             $property['name'],
             $property['elementKey']

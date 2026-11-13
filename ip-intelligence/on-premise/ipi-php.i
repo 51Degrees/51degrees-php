@@ -122,8 +122,8 @@
  * when FiftyOneDegreesIpIntelligenceEngine.data_file is set to an existing file.
  * When it is not set the module loads normally and callers construct
  * FiftyOneDegreesIpiEngineIpiSwig directly (as IpIntelligenceOnPremise.php and
- * the tests do), so
- * existing behaviour is unchanged. The accessor is named ipi_engine_get (not
+ * the tests do), so existing behaviour is unchanged. The accessor is named
+ * ipi_engine_get (not
  * engine_get) so it does not clash with the device detection extension's global
  * engine when both extensions are loaded in the same process (mixed examples).
  */

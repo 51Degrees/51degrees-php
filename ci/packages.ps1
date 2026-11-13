@@ -106,6 +106,24 @@ function Get-ReleasePlanScript {
     return $found
 }
 
+# The highest version tagged on a package's mirror, which is the highest
+# version published, or $null when it has none. The mirrors are public, so no
+# token is needed.
+function Get-MirrorHighestVersion ([string]$Mirror, [string]$Owner = '51Degrees') {
+    $lines = @(& git ls-remote --tags "https://github.com/$Owner/$Mirror.git")
+    if ($LASTEXITCODE -ne 0) {
+        throw "The tags of $Owner/$Mirror could not be read"
+    }
+    # An annotated tag is listed twice, the second time ending ^{}.
+    $versions = foreach ($line in $lines) {
+        $name = ($line -split "`t")[1] -replace '^refs/tags/', '' -replace '\^\{\}$', ''
+        if ($name -match '^\d+\.\d+\.\d+$') {
+            [version]$name
+        }
+    }
+    return $versions | Sort-Object | Select-Object -Last 1
+}
+
 # The text of the composer.json a package is published with. It is the
 # package's own, with each requirement on another package here set to
 # "^<version>", where $Versions gives the version by Name. Only those values

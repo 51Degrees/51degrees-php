@@ -91,7 +91,8 @@ are listed in [`ci/packages.json`](ci/packages.json), and the release plan is
 worked out by common-ci's
 [`steps/release-plan.ps1`](https://github.com/51Degrees/common-ci/blob/main/steps/release-plan.ps1).
 The Release plan check on each pull request prints the packages a release
-would publish with the change, and fails if the plan cannot be worked out.
+would publish with the change, and fails if the plan cannot be worked out or
+gives a version that a mirror already has.
 
 Packagist does not read this repository. It reads the old repositories, which
 are now read-only mirrors, and turns each version tag on a mirror, such as

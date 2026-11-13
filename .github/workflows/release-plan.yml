@@ -4,8 +4,9 @@ name: Release plan
 # version, and with which requirements, using the scripts the publish runs.
 # It fails when the release plan cannot be worked out, for example when a
 # composer.json requires a package that the DependsOn of ci/packages.json
-# does not list, so that is found on the pull request rather than at the
-# publish. Nothing is tagged or pushed.
+# does not list, or when it gives a version that a package's mirror already
+# has, so that is found on the pull request rather than at the publish.
+# Nothing is tagged or pushed.
 
 on:
   pull_request:

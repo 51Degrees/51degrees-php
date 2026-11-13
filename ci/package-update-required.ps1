@@ -45,4 +45,27 @@ foreach ($release in $plan) {
     Write-Output "$($release.Name) $($release.Version) requires $text"
 }
 
+# A version is published once its mirror has it, and is never replaced.
+# mirror-tags.ps1 refuses a version that is not above the mirror's highest,
+# but only after publish-package.ps1 has tagged this repository and made the
+# GitHub releases, so the same check is made here first. It fails when a
+# package's last release has no "<package>/<version>" tag here, because the
+# plan then gives a version the mirror already has.
+$published = @()
+foreach ($release in $plan) {
+    $package = $Packages | Where-Object Name -eq $release.Name
+    if (-not $package.Mirror) {
+        continue
+    }
+    $highest = Get-MirrorHighestVersion $package.Mirror
+    if ($null -ne $highest -and $highest -ge [version]$release.Version) {
+        $published += "$($release.Name) $($release.Version), as $($package.Mirror) already has $highest"
+    }
+}
+if ($published) {
+    throw "Nothing is published, because the plan gives versions already published: " +
+        "$($published -join '; '). Tag each package here '<package>/<version>' at " +
+        "the commit its mirror's highest version was released from, then run this again."
+}
+
 exit 0

@@ -53,6 +53,7 @@ $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64
 $error = null;
 $dd = [];   // device detection results (label => value)
 $ipi = [];  // ip intelligence results (label => value)
+$map = ['Areas' => '', 'Latitude' => '', 'Longitude' => ''];
 $evidence = [
     'header.user-agent' => $userAgent,
     'query.client-ip' => $ip,
@@ -96,8 +97,8 @@ $ipProperties = [
 ];
 
 /**
- * A property's value as text, or Unknown when it has none. A list, and a
- * weighted value, show each value in turn.
+ * A property's value as the console examples write it, each weighted value
+ * followed by its weighting, or Unknown when it has none.
  *
  * @param mixed $data The engine's element data
  */
@@ -111,17 +112,34 @@ function valStr($data, string $name): string
     if (!($apv instanceof AspectPropertyValue) || !$apv->hasValue) {
         return 'Unknown';
     }
-    $value = $apv->value;
-    if (is_bool($value)) {
-        return $value ? 'True' : 'False';
-    }
-    if (is_array($value)) {
-        $parts = [];
-        foreach ($value as $item) {
-            $parts[] = (string) (is_array($item) ? ($item['value'] ?? '') : $item);
-        }
 
-        return implode(', ', $parts);
+    return ExampleUtils::formatValue($apv);
+}
+
+/**
+ * A location property's value for the map, the most likely one of a
+ * weighted value, or empty when the data file does not have it.
+ *
+ * @param mixed $engine
+ * @param mixed $data
+ */
+function mapValue($engine, $data, string $name): string
+{
+    if (!ExampleUtils::hasProperty($engine, $name)) {
+        return '';
+    }
+    try {
+        $apv = $data->get(strtolower($name));
+    } catch (\Throwable $e) {
+        return '';
+    }
+    if (!($apv instanceof AspectPropertyValue) || !$apv->hasValue) {
+        return '';
+    }
+    $value = $apv->value;
+    if (is_array($value)) {
+        $first = reset($value);
+        $value = is_array($first) ? ($first['value'] ?? '') : $first;
     }
 
     return (string) $value;
@@ -171,6 +189,9 @@ if (!ExampleUtils::findDeviceDetectionOnPremise()) {
         $dd = rows($deviceEngine, $result->device, $deviceProperties);
         $dd['Device Id'] = valStr($result->device, 'DeviceId');
         $ipi = rows($ipEngine, $result->ip, $ipProperties);
+        foreach (array_keys($map) as $name) {
+            $map[$name] = mapValue($ipEngine, $result->ip, $name);
+        }
     } catch (\Throwable $e) {
         // The message can carry server side detail such as data file paths.
         error_log('IP intelligence example failed: ' . $e->getMessage());
@@ -186,12 +207,6 @@ if (!ExampleUtils::findDeviceDetectionOnPremise()) {
         }
     }
 }
-
-// The map shows only a location the data file has.
-$located = static fn (string $label): string =>
-    in_array($ipi[$label] ?? '', ['', 'Unknown', ExampleUtils::NEEDS_ENTERPRISE], true)
-        ? ''
-        : $ipi[$label];
 
 function h(?string $s): string
 {
@@ -339,9 +354,9 @@ foreach ($evidence as $k => $v) {
         window.onload = function () {
             if (window.fodExamples && fodExamples.initLocationMap) {
                 fodExamples.initLocationMap({
-                    areasWkt: <?= js($located('Areas')) ?>,
-                    latitude: <?= js($located('Latitude')) ?>,
-                    longitude: <?= js($located('Longitude')) ?>
+                    areasWkt: <?= js($map['Areas']) ?>,
+                    latitude: <?= js($map['Latitude']) ?>,
+                    longitude: <?= js($map['Longitude']) ?>
                 });
             }
         };

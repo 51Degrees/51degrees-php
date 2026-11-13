@@ -308,3 +308,11 @@ moves only the patch number. `mirror.yml` puts the tag on every mirror, and
 ## More
 
 `README.md` explains the mirrors, the releases and the on-premise build.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.

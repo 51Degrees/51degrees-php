@@ -328,12 +328,15 @@ leaves out a `composer.json` whose only change is to its metadata
 (`description`, `keywords`, `homepage`, `support`, `authors`, `license`). Each
 package's `Ignore` list leaves out its development files, being `phpunit.xml`,
 `phpstan.neon.dist`, `.php-cs-fixer.php`, `.gitignore` files, `.github/workflows`
-and `ci/`, apart from `pipeline/did/ci`, which builds that package. Run the
-filter's tests with `Invoke-Pester ci/release-plan-filter.Tests.ps1`. Each tag
-starts `mirror.yml`,
-which runs `ci/mirror-tags.ps1` to put `<version>` on the package's mirror,
-or `did-publish.yml` for `pipeline/did`. The publish makes every release
-tag, so do not push one by hand, and never move the major or minor number.
+and `ci/`, apart from `pipeline/did/ci`, which builds that package. The
+Release plan workflow (`.github/workflows/release-plan.yml`) runs the
+filter's tests and prints the plan a release of the commit would publish, on
+every pull request. Run the tests locally with
+`Invoke-Pester ci/release-plan-filter.Tests.ps1`. Each tag starts
+`mirror.yml`, which runs `ci/mirror-tags.ps1` to put `<version>` on the
+package's mirror, or `did-publish.yml` for `pipeline/did`. The publish makes
+every release tag, so do not push one by hand, and never move the major or
+minor number.
 
 ## More
 

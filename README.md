@@ -86,11 +86,12 @@ change only to a package's development files, being its `phpunit.xml`,
 `phpstan.neon.dist`, `.php-cs-fixer.php`, `.gitignore` files, `.github/workflows`
 and `ci/` folder (the `Ignore` lists in `ci/packages.json`), except that
 `pipeline/did/ci` counts, because it builds that package. Only the patch
-number moves. The packages,
-what each requires and where each is published are listed in
-[`ci/packages.json`](ci/packages.json), and the release plan is worked out by
-common-ci's
+number moves. The packages, what each requires and where each is published
+are listed in [`ci/packages.json`](ci/packages.json), and the release plan is
+worked out by common-ci's
 [`steps/release-plan.ps1`](https://github.com/51Degrees/common-ci/blob/main/steps/release-plan.ps1).
+The Release plan check on each pull request prints the packages a release
+would publish with the change, and fails if the plan cannot be worked out.
 
 Packagist does not read this repository. It reads the old repositories, which
 are now read-only mirrors, and turns each version tag on a mirror, such as

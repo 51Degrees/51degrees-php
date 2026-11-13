@@ -10,6 +10,10 @@ on:
         description: 'Publish even though the version moves the major or minor place'
         type: boolean
         default: false
+      allow-early-release:
+        description: 'Publish even though a package was released less than a week ago'
+        type: boolean
+        default: false
 
 jobs:
   Publish:
@@ -20,6 +24,7 @@ jobs:
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
       allow-version-bump: ${{ inputs.allow-version-bump || false }}
+      allow-early-release: ${{ inputs.allow-early-release || false }}
       cache-assets: true
     secrets:
       token: ${{ secrets.ACCESS_TOKEN }}

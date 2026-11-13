@@ -155,6 +155,36 @@ class MixedExamplesTests extends TestCase
     }
 
     /**
+     * An extension loaded with dl() starts after PHP has, and registers the
+     * earlier class names when the request it is loaded in starts. dl() takes
+     * a file name in extension_dir, and no ini file is read, so that no other
+     * extension is looked for there.
+     */
+    public function testEarlierClassNamesAreKeptAfterDl(): void
+    {
+        $ipi = self::IP_INTELLIGENCE;
+        $extension = (string) realpath(self::IP_INTELLIGENCE_EXTENSION);
+        $this->assertSame(
+            [
+                'EngineIpiSwig' => "FiftyOneDegreesIpiEngineIpiSwig {$ipi}",
+                'ConfigIpiSwig' => "FiftyOneDegreesIpiConfigIpiSwig {$ipi}",
+                'VectorStringSwig' => "FiftyOneDegreesIpiVectorStringSwig {$ipi}",
+                'RequiredPropertiesConfigSwig' =>
+                    "FiftyOneDegreesIpiRequiredPropertiesConfigSwig {$ipi}",
+                $ipi => "FiftyOneDegreesIpi {$ipi}",
+            ],
+            $this->earlierNames(
+                [
+                    '-n',
+                    '-d', 'enable_dl=1',
+                    '-d', 'extension_dir=' . dirname($extension),
+                ],
+                'dl(' . var_export(basename($extension), true) . ');'
+            )
+        );
+    }
+
+    /**
      * @dataProvider loadOrders
      */
     public function testMixedConsoleExample(bool $deviceDetectionFirst): void
@@ -275,14 +305,15 @@ class MixedExamplesTests extends TestCase
     }
 
     /**
-     * The class and extension each earlier name gives, or missing.
+     * The class and extension each earlier name gives, or missing, after
+     * running the code given first.
      *
      * @param array<string> $settings
      * @return array<string, string>
      */
-    private function earlierNames(array $settings): array
+    private function earlierNames(array $settings, string $first = ''): array
     {
-        $code = <<<'PHP'
+        $code = $first . <<<'PHP'
             $found = [];
             foreach (['EngineIpiSwig', 'ConfigIpiSwig', 'VectorStringSwig',
                 'RequiredPropertiesConfigSwig',

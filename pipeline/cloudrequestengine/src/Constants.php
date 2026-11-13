@@ -84,7 +84,7 @@ class Constants
         'CloudRequestEngine needs a resourceKey or a licenseKey to ' .
         'authenticate with, as the cloud service answers 401 to a request ' .
         'that carries neither. Create a resource key for free at ' .
-        'https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-constants.php&utm_term=no-credential';
+        'https://51degrees.com/configure?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-constants.php&utm_term=no-credential';
     public const MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES =
         'CloudRequestEngine has a licenseKey and no resourceKey or ' .
         'requestedProperties. A license key names no properties of its own, ' .

@@ -388,6 +388,16 @@ class ElementTests extends TestCase
         new DerivedPropertyElement();
     }
 
+    public function testASettingTheElementDoesNotHaveIsRefused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            "The derived property element has no setting 'Script'. Its " .
+                'settings are Scripts and ScriptFiles.'
+        );
+        new DerivedPropertyElement(['Script' => 'HumanConfidence']);
+    }
+
     public function testTwoScriptsInOneElementCannotWriteOneProperty(): void
     {
         $this->expectException(ScriptValidationException::class);

@@ -80,7 +80,8 @@ passing the `BuildParameters` to the constructor.
 - `ScriptFiles`, paths to script files, where a file name may hold a wildcard.
 
 Each is a list, or one string with commas between the entries, where an entry
-holding a comma is wrapped in double quotes.
+holding a comma is wrapped in double quotes. Any other setting is refused, so
+a setting written wrongly cannot leave its scripts out without a word.
 
 ```json
 {

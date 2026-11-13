@@ -76,11 +76,25 @@ class DerivedPropertyElement extends FlowElement
      *     before those the settings name
      * @throws ScriptValidationException a script is not valid, or two
      *     scripts write the same property
-     * @throws \InvalidArgumentException no script is configured
+     * @throws \InvalidArgumentException no script is configured, or a
+     *     setting is not one the element has
      */
     public function __construct(array $settings = [], array $scripts = [])
     {
         parent::__construct();
+
+        // A setting written wrongly would otherwise leave its scripts out
+        // without a word.
+        foreach (array_keys($settings) as $key) {
+            if (strcasecmp((string) $key, 'Scripts') !== 0 &&
+                strcasecmp((string) $key, 'ScriptFiles') !== 0) {
+                throw new \InvalidArgumentException(sprintf(
+                    "The derived property element has no setting '%s'. Its " .
+                        'settings are Scripts and ScriptFiles.',
+                    $key
+                ));
+            }
+        }
 
         $set = new ScriptSet();
         foreach ($scripts as $script) {

@@ -34,11 +34,11 @@ class ScriptParseException extends \RuntimeException
      * The one based line the parser stopped at, or null where it is not
      * known.
      */
-    public ?int $line;
+    public ?int $parsedLine;
 
     public function __construct(string $message, ?int $line = null)
     {
         parent::__construct($message);
-        $this->line = $line;
+        $this->parsedLine = $line;
     }
 }

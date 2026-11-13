@@ -153,7 +153,7 @@ final class ScriptValidator
                 $name,
                 $source,
                 '',
-                $e->line,
+                $e->parsedLine,
                 $e->getMessage()
             )]);
         }

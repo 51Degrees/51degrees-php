@@ -87,10 +87,16 @@
             if (*earlier == '\0') {
                 earlier = IPI_MODULE_NAME;
             }
-            if (zend_hash_str_find_ptr_lc(
-                    CG(class_table), earlier, strlen(earlier)) == NULL) {
+            /* The table is keyed by the lower case name. */
+            char lower[256];
+            const size_t length = strlen(earlier);
+            if (length >= sizeof(lower)) {
+                continue;
+            }
+            zend_str_tolower_copy(lower, earlier, length);
+            if (!zend_hash_str_exists(CG(class_table), lower, length)) {
                 zend_register_class_alias_ex(
-                    earlier, strlen(earlier), classes[i], persistent);
+                    earlier, length, classes[i], persistent);
             }
         }
         free(classes);

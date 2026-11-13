@@ -4,8 +4,14 @@ PHP_ADD_LIBRARY(stdc++, , FIFTYONEDEGREESHASHENGINE_LIBADD)
 PHP_ARG_ENABLE(FiftyOneDegreesHashEngine, whether to enable 51Degrees Hash engine,
 [ --enable-FiftyOneDegreesHashEngine   Enable 51Degrees Hash Device Detection])
 
-CFLAGS="$CFLAGS -std=gnu11 -Wall -Werror -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
-CXXFLAGS="${CXXFLAGS} -std=gnu++17 -fpermissive -Wall -Werror -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
+dnl Only get_module is exported, which SWIG marks as exported when
+dnl GCC_HASCLASSVISIBILITY is defined. The IP intelligence extension holds
+dnl common's functions under the same names, built with different settings,
+dnl and a PHP that loads extensions without RTLD_DEEPBIND, as PHP 8.5 on Linux
+dnl does, would otherwise bind this extension's calls to the other's copy.
+VISIBILITY="-fvisibility=hidden -DGCC_HASCLASSVISIBILITY"
+CFLAGS="$CFLAGS $VISIBILITY -std=gnu11 -Wall -Werror -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
+CXXFLAGS="${CXXFLAGS} $VISIBILITY -std=gnu++17 -fpermissive -Wall -Werror -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

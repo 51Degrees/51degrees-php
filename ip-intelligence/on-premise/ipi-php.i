@@ -22,19 +22,86 @@
 
 /*
  * PHP entry point for the SWIG interface to the IP intelligence on-premise
- * engine. It simply includes the language-agnostic interface shipped in the
- * cxx submodule (src/ipi/ipi.i). The generated module is named
- * FiftyOneDegreesIpIntelligenceEngine via the -module flag passed to SWIG by
- * config.m4 / config.w32, mirroring device-detection-php-onpremise.
- *
- * On PHP 7+ the SWIG generated constructors accept the required arguments
- * directly, so unlike the historic device-detection PHP 5 workaround there is
- * no need to redefine the engine constructor here - the EngineIpiSwig class is
- * constructed directly from the PHP layer (IpIntelligenceOnPremise.php) with a
- * data file path, a ConfigIpiSwig and a RequiredPropertiesConfigSwig.
+ * engine. It includes the interface in the cxx submodule (src/ipi/ipi.i).
+ * generate-wrapper.sh runs SWIG on this file, naming the module
+ * FiftyOneDegreesIpIntelligenceEngine.
  */
 
 %include "cxx/src/ipi/ipi.i"
+
+/*
+ * Class names.
+ *
+ * The Device Detection extension has classes of the same names as many of
+ * this extension's, such as VectorStringSwig and ConfigBaseSwig, because both
+ * wrap the same common C++ classes. PHP keeps one table of class names, and an
+ * extension that registers a name already there frees the class it replaces,
+ * which the other extension still uses. So generate-wrapper.sh passes SWIG
+ * -prefix with IPI_CLASS_PREFIX, and every class of this extension starts with
+ * it, for example FiftyOneDegreesIpiEngineIpiSwig. The class of the module's
+ * own functions and constants, named after the module before, is named
+ * IPI_CLASS_PREFIX alone.
+ *
+ * The earlier names are deprecated. Once every extension has started, each
+ * earlier name that no other class has is registered as another name for this
+ * extension's class, so code written for the earlier names keeps working
+ * whenever the Device Detection extension is not loaded.
+ */
+
+%{
+    #define IPI_CLASS_PREFIX "FiftyOneDegreesIpi"
+    #define IPI_MODULE_NAME "FiftyOneDegreesIpIntelligenceEngine"
+
+    static zend_result (*ipi_next_post_startup)(void) = NULL;
+    static bool ipi_earlier_names_pending = false;
+
+    /*
+     * Registers the earlier name of each of this extension's classes, where
+     * no class has that name. The classes are listed first, because adding a
+     * name changes the table being read.
+     */
+    static void ipi_register_earlier_names(bool persistent) {
+        const size_t prefixLength = strlen(IPI_CLASS_PREFIX);
+        uint32_t count = 0;
+        zend_class_entry **classes = (zend_class_entry **)malloc(
+            sizeof(zend_class_entry *) *
+            (zend_hash_num_elements(CG(class_table)) + 1));
+        zend_string *key;
+        zend_class_entry *ce;
+        if (classes == NULL) {
+            return;
+        }
+        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, ce) {
+            if (key != NULL &&
+                ce->type == ZEND_INTERNAL_CLASS &&
+                ce->info.internal.module != NULL &&
+                strcmp(ce->info.internal.module->name, IPI_MODULE_NAME) == 0 &&
+                zend_string_equals_ci(key, ce->name) &&
+                strncmp(ZSTR_VAL(ce->name), IPI_CLASS_PREFIX,
+                    prefixLength) == 0) {
+                classes[count++] = ce;
+            }
+        } ZEND_HASH_FOREACH_END();
+        for (uint32_t i = 0; i < count; i++) {
+            const char *earlier = ZSTR_VAL(classes[i]->name) + prefixLength;
+            if (*earlier == '\0') {
+                earlier = IPI_MODULE_NAME;
+            }
+            if (zend_hash_str_find_ptr_lc(
+                    CG(class_table), earlier, strlen(earlier)) == NULL) {
+                zend_register_class_alias_ex(
+                    earlier, strlen(earlier), classes[i], persistent);
+            }
+        }
+        free(classes);
+    }
+
+    /* Runs once every extension has registered its classes. */
+    static zend_result ipi_post_startup(void) {
+        ipi_register_earlier_names(true);
+        return ipi_next_post_startup != NULL ? ipi_next_post_startup() : SUCCESS;
+    }
+%}
 
 /*
  * Optional global engine.
@@ -48,7 +115,8 @@
  * This is entirely OPTIONAL and OFF by default: the global engine is only built
  * when FiftyOneDegreesIpIntelligenceEngine.data_file is set to an existing file.
  * When it is not set the module loads normally and callers construct
- * EngineIpiSwig directly (as IpIntelligenceOnPremise.php and the tests do), so
+ * FiftyOneDegreesIpiEngineIpiSwig directly (as IpIntelligenceOnPremise.php and
+ * the tests do), so
  * existing behaviour is unchanged. The accessor is named ipi_engine_get (not
  * engine_get) so it does not clash with the device detection extension's global
  * engine when both extensions are loaded in the same process (mixed examples).
@@ -73,6 +141,18 @@
 EngineIpi *ipi_engine;
 
 %minit {
+    /*
+     * An extension loaded when PHP starts registers the earlier class names
+     * after every extension has started. One loaded later with dl() starts
+     * alone, and registers them when its first request starts.
+     */
+    if (type == MODULE_PERSISTENT) {
+        ipi_next_post_startup = zend_post_startup_cb;
+        zend_post_startup_cb = ipi_post_startup;
+    } else {
+        ipi_earlier_names_pending = true;
+    }
+
     REGISTER_INI_ENTRIES();
     char *filePath = INI_STR("FiftyOneDegreesIpIntelligenceEngine.data_file");
     struct stat sb;
@@ -94,6 +174,13 @@ EngineIpi *ipi_engine;
             ipi_engine_properties = new RequiredPropertiesConfig();
         }
         ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+    }
+}
+
+%rinit {
+    if (ipi_earlier_names_pending) {
+        ipi_earlier_names_pending = false;
+        ipi_register_earlier_names(false);
     }
 }
 

@@ -34,19 +34,23 @@ require(__DIR__ . "/../../vendor/autoload.php");
 
 use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 
 // Check if there is a resource key in the environment variable and use
 // it if there is one. (This is used for automated testing)
-if (isset($_ENV[Constants::RESOURCE_KEY_ENV_VAR])) {
-    $resourceKey = $_ENV[Constants::RESOURCE_KEY_ENV_VAR];
-} else {
+$resourceKey = EnvironmentVariable::read(
+    Constants::RESOURCE_KEY_VARIABLE,
+    Constants::RESOURCE_KEY_ENV_VAR,
+    "!!YOUR_RESOURCE_KEY!!"
+);
+if ($resourceKey === '') {
     $resourceKey = "!!YOUR_RESOURCE_KEY!!";
 }
 
 if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
-    $message .= '"' . Constants::RESOURCE_KEY_ENV_VAR . '"' . '<br/>';
+    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . '<br/>';
     $message .= 'Create a resource key with the properties required by this example';
     $message .= 'at https://51degrees.com/configure/v399y42f?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-webintegration.php&utm_term=resource-key-required' . '<br/>';
     $message .= 'Once complete, populate the environment variable ';

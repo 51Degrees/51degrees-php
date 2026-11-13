@@ -229,6 +229,19 @@ its first argument or from `resource_key`, after a `composer install` in
   the tests without one), and IP Intelligence with the Lite file that
   `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
 
+## Environment variable names
+
+[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.md)
+holds every environment variable name that the packages, tests, examples and
+CI scripts of every language read, with what each name holds and the
+deprecated names each replaced. The list decides. Use the names it gives, and
+when a change needs a new name, or reads an old name again, change
+[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.json)
+in common-ci in the same piece of work. This repository's own name
+check, [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1), still keeps a
+list of its own. Where the two differ, common-ci's list is the one to
+follow.
+
 ## Directories
 
 - `pipeline/core`: `51degrees/fiftyone.pipeline.core`
@@ -308,3 +321,11 @@ moves only the patch number. `mirror.yml` puts the tag on every mirror, and
 ## More
 
 `README.md` explains the mirrors, the releases and the on-premise build.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.

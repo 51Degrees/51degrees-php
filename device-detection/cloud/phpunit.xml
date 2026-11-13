@@ -17,6 +17,7 @@
          which is what makes a broken example show as red. -->
     <testsuite name="Unit">
       <file>tests/HardwareProfileCloudTest.php</file>
+      <file>tests/EnvironmentVariableTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/ExampleTests.php</file>

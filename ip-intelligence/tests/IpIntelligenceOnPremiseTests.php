@@ -26,11 +26,13 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\Constants as IpiConstants;
+use fiftyone\pipeline\ipintelligence\examples\classes\EnvironmentVariable;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
+use fiftyone\pipeline\ipintelligence\SwigHelpers;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
@@ -65,7 +67,10 @@ class IpIntelligenceOnPremiseTests extends TestCase
 
     private static function locateDataFile(): ?string
     {
-        $env = getenv(Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR);
+        $env = EnvironmentVariable::read(
+            Constants::IPI_PATH_VARIABLE,
+            Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+        );
         if ($env && file_exists($env)) {
             return $env;
         }
@@ -253,6 +258,52 @@ class IpIntelligenceOnPremiseTests extends TestCase
         }
     }
 
+    /**
+     * Asking a closed engine whether it has a property answers rather than
+     * throwing, because isset must not throw. Looking a name up needs the
+     * engine, which closing the pipeline releases.
+     *
+     * The pipeline leaves out the two elements that read every property,
+     * because each of them builds the table of every property, and the
+     * table answers without the engine, so the closed engine would never
+     * be reached.
+     */
+    public function testAskingAClosedEngineAboutAPropertyAnswersFalse(): void
+    {
+        $engine = new IpIntelligenceOnPremise([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'MaxPerformance'
+        ]);
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false
+        ]))->add($engine)->build();
+
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $known = isset($flowData->ip->registeredname);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+
+        // A name the engine was built with is looked up on its own, so the
+        // table is still unbuilt. Without this the test would pass on the
+        // table alone and never reach the closed engine.
+        $this->assertTrue($known);
+        $this->assertFalse(
+            (new \ReflectionProperty($engine, 'properties'))
+                ->isInitialized($engine)
+        );
+        $this->assertNull($engine->engine);
+
+        // The name has to be one nothing asked about while the engine was
+        // open, because the engine keeps what it has already looked up.
+        $this->assertFalse(isset($flowData->ip->registeredcountry));
+    }
+
     public function testInvalidPerformanceProfileRejected(): void
     {
         $message = null;
@@ -302,6 +353,140 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             ini_set($setting, $original === false ? '' : $original);
         }
+    }
+
+    /**
+     * Under a web server, here PHP's built-in one, whose SAPI is not 'cli',
+     * PHP builds this class in every request, so the "dataFile" setting,
+     * which would load the data file in every request, is refused. The
+     * engine built when PHP started is used with no settings.
+     */
+    public function testDataFileSettingIsRefusedUnderAWebServer(): void
+    {
+        $answers = $this->askWebServer(['dataFile', 'startup']);
+        $this->assertSame(
+            Messages::DATA_FILE_SETTING_REFUSED,
+            $answers['dataFile']
+        );
+        $this->assertSame('OK', $answers['startup']);
+    }
+
+    /**
+     * On the command line a tool builds its engine once for its whole run,
+     * so the "dataFile" setting is accepted there.
+     */
+    public function testDataFileSettingIsAcceptedOnTheCommandLine(): void
+    {
+        $this->assertSame('cli', PHP_SAPI);
+        $engine = new IpIntelligenceOnPremise([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'LowMemory'
+        ]);
+        try {
+            $this->assertSame('ip', $engine->dataKey);
+        } finally {
+            $engine->close();
+        }
+    }
+
+    // Answers each request to PHP's built-in web server with OK, or the
+    // message of the exception, after building IpIntelligenceOnPremise from
+    // the "dataFile" setting when the path is /dataFile, and with no
+    // settings otherwise. The placeholders are the autoloader and the data
+    // file.
+    private const SERVE_PHP = <<<'PHP'
+        <?php
+        require %s;
+        $settings = $_SERVER['REQUEST_URI'] === '/dataFile'
+            ? ['dataFile' => %s, 'performanceProfile' => 'LowMemory']
+            : [];
+        try {
+            $engine = new fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise(
+                $settings
+            );
+            $engine->close();
+            echo 'OK';
+        } catch (Throwable $e) {
+            echo $e->getMessage();
+        }
+        PHP;
+
+    /**
+     * Starts PHP's built-in web server with the php.ini data file naming the
+     * Lite file, asks it for each path, and returns its answers by path.
+     *
+     * @param array<string> $paths
+     * @return array<string, string>
+     */
+    private function askWebServer(array $paths): array
+    {
+        $dataFile = realpath($this->liteDataFile());
+        $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
+        $autoload = dirname(
+            (new \ReflectionClass(\Composer\Autoload\ClassLoader::class))
+                ->getFileName(),
+            2
+        ) . '/autoload.php';
+        $folder = sys_get_temp_dir() . '/ipi-web-server-' . uniqid();
+        mkdir($folder);
+        $router = $folder . '/router.php';
+        $log = $folder . '/server.log';
+        file_put_contents($router, sprintf(
+            self::SERVE_PHP,
+            var_export($autoload, true),
+            var_export($dataFile, true)
+        ));
+
+        // A free port, from a socket the system gives one to and then closes.
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        $address = stream_socket_get_name($socket, false);
+        fclose($socket);
+
+        $server = proc_open(
+            [
+                PHP_BINARY,
+                '-d',
+                "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}",
+                '-S',
+                $address,
+                $router
+            ],
+            [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']],
+            $pipes
+        );
+        $this->assertIsResource($server);
+        try {
+            $answers = [];
+            foreach ($paths as $path) {
+                $answers[$path] = $this->ask("http://{$address}/{$path}", $log);
+            }
+
+            return $answers;
+        } finally {
+            proc_terminate($server);
+            proc_close($server);
+            @unlink($router);
+            @unlink($log);
+            @rmdir($folder);
+        }
+    }
+
+    /**
+     * The body of the answer from the URL, waiting up to 30 seconds for the
+     * server to start.
+     */
+    private function ask(string $url, string $log): string
+    {
+        $deadline = microtime(true) + 30;
+        do {
+            $answer = @file_get_contents($url);
+            if ($answer !== false) {
+                return $answer;
+            }
+            usleep(200000);
+        } while (microtime(true) < $deadline);
+
+        $this->fail("No answer from {$url}. " . @file_get_contents($log));
     }
 
     /**
@@ -412,11 +597,112 @@ class IpIntelligenceOnPremiseTests extends TestCase
     }
 
     /**
-     * An engine built with names in an order of their own reads each value
-     * by its place in that list, and gets the values an engine built with
-     * no names gets by name.
+     * PHP builds the engine class and the pipeline on every request, so a
+     * request that reads a few values builds neither the table of every
+     * property nor the pipeline's database of them. The table, when asked
+     * for, is the one the engine built when it was constructed.
      */
-    public function testAnEngineBuiltWithNamesReadsTheSameValuesByIndex(): void
+    public function testAnEngineBuiltWithNamesBuildsNoTableForARead(): void
+    {
+        $this->assertARequestBuildsNoTable(
+            $this->buildEngineWith(['RegisteredName', 'RegisteredCountry'])
+        );
+    }
+
+    /**
+     * An engine built with no names does the same.
+     */
+    public function testAnEngineBuiltWithNoNamesBuildsNoTableForARead(): void
+    {
+        $this->assertARequestBuildsNoTable($this->buildEngine());
+    }
+
+    private function assertARequestBuildsNoTable(IpIntelligenceOnPremise $engine): void
+    {
+        $names = ['registeredname', 'RegisteredCountry', 'ip'];
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+        ]))->add($engine)->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $values = $this->readEach($flowData, $names);
+
+            $this->assertFalse(
+                (new \ReflectionProperty($engine, 'properties'))->isInitialized($engine)
+            );
+            $this->assertFalse(
+                (new \ReflectionProperty($pipeline, 'propertyDatabase'))->isInitialized($pipeline)
+            );
+            $this->assertSame(Constants::IPV4_ADDRESS, $values['ip']);
+
+            // The table holds every available property in the data set as
+            // it did, and the two echoed addresses.
+            $expected = $this->tableOf($engine);
+            $table = $engine->getProperties();
+            $this->assertSame(['ip', 'ipv6'], array_keys(array_diff_key($table, $expected)));
+            $this->assertSame($expected, array_intersect_key($table, $expected));
+
+            // Read again, now through the table, which gives the same.
+            $this->assertEquals($values, $this->readEach($flowData, $names));
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
+     * The value of each property named, or its no value message.
+     *
+     * @param array<string> $names
+     * @return array<string, mixed>
+     */
+    private function readEach($flowData, array $names): array
+    {
+        $values = [];
+        foreach ($names as $name) {
+            $value = $flowData->ip->get($name);
+            $values[$name] = $value->hasValue ? $value->value : $value->noValueMessage;
+        }
+
+        return $values;
+    }
+
+    /**
+     * The table of every available property, built from the native metadata
+     * the way the engine class built it when it was constructed.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function tableOf(IpIntelligenceOnPremise $engine): array
+    {
+        $metaData = $engine->engine->getMetaData();
+        $native = $metaData->getProperties();
+        $table = [];
+        for ($i = 0; $i < $native->getSize(); ++$i) {
+            $property = $native->getByIndex($i);
+            if ($property->getAvailable()) {
+                $table[strtolower($property->getName())] = [
+                    'name' => $property->getName(),
+                    'type' => $property->getType(),
+                    'datafiles' => SwigHelpers::vectorToArray($property->getDataFilesWherePresent()),
+                    'category' => $property->getCategory(),
+                    'description' => $property->getDescription(),
+                    'component' => $metaData->getComponentForProperty($property)->getName(),
+                ];
+            }
+        }
+
+        return $table;
+    }
+
+    /**
+     * An engine built with names in an order of their own gets the values
+     * an engine built with no names gets.
+     */
+    public function testAnEngineBuiltWithNamesReadsTheSameValues(): void
     {
         $none = $this->buildEngine();
         try {
@@ -435,75 +721,11 @@ class IpIntelligenceOnPremiseTests extends TestCase
 
         $named = $this->buildEngineWith($names);
         try {
-            $expected = [];
-            foreach ($names as $index => $name) {
-                $expected[strtolower($name)] = $index;
-            }
-            $this->assertSame($expected, $named->propertyIndexes);
             $this->assertEquals($byName, $this->valuesOf($named, $names));
         } finally {
             $named->close();
         }
     }
-
-    /**
-     * A name given twice keeps the place it was first given, as the native
-     * code does.
-     */
-    public function testANameGivenTwiceKeepsItsFirstIndex(): void
-    {
-        $none = $this->buildEngine();
-        try {
-            $names = [];
-            foreach ($none->getProperties() as $key => $property) {
-                if ($key !== 'ip' && $key !== 'ipv6') {
-                    $names[] = $property['name'];
-                }
-            }
-        } finally {
-            $none->close();
-        }
-        $this->assertGreaterThanOrEqual(2, count($names));
-
-        $named = $this->buildEngineWith([$names[0], $names[1], $names[0]]);
-        try {
-            $this->assertSame(0, $named->propertyIndexes[strtolower($names[0])]);
-            $this->assertSame(1, $named->propertyIndexes[strtolower($names[1])]);
-        } finally {
-            $named->close();
-        }
-    }
-
-    /**
-     * A setting given for one request, after the start-up engine was built
-     * with no names, does not turn indexes on, because that engine still
-     * holds every property in the data set's own order.
-     */
-    public function testASettingForTheRequestDoesNotTurnOnIndexes(): void
-    {
-        $dataFile = realpath($this->liteDataFile());
-        $this->assertNotFalse($dataFile, 'The Lite data file is missing.');
-        $command = escapeshellarg(PHP_BINARY) . ' -d ' . escapeshellarg(
-            "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}"
-        ) . ' -r ' . escapeshellarg(self::INDEXES_PHP) . ' -- ' .
-            escapeshellarg($this->autoload()) . ' 2>&1';
-        exec($command, $lines, $status);
-        $printed = implode("\n", $lines);
-        $this->assertSame(0, $status, $printed);
-        $this->assertSame('[]', $printed);
-    }
-
-    // Sets required_properties for this request to the first property of
-    // the start-up engine, builds IpIntelligenceOnPremise from that engine,
-    // and prints its index table as JSON. The argument is the autoloader.
-    private const INDEXES_PHP = <<<'PHP'
-        require $argv[1];
-        $first = ipi_engine_get()
-            ->getMetaData()->getProperties()->getByIndex(0)->getName();
-        ini_set('FiftyOneDegreesIpIntelligenceEngine.required_properties', $first);
-        $engine = new fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise([]);
-        echo json_encode($engine->propertyIndexes);
-        PHP;
 
     /**
      * @param array<string> $names
@@ -544,15 +766,6 @@ class IpIntelligenceOnPremiseTests extends TestCase
         }
 
         return $values;
-    }
-
-    private function autoload(): string
-    {
-        return dirname(
-            (new \ReflectionClass(\Composer\Autoload\ClassLoader::class))
-                ->getFileName(),
-            2
-        ) . '/autoload.php';
     }
 
     // Builds IpIntelligenceOnPremise from the start-up engine, or from the
@@ -604,12 +817,12 @@ class IpIntelligenceOnPremiseTests extends TestCase
                 ->getFileName(),
             2
         ) . '/autoload.php';
-        $command = escapeshellarg(PHP_BINARY);
-        if ($dataFileProfile === '') {
-            $command .= ' -d ' . escapeshellarg(
-                "FiftyOneDegreesIpIntelligenceEngine.data_file={$dataFile}"
-            );
-        }
+        // An empty data file setting overrides one in php.ini, so that PHP
+        // builds no engine when it starts.
+        $command = escapeshellarg(PHP_BINARY) . ' -d ' . escapeshellarg(
+            'FiftyOneDegreesIpIntelligenceEngine.data_file=' .
+            ($dataFileProfile === '' ? $dataFile : '')
+        );
         if ($iniProfile !== null) {
             $command .= ' -d ' . escapeshellarg(
                 "FiftyOneDegreesIpIntelligenceEngine.performance_profile={$iniProfile}"

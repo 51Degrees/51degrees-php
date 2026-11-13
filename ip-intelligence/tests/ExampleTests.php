@@ -32,6 +32,7 @@ use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleCloud;
 use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleOnPremise;
 use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleCloud;
 use fiftyone\pipeline\ipintelligence\examples\classes\OfflineProcessingConsoleOnPremise;
+use fiftyone\pipeline\ipintelligence\examples\classes\EnvironmentVariable;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use fiftyone\pipeline\ipintelligence\tests\classes\MockHttpClient;
 use PHPUnit\Framework\TestCase;
@@ -62,26 +63,13 @@ class ExampleTests extends TestCase
 
     private function liveResourceKey(): ?string
     {
-        $key = getenv(Constants::RESOURCE_KEY_ENV_VAR);
-        if (!$key || $key === '!!YOUR_RESOURCE_KEY!!') {
-            return null;
-        }
-
-        return $key;
-    }
-
-    private function onPremiseDataFile(): ?string
-    {
-        $env = getenv(Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR);
-        if ($env && file_exists($env)) {
-            return $env;
-        }
-        $candidates = array_merge(
-            glob(__DIR__ . '/../assets/*.ipi') ?: [],
-            glob(__DIR__ . '/../../cxx/data/ip-intelligence/*.ipi') ?: []
+        $key = EnvironmentVariable::read(
+            Constants::RESOURCE_KEY_VARIABLE,
+            Constants::RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
         );
 
-        return $candidates[0] ?? null;
+        return $key === '' ? null : $key;
     }
 
     // ---- Cloud examples (run offline via the mock) ----
@@ -133,26 +121,23 @@ class ExampleTests extends TestCase
         $this->assertStringContainsString('IP Intelligence Results:', $text);
     }
 
-    // ---- On-premise examples (skip without the native engine / data file) ----
+    // ---- On-premise examples, with the engine built when PHP started ----
 
-    private function skipUnlessOnPremiseAvailable(): string
+    private function skipUnlessOnPremiseAvailable(): void
     {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             $this->markTestSkipped('The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.');
         }
-        $dataFile = $this->onPremiseDataFile();
-        if ($dataFile === null) {
-            $this->markTestSkipped('No .ipi data file found.');
+        if (\ipi_engine_get() === null) {
+            $this->markTestSkipped('No start-up engine. Start PHP with FiftyOneDegreesIpIntelligenceEngine.data_file set to run this test.');
         }
-
-        return $dataFile;
     }
 
     public function testOnPremiseGettingStarted(): void
     {
-        $dataFile = $this->skipUnlessOnPremiseAvailable();
+        $this->skipUnlessOnPremiseAvailable();
         $output = $this->memoryStream();
-        (new GettingStartedConsoleOnPremise())->run($dataFile, $output);
+        (new GettingStartedConsoleOnPremise())->run($output);
         $text = $this->readStream($output);
 
         $this->assertStringContainsString('Input values:', $text);
@@ -161,9 +146,9 @@ class ExampleTests extends TestCase
 
     public function testOnPremiseMetadata(): void
     {
-        $dataFile = $this->skipUnlessOnPremiseAvailable();
+        $this->skipUnlessOnPremiseAvailable();
         $output = $this->memoryStream();
-        (new MetadataConsoleOnPremise())->run($dataFile, $output);
+        (new MetadataConsoleOnPremise())->run($output);
         $text = $this->readStream($output);
 
         $this->assertStringContainsString('IP intelligence properties', $text);
@@ -171,9 +156,9 @@ class ExampleTests extends TestCase
 
     public function testOnPremiseOfflineProcessing(): void
     {
-        $dataFile = $this->skipUnlessOnPremiseAvailable();
+        $this->skipUnlessOnPremiseAvailable();
         $output = $this->memoryStream();
-        (new OfflineProcessingConsoleOnPremise())->run($dataFile, ['116.154.188.222', '1.3.32.31'], $output);
+        (new OfflineProcessingConsoleOnPremise())->run(['116.154.188.222', '1.3.32.31'], $output);
         $text = $this->readStream($output);
 
         $this->assertStringContainsString('query.client-ip:', $text);

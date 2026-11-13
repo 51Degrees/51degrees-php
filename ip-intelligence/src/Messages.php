@@ -46,8 +46,24 @@ class Messages
         "file open and shares those file handles across the fork, which " .
         "corrupts the results. Remove the " .
         "'FiftyOneDegreesIpIntelligenceEngine.performance_profile' setting, " .
-        "or set it to 'MaxPerformance'. An engine built from a \"dataFile\" " .
-        "setting may use any profile.";
+        "or set it to 'MaxPerformance'.";
+
+    // Raised when no settings are given and PHP started without building an
+    // engine.
+    public const NO_STARTUP_ENGINE =
+        'No IP intelligence engine was built when PHP started. Set ' .
+        'FiftyOneDegreesIpIntelligenceEngine.data_file in php.ini to the ' .
+        'path of an .ipi data file, so that PHP builds the engine once when ' .
+        'it starts. See OnPremise.md.';
+
+    // Raised when the "dataFile" setting is given outside the command line.
+    public const DATA_FILE_SETTING_REFUSED =
+        'The "dataFile" setting builds a new IP intelligence engine from the ' .
+        'data file every time, so under a web server the data file would be ' .
+        'loaded on every request, and it is refused outside the command ' .
+        'line. Set FiftyOneDegreesIpIntelligenceEngine.data_file in php.ini ' .
+        'to the data file and leave the "dataFile" setting out, so that PHP ' .
+        'builds the engine once, when it starts.';
 
     public const DATA_FILE_NOT_FOUND =
         'There is no IP intelligence data file at %s';
@@ -59,9 +75,9 @@ class Messages
         'The shared global IP intelligence engine is built once at module ' .
         'load from the FiftyOneDegreesIpIntelligenceEngine.* php.ini ' .
         'settings and cannot be reconfigured per instance, so these ' .
-        'setting(s) would have no effect: %s. Either configure them through ' .
-        'php.ini (data_file, required_properties) or ' .
-        'supply a "dataFile" setting to build a dedicated engine.';
+        'setting(s) would have no effect: %s. Remove them, and set the data ' .
+        'file and the required properties in php.ini (data_file, ' .
+        'required_properties).';
 
     public const EXTENSION_NOT_LOADED =
         'The FiftyOneDegreesIpIntelligenceEngine extension is not loaded. The ' .
@@ -76,13 +92,4 @@ class Messages
     public const ENGINE_CLOSED =
         'The on-premise IP intelligence engine has been closed, so it cannot ' .
         'process evidence. Build a new pipeline.';
-
-    /**
-     * Message carried by a property the engine was not built with, which
-     * therefore has no index. Takes the property name.
-     */
-    public const PROPERTY_NOT_BUILT =
-        'The engine was not built with the property "%s", so it has no ' .
-        'value. Add the property to the required properties the engine is ' .
-        'built with, then build the engine again.';
 }

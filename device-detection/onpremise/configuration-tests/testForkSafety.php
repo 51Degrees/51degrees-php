@@ -53,6 +53,9 @@
  * Inputs (env vars, with argv fallbacks):
  *   _51DEGREES_DD_PATH  path to a .hash data file   (argv[1], or the module's configured data_file)
  *   _51DEGREES_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
+ *
+ * The names these replaced are still read, as deprecated names, when the
+ * variable is not set.
  */
 
 const CHILDREN = 8;     // forked workers that all share the inherited handles
@@ -69,7 +72,37 @@ function fail(string $message, int $code = 2): void
     exit($code);
 }
 
-$dataFile = getenv('_51DEGREES_DD_PATH') ?: ($argv[1] ?? '');
+/**
+ * The value of an environment variable, read by its name and, when that is
+ * not set or is empty, by the deprecated name it replaced, whose use is
+ * reported on standard error.
+ */
+function readVariable(string $name, string $deprecated): string
+{
+    $value = (string) getenv($name);
+    if ($value !== '') {
+        return $value;
+    }
+
+    $value = (string) getenv($deprecated);
+    if ($value !== '') {
+        fwrite(STDERR, "A value was read from the environment variable {$deprecated}, " .
+            "which is deprecated. {$name} replaces it, so set that to the same value.\n");
+    }
+
+    return $value;
+}
+
+$dataFile = readVariable('_51DEGREES_DD_PATH', 'FIFTYONE_DATA_FILE') ?: ($argv[1] ?? '');
+$uaCsv = readVariable('_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV') ?: ($argv[3] ?? '');
+
+// The extension defines the engine classes itself, so no wrapper file is
+// loaded for this variable.
+if ((string) getenv('FIFTYONE_WRAPPER') !== '') {
+    fwrite(STDERR, 'The environment variable FIFTYONE_WRAPPER is deprecated and ' .
+        "nothing replaces it. No wrapper file is loaded, so stop setting it.\n");
+}
+
 if ($dataFile === '' && function_exists('ini_get')) {
     $dataFile = (string) ini_get('FiftyOneDegreesHashEngine.data_file');
 }
@@ -87,7 +120,6 @@ if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
 // Load a set of User-Agents to detect. The exact values do not matter, only
 // that there are enough distinct ones to exercise the data file.
 $userAgents = [];
-$uaCsv = getenv('_51DEGREES_UA_CSV') ?: ($argv[3] ?? '');
 if ($uaCsv !== '' && is_file($uaCsv)) {
     $handle = fopen($uaCsv, 'r');
     while (($line = fgets($handle)) !== false && count($userAgents) < 200) {

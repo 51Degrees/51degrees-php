@@ -25,11 +25,15 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests\classes;
 
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\EnvironmentVariable;
+
 /**
  * Finds the resource key a test needs in the environment.
  *
- * Each key has one variable name. When it is not set the message names
- * the variable that was wanted, rather than leaving the reader to guess.
+ * A key is read from its variable and, when that is not set, from the
+ * deprecated name the variable replaced. When neither is set the message
+ * names the variable that was wanted, rather than leaving the reader to
+ * guess.
  */
 class ResourceKeys
 {
@@ -44,17 +48,13 @@ class ResourceKeys
      */
     public static function find(string $name): ?string
     {
-        $value = getenv($name);
+        $value = EnvironmentVariable::read(
+            $name,
+            Constants::LEGACY_ENV_VARS[$name] ?? $name,
+            self::PLACEHOLDER
+        );
 
-        if ($value === false && isset($_ENV[$name])) {
-            $value = $_ENV[$name];
-        }
-
-        if (!empty($value) && $value !== self::PLACEHOLDER) {
-            return (string) $value;
-        }
-
-        return null;
+        return $value === '' ? null : $value;
     }
 
     /**

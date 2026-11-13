@@ -29,7 +29,9 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 
 /**
  * Getting started (on-premise) example. Looks up IP intelligence data for a
- * set of IP addresses using a local .ipi data file.
+ * set of IP addresses with the engine the extension builds once, when PHP
+ * starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini
+ * setting.
  */
 class GettingStartedConsoleOnPremise
 {
@@ -40,15 +42,11 @@ class GettingStartedConsoleOnPremise
     /**
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
-        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-            'dataFile' => $dataFile,
-            // The example uses the Enterprise data file when it finds one,
-            // which is several gigabytes, and LowMemory keeps the memory it
-            // needs small.
-            'performanceProfile' => 'LowMemory'
-        ]))->build();
+        // The engine is the one the extension built when PHP started, so
+        // the pipeline takes no settings and no request loads the data file.
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder())->build();
 
         // The pipeline is closed in the finally block, which releases the
         // native data it holds.

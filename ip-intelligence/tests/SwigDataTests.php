@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\ipintelligence\Messages;
 use fiftyone\pipeline\ipintelligence\SwigData;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubLegacyWeightedValue;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubSwigEngine;
@@ -216,12 +217,12 @@ class SwigDataTests extends TestCase
     }
 
     /**
-     * Every read goes by the property's index in the list the engine was
-     * built with, so no accessor is handed a name.
+     * Every accessor is handed the property's name, because PHP builds the
+     * engine class on every request and a table from names to indexes would
+     * be built on every request too.
      */
-    public function testEveryReadGoesByTheBuildTimeIndex(): void
+    public function testEveryReadGoesByName(): void
     {
-        $required = ['RegisteredName', 'IsCrawler', 'Mcc'];
         $properties = [
             'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
             'iscrawler' => ['name' => 'IsCrawler', 'type' => 'Bool'],
@@ -231,65 +232,54 @@ class SwigDataTests extends TestCase
             'RegisteredName' => new StubSwigValue(true, 'An ISP'),
             'IsCrawler' => new StubSwigValue(true, false),
             'Mcc' => new StubSwigValue(true, new StubSwigList([new StubWeightedValue('234', 65535)])),
-        ], $required);
-        $data = new SwigData(new StubSwigEngine($properties, $required), $result);
+        ]);
+        $data = new SwigData(new StubSwigEngine($properties), $result);
 
         $this->assertSame('An ISP', $data->getInternal('registeredname')->value);
         $this->assertFalse($data->getInternal('iscrawler')->value);
         $this->assertSame([['value' => '234', 'rawweighting' => 65535]], $data->getInternal('mcc')->value);
 
-        $this->assertSame([0, 1, 2], $result->requestedKeys);
+        $this->assertSame(['RegisteredName', 'IsCrawler', 'Mcc'], $result->requestedKeys);
     }
 
     /**
-     * A data set loaded later may hold the properties in another order, or
-     * hold more of them. The index still names the property the engine was
-     * built with, because it is the place in the build-time list.
+     * A closed engine has no property of any name, because looking one up
+     * needs the engine, and isset must answer rather than throw.
      */
-    public function testIndexesFollowTheBuildListNotTheDataSetOrder(): void
+    public function testIssetOnAClosedEngineAnswersFalse(): void
     {
-        // The engine was built with these names, in this order.
-        $required = ['IsCrawler', 'RegisteredName'];
+        $engine = new class([]) extends StubSwigEngine {
+            public function findProperty(string $name): ?array
+            {
+                throw new \Exception(Messages::ENGINE_CLOSED);
+            }
+        };
+        $data = new SwigData($engine, new StubSwigResult([]));
 
-        // The reloaded data set sorts its properties differently and holds a
-        // third property the engine was not built with.
-        $properties = [
-            'accuracyradiusmin' => ['name' => 'AccuracyRadiusMin', 'type' => 'WeightedInt'],
-            'iscrawler' => ['name' => 'IsCrawler', 'type' => 'Bool'],
-            'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
-        ];
-        $result = new StubSwigResult([
-            'IsCrawler' => new StubSwigValue(true, true),
-            'RegisteredName' => new StubSwigValue(true, 'Another ISP'),
-        ], $required);
-        $data = new SwigData(new StubSwigEngine($properties, $required), $result);
-
-        $this->assertTrue($data->getInternal('iscrawler')->value);
-        $this->assertSame('Another ISP', $data->getInternal('registeredname')->value);
-
-        // IsCrawler is index 0 and RegisteredName index 1 because that is the
-        // build order, even though the data set lists them second and third.
-        $this->assertSame([0, 1], $result->requestedKeys);
+        $this->assertFalse(isset($data->registeredname));
     }
 
     /**
-     * A property the engine was not built with has no index, so it carries no
-     * value rather than being read by name.
+     * Any other failure of the lookup is a real one and reaches the caller,
+     * rather than being read as the engine having no property of that name.
      */
-    public function testAPropertyOutsideTheBuildListCarriesNoValue(): void
+    public function testIssetLetsAnyOtherFailureOut(): void
     {
-        $required = ['IsCrawler'];
-        $properties = [
-            'iscrawler' => ['name' => 'IsCrawler', 'type' => 'Bool'],
-            'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
-        ];
-        $result = new StubSwigResult([
-            'IsCrawler' => new StubSwigValue(true, true),
-            'RegisteredName' => new StubSwigValue(true, 'An ISP'),
-        ], $required);
-        $data = new SwigData(new StubSwigEngine($properties, $required), $result);
+        $engine = new class([]) extends StubSwigEngine {
+            public function findProperty(string $name): ?array
+            {
+                throw new \Exception('The native metadata could not be read.');
+            }
+        };
+        $data = new SwigData($engine, new StubSwigResult([]));
 
-        $this->assertTrue($data->getInternal('iscrawler')->value);
-        $this->assertFalse($data->getInternal('registeredname')->hasValue);
+        $message = null;
+        try {
+            isset($data->registeredname);
+        } catch (\Exception $exception) {
+            $message = $exception->getMessage();
+        }
+
+        $this->assertSame('The native metadata could not be read.', $message);
     }
 }

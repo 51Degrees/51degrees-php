@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\translation;
 
+use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\translation\MissingTranslationBehavior;
 use fiftyone\pipeline\translation\TranslationEngine;
 use fiftyone\pipeline\translation\YamlMap;
@@ -61,5 +62,15 @@ class CountryCodeTranslationEngine extends TranslationEngine
             Constants::BASE_LOCALE,
             MissingTranslationBehavior::ORIGINAL
         );
+    }
+
+    /**
+     * Logs that a value was read from the deprecated environment variable,
+     * when one was and that has not been logged yet.
+     */
+    public function onRegistration(Pipeline $pipeline): void
+    {
+        parent::onRegistration($pipeline);
+        TranslationPaths::reportDeprecatedVariable($pipeline);
     }
 }

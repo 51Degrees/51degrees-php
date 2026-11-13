@@ -60,14 +60,26 @@ class IpIntelligenceOnPremise extends Engine
     public $engine;
 
     /**
-     * The index of each property the engine was built with, keyed by the
-     * lowercase name. The index is the place of the name in the build-time
-     * list, so it names the same property after any reload, and every read
-     * of a value goes by it rather than by name.
-     *
-     * @var array<string, int>
+     * The synthetic properties added by this engine. The IP address supplied
+     * as evidence is echoed back in the results (ip-intelligence-dotnet
+     * parity).
      */
-    public array $propertyIndexes = [];
+    private const METRIC_PROPERTIES = [
+        'ip' => [
+            'name' => 'Ip',
+            'type' => 'IpAddress',
+            'category' => 'Network',
+            'description' => Constants::IP_DESCRIPTION,
+            'component' => 'Network'
+        ],
+        'ipv6' => [
+            'name' => 'IpV6',
+            'type' => 'IpAddress',
+            'category' => 'Network',
+            'description' => Constants::IPV6_DESCRIPTION,
+            'component' => 'Network'
+        ]
+    ];
 
     private $config;
 
@@ -77,19 +89,48 @@ class IpIntelligenceOnPremise extends Engine
     private array $evidenceKeys = [];
 
     /**
-     * @param array<string, mixed> $settings
-     *   dataFile            - (required, unless the global engine is used)
-     *                         path to the .ipi data file.
-     *   performanceProfile  - (optional) one of Constants::PERFORMANCE_PROFILES,
-     *                         defaulting to Constants::DEFAULT_PERFORMANCE_PROFILE.
-     *   restrictedProperties- (optional) list of properties to populate.
-     *   concurrency         - (optional) expected concurrent accesses.
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it.
      *
-     * Omitting "dataFile" reuses the shared global engine when one exists.
-     * That engine comes from the FiftyOneDegreesIpIntelligenceEngine.* ini
-     * settings, so ENGINE_SETTINGS are rejected on that path. It is always
-     * built in memory, so a performance_profile ini setting other than
-     * Constants::STARTUP_PERFORMANCE_PROFILE is rejected too.
+     * @var null|array<string, string>
+     */
+    private ?array $requiredNames = null;
+
+    /**
+     * The name, type and category of each property read so far, keyed by
+     * the lowercase name.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private array $readProperties = [];
+
+    /**
+     * Uses the engine the extension builds once, when PHP starts, from the
+     * FiftyOneDegreesIpIntelligenceEngine.* php.ini settings. Set
+     * FiftyOneDegreesIpIntelligenceEngine.data_file to the .ipi data file and
+     * pass no settings. That engine always holds the whole data file in
+     * memory, so a performance_profile ini setting other than
+     * Constants::STARTUP_PERFORMANCE_PROFILE is rejected, as are
+     * ENGINE_SETTINGS.
+     *
+     * @param array<string, mixed> $settings
+     *   dataFile            - (optional, command-line tools only) path to
+     *                         an .ipi data file to build a new engine from,
+     *                         in place of the one built when PHP starts.
+     *                         Each construction opens the data file again
+     *                         and reads as much of it into memory as the
+     *                         performance profile asks for, the whole file
+     *                         with MaxPerformance. A web server constructs
+     *                         this class in every request, so under any SAPI
+     *                         other than 'cli' the setting is refused with an
+     *                         exception.
+     *   performanceProfile  - (optional, with dataFile) one of
+     *                         Constants::PERFORMANCE_PROFILES, defaulting to
+     *                         Constants::DEFAULT_PERFORMANCE_PROFILE.
+     *   restrictedProperties- (optional, with dataFile) list of properties
+     *                         to populate.
+     *   concurrency         - (optional, with dataFile) expected concurrent
+     *                         accesses.
      * @throws \Exception
      */
     public function __construct(array $settings = [])
@@ -124,9 +165,6 @@ class IpIntelligenceOnPremise extends Engine
             }
 
             $this->engine = \ipi_engine_get();
-            $this->initPropertyIndexes(self::startupSetting(
-                'FiftyOneDegreesIpIntelligenceEngine.required_properties'
-            ) !== '');
             $this->initEngineMetaData();
             parent::__construct();
 
@@ -134,7 +172,12 @@ class IpIntelligenceOnPremise extends Engine
         }
 
         if (!$dataFile) {
-            throw new \Exception('A "dataFile" setting is required for the on-premise IP intelligence engine, or set the FiftyOneDegreesIpIntelligenceEngine.data_file ini to build a shared global engine.');
+            throw new \Exception(Messages::NO_STARTUP_ENGINE);
+        }
+
+        // Only a command-line tool builds its engine once for its whole run.
+        if (PHP_SAPI !== 'cli') {
+            throw new \Exception(Messages::DATA_FILE_SETTING_REFUSED);
         }
 
         if (substr($dataFile, -strlen(Constants::DATA_FILE_EXTENSION)) !== Constants::DATA_FILE_EXTENSION) {
@@ -179,7 +222,6 @@ class IpIntelligenceOnPremise extends Engine
         // Build the native engine.
         $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
 
-        $this->initPropertyIndexes($restrictedProperties !== []);
         $this->initEngineMetaData();
 
         parent::__construct();
@@ -259,9 +301,7 @@ class IpIntelligenceOnPremise extends Engine
             $this->engine->refreshData($fileName);
         }
 
-        // The metadata follows the new data file. The index table does not,
-        // because an index is the place of a name in the list the engine was
-        // built with, which a reload never changes.
+        // The metadata follows the new data file.
         $this->initEngineMetaData();
     }
 
@@ -275,13 +315,62 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * The index of a property the engine was built with, or null when the
-     * engine was not built with the name. A caller with the index reads a
-     * value without the native code looking the name up.
+     * Builds the table of every available property when it is first
+     * read.
+     *
+     * @return mixed
+     * @throws \Exception
      */
-    public function getPropertyIndex(string $name): ?int
+    public function &__get(string $name)
     {
-        return $this->propertyIndexes[strtolower($name)] ?? null;
+        if ($name === 'properties') {
+            $this->properties = $this->buildProperties();
+
+            return $this->properties;
+        }
+
+        trigger_error(
+            sprintf('Undefined property: %s::$%s', static::class, $name),
+            E_USER_WARNING
+        );
+        $none = null;
+
+        return $none;
+    }
+
+    /**
+     * The metadata a read needs of a property, holding at least its name
+     * and type, or null when the engine has no available property of that
+     * name. Until the table of every property is built, a property the
+     * engine was built with is looked up on its own in native code, so a
+     * request pays only for the properties it reads.
+     *
+     * @return null|array<string, mixed>
+     * @throws \Exception
+     */
+    public function findProperty(string $name): ?array
+    {
+        $key = strtolower($name);
+        if (isset($this->properties)) {
+            return $this->properties[$key] ?? null;
+        }
+        if (isset(self::METRIC_PROPERTIES[$key])) {
+            return self::METRIC_PROPERTIES[$key];
+        }
+        if (!isset($this->readProperties[$key])) {
+            $property = $this->lookUpProperty($key);
+            if ($property === null) {
+                // Not a property the engine was built with, so the table
+                // says whether the data set has it. Reading the table here
+                // builds it through __get, where the isset above does not,
+                // so an __isset on this class would make this line answer
+                // null with nothing built.
+                return $this->properties[$key] ?? null;
+            }
+            $this->readProperties[$key] = $property;
+        }
+
+        return $this->readProperties[$key];
     }
 
     private function applyPerformanceProfile($config, string $profile): void
@@ -306,48 +395,67 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * Map each build-time property name to its index, once, so every read of
-     * a value goes by index rather than by name. The list comes from the
-     * engine, not from the data set, whose own order can change on a reload.
+     * The name, type and category of an available property the engine was
+     * built with, from native code, or null for any other name.
      *
-     * Called at construction only, because an index is the place of a name
-     * in the build-time list and a reload never changes it.
-     *
-     * An engine built with no names is left with an empty table and keeps
-     * reading by name, because native code then gives each property its own
-     * place in the data set as its index, which a reload can move.
-     *
-     * @param bool $builtWithNames whether the engine was built with a list of
-     *   property names, which is what fixes an index to a name
+     * @return null|array<string, string>
+     * @throws \Exception
      */
-    private function initPropertyIndexes(bool $builtWithNames): void
+    private function lookUpProperty(string $key): ?array
     {
-        $this->propertyIndexes = [];
-        if (!$builtWithNames) {
-            return;
+        $this->assertOpen();
+        $name = $this->requiredNames()[$key] ?? null;
+        if ($name === null) {
+            return null;
+        }
+        $property = $this->engine->getMetaData()->getProperties()
+            ->getByKey($name);
+        if ($property === null || !$property->getAvailable()) {
+            return null;
         }
 
-        $required = $this->engine->getRequiredProperties();
-        for ($i = 0; $i < $required->size(); ++$i) {
-            // A name given twice keeps its first place, as native code does.
-            $name = strtolower($required->get($i));
-            if (!isset($this->propertyIndexes[$name])) {
-                $this->propertyIndexes[$name] = $i;
-            }
-        }
+        return [
+            'name' => $property->getName(),
+            'type' => $property->getType(),
+            'category' => $property->getCategory()
+        ];
     }
 
     /**
-     * The value a setting had when PHP started, which is the value the
-     * start-up engine was built with. ini_get gives the value for this
-     * request, which a per-directory setting or ini_set can change after the
-     * engine was built.
+     * Each name the engine was built with, keyed by the lowercase name, as
+     * the engine gives it, which for a property the data set has is the
+     * data set's spelling.
+     *
+     * @return array<string, string>
+     * @throws \Exception
      */
-    private static function startupSetting(string $name): string
+    private function requiredNames(): array
     {
-        $value = get_cfg_var($name);
+        if ($this->requiredNames === null) {
+            $this->assertOpen();
+            $this->requiredNames = [];
+            $required = $this->engine->getRequiredProperties();
+            $count = $required->size();
+            for ($i = 0; $i < $count; ++$i) {
+                $name = $required->get($i);
+                $this->requiredNames[strtolower($name)] ??= $name;
+            }
+        }
 
-        return is_string($value) ? $value : '';
+        return $this->requiredNames;
+    }
+
+    /**
+     * Metadata needs the engine, so once it is closed only what was already
+     * looked up can be read.
+     *
+     * @throws \Exception
+     */
+    private function assertOpen(): void
+    {
+        if ($this->engine === null) {
+            throw new \Exception(Messages::ENGINE_CLOSED);
+        }
     }
 
     private function initEngineMetaData(): void
@@ -360,7 +468,25 @@ class IpIntelligenceOnPremise extends Engine
         }
         $this->evidenceKeys = $evidenceKeysList;
 
-        // Build the properties metadata list.
+        // PHP constructs this class on every request, so the table of every
+        // property is built when it is first read (see __get), and a read
+        // looks up only its own property (see findProperty). Each follows
+        // the data file in use.
+        unset($this->properties);
+        $this->requiredNames = null;
+        $this->readProperties = [];
+    }
+
+    /**
+     * The table of every available property in the data set, and the echoed
+     * addresses, keyed by the lowercase name.
+     *
+     * @return array<string, array<string, mixed>>
+     * @throws \Exception
+     */
+    private function buildProperties(): array
+    {
+        $this->assertOpen();
         $propertiesInternal = $this->engine->getMetaData()->getProperties();
         $properties = [];
         for ($i = 0; $i < $propertiesInternal->getSize(); ++$i) {
@@ -377,11 +503,11 @@ class IpIntelligenceOnPremise extends Engine
             }
         }
 
-        foreach ($this->getMetricProperties() as $name => $property) {
+        foreach (self::METRIC_PROPERTIES as $name => $property) {
             $properties[$name] = $property;
         }
 
-        $this->properties = $properties;
+        return $properties;
     }
 
     private function getComponentName($property): string
@@ -473,31 +599,5 @@ class IpIntelligenceOnPremise extends Engine
         }
         $ipv4 = inet_ntop(substr($bytes, 12));
         return $ipv4 === false ? null : $ipv4;
-    }
-
-    /**
-     * The synthetic properties added by this engine. The IP address supplied
-     * as evidence is echoed back in the results (ip-intelligence-dotnet parity).
-     *
-     * @return array<string, array<string, string>>
-     */
-    private function getMetricProperties(): array
-    {
-        return [
-            'ip' => [
-                'name' => 'Ip',
-                'type' => 'IpAddress',
-                'category' => 'Network',
-                'description' => Constants::IP_DESCRIPTION,
-                'component' => 'Network'
-            ],
-            'ipv6' => [
-                'name' => 'IpV6',
-                'type' => 'IpAddress',
-                'category' => 'Network',
-                'description' => Constants::IPV6_DESCRIPTION,
-                'component' => 'Network'
-            ]
-        ];
     }
 }

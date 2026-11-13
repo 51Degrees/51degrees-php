@@ -57,15 +57,11 @@ class TranslationConsoleOnPremise
      *
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
-        $engine = new IpIntelligenceOnPremise([
-            'dataFile' => $dataFile,
-            // The example uses the Enterprise data file when it finds one,
-            // which is several gigabytes, and LowMemory keeps the memory it
-            // needs small.
-            'performanceProfile' => 'LowMemory'
-        ]);
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $engine = new IpIntelligenceOnPremise();
         if (ExampleUtils::lacksEnterpriseProperties(
             $engine,
             'Listing the countries an IP address is most likely in',

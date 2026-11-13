@@ -42,15 +42,12 @@ class OfflineProcessingConsoleOnPremise
      * @param array<string> $ipAddresses
      * @param resource $output
      */
-    public function run(string $dataFile, array $ipAddresses, $output): void
+    public function run(array $ipAddresses, $output): void
     {
-        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-            'dataFile' => $dataFile,
-            // The example uses the Enterprise data file when it finds one,
-            // which is several gigabytes, and LowMemory keeps the memory it
-            // needs small.
-            'performanceProfile' => 'LowMemory'
-        ]))->build();
+        // The engine is the one the extension built when PHP started, from
+        // the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting,
+        // so the pipeline takes no settings.
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder())->build();
 
         // The pipeline is closed in the finally block, which releases the
         // native data it holds.

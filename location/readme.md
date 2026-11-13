@@ -34,7 +34,7 @@ Make sure to select the latest version from [Composer.][composer]
 #### Configuration Options
 
  - String ``type`` - The name of the type of geolocation service to use.
- - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://configure.51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=configuration-options).
+ - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://51degrees.com/configure?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=configuration-options).
  - Array ``restrictedProperties`` - The properties to populate values for in the result (all are populated by default).
 
 ## Examples

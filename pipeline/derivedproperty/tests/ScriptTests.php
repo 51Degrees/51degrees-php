@@ -80,7 +80,7 @@ class ScriptTests extends TestCase
      *
      * @param mixed $value
      */
-    private static function run(DerivedScript $script, $value): string
+    private static function answer(DerivedScript $script, $value): string
     {
         $slots = [];
         foreach ($script->properties as $property) {
@@ -103,7 +103,7 @@ class ScriptTests extends TestCase
         $script = ScriptValidator::read(self::script('Eq: no'));
 
         $this->assertSame('string', $script->properties[0]['type']);
-        $this->assertSame('yes', self::run($script, 'no'));
+        $this->assertSame('yes', self::answer($script, 'no'));
     }
 
     public function testKeysThatDifferOnlyInCaseAreRefused(): void
@@ -178,8 +178,8 @@ class ScriptTests extends TestCase
         $this->assertSame('int', $whole->properties[0]['type']);
         $this->assertSame('double', $fraction->properties[0]['type']);
         // 1.5 cannot be read as an int, so the script has no value.
-        $this->assertStringContainsString('has no value', self::run($whole, '1.5'));
-        $this->assertSame('yes', self::run($fraction, '1.5'));
+        $this->assertStringContainsString('has no value', self::answer($whole, '1.5'));
+        $this->assertSame('yes', self::answer($fraction, '1.5'));
     }
 
     public function testAWholeNumberBeyondAnIntInfersDouble(): void
@@ -187,7 +187,7 @@ class ScriptTests extends TestCase
         $script = ScriptValidator::read(self::script('Gt: 3000000000'));
 
         $this->assertSame('double', $script->properties[0]['type']);
-        $this->assertSame('yes', self::run($script, 3000000001));
+        $this->assertSame('yes', self::answer($script, 3000000001));
     }
 
     public function testAnIntIsASigned32BitWholeNumber(): void
@@ -240,10 +240,10 @@ class ScriptTests extends TestCase
         $equal = ScriptValidator::read(self::script('Eq: "Chrome"'));
         $starts = ScriptValidator::read(self::script('StartsWith: "Chr"'));
 
-        $this->assertSame('yes', self::run($equal, 'Chrome'));
-        $this->assertSame('no', self::run($equal, 'chrome'));
-        $this->assertSame('yes', self::run($starts, 'Chrome'));
-        $this->assertSame('no', self::run($starts, 'CHROME'));
+        $this->assertSame('yes', self::answer($equal, 'Chrome'));
+        $this->assertSame('no', self::answer($equal, 'chrome'));
+        $this->assertSame('yes', self::answer($starts, 'Chrome'));
+        $this->assertSame('no', self::answer($starts, 'CHROME'));
     }
 
     public function testAMixedNumberListReadsAsDouble(): void
@@ -251,9 +251,9 @@ class ScriptTests extends TestCase
         $script = ScriptValidator::read(self::script('In: [1, 2.5]'));
 
         $this->assertSame('double', $script->properties[0]['type']);
-        $this->assertSame('yes', self::run($script, 1));
-        $this->assertSame('yes', self::run($script, '2.5'));
-        $this->assertSame('no', self::run($script, 2));
+        $this->assertSame('yes', self::answer($script, 1));
+        $this->assertSame('yes', self::answer($script, '2.5'));
+        $this->assertSame('no', self::answer($script, 2));
     }
 
     public function testEveryFaultInAScriptIsReportedTogether(): void

@@ -16,12 +16,12 @@ dnl this extension cannot share compiled common objects with device detection,
 dnl which builds common without these defines.
 COMMON_DEFINES="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -DFIFTYONE_DEGREES_REDUCED_FILE=1 -D_FILE_OFFSET_BITS=64"
 dnl
-dnl Only get_module is exported, which SWIG marks as exported when
-dnl GCC_HASCLASSVISIBILITY is defined. The device detection extension holds
-dnl common's functions under the same names, and a PHP that loads extensions
-dnl without RTLD_DEEPBIND, as PHP 8.5 on Linux does, would otherwise bind this
-dnl extension's calls to the other extension's copy.
-VISIBILITY="-fvisibility=hidden -DGCC_HASCLASSVISIBILITY"
+dnl Every symbol but get_module, which the SWIG wrapper marks as exported, is
+dnl hidden. The device detection extension holds common's functions under the
+dnl same names, and a PHP that loads extensions without RTLD_DEEPBIND, as
+dnl PHP 8.5 on Linux does, would otherwise bind this extension's calls to the
+dnl other extension's copy.
+VISIBILITY="-fvisibility=hidden"
 CFLAGS="$CFLAGS $COMMON_DEFINES $VISIBILITY -std=gnu11 -Wall -Wno-strict-prototypes -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
 CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES $VISIBILITY -std=gnu++17 -fpermissive -Wall -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
 case "$host_os" in
@@ -53,7 +53,7 @@ if test "$PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE" = "yes"; then
 
   dnl The SWIG wrapper in src/php$PHP_MAJOR_VERSION is committed and is not
   dnl regenerated here, so every build compiles the same wrapper.
-  dnl the swig command in ip-intelligence/OnPremise.md regenerates it.
+  dnl on-premise/generate-wrapper.sh regenerates it.
 
   AC_CONFIG_COMMANDS_PRE(cp src/php$PHP_MAJOR_VERSION/* .)
 

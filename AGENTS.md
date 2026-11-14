@@ -314,7 +314,11 @@ or empty, and write to the PHP error log that the old name is deprecated.
   cloud example with no resource key. Pipeline core's `tests/ExampleTests.php`
   and 51Did's `tests/ExamplesTest.php` run theirs the same way. Each checks
   that the example ends with Find out more and that every 51degrees.com link
-  it prints is tagged. The cloud examples' classes also run with a key, or
+  it prints is tagged. `device-detection/onpremise/tests/StartWithoutDataFileTests.php`
+  and `ip-intelligence/tests/ServeWebExamplesTests.php` also run the Device
+  Detection console examples and both packages' web examples, through their
+  launchers, with nothing set at all, so the data file is found or downloaded.
+  The cloud examples' classes also run with a key, or
   against a mocked cloud service for IP Intelligence, in each package's
   `tests/ExampleTests.php`. The Device Detection on-premise suite runs only
   when the TAC data file is there (`ci/run-unit-tests.ps1` returns early

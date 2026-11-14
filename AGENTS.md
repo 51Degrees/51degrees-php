@@ -401,6 +401,15 @@ only `Integration`.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 
+PHPUnit 9 reads test metadata (a data provider, a requirement, a hook, a
+process setting) from doc comments, PHPUnit 10 and 11 read attributes
+first, and PHPUnit 12 reads attributes only. Each package allows any
+PHPUnit, so a test gives each annotation its attribute from
+`PHPUnit\Framework\Attributes` as well, imported with `use`.
+[`ci/check-test-attributes.ps1`](ci/check-test-attributes.ps1) fails on an
+annotation with no attribute, and the Test attributes workflow runs it on
+every pull request.
+
 ## CI
 
 The workflows call common-ci, which runs the scripts in the root `ci/` once

@@ -82,8 +82,9 @@ class SetHeaderElement extends FlowElement
 
             // Loop over each flowElement property
             foreach ($properties as $propertyKey => $propertyMeta) {
-                // Check if the property starts ith SetHeader
-                if (strpos($propertyKey, 'setheader') !== false) {
+                // The key is the lower-case name, and only a name that
+                // starts with SetHeader is a SetHeader property.
+                if (strpos($propertyKey, 'setheader') === 0) {
                     $setHeaderElementList[] = $propertyMeta['name'];
                 }
             }

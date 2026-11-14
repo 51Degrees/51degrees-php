@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\tests\classes\ExampleRun;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -104,6 +105,7 @@ class MixedExamplesTests extends TestCase
      *
      * @dataProvider loadOrders
      */
+    #[DataProvider('loadOrders')]
     public function testEachExtensionKeepsItsOwnClasses(
         bool $deviceDetectionFirst
     ): void {
@@ -188,6 +190,7 @@ class MixedExamplesTests extends TestCase
     /**
      * @dataProvider loadOrders
      */
+    #[DataProvider('loadOrders')]
     public function testMixedConsoleExample(bool $deviceDetectionFirst): void
     {
         // Run as the other example tests run, with standard error kept apart,
@@ -227,6 +230,7 @@ class MixedExamplesTests extends TestCase
     /**
      * @dataProvider loadOrders
      */
+    #[DataProvider('loadOrders')]
     public function testMixedWebExample(bool $deviceDetectionFirst): void
     {
         $page = $this->fetchPage(

@@ -31,9 +31,11 @@ use fiftyone\pipeline\ipintelligence\tests\classes\OnPremiseTestCase;
 
 /**
  * Times the native engine with the data file, in alternate rounds whose
- * order turns round each round. A read of a value by name is timed against
- * a read by its position, and process on an engine created with no names
- * against one created with every name.
+ * order turns round each round, and prints the figures. A read of a value
+ * by name is timed against a read by its position, and process on an engine
+ * created with no names against one created with every name. Each test
+ * fails when its multiple passes the limit set from the runners'
+ * measurements.
  */
 class ReadTimingTests extends OnPremiseTestCase
 {
@@ -67,6 +69,14 @@ class ReadTimingTests extends OnPremiseTestCase
     private const MIN_EVERY_NAME_OVER_NO_NAMES = 3;
 
     /**
+     * The most a read by name may take, as a multiple of a read by
+     * position. It is well above the multiples measured on the runners the
+     * test runs on, so this fails when reading by name, which SwigData does,
+     * becomes much slower than reading by position.
+     */
+    private const MAX_NAME_OVER_POSITION = 2;
+
+    /**
      * The accessor SwigData reads each timed type of property with.
      */
     private const ACCESSORS = [
@@ -82,6 +92,16 @@ class ReadTimingTests extends OnPremiseTestCase
             $this->assertNotSame([], $names);
             $positions = array_flip(self::requiredNames($engine));
 
+            // Both reads give the same value, so the positions are right.
+            $results = $engine->engine->process(Constants::IPV4_ADDRESS);
+            foreach ($names as $name => $accessor) {
+                $this->assertSame(
+                    self::valueText($results->{$accessor}($name)),
+                    self::valueText($results->{$accessor}($positions[$name])),
+                    $name
+                );
+            }
+
             $byName = [];
             $byPosition = [];
             for ($round = 0; $round < self::ROUNDS; ++$round) {
@@ -94,10 +114,12 @@ class ReadTimingTests extends OnPremiseTestCase
                 }
             }
 
-            fwrite(STDERR, PHP_EOL . sprintf(
+            $multiple = self::median($byName) / self::median($byPosition);
+            $summary = sprintf(
                 'IP Intelligence read on PHP %s, %s, %d values: ' .
                 'by name %.1f ns (%.1f to %.1f), by position %.1f ns ' .
-                '(%.1f to %.1f), by name faster in %d of %d rounds.',
+                '(%.1f to %.1f), by name over by position %.2f times, ' .
+                'by name faster in %d of %d rounds.',
                 PHP_VERSION,
                 PHP_OS_FAMILY,
                 count($names),
@@ -107,9 +129,17 @@ class ReadTimingTests extends OnPremiseTestCase
                 self::median($byPosition),
                 min($byPosition),
                 max($byPosition),
+                $multiple,
                 self::roundsBelow($byName, $byPosition),
                 self::ROUNDS
-            ) . PHP_EOL);
+            );
+            fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
+
+            $this->assertLessThanOrEqual(
+                self::MAX_NAME_OVER_POSITION,
+                $multiple,
+                $summary
+            );
         } finally {
             $engine->close();
         }
@@ -252,6 +282,30 @@ class ReadTimingTests extends OnPremiseTestCase
         }
 
         return $names;
+    }
+
+    /**
+     * A native value as text, each weighted value of a list joined with
+     * '|', or its no value message.
+     *
+     * @param object $value SWIG wrapped Value
+     */
+    private static function valueText($value): string
+    {
+        if (!$value->hasValue()) {
+            return 'no value ' . $value->getNoValueMessage();
+        }
+        $inner = $value->getValue();
+        if (!is_object($inner)) {
+            return 'value ' . $inner;
+        }
+        $parts = [];
+        for ($i = 0; $i < $inner->size(); ++$i) {
+            $weighted = $inner->get($i);
+            $parts[] = $weighted->getValue();
+        }
+
+        return 'values ' . implode('|', $parts);
     }
 
     /**

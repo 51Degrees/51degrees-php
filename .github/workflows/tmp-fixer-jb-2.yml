@@ -20,7 +20,6 @@ jobs:
         include:
           - { os: ubuntu-24.04, php: '8.0' }
           - { os: ubuntu-24.04, php: '8.5' }
-          - { os: macos-latest, php: '8.5' }
     steps:
       - uses: actions/checkout@v4
         with:

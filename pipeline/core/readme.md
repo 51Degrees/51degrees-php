@@ -46,6 +46,9 @@ and on our [website](https://51degrees.com/documentation/_device_detection__exam
 |----------------------------------------|-------------|
 | Pipeline                               | Demonstrates adding some sample flow elements to a pipeline and processing some data with them. |
 | CustomFlowElement                      | Demonstrates how to write your own flow element, which can then be added to a pipeline to perform processing. |
+| OnPremiseEngine                        | In [pipeline/engines](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/engines). Demonstrates an on-premise engine, which gives the star sign for a date of birth from a data file. |
+| CloudEngine                            | In [pipeline/cloudrequestengine](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/cloudrequestengine). Demonstrates a cloud engine, which gives the star sign for a date of birth from a remote service. |
+| DerivedProperty                        | In [pipeline/derivedproperty](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/derivedproperty). Demonstrates the derived property element, which computes properties from properties other elements have produced. |
 
 ## Tests
 To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:

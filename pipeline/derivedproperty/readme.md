@@ -71,6 +71,33 @@ if ($humanConfidence->hasValue) {
 Each value is an `AspectPropertyValue`, and reading `value` where there is
 none raises the no value message, as for any other element.
 
+## Example
+
+[examples/DerivedProperty.php](examples/DerivedProperty.php) needs no
+settings, no resource key, no data file and no network. A small element in
+[examples/SessionElement.php](examples/SessionElement.php) supplies the
+source properties, standing in for device detection or IP intelligence. The
+example shows
+
+1. a script held in the example as text and given to `addScript`,
+2. a script read from [examples/ReaderEngagement.yaml](examples/ReaderEngagement.yaml)
+   with `addScriptFile`,
+3. the same pipeline built from
+   [examples/derived-property-options.json](examples/derived-property-options.json)
+   with `PipelineBuilder::buildFromConfig`, and
+4. a request that does not carry a source property a script names, where
+   the derived property has no value and its message names the property
+   that was missing and what its element said.
+
+Run it from this folder.
+
+```bash
+composer install
+php examples/DerivedProperty.php
+```
+
+`tests/ExampleTests.php` runs it in its own PHP with no settings, as CI does.
+
 ## Configuration file
 
 `PipelineBuilder::buildFromConfig` builds the element as it builds any other,

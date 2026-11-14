@@ -1,0 +1,110 @@
+name: tmp fixer 75
+# Throwaway. Builds the IP Intelligence extension as its ci/build-project.ps1
+# does, links the free Lite data file where the package's php.ini names it,
+# runs the Unit suite as ci/run-unit-tests.ps1 does, and then the on-premise
+# Integration tests with the extension loaded. The timing jobs then run the
+# read timing test of pull request 132, and time rc, which reads by name,
+# against this branch, which reads by position, through the package, with
+# the scripts of commit bd18f14f.
+on:
+  push:
+    branches:
+      - tmp/fixer-75-red
+      - tmp/fixer-75-green
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.0', timing: false }
+          - { os: ubuntu-24.04, php: '8.5', timing: true }
+          - { os: macos-latest, php: '8.5', timing: true }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+          fetch-depth: 10
+      - name: Checkout the C code and the data repository
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1 cxx
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the IP Intelligence extension as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ip-intelligence/ci/build-project.ps1 -RepoName 51degrees-php/ip-intelligence
+      - name: Fetch the free data file and link it where php.ini names it
+        working-directory: common-ci/51degrees-php
+        run: |
+          sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi
+          mkdir -p ip-intelligence/assets
+          ln -sf "$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi" ip-intelligence/assets/51Degrees-LiteIpiV41.ipi
+          ls -laL ip-intelligence/assets
+      - name: Unit suite as CI runs it
+        id: unit
+        continue-on-error: true
+        working-directory: common-ci
+        shell: pwsh
+        run: ./51degrees-php/ip-intelligence/ci/run-unit-tests.ps1 -RepoName 51degrees-php/ip-intelligence
+      - name: On-premise Integration tests with the extension
+        id: integration
+        if: always()
+        continue-on-error: true
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          export _51DEGREES_IPI_PATH="$PWD/assets/51Degrees-LiteIpiV41.ipi"
+          PHP_INI_SCAN_DIR=":$PWD" phpunit --fail-on-warning --testdox --testsuite Integration --filter 'IpIntelligenceOnPremiseTests'
+      - name: Timing, a native read by name against by position (the read timing test of pull request 132)
+        id: native
+        if: always() && matrix.timing
+        continue-on-error: true
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          export _51DEGREES_IPI_PATH="$PWD/assets/51Degrees-LiteIpiV41.ipi"
+          PHP_INI_SCAN_DIR=":$PWD" phpunit --testdox --filter testReadingByNameAgainstByPosition tests/ReadTimingTests.php
+      - name: Timing, rc against this branch through the package
+        id: trees
+        if: always() && matrix.timing
+        continue-on-error: true
+        working-directory: common-ci/51degrees-php
+        run: |
+          mkdir ../tree-name ../tree-position
+          git archive 36b71fde76c9da230e1e7244367bd61eb0d62fb7 | tar -x -C ../tree-name
+          git archive HEAD^ | tar -x -C ../tree-position
+          echo "position tree $(git rev-parse HEAD^)"
+          grep -c 'getPosition' ../tree-position/ip-intelligence/src/SwigData.php
+          if grep -q 'getPosition' ../tree-name/ip-intelligence/src/SwigData.php; then exit 1; fi
+          python3 ci/tmp-timing/run.py \
+            "$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" \
+            "$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi" \
+            116.154.188.222 \
+            "name=$(cd ../tree-name && pwd)" \
+            "position=$(cd ../tree-position && pwd)"
+      - name: Result
+        if: always()
+        run: |
+          echo "Unit suite: ${{ steps.unit.outcome }}"
+          echo "On-premise Integration tests: ${{ steps.integration.outcome }}"
+          echo "Native read timing: ${{ steps.native.outcome }}"
+          echo "rc against this branch: ${{ steps.trees.outcome }}"
+          test "${{ steps.unit.outcome }}" = success
+          test "${{ steps.integration.outcome }}" = success

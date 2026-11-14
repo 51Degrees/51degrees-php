@@ -32,10 +32,10 @@ use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
- * 'Items' is a list of Element Data given as it is, as the hardware profiles
- * are, with one item an array keyed by Property name and one an Element Data
- * instance. 'Wrapped' is a list of Element Data inside an
- * AspectPropertyValue, and 'Names' a list of plain values.
+ * 'Items' is a list of Element Data given as arrays keyed by Property name,
+ * as the hardware profiles are. 'Records' is a list of Element Data
+ * instances, 'Wrapped' a list of Element Data inside an AspectPropertyValue,
+ * and 'Names' a list of plain values.
  */
 class ListValuesElement extends FlowElement
 {
@@ -43,6 +43,7 @@ class ListValuesElement extends FlowElement
 
     public array $properties = [
         'Items' => ['type' => 'array'],
+        'Records' => ['type' => 'array'],
         'Wrapped' => ['type' => 'array'],
         'Names' => ['type' => 'array'],
     ];
@@ -59,9 +60,16 @@ class ListValuesElement extends FlowElement
                     'PlainNull' => null,
                     'Plain' => 'Second',
                 ],
-                new ElementDataDictionary($this, [
+                [
                     'WithValue' => new AspectPropertyValue(null, 'Third'),
                     'Reasoned' => new AspectPropertyValue('Not matched'),
+                    'PlainNull' => null,
+                ],
+            ],
+            'Records' => [
+                new ElementDataDictionary($this, [
+                    'WithValue' => new AspectPropertyValue(null, 'Fifth'),
+                    'Reasoned' => new AspectPropertyValue('Not found'),
                     'PlainNull' => null,
                 ]),
             ],
@@ -86,13 +94,16 @@ class JsonBundlerListTests extends TestCase
 {
     /**
      * One Property of the 'lists' entry as the web page receives it, after
-     * JSON encoding.
+     * JSON encoding. The JavaScript Builder is left out, so that each
+     * Property's JSON is read on its own.
      *
      * @return array<int, mixed>
      */
     private function json(string $property): array
     {
-        $flowData = (new PipelineBuilder([]))
+        $flowData = (new PipelineBuilder([
+            'addJavaScriptBuilderElement' => false
+        ]))
             ->add(new ListValuesElement())
             ->build()
             ->createFlowData();
@@ -140,12 +151,28 @@ class JsonBundlerListTests extends TestCase
     public function testAnItemPropertyThatIsNullHasNoEntryAndNoNullReason()
     {
         $items = $this->json('items');
+        // Names are compared in lower case, so that a name written in
+        // another case still counts as an entry.
+        $first = array_change_key_case($items[0]);
+        $second = array_change_key_case($items[1]);
 
         foreach (['nullvalue', 'plainnull'] as $name) {
-            $this->assertArrayNotHasKey($name, $items[0]);
-            $this->assertArrayNotHasKey($name . 'nullreason', $items[0]);
+            $this->assertArrayNotHasKey($name, $first);
+            $this->assertArrayNotHasKey($name . 'nullreason', $first);
         }
-        $this->assertArrayNotHasKey('plainnull', $items[1]);
+        $this->assertArrayNotHasKey('plainnull', $second);
+    }
+
+    public function testAnItemThatIsElementDataIsWrittenTheSameWay()
+    {
+        $items = $this->json('records');
+
+        $this->assertCount(1, $items);
+        $this->assertSame([
+            'reasoned' => null,
+            'reasonednullreason' => 'Not found',
+            'withvalue' => 'Fifth',
+        ], self::sorted($items[0]));
     }
 
     public function testAListInsideAnAspectPropertyValueIsWrittenTheSameWay()

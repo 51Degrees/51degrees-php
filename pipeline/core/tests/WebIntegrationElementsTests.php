@@ -25,15 +25,19 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\JavascriptBuilderElement;
+use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\SequenceElement;
+use fiftyone\pipeline\core\SetHeaderElement;
 use fiftyone\pipeline\core\tests\classes\DeclaresNothingElement;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The elements a Pipeline adds for the web integration each have a switch,
- * and the Sequence Element runs first and writes Element Data as well as
- * Evidence.
+ * and each is added only when the application has not added one. An added
+ * Sequence Element runs first, and writes Element Data as well as Evidence.
  */
 class WebIntegrationElementsTests extends TestCase
 {
@@ -119,6 +123,127 @@ class WebIntegrationElementsTests extends TestCase
                 'addSetHeaderElement' => false,
             ])
         );
+    }
+
+    public static function provider_testAddedByTheApplication(): array
+    {
+        return [
+            'sequence' => [
+                SequenceElement::class,
+                [
+                    'declaresnothing',
+                    'sequence',
+                    'jsonbundler',
+                    'javascriptbuilder',
+                    'set-headers'
+                ]
+            ],
+            'json bundler' => [
+                JsonBundlerElement::class,
+                [
+                    'sequence',
+                    'declaresnothing',
+                    'jsonbundler',
+                    'javascriptbuilder',
+                    'set-headers'
+                ]
+            ],
+            'javascript builder' => [
+                JavascriptBuilderElement::class,
+                [
+                    'sequence',
+                    'declaresnothing',
+                    'jsonbundler',
+                    'javascriptbuilder',
+                    'set-headers'
+                ]
+            ],
+            'set headers' => [
+                SetHeaderElement::class,
+                [
+                    'sequence',
+                    'declaresnothing',
+                    'set-headers',
+                    'jsonbundler',
+                    'javascriptbuilder'
+                ]
+            ],
+        ];
+    }
+
+    /**
+     * Each web integration element is added only when the application has
+     * not added one, so it runs once. The one the application added runs
+     * where it was put, and an added JSON Bundler goes immediately before
+     * the JavaScript Builder, which reads it.
+     * @dataProvider provider_testAddedByTheApplication
+     */
+    #[DataProvider('provider_testAddedByTheApplication')]
+    public function testAnElementTheApplicationAddedIsNotAddedAgain(
+        string $class,
+        array $expected
+    ) {
+        $element = new $class();
+        $pipeline = (new PipelineBuilder([]))
+            ->add(new DeclaresNothingElement())
+            ->add($element)
+            ->build();
+
+        $this->assertSame(
+            $expected,
+            array_map(
+                fn ($flowElement) => $flowElement->dataKey,
+                $pipeline->flowElements
+            )
+        );
+        $this->assertSame(
+            $element,
+            $pipeline->flowElementsList[$element->dataKey]
+        );
+    }
+
+    public function testASequenceElementTheApplicationAddedCountsOnce()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new SequenceElement())
+            ->add(new DeclaresNothingElement())
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(1, $flowData->sequence->get('sequence'));
+        $this->assertSame(1, $flowData->evidence->get('query.sequence'));
+    }
+
+    public function testTheJavaScriptBuilderTheApplicationAddedMakesTheScript()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new JavascriptBuilderElement([
+                'objName' => 'appFod',
+                'minify' => false
+            ]))
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+
+        $this->assertSame([], $flowData->errors);
+        $this->assertStringContainsString(
+            'var sessionKey = "appFod";',
+            $flowData->javascriptbuilder->javascript
+        );
+    }
+
+    public function testSequenceElementTreatsAnEmptySessionIdAsNone()
+    {
+        $flowData = (new PipelineBuilder([]))->build()->createFlowData();
+        $flowData->evidence->set('query.session-id', '');
+        $flowData->process();
+
+        $session = $flowData->sequence->get('session-id');
+        $this->assertIsString($session);
+        $this->assertNotSame('', $session);
+        $this->assertSame($session, $flowData->evidence->get('query.session-id'));
+        $this->assertSame(1, $flowData->sequence->get('sequence'));
     }
 
     public function testSequenceElementDataForANewSession()
@@ -215,6 +340,8 @@ class WebIntegrationElementsTests extends TestCase
             'trailing space' => ['5 ', 1],
             'trailing new line' => ["5\n", 1],
             'negative number' => [-3, 1],
+            'decimal text' => ['1.5', 1],
+            'decimal number' => [1.5, 1],
         ];
     }
 

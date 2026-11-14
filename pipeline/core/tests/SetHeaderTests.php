@@ -177,7 +177,15 @@ class SetHeaderTests extends TestCase
         return [
             ['SetHeaderBrowserAccept-CH', 'Accept-CH'],
             ['SetHeaderBrowserCritical-CH', 'Critical-CH'],
-            ['SetHeaderUnknownAccept-CH', 'Accept-CH']
+            ['SetHeaderUnknownAccept-CH', 'Accept-CH'],
+            // The identifier may start with any character, and the header
+            // name starts at the next upper-case letter after it.
+            ['SetHeaderbrowserAccept-CH', 'Accept-CH'],
+            ['SetHeaderbrowserAccept-ch', 'Accept-ch'],
+            ['SetHeader9Accept-CH', 'Accept-CH'],
+            // Only the identifier is taken off, not every copy of it.
+            ['SetHeaderAcceptAccept-CH', 'Accept-CH'],
+            ['SetHeaderAAccept-CH', 'Accept-CH']
         ];
     }
 
@@ -198,8 +206,9 @@ class SetHeaderTests extends TestCase
     {
         return [
             ['TestBrowserAccept-CH', Messages::PROPERTY_NOT_SET_HEADER],
-            ['SetHeaderbrowserAccept-ch', Messages::WRONG_PROPERTY_FORMAT],
-            ['SetHeaderBrowseraccept-ch', Messages::WRONG_PROPERTY_FORMAT]
+            ['SetHeaderBrowseraccept-ch', Messages::WRONG_PROPERTY_FORMAT],
+            ['SetHeaderbrowseraccept-ch', Messages::WRONG_PROPERTY_FORMAT],
+            ['SetHeader', Messages::WRONG_PROPERTY_FORMAT]
         ];
     }
 

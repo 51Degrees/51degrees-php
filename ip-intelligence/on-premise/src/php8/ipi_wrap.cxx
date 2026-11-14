@@ -1624,14 +1624,11 @@ SWIGINTERN int ResultsIpi_copyValueAsUTF8String(ResultsIpi *self,int requiredPro
             sizeof(zend_class_entry *) *
             (zend_hash_num_elements(CG(class_table)) + 1));
         zend_string *key;
-        /* The table holds untyped pointers, and C++ converts one to a
-           class entry only with a cast, which clang insists on. */
-        void *entry;
+        zend_class_entry *ce;
         if (classes == NULL) {
             return;
         }
-        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, entry) {
-            zend_class_entry *ce = static_cast<zend_class_entry *>(entry);
+        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, ce) {
             if (key != NULL &&
                 ce->type == ZEND_INTERNAL_CLASS &&
                 ce->info.internal.module != NULL &&

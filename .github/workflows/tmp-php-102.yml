@@ -1,0 +1,51 @@
+name: Build without -fpermissive (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-102-**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build both extensions (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.0' }
+          - { os: ubuntu-24.04, php: '8.3' }
+          - { os: ubuntu-24.04, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout cxx
+        run: git submodule update --init --depth 1 cxx
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Build each extension as its ci/build-project.ps1 does
+        run: |
+          status=0
+          build() {
+            (
+              cd "$1"
+              rm -rf cxx
+              mkdir cxx
+              cp -R "$GITHUB_WORKSPACE/cxx/src" cxx/src
+              phpize > /dev/null
+              ./configure $2 > /dev/null
+              grep -o -- '-fpermissive' Makefile | head -1 || echo "no -fpermissive in the Makefile"
+              make -j4 2>&1 | grep -E "error|warning: .*\[-W" | head -60
+              test -f modules/*.so
+            ) || status=1
+            echo "$1: build status $status"
+          }
+          build device-detection/onpremise/on-premise ''
+          build ip-intelligence/on-premise --enable-FiftyOneDegreesIpIntelligenceEngine
+          exit $status

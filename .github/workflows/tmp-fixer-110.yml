@@ -89,7 +89,7 @@ jobs:
           bad=0
           for i in $(seq 1 20); do
             set +e
-            php -n -d enable_dl=1 -d extension_dir="$(dirname "$ext")" -r "$code" > out.txt 2>&1
+            LIBC_FATAL_STDERR_=1 php -n -d enable_dl=1 -d extension_dir="$(dirname "$ext")" -r "$code" > out.txt 2>&1
             s=$?
             set -e
             if [ $s -ne 0 ]; then bad=$((bad+1)); echo "run $i exit $s"; cat out.txt; echo; fi
@@ -100,7 +100,7 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: common-ci/51degrees-php/ip-intelligence
         run: |
-          sudo apt-get install -y -q valgrind > /dev/null
+          sudo apt-get update -q > /dev/null && sudo apt-get install -y -q valgrind > /dev/null
           valgrind --version
           ext="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so"
           code=$(cat "$RUNNER_TEMP/code.txt")

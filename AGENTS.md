@@ -270,6 +270,11 @@ follow.
 - `pipeline/cloudrequestengine`: `51degrees/fiftyone.pipeline.cloudrequestengine`
 - `pipeline/did`: `51degrees/fiftyone.pipeline.did`
 - `pipeline/translation`: `51degrees/fiftyone.pipeline.translation`
+- `pipeline/derivedproperty`: `51degrees/fiftyone.pipeline.derivedproperty`.
+  Its `scripts` folder is a copy of the `scripts` folder of the
+  `derived-properties` submodule at the root, and its tests run the
+  submodule's case files, so never edit a script there. Change the script in
+  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`.
 - `device-detection/cloud`: `51degrees/fiftyone.devicedetection`
 - `device-detection/onpremise`: `51degrees/fiftyone.devicedetection` (same name, path repository only)
 - `location`: `51degrees/fiftyone.geolocation`
@@ -286,6 +291,7 @@ core -> engines -> cloudrequestengine -> device-detection/cloud, location, ip-in
 ip-intelligence also requires translation.
 translation and device-detection/onpremise require core and engines.
 did requires no other 51Degrees package.
+derivedproperty requires core.
 The `require` section of each package `composer.json` is the source of truth.
 
 ## Rules

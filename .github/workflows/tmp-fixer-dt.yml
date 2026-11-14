@@ -68,14 +68,16 @@ jobs:
           export PHP_INI_SCAN_DIR=":$PWD/../../../lite-ini"
           php -r 'echo PHP_VERSION, " ", extension_loaded("FiftyOneDegreesHashEngine") ? "loaded" : "not loaded", PHP_EOL;'
           php vendor/bin/phpunit --version
+          extra=""
+          php vendor/bin/phpunit --version | grep -q "PHPUnit 9." || extra="--display-deprecations"
           failed=0
           for test in DataModelTests NativeCallTests ProfileIdsTests PackagingTests ReadTimingTests; do
             echo "::group::$test"
-            php vendor/bin/phpunit --testdox "tests/$test.php" || failed=1
+            php vendor/bin/phpunit --testdox $extra "tests/$test.php" || failed=1
             echo "::endgroup::"
           done
           echo "::group::testAvailableProperties"
-          php vendor/bin/phpunit --testdox --filter testAvailableProperties tests/DeviceDetectionTests.php || failed=1
+          php vendor/bin/phpunit --testdox $extra --filter testAvailableProperties tests/DeviceDetectionTests.php || failed=1
           echo "::endgroup::"
           exit $failed
       - name: Cloud Unit suite
@@ -85,7 +87,9 @@ jobs:
         working-directory: common-ci/51degrees-php/device-detection/cloud
         run: |
           php vendor/bin/phpunit --version
-          php vendor/bin/phpunit --testdox --testsuite Unit
+          extra=""
+          php vendor/bin/phpunit --version | grep -q "PHPUnit 9." || extra="--display-deprecations"
+          php vendor/bin/phpunit --testdox $extra --testsuite Unit
       - name: Result
         if: always()
         run: |

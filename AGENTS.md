@@ -187,6 +187,17 @@ php $BOTH examples/onpremise/mixed/gettingstarted-console.php
 cd ..
 ```
 
+With the two extensions loaded and no data file setting for one engine or
+both, the console example finds a data file for each engine PHP did not
+build, as the launcher below does, and runs again in a PHP started with
+them. Before its own output it writes to standard error
+`No IP intelligence or device detection engine was built when PHP started, so the example runs again in a PHP that builds them from`
+followed by the two files and the settings to put in php.ini, then the
+command, after the download's own lines when it downloads a file. Where the
+system does not give
+PHP's own command line, as on macOS, the new PHP is started without the
+`-d extension=...` options, so load the extensions from php.ini there.
+
 Start the mixed web page from the repository root with the launcher, loading
 only the two extensions. The launcher finds both data files, downloading the
 free Lite files when they are missing, and starts the PHP built-in server on
@@ -197,9 +208,9 @@ php -d extension="$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDeg
 ```
 
 `tests/MixedExamplesTests.php` runs the mixed console example and the mixed
-web page with both extensions in each order, and
-`tests/ServeWebExamplesTests.php` starts both web pages with the launcher, in
-CI.
+web page with both extensions in each order, and the console example with no
+data file set for one engine or both, and `tests/ServeWebExamplesTests.php`
+starts both web pages with the launcher, in CI.
 
 ### Correct output
 
@@ -317,7 +328,9 @@ or empty, and write to the PHP error log that the old name is deprecated.
   it prints is tagged. `device-detection/onpremise/tests/StartWithoutDataFileTests.php`
   and `ip-intelligence/tests/ServeWebExamplesTests.php` also run the Device
   Detection console examples and both packages' web examples, through their
-  launchers, with nothing set at all, so the data file is found or downloaded.
+  launchers, with nothing set at all, so the data file is found or downloaded,
+  and `ip-intelligence/tests/MixedExamplesTests.php` runs the mixed console
+  example the same way.
   The cloud examples' classes also run with a key, or
   against a mocked cloud service for IP Intelligence, in each package's
   `tests/ExampleTests.php`. The Device Detection on-premise suite runs only
@@ -325,6 +338,13 @@ or empty, and write to the PHP error log that the old name is deprecated.
   without it), the location suite only with a resource key, and neither
   on-premise package is built on Windows or on PHP 7.4. IP Intelligence uses
   the Lite file that `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
+  CI's asset cache holds every free data file the examples look for, and the
+  packages' `ci/fetch-assets.ps1` scripts link the cached copies into
+  `cxx/data` under the data repository's names, so the tests that run the
+  examples with nothing set find them there rather than downloading them.
+  `ip-intelligence/tests/DownloadDataFileTests.php` still downloads the free
+  ASN file from nothing, with the examples' own code, and says so plainly
+  when the distributor refuses it.
 
 ## Environment variable names
 
@@ -408,6 +428,12 @@ for the whole repository. Those run each package's own `ci/` scripts with
 `-RepoName <repository>/<package>`. `ci/packages.ps1` lists the packages, the
 mirrors, and which packages test against the root `vendor` and which install
 their own. Add a package there, not in the workflows.
+
+common-ci keys each day's asset cache on the text of the root
+`ci/fetch-assets.ps1` alone, not on the package scripts it runs, so that
+script lists every asset the package scripts fetch. Change the list whenever a
+package's list changes, or the cache restored for the rest of that day lacks
+the new asset.
 
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a

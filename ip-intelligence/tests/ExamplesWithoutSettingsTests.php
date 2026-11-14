@@ -178,7 +178,8 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     /**
      * Runs an example script with php.ini's data file set to $dataFile, the
-     * Lite file unless another is given, and returns what it printed.
+     * Lite file unless another is given, checks that it ended with Find out
+     * more, and returns what it printed.
      *
      * @param array<string> $args
      */
@@ -189,17 +190,18 @@ class ExamplesWithoutSettingsTests extends TestCase
     ): string {
         $dataFile = realpath($dataFile ?? $this->liteDataFile());
         $this->assertNotFalse($dataFile, 'The data file is missing.');
-        $command = escapeshellarg(PHP_BINARY) . ' -d ' .
-            escapeshellarg(ExampleUtils::DATA_FILE_SETTING . "={$dataFile}") .
-            ' ' . escapeshellarg(__DIR__ . "/../examples/onpremise/{$script}");
-        foreach ($args as $arg) {
-            $command .= ' ' . escapeshellarg($arg);
-        }
-        exec($command . ' 2>&1', $lines, $status);
-        $printed = implode("\n", $lines);
-        $this->assertSame(0, $status, $printed);
+        $run = classes\ExampleRun::run(
+            __DIR__ . "/../examples/onpremise/{$script}",
+            ['-d', ExampleUtils::DATA_FILE_SETTING . "={$dataFile}"],
+            [],
+            [],
+            $args
+        );
+        $this->assertSame(0, $run->status, $run->printed());
+        // Every example ends with the links to find out more.
+        $run->assertEndsWithFindOutMore();
 
-        return $printed;
+        return $run->output . "\n" . $run->errors;
     }
 
     /**

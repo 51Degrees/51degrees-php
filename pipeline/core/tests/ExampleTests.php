@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\tests\classes\ExampleRun;
 use PHPUnit\Framework\TestCase;
 
 class ExampleTests extends TestCase
@@ -38,8 +39,48 @@ class ExampleTests extends TestCase
 
     public function testPipelineExample()
     {
+        ob_start(); // hide output
         include __DIR__ . '/../examples/Pipeline.php';
+        ob_end_clean(); // discard output
 
         $this->assertTrue($flowData->example1->exampleProperty1 === 5);
+    }
+
+    /**
+     * The page, rendered in its own PHP for a request for the home page,
+     * ends with the links to find out more.
+     */
+    public function testCustomFlowElementEndsWithFindOutMore()
+    {
+        $run = $this->runExample('CustomFlowElement.php', ExampleRun::WEB_REQUEST);
+        $run->assertPageEndsWithFindOutMore();
+    }
+
+    /**
+     * The example, run in its own PHP, ends with the links to find out more.
+     */
+    public function testPipelineEndsWithFindOutMore()
+    {
+        $run = $this->runExample('Pipeline.php', []);
+        $run->assertEndsWithFindOutMore();
+    }
+
+    /**
+     * Runs an example with the package's autoloader, which the examples
+     * expect to be loaded already.
+     *
+     * @param array<string, string> $set Environment variables to add
+     */
+    private function runExample(string $script, array $set): ExampleRun
+    {
+        $run = ExampleRun::run(
+            __DIR__ . "/../examples/{$script}",
+            ['-d', 'auto_prepend_file=' . realpath(__DIR__ . '/../vendor/autoload.php')],
+            [],
+            $set
+        );
+        $this->assertSame(0, $run->status, $run->printed());
+
+        return $run;
     }
 }

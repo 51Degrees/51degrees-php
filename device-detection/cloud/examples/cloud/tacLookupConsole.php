@@ -82,12 +82,14 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
                 "of this message with the resource key or pass it as the first " .
                 "argument on the command line.";
 
-            ExampleUtils::logErrorAndExit($logger, $message);
+            ExampleUtils::logErrorAndExit($logger, $message, __FILE__);
         }
         
         ExampleUtils::setResourceKeyInConfig($config, $resourceKey);
 
         (new TacLookupConsole())->run($config, $logger, [ExampleUtils::class, 'output']);
+
+        ExampleUtils::printFindOutMore(__FILE__);
     }
 
     main(isset($argv) ? array_slice($argv, 1) : null);

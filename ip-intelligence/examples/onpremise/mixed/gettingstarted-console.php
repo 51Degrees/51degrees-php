@@ -35,3 +35,5 @@ use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleOnPremise;
 ExampleUtils::startWithEngine($argv);
 
 (new MixedConsoleOnPremise())->run(STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

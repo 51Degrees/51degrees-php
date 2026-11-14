@@ -76,7 +76,7 @@ if (empty($resourceKey)) {
     $message .= 'Once complete, populate the environment variable or query parameter ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
     
-    ExampleUtils::logErrorAndExit(new Logger('info'), $message);
+    ExampleUtils::logErrorAndExit(new Logger('info'), $message, __FILE__);
 }
 
 $builder = new DeviceDetectionPipelineBuilder(array(
@@ -146,3 +146,5 @@ failuretomatch_checkifmobile($pipeline, $iPhoneUA);
 
 $badUserAgent = 'xyfga';
 failuretomatch_checkifmobile($pipeline, $badUserAgent);
+
+ExampleUtils::printFindOutMore(__FILE__);

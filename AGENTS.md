@@ -172,9 +172,13 @@ download ends.
 The Device Detection example processes three sets of evidence. For each it
 prints `Input values:` and the evidence, then `Results:` with `Mobile Device`,
 `Platform Name`, `Platform Version`, `Browser Name` and `Browser Version`, all
-of which the Lite file has. It prints nothing about the data file, because
-the messages go to `fiftyone\pipeline\core\Logger`, whose `logInternal` writes
-nothing.
+of which the Lite file has, then `Hardware Vendor`, `Hardware Name` and
+`Device Type`, which only the Enterprise data file has, so with the Lite file
+they read `needs the Enterprise data file`. After the three it prints
+`Some of these properties need the Enterprise data file. Contact us for a copy
+at` and the tagged contact page. It prints nothing about the data file,
+because the messages go to `fiftyone\pipeline\core\Logger`, whose
+`logInternal` writes nothing.
 
 The IP Intelligence example looks up four addresses, being
 `116.154.188.222`, `1.3.32.31`, `45.236.48.61` and
@@ -182,10 +186,20 @@ The IP Intelligence example looks up four addresses, being
 with the address, then `Results:` with the 16 properties in `OUTPUT_PROPERTIES`,
 from `RegisteredName` to `TimeZoneOffset`. A weighted value prints as the
 value followed by its raw weighting in brackets. The Lite file has only
-RegisteredCountry, RegisteredName and RegisteredOwner. `outputProperty` in
-`examples/classes/ExampleUtils.php` catches the error a missing property
-raises, so the other lines read `(not available - ...)` and the example
-carries on.
+RegisteredCountry, RegisteredName and RegisteredOwner, so the other lines read
+`needs the Enterprise data file` (`outputEnterpriseProperty` in
+`examples/classes/ExampleUtils.php`). After the four it prints the same
+sentence and contact page as the Device Detection example.
+
+Every example, console or web, cloud or on-premise, ends with a `Find out
+more` section, a heading underlined with hyphens and then one `label: address`
+line for each link, or the same list at the foot of a web page. A cloud
+example run with no resource key prints where to create one and then the same
+section. Each package's helper (`ExampleUtils` in Device Detection and IP
+Intelligence, `Constants` in location) writes it, the pipeline core and 51Did
+examples write their own, and every 51degrees.com link an example prints
+carries `utm_source=code&utm_medium=example`, the campaign `51degrees-php` and
+the example's file as `utm_content`.
 
 The paid data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-php&utm_content=agents.md&utm_term=correct-output)
@@ -214,8 +228,10 @@ The example reads `_51DEGREES_RESOURCE_KEY`, or takes the key as its first
 argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
-its first argument or from `resource_key`, after a `composer install` in
-`ip-intelligence`.
+its first argument or from `_51DEGREES_RESOURCE_KEY`, after a `composer install` in
+`ip-intelligence`. The Device Detection, IP Intelligence and location examples
+still read the old name `resource_key` when `_51DEGREES_RESOURCE_KEY` is unset
+or empty, and write to the PHP error log that the old name is deprecated.
 
 ### Pitfalls
 
@@ -244,11 +260,23 @@ its first argument or from `resource_key`, after a `composer install` in
   its shell scripts and the `config.m4` files that `phpize` reads get Windows
   line endings, which a Linux shell does not expect. Clone inside WSL rather
   than using a Windows checkout from WSL.
-- **What CI does not test.** CI runs the examples' classes through PHPUnit
-  (the packages' `tests/ExampleTests.php`), not the example scripts. It
-  tests Device Detection with a paid data file (`ci/run-unit-tests.ps1` skips
-  the tests without one), and IP Intelligence with the Lite file that
-  `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
+- **What CI tests.** CI runs the example scripts, each in its own PHP as a
+  person runs them, with no settings beyond php.ini naming a free data file.
+  `device-detection/onpremise/tests/ExamplesWithoutSettingsTests.php` runs
+  every Device Detection on-premise example, `ip-intelligence/tests` runs the
+  IP Intelligence on-premise ones in `ExamplesWithoutSettingsTests.php` and
+  `WebExamplesWithoutSettingsTests.php`, and the `ExamplesWithoutKeyTests.php`
+  of `device-detection/cloud`, `ip-intelligence` and `location` run every
+  cloud example with no resource key. Pipeline core's `tests/ExampleTests.php`
+  and 51Did's `tests/ExamplesTest.php` run theirs the same way. Each checks
+  that the example ends with Find out more and that every 51degrees.com link
+  it prints is tagged. The cloud examples' classes also run with a key, or
+  against a mocked cloud service for IP Intelligence, in each package's
+  `tests/ExampleTests.php`. The Device Detection on-premise suite runs only
+  when the TAC data file is there (`ci/run-unit-tests.ps1` returns early
+  without it), the location suite only with a resource key, and neither
+  on-premise package is built on Windows or on PHP 7.4. IP Intelligence uses
+  the Lite file that `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
 
 ## Environment variable names
 

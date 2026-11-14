@@ -6,7 +6,8 @@ param (
 
 # Run the cloud integration tests, which need a resource key. The cloud tests
 # fall back to a mocked HTTP client when no key is supplied, so this simply
-# surfaces the key (if present) via the resource_key environment variable.
+# surfaces the key (if present) via the _51DEGREES_RESOURCE_KEY environment
+# variable.
 # Mirrors device-detection-php/ci/run-integration-tests.ps1.
 
 if ($Keys -and $Keys.TestResourceKey) {

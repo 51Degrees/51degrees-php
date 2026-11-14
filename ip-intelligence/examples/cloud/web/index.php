@@ -40,6 +40,7 @@ $ip = isset($_GET['client-ip']) && $_GET['client-ip'] !== '' ? trim((string) $_G
 $resourceKey = ExampleUtils::getResourceKey();
 
 $error = null;
+$errorLink = null;
 $rows = [];
 $geographical = [];
 $population = [];
@@ -115,7 +116,8 @@ function apvWeighted($data, string $key): array
 }
 
 if (!$resourceKey) {
-    $error = 'No resource key configured. Set the resource_key environment variable before starting the server.';
+    $error = 'No resource key configured. Set the _51DEGREES_RESOURCE_KEY environment variable before starting the server.';
+    $errorLink = 'https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-index.php&utm_term=resource-key-required';
 } else {
     try {
         $pipeline = (new IpIntelligencePipelineBuilder(['resourceKey' => $resourceKey]))->build();
@@ -200,7 +202,7 @@ function renderList(array $items): string
         </p>
 
         <?php if ($error): ?>
-            <div class="c-eg-alert"><?= h($error) ?></div>
+            <div class="c-eg-alert"><?= h($error) ?><?php if ($errorLink !== null): ?> <a href="<?= h($errorLink) ?>">Create a resource key</a>.<?php endif; ?></div>
         <?php else: ?>
         <div id="content">
             <h3 class="c-eg-page__heading">IP intelligence lookup</h3>
@@ -257,6 +259,8 @@ function renderList(array $items): string
             </div>
         </div>
         <?php endif; ?>
+
+        <?= ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

@@ -32,8 +32,10 @@ workflow here - PHP reads properties by name and generates no accessor classes.
 
 ## Required secrets / keys
 
-- `resource_key` — a 51Degrees cloud resource key authorised for IP intelligence
-  (`ip.*`) properties, used by the live cloud and mixed-cloud tests.
+- `TestResourceKey`, which `run-integration-tests.ps1` sets as the
+  `_51DEGREES_RESOURCE_KEY` environment variable. It is a 51Degrees cloud
+  resource key authorised for IP intelligence (`ip.*`) properties, used by
+  the live cloud and mixed-cloud tests.
 - An IP intelligence licence key (for the distributor) is only needed for
   automatic data-file updates, which the tests do not exercise.
 

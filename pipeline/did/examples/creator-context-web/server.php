@@ -124,8 +124,26 @@ function readVariable(string $name, string $deprecated): string
 // The resource key is public by nature and names the account.
 $resource = readVariable('_51DEGREES_RESOURCE_KEY', 'RESOURCE_KEY');
 if (!$resource) {
+    // The page cannot be served without the key, so it says where to
+    // create one, then gives the links to find out more.
     http_response_code(500);
-    exit('Set _51DEGREES_RESOURCE_KEY to the resource key of the page.');
+    $configure = htmlspecialchars(
+        'https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-creator-context-web-server.php&utm_term=resource-key-required'
+    );
+    exit('<p>Set _51DEGREES_RESOURCE_KEY to the resource key of the page. '
+        . 'The 51Degrees cloud service creates and checks the 51Did with '
+        . "it. Create a resource key at <a href=\"{$configure}\">"
+        . 'the configuration page</a>.</p>'
+        . '<div id="find-out-more"><h3>Find out more</h3><ul>'
+        . '<li>This example: <a href="https://github.com/51Degrees/51degrees-php/tree/main/pipeline/did">https://github.com/51Degrees/51degrees-php/tree/main/pipeline/did</a></li>'
+        . '<li>The 51Did specification: <a href="https://github.com/51Degrees/specifications/tree/main/did-specification">https://github.com/51Degrees/specifications/tree/main/did-specification</a></li>'
+        . '<li><a href="' . htmlspecialchars(
+            'https://51degrees.com/documentation/_identifiers__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-creator-context-web-server.php&utm_term=find-out-more-51did'
+        ) . '">What a 51Did is</a></li>'
+        . '<li><a href="' . htmlspecialchars(
+            'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-creator-context-web-server.php&utm_term=find-out-more-contact'
+        ) . '">Contact us</a></li>'
+        . '</ul></div>');
 }
 
 // Only an account that holds licence keys needs one to redeem, because

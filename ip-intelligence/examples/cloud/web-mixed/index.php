@@ -45,6 +45,7 @@ $resourceKey = ExampleUtils::getResourceKey();
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 $error = null;
+$errorLink = null;
 $dd = [];
 $ipi = [];
 $evidence = [];
@@ -67,7 +68,8 @@ function apvStr($data, string $key): string
 }
 
 if (!$resourceKey) {
-    $error = 'No resource key configured. Set the resource_key environment variable before starting the server. It must be authorised for both device detection and IP intelligence.';
+    $error = 'No resource key configured. Set the _51DEGREES_RESOURCE_KEY environment variable before starting the server. It must be authorised for both device detection and IP intelligence.';
+    $errorLink = 'https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=resource-key-required';
 } else {
     try {
         $builder = new DeviceDetectionPipelineBuilder([
@@ -205,7 +207,7 @@ foreach ($evidence as $k => $v) {
         </p>
 
         <?php if ($error): ?>
-            <div class="c-eg-alert"><?= h($error) ?></div>
+            <div class="c-eg-alert"><?= h($error) ?><?php if ($errorLink !== null): ?> <a href="<?= h($errorLink) ?>">Create a resource key</a>.<?php endif; ?></div>
         <?php else: ?>
         <div id="content">
             <form method="get" action="" class="c-eg-form">
@@ -259,15 +261,7 @@ foreach ($evidence as $k => $v) {
         </div>
         <?php endif; ?>
 
-        <h3 class="c-eg-page__heading">Find out more</h3>
-        <ul>
-            <li><a href="https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-device-detection">Device detection</a></li>
-            <li><a href="https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-ip-intelligence">IP intelligence</a></li>
-            <li><a href="https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-resource-keys">Resource keys</a></li>
-            <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-pricing">Pricing</a></li>
-            <li>IP intelligence engine: <a href="https://github.com/51Degrees/51degrees-cxx">https://github.com/51Degrees/51degrees-cxx</a></li>
-            <li>Device detection for PHP: <a href="https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud">https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud</a></li>
-        </ul>
+        <?= ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
     <!--

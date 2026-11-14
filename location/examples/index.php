@@ -38,11 +38,18 @@ $params = array(
     "resourceKey" => $resourceKey === '' ? "!!YOUR_RESOURCE_KEY!!" : $resourceKey,
     "locationProvider" => "fiftyonedegrees");
 
+// The cloud service is reached with a resource key, which names the
+// properties it returns. Without one the page says where to create one and
+// stops.
 if ($params["resourceKey"] === "!!YOUR_RESOURCE_KEY!!") {
-    $this->fail("You need to create a resource key at " .
-    "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-index.php&utm_term=resource-key-required and paste it into the " .
-    "phpunit.xml config file, " .
-    "replacing !!YOUR_RESOURCE_KEY!!.");
+    echo "This page gets the JavaScript that finds the browser's location " .
+        "from the 51Degrees cloud service, which needs a resource key to " .
+        "know which properties to return. Create a resource key at " .
+        "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-index.php&utm_term=resource-key-required and set the " .
+        Constants::RESOURCE_KEY_VARIABLE . " environment variable to it.\n";
+    Constants::printFindOutMore(__FILE__);
+
+    return;
 }
 
 $geolocationPipeline = new GeoLocationPipelineBuilder($params);
@@ -60,3 +67,5 @@ $javascript = $pipelineResult->get("javascriptbuilder")->get("javascript");
 echo "<script>";
 echo $javascript;
 echo "</script>";
+
+Constants::printFindOutMore(__FILE__);

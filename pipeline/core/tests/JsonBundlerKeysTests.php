@@ -62,8 +62,28 @@ class MixedCaseKeyElement extends FlowElement
 }
 
 /**
- * Stands in for the Cloud Request Engine, whose Data Key is cloud and whose
- * Element Data holds the cloud service's raw response.
+ * Stands in for the Cloud Request Engine, whose Data Key is cloud-response
+ * and whose Element Data holds the cloud service's raw response.
+ */
+class CloudResponseStandInElement extends FlowElement
+{
+    public string $dataKey = 'cloud-response';
+
+    public array $properties = [
+        'cloud' => ['type' => 'string']
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'cloud' => '{"device":{"ismobile":true}}',
+        ]));
+    }
+}
+
+/**
+ * Stands in for a Cloud Request Engine registered under cloud, the Data Key
+ * the engine had before.
  */
 class CloudStandInElement extends FlowElement
 {
@@ -144,6 +164,24 @@ class JsonBundlerKeysTests extends TestCase
         $json = $flowData->jsonbundler->json;
 
         $this->assertArrayNotHasKey('cloud', $json);
+        $this->assertArrayHasKey('mixedkey', $json);
+    }
+
+    /**
+     * The JSON Builder leaves the Cloud Request Engine's Element Data out
+     * by its Data Key, cloud-response.
+     */
+    public function testTheCloudResponseDataIsLeftOut()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new CloudResponseStandInElement())
+            ->add(new MixedCaseKeyElement())
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+        $json = $flowData->jsonbundler->json;
+
+        $this->assertArrayNotHasKey('cloud-response', $json);
         $this->assertArrayHasKey('mixedkey', $json);
     }
 }

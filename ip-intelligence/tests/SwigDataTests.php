@@ -165,6 +165,99 @@ class SwigDataTests extends TestCase
     }
 
     /**
+     * Latitude and Longitude are converted from a Declination and an Azimuth,
+     * so their numbers are given to 3 decimal places, rounding a half away
+     * from zero, whichever accessor reads them. A stored Declination of 6751
+     * converts to 90 * 6751 / 32767, and a stored Azimuth of 4274 to
+     * 180 * 4274 / 32767.
+     */
+    public function testLatitudeAndLongitudeAreGivenToThreeDecimalPlaces(): void
+    {
+        $latitude = 90 * 6751 / 32767;
+        $longitude = 180 * 4274 / 32767;
+        $this->assertSame(18.542741172521133, $latitude);
+        $this->assertSame(23.47849971007416, $longitude);
+
+        foreach (['WeightedDouble', 'WeightedSingle'] as $type) {
+            $data = $this->buildData(
+                [
+                    'latitude' => ['name' => 'Latitude', 'type' => $type],
+                    'longitude' => ['name' => 'Longitude', 'type' => $type],
+                ],
+                [
+                    'Latitude' => new StubSwigValue(true, new StubSwigList([
+                        new StubWeightedValue($latitude, 49152),
+                        new StubWeightedValue(-$latitude, 16383),
+                    ])),
+                    'Longitude' => new StubSwigValue(true, new StubSwigList([
+                        new StubWeightedValue($longitude, 65535),
+                    ])),
+                ]
+            );
+
+            $this->assertSame(
+                [
+                    ['value' => 18.543, 'rawweighting' => 49152],
+                    ['value' => -18.543, 'rawweighting' => 16383],
+                ],
+                $data->getInternal('latitude')->value,
+                $type
+            );
+            $this->assertSame(
+                [['value' => 23.478, 'rawweighting' => 65535]],
+                $data->getInternal('longitude')->value,
+                $type
+            );
+        }
+
+        foreach (['Double', 'Single'] as $type) {
+            $data = $this->buildData(
+                [
+                    'latitude' => ['name' => 'Latitude', 'type' => $type],
+                    'longitude' => ['name' => 'Longitude', 'type' => $type],
+                ],
+                [
+                    'Latitude' => new StubSwigValue(true, $latitude),
+                    'Longitude' => new StubSwigValue(true, -$longitude),
+                ]
+            );
+
+            $this->assertSame(18.543, $data->getInternal('latitude')->value, $type);
+            $this->assertSame(-23.478, $data->getInternal('longitude')->value, $type);
+        }
+    }
+
+    /**
+     * A number that is not a Latitude or a Longitude keeps every place it
+     * has, and a coordinate with no value keeps its message.
+     */
+    public function testOtherNumbersAreNotRounded(): void
+    {
+        $data = $this->buildData(
+            [
+                'other' => ['name' => 'Other', 'type' => 'WeightedDouble'],
+                'single' => ['name' => 'Single', 'type' => 'Double'],
+                'latitude' => ['name' => 'Latitude', 'type' => 'WeightedSingle'],
+            ],
+            [
+                'Other' => new StubSwigValue(true, new StubSwigList([
+                    new StubWeightedValue(0.123456789, 65535),
+                ])),
+                'Single' => new StubSwigValue(true, 18.542741172521133),
+                'Latitude' => new StubSwigValue(false, null, 'No location for this IP.'),
+            ]
+        );
+
+        $this->assertSame(
+            [['value' => 0.123456789, 'rawweighting' => 65535]],
+            $data->getInternal('other')->value
+        );
+        $this->assertSame(18.542741172521133, $data->getInternal('single')->value);
+        $this->assertFalse($data->getInternal('latitude')->hasValue);
+        $this->assertSame('No location for this IP.', $data->getInternal('latitude')->noValueMessage);
+    }
+
+    /**
      * Mcc is weighted even though its metadata type is "string".
      */
     public function testMccIsTreatedAsWeightedDespiteItsStringType(): void

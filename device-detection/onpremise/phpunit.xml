@@ -5,6 +5,11 @@
       <file>tests/SwigDataReadTests.php</file>
       <file>tests/EvidenceMapTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
+      <file>tests/DataModelTests.php</file>
+      <file>tests/NativeCallTests.php</file>
+      <file>tests/ProfileIdsTests.php</file>
+      <file>tests/PackagingTests.php</file>
+      <file>tests/ReadTimingTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>
       <file>tests/IniSettingsTests.php</file>

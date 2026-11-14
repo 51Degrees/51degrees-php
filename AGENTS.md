@@ -350,7 +350,8 @@ follow.
   Its `scripts` folder is a copy of the `scripts` folder of the
   `derived-properties` submodule at the root, and its tests run the
   submodule's case files, so never edit a script there. Change the script in
-  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`.
+  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`,
+  which also rewrites the compiled scripts in its `compiled` folder.
 - `device-detection/cloud`: `51degrees/fiftyone.devicedetection`
 - `device-detection/onpremise`: `51degrees/fiftyone.devicedetection` (same name, path repository only)
 - `location`: `51degrees/fiftyone.geolocation`

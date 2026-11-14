@@ -29,6 +29,12 @@ namespace fiftyone\pipeline\derivedproperty;
  * The scripts this package carries, in its scripts folder. The folder is a
  * copy of the scripts folder of the derived-properties repository, because
  * Packagist serves an archive of a tag and an archive has no submodules.
+ *
+ * PHP builds the pipeline on every request, so each built in script is also
+ * carried compiled, as a PHP file in the compiled folder that returns the
+ * script's fields and the SHA-256 of the text they came from. opcache keeps
+ * such a file in shared memory, so a request reads no YAML for a built in
+ * script while the hash matches the script file beside it.
  */
 final class BuiltInScripts
 {
@@ -40,6 +46,73 @@ final class BuiltInScripts
     public static function folder(): string
     {
         return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'scripts';
+    }
+
+    /**
+     * The folder of the compiled built in scripts, which
+     * ci/compile-built-in-scripts.php writes.
+     */
+    public static function compiledFolder(): string
+    {
+        return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'compiled';
+    }
+
+    /**
+     * The compiled form of the built in script in the file given, or null
+     * where there is none or it was compiled from other text, in which case
+     * the script is read from its file.
+     */
+    public static function compiled(string $path): ?DerivedScript
+    {
+        $name = pathinfo($path, PATHINFO_FILENAME);
+        $fields = self::readCompiled(
+            self::compiledFolder() . DIRECTORY_SEPARATOR . $name . '.php',
+            $path
+        );
+        if ($fields === null) {
+            return null;
+        }
+        try {
+            return DerivedScript::fromArray($fields, 'built in ' . $name);
+        } catch (\TypeError $e) {
+            return null;
+        }
+    }
+
+    /**
+     * The script fields in a compiled file, or null where the file is
+     * missing, holds no compiled script, or was compiled from other text
+     * than the script file holds now.
+     *
+     * @internal
+     * @return null|array<string, mixed>
+     */
+    public static function readCompiled(string $compiledFile, string $scriptFile): ?array
+    {
+        if (!is_file($compiledFile)) {
+            return null;
+        }
+        $compiled = include $compiledFile;
+        if (!is_array($compiled) ||
+            !is_string($compiled['sha256'] ?? null) ||
+            !is_array($compiled['script'] ?? null)) {
+            return null;
+        }
+        $text = @file_get_contents($scriptFile);
+        if ($text === false || !hash_equals($compiled['sha256'], self::hash($text))) {
+            return null;
+        }
+
+        return $compiled['script'];
+    }
+
+    /**
+     * The SHA-256 of a script's text with its line ends as line feeds, as
+     * a checkout on Windows may write the file with CR LF.
+     */
+    public static function hash(string $text): string
+    {
+        return hash('sha256', str_replace("\r\n", "\n", $text));
     }
 
     /**

@@ -221,30 +221,31 @@ class DeviceDetectionOnPremise extends Engine
     }
 
     /**
-     * Ask the engine to start using the specified data file
-     * for detections.
-     * This can be used in 3 different scenarios:
-     * 1. The data file that was originally used to create the engine has
-     * been updated on disk. In this case, no parameters are needed.
-     * 2. A new data file is available, but it is in a different location
-     * to the original. In this case, the parameter should be the new data
-     * file location.
-     * 3. A new data file is available in memory. The first parameter will
-     * be the variable holding the in-memory data file. The second will
-     * be the size of the data file in bytes.
+     * Makes the engine use a new data file, in one of two ways.
+     * 1. refreshData() reloads the data file the engine was built from,
+     * once that file has been replaced on disk.
+     * 2. refreshData($fileName) loads the data file at that path.
      *
-     * @param null|string $fileName_or_data Data file path or the variable holding the in-memory data file
-     * @param null|int $length Length of the in-memory data file in bytes
+     * A data file held in memory cannot be passed to the engine from PHP,
+     * so giving a length throws an exception that says to use one of the
+     * two forms above. A data file the engine cannot use throws an
+     * exception, and the engine goes on with the data it had.
+     *
+     * @param null|string $fileName_or_data Path of the new data file, or
+     *   null to reload the file the engine was built from
+     * @param null|int $length Not supported, and throws when given
+     * @throws \Exception
      */
     public function refreshData(?string $fileName_or_data = null, ?int $length = null): void
     {
-        switch (func_num_args()) {
-            case 0: $this->engine->refreshData();
-                break;
-            case 1: $this->engine->refreshData($fileName_or_data);
-                break;
-            default: 
-                $this->engine->refreshData($fileName_or_data, $length);
+        if ($length !== null) {
+            throw new \Exception(Messages::REFRESH_FROM_MEMORY);
+        }
+
+        if ($fileName_or_data === null) {
+            $this->engine->refreshData();
+        } else {
+            $this->engine->refreshData($fileName_or_data);
         }
 
         // The metadata and the accepted Evidence follow the new data set.

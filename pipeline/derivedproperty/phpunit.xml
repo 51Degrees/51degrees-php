@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="vendor/autoload.php"
+         colors="true">
+  <testsuites>
+    <testsuite name="Unit">
+      <file>tests/SharedCasesTests.php</file>
+      <file>tests/BuiltInScriptsTests.php</file>
+      <file>tests/ElementTests.php</file>
+      <file>tests/PipelineCheckTests.php</file>
+      <file>tests/ScriptTests.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

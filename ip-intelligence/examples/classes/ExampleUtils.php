@@ -39,6 +39,50 @@ class ExampleUtils
     // engine from when PHP starts.
     public const DATA_FILE_SETTING = 'FiftyOneDegreesIpIntelligenceEngine.data_file';
 
+    // The Device Detection on-premise engine, which the mixed examples use
+    // with this package's engine.
+    public const DEVICE_DETECTION_ONPREMISE_CLASS =
+        'fiftyone\\pipeline\\devicedetection\\DeviceDetectionOnPremise';
+
+    // Where the Device Detection on-premise package's classes are in the
+    // 51degrees-php repository, beside this package.
+    private const DEVICE_DETECTION_ONPREMISE_SOURCE =
+        __DIR__ . '/../../../device-detection/onpremise/src';
+
+    /**
+     * True when the Device Detection on-premise package's classes can be
+     * loaded. This package does not depend on that package, so when it is
+     * not installed, its classes are loaded from the repository this package
+     * is in, where it sits beside this one.
+     */
+    public static function findDeviceDetectionOnPremise(): bool
+    {
+        if (class_exists(self::DEVICE_DETECTION_ONPREMISE_CLASS)) {
+            return true;
+        }
+        $source = realpath(self::DEVICE_DETECTION_ONPREMISE_SOURCE);
+        if ($source === false) {
+            return false;
+        }
+
+        $prefix = 'fiftyone\\pipeline\\devicedetection\\';
+        spl_autoload_register(
+            static function (string $class) use ($prefix, $source): void {
+                if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
+                    return;
+                }
+                $file = $source . '/' .
+                    str_replace('\\', '/', substr($class, strlen($prefix))) .
+                    '.php';
+                if (is_file($file)) {
+                    require $file;
+                }
+            }
+        );
+
+        return class_exists(self::DEVICE_DETECTION_ONPREMISE_CLASS);
+    }
+
     /**
      * Returns when the extension built its engine when PHP started, which is
      * the engine every on-premise example uses. Otherwise runs the example

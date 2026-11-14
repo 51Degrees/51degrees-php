@@ -40,6 +40,36 @@ class MetaDataTests extends TestCase
     private const METRICS = ['MatchedNodes', 'Difference', 'Drift', 'DeviceId',
         'UserAgents', 'Iterations', 'Method'];
 
+    // Each match metric's type, default value and description, from the
+    // specification's table, with the type as PHP names it.
+    private const METRIC_VALUES = [
+        'MatchedNodes' => ['Integer', 0,
+            'Indicates the number of hash nodes matched within the Evidence.'],
+        'Difference' => ['Integer', 0,
+            'Used when detection method is not Exact or None. The larger the ' .
+            'value the less confident the detector is in this result.'],
+        'Drift' => ['Integer', 0,
+            "The drift of every component's result added together, each " .
+            "result's drift being how far, in character positions, the " .
+            "substring's hashes were found from where they were expected. " .
+            'Never the largest or smallest result alone.'],
+        'DeviceId' => ['String', '0-0-0-0',
+            'Contains the profile ids of the matching profiles, separated by ' .
+            'a hyphen symbol. For example ' .
+            '[HardwareId]-[PlatformId]-[BrowserId]-[CrawlerId]. By ' .
+            'convention, these will be in component Id order. There will ' .
+            'often be 4 ids present, but this is not guaranteed.'],
+        'UserAgents' => ['Array', [],
+            'The User-Agent values that were matched, each listed once ' .
+            'across every result. Populated when the Update Matched User ' .
+            'Agent configuration option is on, which it is by default.'],
+        'Iterations' => ['Integer', 0,
+            'The number of iterations carried out in order to find a match. ' .
+            'This is the number of nodes in the graph which have been visited.'],
+        'Method' => ['String', 'NONE',
+            'The method used to determine the match result.']
+    ];
+
     // Reads the components, profiles and values through the engine, and the
     // same through the native metadata to compare with, and prints them as
     // JSON. The argument is the autoloader.
@@ -78,6 +108,7 @@ class MetaDataTests extends TestCase
             'nativeProfiles' => $metaData->getProfiles()->getSize(),
             'nativeValues' => $metaData->getValues()->getSize(),
             'propertyComponents' => $components,
+            'metrics' => array_slice($engine->getProperties(), -7),
         ], JSON_INVALID_UTF8_SUBSTITUTE);
         PHP;
 
@@ -122,6 +153,40 @@ class MetaDataTests extends TestCase
             $profiles['components'],
             $printed['nativeComponents']
         ));
+    }
+
+    /**
+     * The match metrics' metadata holds the values the specification's
+     * table of match metric properties gives, after the data set's
+     * properties.
+     */
+    public function testMatchMetricProperties(): void
+    {
+        $metrics = $this->read()['metrics'];
+
+        $this->assertSame(
+            array_map('strtolower', self::METRICS),
+            array_keys($metrics)
+        );
+        foreach (self::METRIC_VALUES as $name => [$type, $default, $description]) {
+            $metric = $metrics[strtolower($name)];
+            $this->assertSame($name, $metric['name']);
+            $this->assertSame('Device Metrics', $metric['category'], $name);
+            $this->assertSame(
+                ['Lite', 'Premium', 'Enterprise', 'TAC'],
+                $metric['dataFiles'],
+                $name
+            );
+            $this->assertSame('Metrics', $metric['component'], $name);
+            $this->assertSame($type, $metric['type'], $name);
+            $this->assertSame($type === 'Array', $metric['isList'], $name);
+            $this->assertSame($default, $metric['defaultValue'], $name);
+            $this->assertSame($description, $metric['description'], $name);
+        }
+        $this->assertSame(
+            ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'],
+            $metrics['method']['values']
+        );
     }
 
     public function testValues(): void

@@ -130,7 +130,8 @@ class BuiltInScriptsTests extends TestCase
         mkdir($folder);
         $script = $folder . DIRECTORY_SEPARATOR . 'Demo.yaml';
         // Each compiled file is new, as opcache can keep a file it has
-        // already included when the file is written again within a second.
+        // already included when the file is written again within
+        // opcache.revalidate_freq seconds, 2 by default.
         $count = 0;
         $write = function (string $hash, string $fields) use ($folder, &$count): string {
             $compiled = $folder . DIRECTORY_SEPARATOR . 'Demo' . ++$count . '.php';

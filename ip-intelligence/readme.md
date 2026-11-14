@@ -106,7 +106,10 @@ pipeline. See `examples/cloud/mixed/` and `examples/onpremise/mixed/`.
 
 The on-premise mixed examples load both extensions in one PHP, the Device
 Detection one with its own data file setting, and take the Device Detection
-on-premise classes from `device-detection/onpremise` beside this package. The
+on-premise classes from `device-detection/onpremise` beside this package.
+When PHP built no Device Detection engine, the mixed console example and
+the launcher below give it the data file that `_51DEGREES_DD_PATH` names, or
+else the free Lite file, downloaded when it is missing. The
 IP Intelligence extension's classes start with `FiftyOneDegreesIpi` so that
 the two extensions' classes never share a name, as
 [OnPremise.md](OnPremise.md) explains.

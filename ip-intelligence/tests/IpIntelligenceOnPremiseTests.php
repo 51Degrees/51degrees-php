@@ -839,6 +839,40 @@ class IpIntelligenceOnPremiseTests extends TestCase
     }
 
     /**
+     * A read that the table of every property answers needs no engine, so
+     * once the table is built, a read after the engine is closed reads the
+     * results, which are still open, rather than failing for want of the
+     * engine.
+     */
+    public function testATableReadAfterTheEngineClosesReadsTheResults(): void
+    {
+        $engine = $this->buildEngine();
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false
+        ]))->add($engine)->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $names = array_values(array_diff(
+                array_keys($engine->getProperties()),
+                ['ip', 'ipv6']
+            ));
+            $this->assertNotEmpty($names);
+
+            $engine->close();
+            $this->assertNull($engine->engine);
+
+            $value = $flowData->ip->get($names[0]);
+            $this->assertInstanceOf(AspectPropertyValue::class, $value);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
      * Reads each name once at its position and once by name, from the same
      * native results, and checks that both give the same, and that each
      * position is the one at which the native results hold that name.

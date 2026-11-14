@@ -74,7 +74,7 @@ if (strtolower(basename(__FILE__)) == strtolower(basename($_SERVER["SCRIPT_FILEN
                 "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedconsole.php&utm_term=resource-key-required. " .
                 "A resource key with the properties required by this " .
                 "example can be created for free at " .
-                "https://configure.51degrees.com/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedconsole.php&utm_term=resource-key-required. " .
+                "https://51degrees.com/configure/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedconsole.php&utm_term=resource-key-required. " .
                 "Once complete, populated the environment variable " .
                 "mentioned at the start of this message with the key.";
             

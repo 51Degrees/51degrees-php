@@ -27,7 +27,6 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
-use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleOnPremise;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -37,7 +36,8 @@ use PHPUnit\Framework\TestCase;
  * file. Each runs in its own PHP process, because the extension builds its
  * engine from the data file when PHP starts. Each example must finish, show
  * the properties only the Enterprise data file has as needing it, and give
- * the link to ask for a copy.
+ * the link to ask for a copy. MixedExamplesTests runs the examples that use
+ * the Device Detection extension as well.
  */
 class ExamplesWithoutSettingsTests extends TestCase
 {
@@ -128,22 +128,6 @@ class ExamplesWithoutSettingsTests extends TestCase
             $text
         );
         $this->assertStringContainsString(self::CONTACT_US, $text);
-    }
-
-    public function testMixed(): void
-    {
-        if (!class_exists(MixedConsoleOnPremise::DEVICE_DETECTION_ONPREMISE_CLASS) ||
-            !extension_loaded('FiftyOneDegreesHashEngine')) {
-            $this->markTestSkipped(
-                'The device detection on-premise package and extension are not installed.'
-            );
-        }
-        $text = $this->runExample('mixed/gettingstarted-console.php');
-        $this->assertStringContainsString(ExampleUtils::NEEDS_ENTERPRISE, $text);
-        $this->assertStringContainsString(
-            'Some of these properties need the Enterprise data file.',
-            $text
-        );
     }
 
     /**

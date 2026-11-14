@@ -23,8 +23,9 @@ name: Mirror
 # MIRROR_PUSH_TOKEN must be able to push to the mirror repositories and to
 # nothing else: a fine-grained token limited to the mirrors with
 # Contents: write, plus Workflows: write, because GitHub refuses a push that
-# changes a file under .github/workflows without it and every package keeps
-# its old workflows. The checkout drops its own credentials, because the
+# changes a file under .github/workflows without it, and the mirrors still
+# hold the workflows of their old repositories until the push that deletes
+# them. The checkout drops its own credentials, because the
 # GITHUB_TOKEN header it leaves behind is sent to every github.com URL and
 # would replace this token on the mirror push.
 

@@ -16,7 +16,7 @@ cd 51degrees-php
 composer install
 ```
 
-Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install). For cloud use, [create a Resource Key](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install).
+Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install). For cloud use, [create a Resource Key](https://51degrees.com/configure/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install).
 
 Created from `pipeline-php-core`, `pipeline-php-engines`, `pipeline-php-cloudrequestengine`, `pipeline-php-did`, `device-detection-php`, `device-detection-php-onpremise`, and `location-php`, this repository continues their work.
 
@@ -36,6 +36,7 @@ a separate package.
 | [pipeline/cloudrequestengine](pipeline/cloudrequestengine) | `51degrees/fiftyone.pipeline.cloudrequestengine` | pipeline-php-cloudrequestengine | Cloud request engine for 51Degrees Pipeline API. Used to send requests to the 51Degrees cloud service. |
 | [pipeline/did](pipeline/did) | `51degrees/fiftyone.pipeline.did` | pipeline-php-did | Strongly typed reader for the 51Did (51Degrees Identifier) returned by the 51Degrees Cloud service, and a client for the cloud's 51Did endpoints. |
 | [pipeline/translation](pipeline/translation) | `51degrees/fiftyone.pipeline.translation` | None | Generic translation engine for the 51Degrees Pipeline API. |
+| [pipeline/derivedproperty](pipeline/derivedproperty) | `51degrees/fiftyone.pipeline.derivedproperty` | None | Derived property element for the 51Degrees Pipeline API. Computes properties such as HumanConfidence and IsGdpr from the properties other elements have produced. |
 | [device-detection/cloud](device-detection/cloud) | `51degrees/fiftyone.devicedetection` | device-detection-php | Device detection engines for the 51Degrees Pipeline API. Identify devices, operating systems, browsers, and crawlers from HTTP headers. |
 | [device-detection/onpremise](device-detection/onpremise) | `51degrees/fiftyone.devicedetection` | None | On-premise Device Detection engines for PHP built for the 51Degrees Pipeline API. Parse HTTP headers locally. |
 | [location](location) | `51degrees/fiftyone.geolocation` | location-php | Geolocation engines for 51Degrees Pipeline API. Perform reverse geocoding using longitude and latitude to populate postal addresses. |
@@ -53,6 +54,7 @@ Composer path repository.
 | `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code, and the [data](https://github.com/51Degrees/data) repository as its `data` submodule |
 | `pipeline/did/owid-php` | Submodule of [owid-php](https://github.com/SWAN-community/owid-php), the OWID library `pipeline/did` uses |
 | `javascript-templates` | Submodule of [javascript-templates](https://github.com/51Degrees/javascript-templates), the source of the template `pipeline/core` serves. The package commits a copy in `pipeline/core/javascript-templates`, because Packagist serves an archive of the tag and an archive has no submodules. `pipeline/core/ci/update-packages.ps1` refreshes the copy, and the JavaScript templates check fails when the copy differs from the submodule |
+| `derived-properties` | Submodule of [derived-properties](https://github.com/51Degrees/derived-properties), the derived property scripts, their format and the cases every language runs. `pipeline/derivedproperty` commits a copy of its `scripts` folder for the same reason, `pipeline/derivedproperty/ci/update-packages.ps1` refreshes the copy, and the package's tests fail when the copy differs from the submodule |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 | `.github/workflows` | The CI workflows, and the ones that keep the mirrors up to date |
 | `composer.json` | The development install for the whole repository. It is never published |
@@ -71,6 +73,8 @@ The `require` sections of the package `composer.json` files give this order:
   and engines.
 - `pipeline/did` requires no other 51Degrees package. It requires the OWID
   library from the `owid-php` submodule.
+- `pipeline/derivedproperty` requires core, and reads YAML with
+  [symfony/yaml](https://github.com/symfony/yaml).
 
 ## Versions and releases
 
@@ -119,9 +123,9 @@ A release tag must be on `main`, the highest of its package's tags here, and
 above every version on its mirror, or the workflows refuse it and tag
 nothing.
 
-`pipeline/translation`, `device-detection/onpremise` and
-`ip-intelligence` have no mirror, so they are not released to Packagist
-from here.
+`pipeline/translation`, `pipeline/derivedproperty`,
+`device-detection/onpremise` and `ip-intelligence` have no mirror, so they
+are not released to Packagist from here.
 
 ## Getting the code
 

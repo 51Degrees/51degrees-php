@@ -25,7 +25,7 @@ and [ip-intelligence-dotnet](https://github.com/51Degrees/51degrees-dotnet/tree/
 
 - PHP 8.0 or above with the `curl`, `json` and `mbstring` extensions.
 - For **cloud** operation: a 51Degrees resource key, obtained from
-  [configure.51degrees.com](https://configure.51degrees.com/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=cloud), authorised for IP
+  [51degrees.com/configure](https://51degrees.com/configure/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=cloud), authorised for IP
   intelligence (`ip.*`) properties.
 - For **on-premise** operation: the native `FiftyOneDegreesIpIntelligenceEngine`
   extension (built from the `cxx` submodule at the root of the repository via SWIG) and
@@ -103,6 +103,13 @@ explains.
 IP intelligence can be combined with
 [device detection](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud) in a single
 pipeline. See `examples/cloud/mixed/` and `examples/onpremise/mixed/`.
+
+The on-premise mixed examples load both extensions in one PHP, the Device
+Detection one with its own data file setting, and take the Device Detection
+on-premise classes from `device-detection/onpremise` beside this package. The
+IP Intelligence extension's classes start with `FiftyOneDegreesIpi` so that
+the two extensions' classes never share a name, as
+[OnPremise.md](OnPremise.md) explains.
 
 ## Examples
 

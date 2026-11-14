@@ -85,6 +85,23 @@
     "Ci": true
   },
   {
+    "Name": "fiftyone.pipeline.derivedproperty",
+    "Path": "pipeline/derivedproperty",
+    "Ignore": [
+      "pipeline/derivedproperty/.github/workflows/**",
+      "pipeline/derivedproperty/ci/**",
+      "pipeline/derivedproperty/**/.gitignore",
+      "pipeline/derivedproperty/.php-cs-fixer*.php",
+      "pipeline/derivedproperty/phpstan.neon.dist",
+      "pipeline/derivedproperty/phpunit.xml"
+    ],
+    "DependsOn": ["fiftyone.pipeline.core"],
+    "Publish": false,
+    "Mirror": null,
+    "Vendor": "Root",
+    "Ci": true
+  },
+  {
     "Name": "fiftyone.devicedetection",
     "Path": "device-detection/cloud",
     "Ignore": [

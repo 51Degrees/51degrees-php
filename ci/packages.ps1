@@ -12,11 +12,23 @@
 # build-package-requirements, build-package, publish-package) are not run per
 # package. The root script calls common-ci once instead.
 #
-# Fields:
+# The packages are listed in packages.json, each after the packages it
+# requires. Name, Path, DependsOn and Publish are what common-ci's
+# steps/release-plan.ps1 reads to work out which packages a publish releases,
+# and at which version. Fields:
+#   Name     The package's Composer name without "51degrees/". Its releases
+#            are tagged "<Name>/<version>" here. device-detection/onpremise
+#            has the same Composer name as device-detection/cloud and is
+#            never published, so it has a name of its own.
 #   Path     The package directory.
+#   DependsOn  The Names of the packages here that its composer.json
+#            requires. The published composer.json requires each of them at
+#            the version released with it, see Get-PublishedComposerJson.
+#   Publish  Whether the package is released. Only a package with a mirror
+#            can be, because Packagist reads the mirrors.
 #   Mirror   The old repository Packagist reads, now a read-only mirror of
 #            this directory, kept equal to it by .github/workflows/mirror.yml.
-#            $null for a package that has no mirror.
+#            null for a package that has no mirror.
 #   Vendor   Where the package's tests get their dependencies.
 #            Root: from the root vendor folder, which the root composer.json
 #            fills through path repositories, so the tests run against the
@@ -33,8 +45,8 @@
 #            native extension and cannot be split from its composer install.
 #   Ci       Whether the package has a ci folder to run scripts from.
 #   Assembled  The mirror's version tags go on a commit that
-#            .github/workflows/did-publish.yml assembles, not on the plain
-#            split that mirror.yml tags. The mirror's main is the plain split
+#            .github/workflows/did-publish.yml assembles, not on the commit
+#            that mirror.yml tags. The mirror's main is the plain split
 #            either way.
 #   Native   The package builds a PHP extension, which its scripts build
 #            with phpize, configure and make. Their old matrices never had a
@@ -71,18 +83,119 @@
 #
 # Moving the Own packages to Root needs their native build split from their
 # composer install.
-$Packages = @(
-    @{ Path = 'pipeline/core'; Mirror = 'pipeline-php-core'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'pipeline/engines'; Mirror = 'pipeline-php-engines'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'pipeline/cloudrequestengine'; Mirror = 'pipeline-php-cloudrequestengine'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'pipeline/did'; Mirror = 'pipeline-php-did'; Vendor = 'Root'; Ci = $true; Assembled = $true }
-    @{ Path = 'pipeline/translation'; Mirror = $null; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'pipeline/derivedproperty'; Mirror = $null; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'device-detection/cloud'; Mirror = 'device-detection-php'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'device-detection/onpremise'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
-    @{ Path = 'location'; Mirror = 'location-php'; Vendor = 'Root'; Ci = $true }
-    @{ Path = 'ip-intelligence'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
-)
+$Packages = @(Get-Content -Raw (Join-Path $PSScriptRoot 'packages.json') |
+    ConvertFrom-Json)
+
+# Where common-ci's steps/release-plan.ps1 is looked for. common-ci runs these
+# scripts from its own root, with this repository checked out inside it. A
+# checkout of common-ci beside this repository, or one named by COMMON_CI, is
+# found too.
+$CommonCiFolders = @($env:COMMON_CI, (Join-Path $PSScriptRoot '..' '..'),
+    (Join-Path $PSScriptRoot '..' '..' 'common-ci'))
+
+# The path of common-ci's steps/release-plan.ps1, which the scripts that work
+# out a release dot-source. Only they need common-ci, so the mirror workflows
+# read the packages from this file without it.
+function Get-ReleasePlanScript {
+    $found = $CommonCiFolders | Where-Object { $_ } |
+        ForEach-Object { Join-Path $_ 'steps' 'release-plan.ps1' } |
+        Where-Object { Test-Path $_ } |
+        Select-Object -First 1
+    if ($null -eq $found) {
+        throw "common-ci's steps/release-plan.ps1 was not found. Set " +
+            "COMMON_CI to a checkout of common-ci."
+    }
+    return $found
+}
+
+# The highest version tagged on a package's mirror, which is the highest
+# version published, or $null when it has none. The mirrors are public, so no
+# token is needed.
+function Get-MirrorHighestVersion ([string]$Mirror, [string]$Owner = '51Degrees') {
+    $lines = @(& git ls-remote --tags "https://github.com/$Owner/$Mirror.git")
+    if ($LASTEXITCODE -ne 0) {
+        throw "The tags of $Owner/$Mirror could not be read"
+    }
+    # An annotated tag is listed twice, the second time ending ^{}.
+    $versions = foreach ($line in $lines) {
+        $name = ($line -split "`t")[1] -replace '^refs/tags/', '' -replace '\^\{\}$', ''
+        if ($name -match '^\d+\.\d+\.\d+$') {
+            [version]$name
+        }
+    }
+    return $versions | Sort-Object | Select-Object -Last 1
+}
+
+# The text of the composer.json a package is published with. It is the
+# package's own, with each requirement on another package here set to
+# "^<version>", where $Versions gives the version by Name. Only those values
+# are edited, in the text, so the published file differs in nothing else.
+# Throws when the requirements and DependsOn disagree, because a requirement
+# left as a range lets Composer pair the package with releases it was not
+# released with.
+function Get-PublishedComposerJson {
+    param (
+        [Parameter(Mandatory)][string]$RepoName,
+        [Parameter(Mandatory)]$Package,
+        [Parameter(Mandatory)][hashtable]$Versions
+    )
+    $path = Join-Path $RepoName $Package.Path 'composer.json'
+    $text = Get-Content -Raw $path
+    $wanted = [ordered]@{}
+    foreach ($name in @($Package.DependsOn)) {
+        $dependency = $Packages | Where-Object Name -eq $name
+        if ($null -eq $dependency -or $dependency.Publish -ne $true) {
+            throw "$($Package.Name) depends on $name, which packages.json does not publish"
+        }
+        if ($Versions.ContainsKey($name) -eq $false) {
+            throw "No version of $name was given for the requirement of $($Package.Name)"
+        }
+        $composerName = (Get-Content -Raw (Join-Path $RepoName $dependency.Path 'composer.json') |
+            ConvertFrom-Json).name
+        $wanted[$composerName] = "^$($Versions[$name])"
+    }
+
+    $parsed = $text | ConvertFrom-Json -AsHashtable
+    $own = @($parsed.require.Keys | Where-Object { $_ -like '51degrees/*' })
+    foreach ($key in $own) {
+        if ($wanted.Contains($key) -eq $false) {
+            throw "$path requires $key, which the DependsOn of $($Package.Name) in packages.json does not list"
+        }
+    }
+    foreach ($key in $wanted.Keys) {
+        if ($own -notcontains $key) {
+            throw "The DependsOn of $($Package.Name) in packages.json gives $key, which $path does not require"
+        }
+    }
+    if ($wanted.Count -eq 0) {
+        return $text
+    }
+
+    $block = [regex]::Match($text, '"require"\s*:\s*\{[^{}]*\}')
+    if ($block.Success -eq $false) {
+        throw "The require section of $path was not found"
+    }
+    $require = $block.Value
+    foreach ($key in $wanted.Keys) {
+        $require = [regex]::Replace($require,
+            '("' + [regex]::Escape($key) + '"\s*:\s*)"[^"]*"',
+            '${1}"' + $wanted[$key] + '"')
+    }
+    $published = $text.Substring(0, $block.Index) + $require +
+        $text.Substring($block.Index + $block.Length)
+
+    # The edit must change those values and nothing else.
+    foreach ($key in $wanted.Keys) {
+        $parsed.require[$key] = $wanted[$key]
+    }
+    $expected = $parsed | ConvertTo-Json -Depth 64 -Compress
+    $actual = $published | ConvertFrom-Json -AsHashtable |
+        ConvertTo-Json -Depth 64 -Compress
+    if ($actual -ne $expected) {
+        throw "Raising the requirements in $path changed more than their versions"
+    }
+    return $published
+}
 
 # The PHP version of this leg, read from the php on the PATH rather than from
 # the options, because the version the runner really has is what the

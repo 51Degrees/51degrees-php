@@ -80,6 +80,115 @@ class ClientIpTests extends TestCase
     }
 
     /**
+     * Each form the specification's "Reading the client IP value" section
+     * accepts, with the address it gives. A port is dropped, and brackets
+     * are not part of the address.
+     */
+    public function testEachAcceptedFormIsRead(): void
+    {
+        $forms = [
+            '203.0.113.1' => ['203.0.113.1', null],
+            '0.0.0.0' => ['0.0.0.0', null],
+            '2001:db8::1' => [null, '2001:db8::1'],
+            '2001:0DB8:0:0:0:0:0:1' => [null, '2001:0DB8:0:0:0:0:0:1'],
+            '::ffff:203.0.113.1' => ['203.0.113.1', null],
+            '203.0.113.1:8080' => ['203.0.113.1', null],
+            '203.0.113.1:0' => ['203.0.113.1', null],
+            '203.0.113.1:65535' => ['203.0.113.1', null],
+            '[2001:db8::1]' => [null, '2001:db8::1'],
+            '[2001:db8::1]:8080' => [null, '2001:db8::1'],
+            '[::ffff:203.0.113.1]:8080' => ['203.0.113.1', null],
+            // Without brackets the text after the last colon is part of the
+            // address, so this is an address with no port.
+            '2001:db8::1:80' => [null, '2001:db8::1:80'],
+        ];
+        foreach ($forms as $form => $expected) {
+            $this->assertSame(
+                $expected,
+                $this->clientIps(['query.client-ip' => (string) $form]),
+                (string) $form
+            );
+        }
+    }
+
+    /**
+     * Every value in the specification's table of values that are not read,
+     * and the zone index forms its "Zone indexes" section refuses. None of
+     * them is read in part.
+     */
+    public function testEachRefusedValueIsNotRead(): void
+    {
+        $values = [
+            '203.0.113.0/24',
+            '203.0.113.1 x',
+            '203.0.113.1, 198.51.100.7',
+            ' 203.0.113.1',
+            '203.0.113.1 ',
+            "\t203.0.113.1",
+            "203.0.113.1\t",
+            "203.0.113.1\n",
+            "203.0.113.1\r\n",
+            ' 2001:db8::1',
+            '[2001:db8::1]:80 ',
+            'fe80::1%eth0',
+            'fe80::1%1',
+            '[fe80::1%eth0]',
+            '[fe80::1%eth0]:80',
+            '[fe80::1%25eth0]',
+            '[203.0.113.1]',
+            '[203.0.113.1]:80',
+            '[2001:db8::1',
+            '2001:db8::1]:80',
+            '2001:db8::1]',
+            '203.0.113.1:',
+            '[2001:db8::1]:',
+            '203.0.113.1:65536',
+            '[2001:db8::1]:65536',
+            '203.0.113.1:8o',
+            '256.0.113.1',
+            '01.2.3.4',
+            '1.02.3.4',
+            '1.2.3.04',
+            '00.0.0.0',
+            '203.0.113',
+            '2001:db8::1::2',
+            '2001:db8:1:2:3:4:5:6:7',
+            '2001:db8::12345',
+            'unknown',
+            '',
+        ];
+        foreach ($values as $value) {
+            $this->assertSame(
+                [null, null],
+                $this->clientIps(['query.client-ip' => $value]),
+                json_encode($value)
+            );
+        }
+    }
+
+    /**
+     * A value that is not read does not hide a value under a key that comes
+     * later.
+     */
+    public function testARefusedValueDoesNotHideALaterKey(): void
+    {
+        $this->assertSame(
+            ['198.51.100.7', null],
+            $this->clientIps([
+                'query.client-ip' => ' 203.0.113.1',
+                'server.client-ip' => '198.51.100.7:443',
+            ])
+        );
+        $this->assertSame(
+            [null, '2001:db8::7'],
+            $this->clientIps([
+                'query.client-ip' => '[fe80::1%eth0]:80',
+                'server.client-ip' => '[2001:db8::7]:443',
+            ])
+        );
+    }
+
+    /**
      * Evidence keys ignore letter case, and getAll() hands back each key in
      * the letters it was first set with, so the two keys that are looked for
      * by name are matched whatever those letters are.

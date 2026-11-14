@@ -50,7 +50,7 @@ Composer path repository.
 
 | Path | Contents |
 | --- | --- |
-| The package directories above | One Composer package each, published to its mirror as it is |
+| The package directories above | One Composer package each, published to its mirror as it is, apart from its requirements on the other packages here |
 | `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code, and the [data](https://github.com/51Degrees/data) repository as its `data` submodule |
 | `pipeline/did/owid-php` | Submodule of [owid-php](https://github.com/SWAN-community/owid-php), the OWID library `pipeline/did` uses |
 | `javascript-templates` | Submodule of [javascript-templates](https://github.com/51Degrees/javascript-templates), the source of the template `pipeline/core` serves. The package commits a copy in `pipeline/core/javascript-templates`, because Packagist serves an archive of the tag and an archive has no submodules. `pipeline/core/ci/update-packages.ps1` refreshes the copy, and the JavaScript templates check fails when the copy differs from the submodule |
@@ -78,29 +78,50 @@ The `require` sections of the package `composer.json` files give this order:
 
 ## Versions and releases
 
-The repository has one version, tagged as a plain version such as `4.5.203`.
-Every package is released together with that number, including a package
-that did not change. `ci/get-next-package-version.ps1` moves only the patch
-number.
+Each package has its own version, and its releases are tagged here as
+`<package>/<version>`, for example `fiftyone.pipeline.core/4.5.207`, where the
+package is its Composer name without `51degrees/`. A package is released when
+a file in its directory changed since its last tag, and every package that
+requires it is released with it. A change only to Markdown files, documentation,
+tests, examples or licences does not count, nor does a change to a
+`composer.json` that only moves its metadata, such as its description or links
+([`ci/release-plan-filter.ps1`](ci/release-plan-filter.ps1)). Neither does a
+change only to a package's development files, being its `phpunit.xml`,
+`phpstan.neon.dist`, `.php-cs-fixer.php`, `.gitignore` files, `.github/workflows`
+and `ci/` folder (the `Ignore` lists in `ci/packages.json`), except that
+`pipeline/did/ci` counts, because it builds that package. Only the patch
+number moves. The packages, what each requires and where each is published
+are listed in [`ci/packages.json`](ci/packages.json), and the release plan is
+worked out by common-ci's
+[`steps/release-plan.ps1`](https://github.com/51Degrees/common-ci/blob/main/steps/release-plan.ps1).
+The Release plan check on each pull request prints the packages a release
+would publish with the change, and fails if the plan cannot be worked out or
+gives a version that a mirror already has.
 
 Packagist does not read this repository. It reads the old repositories, which
-are now read-only mirrors. The mirror of each directory is in the table above
-and in `ci/packages.ps1`.
+are now read-only mirrors, and turns each version tag on a mirror, such as
+`4.5.207`, into a release. The mirror of each directory is in the table above.
 
 1. On every push to `main`, `mirror.yml` runs `git subtree split` for each
    mirrored directory and pushes the result to the `main` branch of its
    mirror.
-2. The nightly publish tags `main` here with the next version.
-3. That tag starts `mirror.yml` again, which puts the same tag on the split
-   of each directory, on its mirror. `pipeline/did` gets a commit that
-   `did-publish.yml` assembles instead, with the OWID source copied in,
-   because Packagist serves an archive of the tag and an archive has no
-   submodules.
+2. The nightly publish works out which packages changed since their last
+   release, and tags `main` here with each one's next version, one tag at a
+   time, in the order of their dependencies.
+3. Each tag starts `mirror.yml` again, which puts the version on the split of
+   each released directory, on its mirror. A package that requires other
+   packages here is published with those requirements raised to the versions
+   released with it, for example `^4.5.207`, so its tag goes on a commit on
+   top of the split that changes only those lines of its `composer.json`.
+   `pipeline/did` gets a commit that `did-publish.yml` assembles instead,
+   with the OWID source copied in, because Packagist serves an archive of the
+   tag and an archive has no submodules.
 4. Packagist sees the tag on each mirror and makes the release, as it did
    before the merge.
 
-A version tag must be on `main` and above every version on the mirrors, or
-the workflows refuse it and tag nothing.
+A release tag must be on `main`, the highest of its package's tags here, and
+above every version on its mirror, or the workflows refuse it and tag
+nothing.
 
 `pipeline/translation`, `pipeline/derivedproperty`,
 `device-detection/onpremise` and `ip-intelligence` have no mirror, so they
@@ -183,8 +204,8 @@ The workflows in `.github/workflows` call the shared workflows in
 [common-ci](https://github.com/51Degrees/common-ci), which run the scripts in
 `ci/` once for the whole repository, on one build matrix from
 `ci/options.json`. Most of those scripts run the script of the same name in
-each package's own `ci/` folder. `ci/packages.ps1` lists the packages and how
-each is built and tested.
+each package's own `ci/` folder. `ci/packages.json` lists the packages, and
+`ci/packages.ps1` says how each is built and tested.
 
 ## Contributing
 
@@ -195,8 +216,10 @@ Pull requests go to the `rc` branch, not `main`. When a release is wanted, one
 pull request merges `rc` into `main`.
 
 Do not edit a package's `composer.json` or `ci/` directory to make the
-monorepo work. CI publishes each package directory to its mirror as it is.
-Put monorepo glue in root files only, for example the root `composer.json`.
+monorepo work. CI publishes each package directory to its mirror as it is,
+except that a release raises the package's requirements on the other
+packages here to the versions it publishes. Put monorepo glue in root files
+only, for example the root `composer.json`.
 
 ## History
 

@@ -56,9 +56,10 @@ class OldKeyCloudRequestElement extends FlowElement
 }
 
 /**
- * The Cloud Request Engine's Element Data key, which the Cloud Request
- * Engine specification names cloud-response, and cloud, the key it had
- * before, which still works for at least one release.
+ * The Cloud Request Engine's Element Data key and its one Property, which
+ * the Cloud Request Engine specification names cloud-response and
+ * json-response, and cloud, the name each had before, which still works for
+ * at least one release.
  */
 class DataKeyTests extends CloudRequestEngineTestsBase
 {
@@ -71,8 +72,52 @@ class DataKeyTests extends CloudRequestEngineTestsBase
 
         $this->assertSame(
             self::jsonResponse,
-            $flowData->get('cloud-response')->get('cloud')
+            $flowData->get('cloud-response')->get('json-response')
         );
+    }
+
+    /**
+     * The Element Data holds the raw response as one Property,
+     * json-response.
+     */
+    public function testTheElementDatasPropertyIsJsonResponse(): void
+    {
+        $flowData = self::process([$this->engine()], self::logger());
+        $data = $flowData->get('cloud-response');
+
+        $this->assertSame(self::jsonResponse, $data->get('json-response'));
+        $this->assertSame(self::jsonResponse, $data->{'json-response'});
+        $this->assertSame(['json-response'], array_keys($data->asDictionary()));
+    }
+
+    /**
+     * The engine's Property metadata lists the one Property it populates.
+     */
+    public function testTheEngineListsItsProperty(): void
+    {
+        $properties = $this->engine()->getProperties();
+
+        $this->assertSame(['json-response'], array_keys($properties));
+        $this->assertSame('json-response', $properties['json-response']['name']);
+        $this->assertSame('string', $properties['json-response']['type']);
+    }
+
+    /**
+     * The Property's old name gives the same response, and is logged once
+     * as deprecated, naming the Property to use.
+     */
+    public function testTheOldPropertyNameStillWorksAndIsLoggedOnce(): void
+    {
+        $logger = self::logger();
+        $flowData = self::process([$this->engine()], $logger);
+        $data = $flowData->get('cloud-response');
+
+        $this->assertSame(self::jsonResponse, $data->get('cloud'));
+        $this->assertSame(self::jsonResponse, $data->cloud);
+
+        $deprecations = self::warningsNaming($logger, "'json-response'");
+        $this->assertCount(1, $deprecations);
+        $this->assertStringContainsString("'cloud'", $deprecations[0]);
     }
 
     /**
@@ -97,8 +142,9 @@ class DataKeyTests extends CloudRequestEngineTestsBase
     }
 
     /**
-     * A cloud engine reads the response under the new key, so a Pipeline
-     * that uses only the elements here logs no deprecation.
+     * A cloud engine reads the response under the new key and by the
+     * Property's new name, so a Pipeline that uses only the elements here
+     * logs no deprecation.
      */
     public function testACloudEngineReadsTheResponseWithoutTheOldKey(): void
     {
@@ -111,7 +157,7 @@ class DataKeyTests extends CloudRequestEngineTestsBase
 
     /**
      * A cloud engine still reads the response of an element registered
-     * under the old key.
+     * under the old key that gives it by the Property's old name.
      */
     public function testACloudEngineStillReadsAnElementUnderTheOldKey(): void
     {
@@ -189,17 +235,28 @@ class DataKeyTests extends CloudRequestEngineTestsBase
     }
 
     /**
-     * The warnings that name the old key.
+     * The warnings that name cloud, the old Data Key and the Property's old
+     * name.
      *
      * @return array<string>
      */
     private static function oldKeyWarnings(Logger $logger): array
     {
+        return self::warningsNaming($logger, "'cloud'");
+    }
+
+    /**
+     * The warnings whose message holds the text.
+     *
+     * @return array<string>
+     */
+    private static function warningsNaming(Logger $logger, string $text): array
+    {
         $warnings = [];
         foreach ($logger->entries as $entry) {
             if (
                 $entry['level'] === 'warning' &&
-                strpos($entry['message'], "'cloud'") !== false
+                strpos($entry['message'], $text) !== false
             ) {
                 $warnings[] = $entry['message'];
             }

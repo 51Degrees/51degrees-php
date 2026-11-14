@@ -34,7 +34,8 @@ use PHPUnit\Framework\TestCase;
 /**
  * Loads the Device Detection and IP Intelligence extensions in one PHP, in
  * each order, and runs the two examples that use both on the free data
- * files. Each case starts its own PHP with the two extensions in the order
+ * files, and the console example with no data file set for one engine or
+ * both. Each case starts its own PHP with the two extensions in the order
  * it needs and none of the package's php.ini settings.
  */
 class MixedExamplesTests extends TestCase
@@ -57,6 +58,10 @@ class MixedExamplesTests extends TestCase
 
     private const EXAMPLES = __DIR__ . '/../examples/onpremise';
 
+    // The variable naming the Device Detection data file, which the mixed
+    // examples read when PHP built no Device Detection engine.
+    private const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
+
     // The start of every link the examples give to ask for a copy of the
     // Enterprise data file.
     private const CONTACT_US = 'https://51degrees.com/contact-us?';
@@ -69,6 +74,9 @@ class MixedExamplesTests extends TestCase
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ' .
         'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 ' .
         'Mobile/15E148 Safari/604.1';
+
+    /** @var array<string> The folders holding the php.ini files written */
+    private $folders = [];
 
     /**
      * @return array<string, array<bool>>
@@ -97,6 +105,15 @@ class MixedExamplesTests extends TestCase
                 $this->markTestSkipped($message);
             }
         }
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->folders as $folder) {
+            @unlink($folder . '/fiftyone.ini');
+            @rmdir($folder);
+        }
+        $this->folders = [];
     }
 
     /**
@@ -204,6 +221,13 @@ class MixedExamplesTests extends TestCase
         $text = $run->output;
 
         $this->assertSame(0, $run->status, $run->printed());
+        // PHP built both engines from the settings, so the example uses
+        // them rather than starting PHP again.
+        $this->assertStringNotContainsString(
+            'runs again',
+            $run->errors,
+            $run->printed()
+        );
         $this->assertStringContainsString("Device Detection Results:\n", $text);
         $this->assertStringContainsString("\tPlatformName: iOS\n", $text);
         $this->assertStringContainsString(
@@ -222,6 +246,102 @@ class MixedExamplesTests extends TestCase
         $this->assertStringContainsString(
             'Some of these properties need the Enterprise data file. ' .
             'Contact us for a copy at ' . self::CONTACT_US,
+            $text
+        );
+        $run->assertEndsWithFindOutMore();
+    }
+
+    /**
+     * The order the extensions are loaded in, and which data files php.ini
+     * names.
+     *
+     * @return array<string, array<bool>>
+     */
+    public static function engineStarts(): array
+    {
+        return [
+            'nothing set, device detection first' => [true, false, false],
+            'nothing set, IP intelligence first' => [false, false, false],
+            'only the device detection data file set' => [true, true, false],
+            'only the IP intelligence data file set' => [true, false, true],
+        ];
+    }
+
+    /**
+     * With no data file set for one engine or for both, the mixed console
+     * example runs again in a PHP started with a data file for each engine
+     * PHP did not build, found as a fresh clone finds it, the free file
+     * downloaded when it is not there, and shows both engines' results.
+     * The extensions are loaded from a php.ini, because where the system
+     * does not give PHP's own command line, as on macOS, the new PHP is
+     * started without the options this one was given. The variables that
+     * name a data file are left out.
+     *
+     * @dataProvider engineStarts
+     */
+    #[DataProvider('engineStarts')]
+    public function testMixedConsoleExampleStartsTheMissingEngines(
+        bool $deviceDetectionFirst,
+        bool $deviceDetectionSet,
+        bool $ipIntelligenceSet
+    ): void {
+        $deviceDetection = [
+            'extension = "' . realpath(self::DEVICE_DETECTION_EXTENSION) . '"',
+        ];
+        if ($deviceDetectionSet) {
+            $this->assertTrue(
+                ExampleUtils::downloadMissingDataFile(self::HASH_LITE_FILE),
+                'The free Device Detection data file could not be found or downloaded.'
+            );
+            $deviceDetection[] = self::DEVICE_DETECTION . '.data_file = "' .
+                realpath(self::HASH_LITE_FILE) . '"';
+        }
+        $ipIntelligence = [
+            'extension = "' . realpath(self::IP_INTELLIGENCE_EXTENSION) . '"',
+        ];
+        if ($ipIntelligenceSet) {
+            $ipIntelligence[] = ExampleUtils::DATA_FILE_SETTING . ' = "' .
+                $this->ipiLiteFile() . '"';
+        }
+        $folder = $this->settingsFolder($deviceDetectionFirst
+            ? array_merge($deviceDetection, $ipIntelligence)
+            : array_merge($ipIntelligence, $deviceDetection));
+
+        $run = ExampleRun::run(
+            self::EXAMPLES . '/mixed/gettingstarted-console.php',
+            [],
+            [
+                ExampleConstants::IPI_PATH_VARIABLE,
+                ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR,
+                self::DD_PATH_VARIABLE,
+            ],
+            ['PHP_INI_SCAN_DIR' => implode(
+                PATH_SEPARATOR,
+                array_filter([PHP_CONFIG_FILE_SCAN_DIR, $folder])
+            )]
+        );
+        $text = $run->output;
+
+        $missing = array_keys(array_filter([
+            'IP intelligence' => !$ipIntelligenceSet,
+            'device detection' => !$deviceDetectionSet,
+        ]));
+        $this->assertSame(0, $run->status, $run->printed());
+        $this->assertStringContainsString(
+            'No ' . implode(' or ', $missing) . ' engine was built when PHP ' .
+            'started, so the example runs again',
+            $run->errors,
+            $run->printed()
+        );
+        $this->assertStringContainsString(
+            "Device Detection Results:\n",
+            $text,
+            $run->printed()
+        );
+        $this->assertStringContainsString("\tPlatformName: iOS\n", $text);
+        $this->assertStringContainsString("IP Intelligence Results:\n", $text);
+        $this->assertMatchesRegularExpression(
+            '/\tRegisteredCountry: [A-Z]{2}\b/',
             $text
         );
         $run->assertEndsWithFindOutMore();
@@ -429,6 +549,23 @@ class MixedExamplesTests extends TestCase
         );
 
         return (string) realpath($path);
+    }
+
+    /**
+     * A new folder holding a php.ini with the lines given, removed when the
+     * test ends.
+     *
+     * @param array<string> $lines
+     */
+    private function settingsFolder(array $lines): string
+    {
+        $folder = sys_get_temp_dir() . '/fiftyone-mixed-' . getmypid() .
+            '-' . uniqid();
+        mkdir($folder);
+        $this->folders[] = $folder;
+        file_put_contents($folder . '/fiftyone.ini', implode("\n", $lines) . "\n");
+
+        return $folder;
     }
 
     /**

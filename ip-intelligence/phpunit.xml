@@ -20,6 +20,7 @@
     <testsuite name="Integration">
       <file>tests/IpIntelligenceCloudTests.php</file>
       <file>tests/IpIntelligenceOnPremiseTests.php</file>
+      <file>tests/ServeWebExamplesTests.php</file>
       <file>tests/IpIntelligenceTranslationTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>

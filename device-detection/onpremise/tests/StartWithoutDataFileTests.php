@@ -60,7 +60,9 @@ class StartWithoutDataFileTests extends TestCase
         }
         PHP;
 
-    private const SERVER_START_SECONDS = 30;
+    // Long enough for a launcher to download the Lite file before the
+    // server loads it into memory and answers.
+    private const SERVER_START_SECONDS = 180;
 
     /** @var null|string The folder holding the php.ini that loads the extension */
     private static $settings;
@@ -244,33 +246,12 @@ class StartWithoutDataFileTests extends TestCase
     public function testWebExampleSaysWhatToSet()
     {
         $port = $this->freePort();
-        $log = tempnam(sys_get_temp_dir(), 'dd-web');
-        $server = proc_open(
-            [
-                PHP_BINARY,
-                '-S',
-                "127.0.0.1:{$port}",
-                'examples/onpremise/gettingStartedWeb.php'
-            ],
-            [
-                0 => ['pipe', 'r'],
-                1 => ['file', $log, 'w'],
-                2 => ['file', $log, 'a']
-            ],
-            $pipes,
-            __DIR__ . '/..',
-            $this->environment(true)
-        );
-        $this->assertIsResource($server);
-        fclose($pipes[0]);
-        try {
-            [$status, $page] = $this->getPage($server, $port);
-        } finally {
-            proc_terminate($server);
-            proc_close($server);
-            $printed = (string) file_get_contents($log);
-            unlink($log);
-        }
+        [$status, $page, $printed] = $this->serve([
+            PHP_BINARY,
+            '-S',
+            "localhost:{$port}",
+            'examples/onpremise/gettingStartedWeb.php'
+        ], $port);
         $this->assertNotNull($page, "The server did not answer.\n{$printed}");
         $this->assertStringContainsString(' 500 ', $status, $page);
         $this->assertStringContainsString(
@@ -278,6 +259,29 @@ class StartWithoutDataFileTests extends TestCase
             $page
         );
         $this->assertStringContainsString('51Degrees-LiteV4.1.hash', $page);
+        $this->assertStringContainsString('serve.php', $page);
+    }
+
+    /**
+     * The launcher starts a web example with the data file it finds, the
+     * free Lite file downloaded when there is none, so the page shows the
+     * detection with nothing set.
+     */
+    public function testWebExampleRunsWithNothingSetThroughTheLauncher()
+    {
+        $port = $this->freePort();
+        [$status, $page, $printed] = $this->serve([
+            PHP_BINARY,
+            'examples/onpremise/serve.php',
+            'gettingStartedWeb.php',
+            (string) $port
+        ], $port);
+        $this->assertNotNull(
+            $page,
+            "The launcher's server did not answer.\n{$printed}"
+        );
+        $this->assertStringContainsString(' 200 ', $status, $page);
+        $this->assertStringContainsString('Platform Name:</td>', $page);
     }
 
     /**
@@ -495,6 +499,46 @@ class StartWithoutDataFileTests extends TestCase
     }
 
     /**
+     * Starts the command in the package's folder, with the environment the
+     * other cases use, and returns the status line and page the server on
+     * the port answers with, or an empty status and null, and what the
+     * command printed. The command and any server it started are stopped.
+     *
+     * @param array<string> $command
+     * @return array{0: string, 1: ?string, 2: string}
+     */
+    private function serve(array $command, int $port): array
+    {
+        $log = tempnam(sys_get_temp_dir(), 'dd-web');
+        $process = proc_open(
+            $command,
+            [
+                0 => ['pipe', 'r'],
+                1 => ['file', $log, 'w'],
+                2 => ['file', $log, 'a']
+            ],
+            $pipes,
+            __DIR__ . '/..',
+            $this->environment(true)
+        );
+        $this->assertIsResource($process);
+        fclose($pipes[0]);
+        try {
+            [$status, $page] = $this->getPage($process, $port);
+        } finally {
+            // A launcher runs the server as its own child.
+            $pid = proc_get_status($process)['pid'];
+            exec('pkill -TERM -P ' . (int) $pid . ' 2>/dev/null');
+            proc_terminate($process);
+            proc_close($process);
+            $printed = (string) file_get_contents($log);
+            unlink($log);
+        }
+
+        return [$status, $page, $printed];
+    }
+
+    /**
      * The status line and page the server answers with, waiting for it to
      * start, or an empty status and null when it stops or does not answer
      * in time.
@@ -510,7 +554,7 @@ class StartWithoutDataFileTests extends TestCase
         $deadline = microtime(true) + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline &&
             proc_get_status($server)['running']) {
-            $stream = @fopen("http://127.0.0.1:{$port}/", 'r', false, $context);
+            $stream = @fopen("http://localhost:{$port}/", 'r', false, $context);
             if ($stream !== false) {
                 $headers = stream_get_meta_data($stream)['wrapper_data'];
                 $page = (string) stream_get_contents($stream);

@@ -79,7 +79,7 @@ class Engine extends FlowElement
      */
     public function inCache(FlowData $flowData): bool
     {
-        $keys = $this->filterEvidence($flowData);
+        $keys = self::cacheKey($this->filterEvidence($flowData));
 
         $cached = $this->cache->get($keys);
 
@@ -108,7 +108,7 @@ class Engine extends FlowElement
         $this->processInternal($flowData);
 
         if ($this->cache) {
-            $keys = $this->filterEvidence($flowData);
+            $keys = self::cacheKey($this->filterEvidence($flowData));
 
             $data = $flowData->get($this->dataKey);
 
@@ -116,6 +116,26 @@ class Engine extends FlowElement
                 $this->cache->set($keys, $data);
             }
         }
+    }
+
+    /**
+     * The key a result is cached under, being the Evidence the Engine
+     * accepts with each key in lower case and the keys sorted. The same
+     * Evidence then gives the same key whatever order it was set in and
+     * whatever letters its keys were given in. Values keep their letters.
+     *
+     * @param array<string, int|string> $evidence
+     * @return array<string, int|string>
+     */
+    private static function cacheKey(array $evidence): array
+    {
+        $key = [];
+        foreach ($evidence as $name => $value) {
+            $key[strtolower((string) $name)] = $value;
+        }
+        ksort($key, SORT_STRING);
+
+        return $key;
     }
 
     /**

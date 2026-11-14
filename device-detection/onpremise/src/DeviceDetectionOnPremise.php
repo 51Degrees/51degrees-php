@@ -42,15 +42,22 @@ class DeviceDetectionOnPremise extends Engine
     public const METRICS_COMPONENT = 'Metrics';
 
     /**
+     * The category of the match metrics, written as the specification
+     * writes it.
+     */
+    public const METRICS_CATEGORY = 'Device Metrics';
+
+    /**
      * The match metrics, which the results give rather than the data set.
      */
     private const METRIC_PROPERTIES = [
         'matchednodes' => [
             'name' => 'MatchedNodes',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::MATCHED_NODES_DESCRIPTION,
-            'category' => 'DeviceMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
             'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
@@ -58,9 +65,10 @@ class DeviceDetectionOnPremise extends Engine
         'difference' => [
             'name' => 'Difference',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::DIFFERENCE_DESCRIPTION,
-            'category' => 'DeviceMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
             'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
@@ -68,9 +76,10 @@ class DeviceDetectionOnPremise extends Engine
         'drift' => [
             'name' => 'Drift',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::DRIFT_DESCRIPTION,
-            'category' => 'DeviceMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
             'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
@@ -78,9 +87,10 @@ class DeviceDetectionOnPremise extends Engine
         'deviceid' => [
             'name' => 'DeviceId',
             'type' => 'String',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::DEVICE_ID_DESCRIPTION,
-            'category' => 'DeviceMetrics',
+            'defaultValue' => '0-0-0-0',
+            'category' => self::METRICS_CATEGORY,
             'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
@@ -88,9 +98,10 @@ class DeviceDetectionOnPremise extends Engine
         'useragents' => [
             'name' => 'UserAgents',
             'type' => 'Array',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::USER_AGENTS_DESCRIPTION,
-            'category' => 'DeviceMetrics',
+            'defaultValue' => [],
+            'category' => self::METRICS_CATEGORY,
             'component' => self::METRICS_COMPONENT,
             'isList' => true,
             'available' => true
@@ -98,9 +109,10 @@ class DeviceDetectionOnPremise extends Engine
         'iterations' => [
             'name' => 'Iterations',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::ITERATIONS_DESCRIPTION,
-            'category' => 'DeviceMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
             'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
@@ -108,9 +120,11 @@ class DeviceDetectionOnPremise extends Engine
         'method' => [
             'name' => 'Method',
             'type' => 'String',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::METHOD_DESCRIPTION,
-            'category' => 'DeviceMetrics',
+            'defaultValue' => 'NONE',
+            'values' => ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'],
+            'category' => self::METRICS_CATEGORY,
             'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true

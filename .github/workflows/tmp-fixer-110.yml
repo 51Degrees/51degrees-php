@@ -16,11 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, php: '8.3' }
           - { os: ubuntu-26.04, php: '8.0' }
-          - { os: ubuntu-26.04, php: '8.3' }
-          - { os: ubuntu-26.04, php: '8.5' }
-          - { os: macos-latest, php: '8.5' }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,7 +114,7 @@ jobs:
             grep "ERROR SUMMARY" "$RUNNER_TEMP/$f.txt" || true
             echo "error kinds:"
             grep -E "^==[0-9]+== (Invalid|Conditional|Use of|Mismatched|Syscall|Source and)" "$RUNNER_TEMP/$f.txt" | sed -E 's/^==[0-9]+== //' | sort | uniq -c || true
-            sed -n '/^==[0-9]*== \(Invalid\|Mismatched\)/,+30p' "$RUNNER_TEMP/$f.txt" | head -n 120
+            sed -n '/^==[0-9]*== \(Invalid\|Mismatched\|Conditional\)/,+14p' "$RUNNER_TEMP/$f.txt" | head -n 600
           done
       - name: Run the class name tests with both extensions, with PHPUnit 9.6 as CI does
         if: always()

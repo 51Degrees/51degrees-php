@@ -422,8 +422,9 @@ class DeviceDetectionOnPremise extends Engine
         }
 
         // The value PHP started with, which is the extension's default when
-        // php.ini leaves the setting out.
-        $settings = ini_get_all('FiftyOneDegreesHashEngine');
+        // php.ini leaves the setting out. ini_get_all finds an extension by
+        // the lower case name PHP keeps it under.
+        $settings = ini_get_all('fiftyonedegreeshashengine');
         $dataFile = (string) (
             $settings[Constants::DATA_FILE_SETTING]['global_value'] ?? ''
         );

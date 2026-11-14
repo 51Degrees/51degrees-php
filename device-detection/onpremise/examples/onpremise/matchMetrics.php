@@ -49,7 +49,7 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
     // Without it, the example runs again in a PHP started with a data file,
     // the free Lite file unless another is named, downloaded when it is
     // missing.
-    ExampleUtils::startWithEngine($argv);
+    ExampleUtils::startWithEngine($argv ?? []);
 
     function main($argv)
     {

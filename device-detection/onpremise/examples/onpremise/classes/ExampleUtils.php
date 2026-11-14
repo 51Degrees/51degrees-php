@@ -395,7 +395,7 @@ class ExampleUtils
      *
      * @param bool $loaded Whether the extension is loaded
      */
-    public static function getSetupPage($loaded)
+    private static function getSetupPage($loaded)
     {
         $html = function ($text) {
             return htmlspecialchars((string) $text, ENT_QUOTES);

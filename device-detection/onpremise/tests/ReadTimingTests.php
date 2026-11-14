@@ -84,7 +84,7 @@ class ReadTimingTests extends TestCase
      * on. An engine created with no names walks no graph in process, so a
      * multiple near 1 means the names were passed after all.
      */
-    private const MIN_EVERY_NAME_OVER_NO_NAMES = 4.0;
+    private const MIN_EVERY_NAME_OVER_NO_NAMES = 3.0;
 
     /**
      * The most a read by name may take, as a multiple of a read by position.

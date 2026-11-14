@@ -1,0 +1,42 @@
+name: Location missing product check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-dx14-**'
+
+permissions:
+  contents: read
+
+jobs:
+  location:
+    name: Location missing product test (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, php: '8.1' }
+          - { os: ubuntu-latest, php: '8.5' }
+          - { os: windows-latest, php: '8.3' }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch the submodule composer needs
+        run: git submodule update --init --depth 1 pipeline/did/owid-php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          coverage: none
+      - name: Install from the repository root
+        run: composer install --no-interaction --no-progress
+      - name: Run the missing product test
+        working-directory: location
+        run: |
+          php ../vendor/bin/phpunit --version
+          php ../vendor/bin/phpunit --bootstrap ../vendor/autoload.php tests/MissingProductTests.php

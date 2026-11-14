@@ -1,0 +1,61 @@
+name: PHPUnit 12 attributes check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-104-**'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Pester tests and the check over the repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test the check
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/check-test-attributes.Tests.ps1 -CI
+      - name: Check the tests
+        shell: pwsh
+        run: ./ci/check-test-attributes.ps1
+
+  phpunit12:
+    name: Linux-only classes under PHPUnit 12 on Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch the owid-php submodule the root composer.json names
+        run: git submodule update --init pipeline/did/owid-php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+          coverage: none
+      - name: Install from the repository root
+        run: composer install --no-interaction --no-progress
+      - name: Run the cloud package's Linux-only classes
+        shell: pwsh
+        working-directory: device-detection/cloud
+        run: |
+          php ../../vendor/bin/phpunit --version
+          $found = 0
+          foreach ($class in 'ExampleWebTests', 'UACHCloudTests') {
+            Write-Host "::group::$class"
+            $out = & php ../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --display-skipped "tests/$class.php" 2>&1 | Out-String
+            Write-Host $out
+            Write-Host "::endgroup::"
+            if ($out -match 'Operating system "?Linux"? is required') {
+              Write-Host "$class skipped, Linux is required."
+              $found++
+            } else {
+              Write-Host "::error::$class was not skipped for needing Linux."
+            }
+          }
+          if ($found -ne 2) { exit 1 }

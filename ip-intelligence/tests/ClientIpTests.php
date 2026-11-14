@@ -36,15 +36,30 @@ use PHPUnit\Framework\TestCase;
 class ClientIpTests extends TestCase
 {
     /**
+     * The keys an engine accepts, in the order the native getKeys() gives
+     * them, which takes each client IP header of the data file in priority
+     * order and writes it under the query and then the server prefix.
+     */
+    private const KEYS = [
+        'query.true-client-ip-51d',
+        'server.true-client-ip-51d',
+        'query.client-ip-51d',
+        'server.client-ip-51d',
+        'query.client-ip',
+        'server.client-ip',
+    ];
+
+    /**
      * @param array<string, mixed> $evidence
+     * @param array<string> $keys
      * @return array{0: ?string, 1: ?string}
      */
-    private function clientIps(array $evidence): array
+    private function clientIps(array $evidence, array $keys = self::KEYS): array
     {
         $method = new \ReflectionMethod(IpIntelligenceOnPremise::class, 'clientIpsFromEvidence');
         $method->setAccessible(true);
 
-        return $method->invoke(null, $evidence);
+        return $method->invoke(null, $evidence, $keys);
     }
 
     public function testMappedAddressIsReportedAsItsIpv4Address(): void
@@ -62,7 +77,11 @@ class ClientIpTests extends TestCase
         }
     }
 
-    public function testFirstAddressOfEachFamilyWins(): void
+    /**
+     * One value is chosen, and only its address is reported, so an address
+     * of the other family under a later key is not.
+     */
+    public function testOnlyTheChosenAddressIsReported(): void
     {
         $evidence = [
             'header.x-forwarded-for' => '9.9.9.9',
@@ -70,7 +89,111 @@ class ClientIpTests extends TestCase
             'server.client-ip' => '2001:4860:4860::8888',
         ];
 
-        $this->assertSame(['8.8.8.8', '2001:4860:4860::8888'], $this->clientIps($evidence));
+        $this->assertSame(['8.8.8.8', null], $this->clientIps($evidence));
+    }
+
+    /**
+     * Every query key comes before every server key, so a server key the
+     * data file lists first does not take the place of a later query key.
+     */
+    public function testQueryKeysComeBeforeServerKeys(): void
+    {
+        $this->assertSame(
+            ['8.8.8.8', null],
+            $this->clientIps([
+                'server.true-client-ip-51d' => '9.9.9.9',
+                'server.client-ip' => '9.9.9.8',
+                'query.client-ip-51d' => '8.8.8.8',
+            ])
+        );
+    }
+
+    /**
+     * Under one prefix the keys are tried in the data file's order, which is
+     * the order of the engine's keys and not the order of the Evidence.
+     */
+    public function testKeysUnderOnePrefixFollowTheDataFileOrder(): void
+    {
+        $evidence = [
+            'query.client-ip' => '9.9.9.9',
+            'query.client-ip-51d' => '9.9.9.8',
+            'query.true-client-ip-51d' => '8.8.8.8',
+        ];
+        $this->assertSame(['8.8.8.8', null], $this->clientIps($evidence));
+
+        $evidence = [
+            'server.client-ip' => '9.9.9.9',
+            'server.client-ip-51d' => '8.8.8.8',
+        ];
+        $this->assertSame(['8.8.8.8', null], $this->clientIps($evidence));
+
+        // A data file that lists the headers the other way round.
+        $this->assertSame(
+            ['9.9.9.9', null],
+            $this->clientIps(
+                ['query.true-client-ip-51d' => '8.8.8.8', 'query.client-ip' => '9.9.9.9'],
+                ['query.client-ip', 'server.client-ip', 'query.true-client-ip-51d', 'server.true-client-ip-51d']
+            )
+        );
+    }
+
+    /**
+     * The same header under both prefixes gives the query value, and the
+     * server value only when the query value is not read.
+     */
+    public function testTheSameKeyUnderBothPrefixes(): void
+    {
+        $this->assertSame(
+            ['8.8.8.8', null],
+            $this->clientIps(['server.client-ip' => '9.9.9.9', 'query.client-ip' => '8.8.8.8'])
+        );
+        $this->assertSame(
+            ['9.9.9.9', null],
+            $this->clientIps(['server.client-ip' => '9.9.9.9', 'query.client-ip' => 'unknown'])
+        );
+    }
+
+    /**
+     * The chosen value's address is looked up whatever its family, so an
+     * IPv6 address under an earlier key wins over an IPv4 address under a
+     * later one.
+     */
+    public function testTheFirstValueIsUsedWhateverItsFamily(): void
+    {
+        $this->assertSame(
+            [null, '2001:db8::7'],
+            $this->clientIps([
+                'query.client-ip' => '8.8.8.8',
+                'query.true-client-ip-51d' => '2001:db8::7',
+            ])
+        );
+        $this->assertSame(
+            [null, '2001:db8::7'],
+            $this->clientIps([
+                'server.true-client-ip-51d' => '8.8.8.8',
+                'query.client-ip' => '2001:db8::7',
+            ])
+        );
+    }
+
+    /**
+     * Only the keys the engine accepts are read, so an address in any other
+     * Evidence value is not looked up.
+     */
+    public function testAValueTheEngineDoesNotAcceptIsNotRead(): void
+    {
+        $this->assertSame(
+            [null, null],
+            $this->clientIps([
+                'header.x-forwarded-for' => '8.8.8.8',
+                'query.ip' => '8.8.8.9',
+                'cookie.client-ip' => '2001:db8::7',
+            ])
+        );
+        $this->assertSame(
+            [null, null],
+            $this->clientIps(['query.client-ip' => '8.8.8.8'], ['query.client-ip-51d', 'server.client-ip-51d'])
+        );
     }
 
     public function testNoAddressGivesNothing(): void
@@ -190,8 +313,8 @@ class ClientIpTests extends TestCase
 
     /**
      * Evidence keys ignore letter case, and getAll() hands back each key in
-     * the letters it was first set with, so the two keys that are looked for
-     * by name are matched whatever those letters are.
+     * the letters it was first set with, so a client IP key is matched
+     * whatever those letters are.
      */
     public function testNamedKeysAreFoundInAnyLetterCase(): void
     {
@@ -216,13 +339,14 @@ class ClientIpTests extends TestCase
     }
 
     /**
-     * The two named keys are read before anything else whatever letters they
-     * carry, so a header listed earlier does not take their place.
+     * A client IP key keeps its place in the order whatever letters it
+     * carries, so neither a header listed earlier nor a server key takes it.
      */
     public function testNamedKeysKeepTheirPrecedenceInAnyLetterCase(): void
     {
         $evidence = [
             'header.x-forwarded-for' => '9.9.9.9',
+            'SERVER.TRUE-CLIENT-IP-51D' => '9.9.9.8',
             'Query.Client-IP' => '8.8.8.8',
         ];
 

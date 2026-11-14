@@ -218,6 +218,85 @@ class IpIntelligenceOnPremiseTests extends TestCase
     }
 
     /**
+     * The client IP is chosen from the keys the engine accepts, in the order
+     * of its getKeys(), every query key before every server key, and the
+     * chosen value's address is looked up whatever its family. Each case
+     * gets the answers of the chosen address given alone.
+     */
+    public function testTheClientIpIsChosenInTheEngineOrder(): void
+    {
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'MaxPerformance'
+        ]))->build();
+        $keys = $pipeline->getElement('ip')->getEvidenceKeyFilter()->getList();
+        $query = array_values(array_filter($keys, fn ($key) => strncmp($key, 'query.', 6) === 0));
+        $server = array_values(array_filter($keys, fn ($key) => strncmp($key, 'server.', 7) === 0));
+        $this->assertNotEmpty($query);
+        $this->assertCount(count($query), $server);
+
+        $cases = [
+            [
+                [
+                    'header.x-forwarded-for' => '8.8.8.8',
+                    $server[0] => Constants::IPV4_ADDRESS,
+                    end($query) => Constants::IPV6_ADDRESS,
+                ],
+                [null, Constants::IPV6_ADDRESS],
+            ],
+            [
+                [end($query) => Constants::IPV4_ADDRESS, $query[0] => '8.8.8.8'],
+                ['8.8.8.8', null],
+            ],
+            [
+                [end($server) => Constants::IPV4_ADDRESS, $server[0] => '8.8.8.8'],
+                ['8.8.8.8', null],
+            ],
+            [
+                ['header.x-forwarded-for' => '8.8.8.8'],
+                [null, null],
+            ],
+        ];
+
+        try {
+            foreach ($cases as [$evidence, [$ipv4, $ipv6]]) {
+                $label = json_encode($evidence);
+                $flowData = $pipeline->createFlowData();
+                $alone = $pipeline->createFlowData();
+                try {
+                    foreach ($evidence as $key => $value) {
+                        $flowData->evidence->set($key, $value);
+                    }
+                    $actual = $flowData->process()->ip;
+
+                    $this->assertSame($ipv4 !== null, $actual->ip->hasValue, $label);
+                    $this->assertSame($ipv6 !== null, $actual->ipv6->hasValue, $label);
+                    if ($ipv4 !== null) {
+                        $this->assertSame($ipv4, $actual->ip->value, $label);
+                    }
+                    if ($ipv6 !== null) {
+                        $this->assertSame($ipv6, $actual->ipv6->value, $label);
+                    }
+
+                    $alone->evidence->set($query[0], $ipv4 ?? $ipv6 ?? '');
+                    $expected = $alone->process()->ip;
+                    foreach (array_keys($pipeline->getElement('ip')->getProperties()) as $key) {
+                        if ($key === 'ip' || $key === 'ipv6') {
+                            continue;
+                        }
+                        $this->assertEquals($expected->get($key), $actual->get($key), "$label: $key");
+                    }
+                } finally {
+                    $flowData->close();
+                    $alone->close();
+                }
+            }
+        } finally {
+            $pipeline->close();
+        }
+    }
+
+    /**
      * Closing the FlowData releases its results and closing the pipeline
      * releases the engine, and each throws an exception if used afterwards.
      */

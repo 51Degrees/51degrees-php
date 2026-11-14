@@ -1,0 +1,102 @@
+name: Chained weighted value check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-92-**'
+
+permissions:
+  contents: read
+
+env:
+  SWIG_VERSION: 4.5.1
+
+jobs:
+  generate:
+    name: Regenerate the IP Intelligence wrapper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout cxx
+        run: git submodule update --init cxx
+      - name: Restore SWIG
+        id: swig-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/swig
+          key: swig-${{ env.SWIG_VERSION }}-${{ runner.os }}
+      - name: Build SWIG ${{ env.SWIG_VERSION }}
+        if: steps.swig-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison autoconf automake libpcre2-dev
+          git clone --depth 1 --branch "v${SWIG_VERSION}" \
+            https://github.com/swig/swig.git swig-src
+          cd swig-src
+          ./autogen.sh
+          ./configure --prefix="$HOME/swig"
+          make -j"$(nproc)"
+          make install
+      - name: Generate the wrapper from ipi-php.i
+        run: |
+          export PATH="$HOME/swig/bin:$PATH"
+          swig -version
+          sh ip-intelligence/on-premise/generate-wrapper.sh
+          git diff --stat
+          git diff ip-intelligence/on-premise/src/php8 | grep -E '^[+-]' | grep -v '^+++\|^---' | head -80
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipi-wrapper
+          path: ip-intelligence/on-premise/src/php8/
+
+  test:
+    name: Build and test (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, php: '8.0' }
+          - { os: ubuntu-latest, php: '8.3' }
+          - { os: ubuntu-latest, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Put the free Lite data file where php.ini names it
+        working-directory: common-ci/51degrees-php
+        run: |
+          sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi
+          mkdir -p ip-intelligence/assets
+          ln -sf "$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi" ip-intelligence/assets/51Degrees-LiteIpiV41.ipi
+          ls -laL ip-intelligence/assets
+      - name: Run the chained call test and the on-premise tests
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          export PHP_INI_SCAN_DIR=":$PWD"
+          php -m | grep -i FiftyOneDegreesIpIntelligenceEngine
+          phpunit --testsuite Integration --filter 'ChainedCallTests|IpIntelligenceOnPremiseTests'

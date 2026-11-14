@@ -1,0 +1,134 @@
+name: tmp fixer 110
+# Throwaway. Builds both on-premise extensions as CI does, runs the dl()
+# class name test several times, and runs the test's own PHP command under
+# valgrind with PHP's allocator off.
+on:
+  push:
+    branches:
+      - 'tmp/fixer-110-*'
+permissions:
+  contents: read
+jobs:
+  test:
+    name: dl (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.3' }
+          - { os: ubuntu-26.04, php: '8.0' }
+          - { os: ubuntu-26.04, php: '8.3' }
+          - { os: ubuntu-26.04, php: '8.5' }
+          - { os: macos-latest, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Show the runner image and PHP
+        run: |
+          if [ -f /etc/os-release ]; then head -3 /etc/os-release; else sw_vers; fi
+          php -v
+          (ldd --version 2>/dev/null | head -1) || true
+          git -C common-ci/51degrees-php log --oneline -3
+      - name: Run the dl test five times with PHPUnit 9.6 as CI does
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          fails=0
+          for i in 1 2 3 4 5; do
+            if phpunit --testsuite Integration --filter 'testEarlierClassNamesAreKeptAfterDl' > out.txt 2>&1; then
+              echo "round $i passed"
+            else
+              fails=$((fails+1)); echo "round $i failed"; tail -n 25 out.txt
+            fi
+          done
+          echo "dl test failed $fails of 5"
+          echo "DL_TEST_FAILS=$fails" >> "$GITHUB_ENV"
+      - name: Run the test's own PHP command twenty times
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          ext="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so"
+          cat > "$RUNNER_TEMP/code.txt" <<'PHP'
+          dl('FiftyOneDegreesIpIntelligenceEngine.so');$found = [];
+          foreach (['EngineIpiSwig', 'ConfigIpiSwig', 'VectorStringSwig',
+              'RequiredPropertiesConfigSwig',
+              'FiftyOneDegreesIpIntelligenceEngine'] as $name) {
+              if (!class_exists($name)) {
+                  $found[$name] = 'missing';
+                  continue;
+              }
+              $class = new ReflectionClass($name);
+              $found[$name] =
+                  $class->getName() . ' ' . $class->getExtensionName();
+          }
+          echo json_encode($found);
+          PHP
+          code=$(cat "$RUNNER_TEMP/code.txt")
+          bad=0
+          for i in $(seq 1 20); do
+            set +e
+            php -n -d enable_dl=1 -d extension_dir="$(dirname "$ext")" -r "$code" > out.txt 2>&1
+            s=$?
+            set -e
+            if [ $s -ne 0 ]; then bad=$((bad+1)); echo "run $i exit $s"; cat out.txt; echo; fi
+          done
+          echo "last output: $(cat out.txt)"
+          echo "the command exited non-zero $bad of 20"
+      - name: Valgrind on the dl command and on the same code loaded at startup
+        if: runner.os == 'Linux'
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          sudo apt-get install -y -q valgrind > /dev/null
+          valgrind --version
+          ext="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so"
+          code=$(cat "$RUNNER_TEMP/code.txt")
+          startup=$(printf '%s' "$code" | sed "s/^dl('FiftyOneDegreesIpIntelligenceEngine.so');//")
+          set +e
+          USE_ZEND_ALLOC=0 valgrind --error-exitcode=99 --num-callers=40 --track-origins=yes \
+            --log-file="$RUNNER_TEMP/vg-dl.txt" \
+            php -n -d enable_dl=1 -d extension_dir="$(dirname "$ext")" -r "$code"
+          echo; echo "dl under valgrind exit $?"
+          USE_ZEND_ALLOC=0 valgrind --error-exitcode=99 --num-callers=40 --track-origins=yes \
+            --log-file="$RUNNER_TEMP/vg-startup.txt" \
+            php -n -d extension="$ext" -r "$startup"
+          echo; echo "startup under valgrind exit $?"
+          USE_ZEND_ALLOC=0 ZEND_DONT_UNLOAD_MODULES=1 valgrind --error-exitcode=99 --num-callers=40 --track-origins=yes \
+            --log-file="$RUNNER_TEMP/vg-dl-keep.txt" \
+            php -n -d enable_dl=1 -d extension_dir="$(dirname "$ext")" -r "$code"
+          echo; echo "dl with ZEND_DONT_UNLOAD_MODULES=1 under valgrind exit $?"
+          set -e
+          for f in vg-dl vg-startup vg-dl-keep; do
+            echo "===== $f ====="
+            grep -c "^==[0-9]*== \(Invalid\|Conditional\|Use of\|Mismatched\|Syscall\)" "$RUNNER_TEMP/$f.txt" || true
+            grep -n "ERROR SUMMARY" "$RUNNER_TEMP/$f.txt" || true
+            sed -n '/^==[0-9]*== \(Invalid\|Mismatched\)/,+60p' "$RUNNER_TEMP/$f.txt" | head -n 200
+          done
+      - name: Run the class name tests with both extensions, with PHPUnit 9.6 as CI does
+        if: always()
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          phpunit --testsuite Integration --filter 'testEachExtensionKeepsItsOwnClasses|testEarlierClassNamesAreKept'
+      - name: Fail when the dl test failed in any round
+        run: test "${DL_TEST_FAILS:-1}" = "0"

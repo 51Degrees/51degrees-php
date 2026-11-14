@@ -39,9 +39,27 @@ class Pipeline
     public array $flowElements;
 
     /**
+     * Each FlowElement by its Data Key, and also by each deprecated Data
+     * Key it has that no other FlowElement has as its own.
+     *
      * @var array<string, \fiftyone\pipeline\core\FlowElement>
      */
     public array $flowElementsList = [];
+
+    /**
+     * The Data Key of the FlowElement each deprecated Data Key gives.
+     *
+     * @var array<string, string>
+     */
+    private array $deprecatedDataKeys = [];
+
+    /**
+     * The deprecated Data Keys already logged, so each is logged once.
+     *
+     * @var array<string, bool>
+     */
+    private array $deprecatedDataKeysLogged = [];
+
     public Logger $logger;
 
     /** @phpstan-ignore-next-line */
@@ -91,7 +109,16 @@ class Pipeline
         unset($this->propertyDatabase);
 
         foreach ($flowElements as $flowElement) {
+            // An element's own Data Key takes the place of another
+            // element's deprecated one.
             $this->flowElementsList[$flowElement->dataKey] = $flowElement;
+            unset($this->deprecatedDataKeys[$flowElement->dataKey]);
+            foreach ($flowElement->deprecatedDataKeys as $deprecatedKey) {
+                if (!isset($this->flowElementsList[$deprecatedKey])) {
+                    $this->flowElementsList[$deprecatedKey] = $flowElement;
+                    $this->deprecatedDataKeys[$deprecatedKey] = $flowElement->dataKey;
+                }
+            }
 
             $flowElement->pipelines[] = $this;
 
@@ -175,7 +202,32 @@ class Pipeline
      */
     public function getElement(string $key): FlowElement
     {
-        return $this->flowElementsList[$key];
+        return $this->flowElementsList[$this->currentDataKey($key)];
+    }
+
+    /**
+     * The Data Key of the FlowElement a deprecated Data Key gives, logging
+     * once that the deprecated key was used, or the key unchanged when it
+     * is not deprecated. getElement and FlowData::get call it, so an old
+     * key finds the element and its data.
+     */
+    public function currentDataKey(string $key): string
+    {
+        if (!isset($this->deprecatedDataKeys[$key])) {
+            return $key;
+        }
+
+        $currentKey = $this->deprecatedDataKeys[$key];
+        if (!isset($this->deprecatedDataKeysLogged[$key])) {
+            $this->deprecatedDataKeysLogged[$key] = true;
+            $this->log('warning', sprintf(
+                Messages::DATA_KEY_DEPRECATED,
+                $key,
+                $currentKey
+            ));
+        }
+
+        return $currentKey;
     }
 
     /**

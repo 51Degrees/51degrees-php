@@ -136,13 +136,21 @@ class FlowData
     }
 
     /**
-     * Retrieve data by FlowElement key.
+     * Retrieve data by FlowElement key, or by a deprecated Data Key the
+     * element had before, which is logged once.
      *
      * @throws \Exception
      */
     public function get(string $flowElementKey): ElementData
     {
         if (!isset($this->data[$flowElementKey])) {
+            // A deprecated Data Key gives the data under the key that
+            // replaced it.
+            $currentKey = $this->pipeline->currentDataKey($flowElementKey);
+            if (isset($this->data[$currentKey])) {
+                return $this->data[$currentKey];
+            }
+
             throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
         }
 

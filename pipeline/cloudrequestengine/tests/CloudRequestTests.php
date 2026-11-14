@@ -239,8 +239,8 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             // silently discard exceptions not being tested here
         }
 
-        $this->assertArrayHasKey('cloud', $result->errors);
-        $this->assertInstanceOf(CloudRequestException::class, $result->errors['cloud']);
+        $this->assertArrayHasKey('cloud-response', $result->errors);
+        $this->assertInstanceOf(CloudRequestException::class, $result->errors['cloud-response']);
     }
 
     public function testPipelineDoesNotSuppressExceptionsWhenCloudServiceIsDown()

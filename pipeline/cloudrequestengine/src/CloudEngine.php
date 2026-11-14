@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\cloudrequestengine;
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\engines\CloudEngineBase;
@@ -61,11 +62,38 @@ class CloudEngine extends CloudEngineBase
      */
     public function onRegistration(Pipeline $pipeline): void
     {
-        if (isset($pipeline->flowElementsList['cloud'])) {
+        if (self::cloudRequestEngine($pipeline) !== null) {
             return;
         }
 
         throw new \Exception(Constants::CLOUDREQUESTENGINE_EXCEPTION_MESSAGE);
+    }
+
+    /**
+     * The Cloud Request Engine in a pipeline, found by its Data Key, or by
+     * the deprecated key for an element still registered under that one.
+     * Its data is read by its own Data Key, so neither logs a deprecation.
+     */
+    protected static function cloudRequestEngine(Pipeline $pipeline): ?FlowElement
+    {
+        return $pipeline->flowElementsList[Constants::DATA_KEY]
+            ?? $pipeline->flowElementsList[Constants::DEPRECATED_DATA_KEY]
+            ?? null;
+    }
+
+    /**
+     * The raw JSON response the Cloud Request Engine got for the FlowData.
+     *
+     * @return mixed
+     * @throws \Exception when the FlowData holds no response
+     */
+    protected static function cloudResponse(FlowData $flowData)
+    {
+        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+
+        return $flowData
+            ->get($cloudRequestEngine->dataKey ?? Constants::DATA_KEY)
+            ->get('cloud');
     }
 
     /**
@@ -79,12 +107,13 @@ class CloudEngine extends CloudEngineBase
 
     public function processInternal(FlowData $flowData): void
     {
-        if (isset($flowData->pipeline->flowElementsList['cloud']->flowElementProperties[$this->dataKey])) {
+        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+        if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
             // set up properties list for the element from data in the CloudRequestEngine
-            $this->properties = $flowData->pipeline->flowElementsList['cloud']->flowElementProperties[$this->dataKey];
+            $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
         }
 
-        $cloudData = $flowData->get('cloud')->get('cloud');
+        $cloudData = self::cloudResponse($flowData);
 
         $this->logMissingProduct($flowData);
 
@@ -124,7 +153,7 @@ class CloudEngine extends CloudEngineBase
      */
     protected function logMissingProduct(FlowData $flowData): void
     {
-        $products = $flowData->pipeline->flowElementsList['cloud']->flowElementProperties;
+        $products = self::cloudRequestEngine($flowData->pipeline)->flowElementProperties ?? [];
         if ($this->missingProductLogged || isset($products[$this->dataKey])) {
             return;
         }

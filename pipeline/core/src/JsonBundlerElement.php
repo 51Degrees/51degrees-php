@@ -44,10 +44,10 @@ class JsonBundlerElement extends FlowElement
      * The Data Keys of the elements whose data is left out of the JSON,
      * being this element, the JavaScript builder, the Set Headers Element
      * and the Cloud Request Engine, whose data is the cloud service's raw
-     * response.
+     * response, under its Data Key and cloud, the key it had before.
      */
     private const EXCLUDED_DATA_KEYS = [
-        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud'
+        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud-response', 'cloud'
     ];
 
     public string $dataKey = 'jsonbundler';

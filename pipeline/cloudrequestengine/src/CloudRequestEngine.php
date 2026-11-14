@@ -35,13 +35,18 @@ use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\engines\Engine;
 
 // Engine that makes a call to the 51Degrees cloud service
-// Returns raw JSON as a "cloud" property under "cloud" dataKey
+// Returns raw JSON as a "cloud" property under the "cloud-response" dataKey
 class CloudRequestEngine extends Engine
 {
     // Joins license keys in one license key setting.
     private const LICENSE_KEY_SEPARATOR = '|';
 
-    public string $dataKey = 'cloud';
+    public string $dataKey = Constants::DATA_KEY;
+
+    /**
+     * @var array<string>
+     */
+    public array $deprecatedDataKeys = [Constants::DEPRECATED_DATA_KEY];
 
     // Default base url
     public string $baseURL;

@@ -44,7 +44,7 @@ class HardwareProfileCloud extends CloudEngine
 
     public function processInternal(FlowData $flowData): void
     {
-        $cloudData = $flowData->get('cloud')->get('cloud');
+        $cloudData = self::cloudResponse($flowData);
 
         $this->logMissingProduct($flowData);
 

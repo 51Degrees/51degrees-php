@@ -52,8 +52,7 @@ class IpIntelligenceCloud extends CloudEngine
      */
     public function processInternal(FlowData $flowData): void
     {
-        $cloudRequestEngine = $flowData->pipeline->flowElementsList['cloud'] ?? null;
-        if ($cloudRequestEngine === null) {
+        if (self::cloudRequestEngine($flowData->pipeline) === null) {
             throw new \Exception('IP intelligence data was not available. The IP intelligence cloud engine requires a CloudRequestEngine to be placed in the pipeline before it.');
         }
 

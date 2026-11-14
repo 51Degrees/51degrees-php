@@ -1,0 +1,126 @@
+name: Temporary timing of main against this head, do not merge
+
+# On a tmp branch made from the release head plus this file only. Builds the
+# Device Detection on-premise extension and package of main and of this
+# commit on one runner, then runs the on-premise benchmark on each in turn,
+# the order turned round each round, over the TAC Data File and the 20,000
+# User-Agents the release build's performance tests use. Prints each round
+# and the median and full range of each side. Nothing is pushed.
+
+on:
+  push:
+    branches: ['tmp/php-timing-*']
+
+permissions:
+  contents: read
+
+env:
+  ROUNDS: 10
+
+jobs:
+  timing:
+    name: main against this head, Device Detection on-premise
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          persist-credentials: false
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: side-main
+          submodules: true
+          persist-credentials: false
+
+      - name: Checkout this head
+        uses: actions/checkout@v4
+        with:
+          path: side-head
+          submodules: true
+          persist-credentials: false
+
+      - name: PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+
+      - name: Fetch the Data File and the User-Agents
+        shell: pwsh
+        run: |
+          ./steps/fetch-assets.ps1 -DeviceDetection '${{ secrets.DEVICE_DETECTION_KEY }}' `
+            -DeviceDetectionUrl '${{ secrets.DEVICE_DETECTION_URL }}' `
+            -Assets 'TAC-HashV41.hash', '20000 User Agents.csv'
+          Get-ChildItem assets | Select-Object Name, Length | Format-Table | Out-String | Write-Host
+
+      - name: Build both sides
+        shell: pwsh
+        run: |
+          foreach ($side in 'side-main', 'side-head') {
+            $package = "$PWD/$side/device-detection/onpremise"
+            Write-Host "$side at $(git -C $side rev-parse HEAD), cxx at $(git -C $side/cxx rev-parse HEAD)"
+            Push-Location "$package/on-premise"
+            try {
+              Remove-Item -Recurse -Force cxx -ErrorAction SilentlyContinue
+              New-Item -ItemType Directory -Force -Path cxx | Out-Null
+              Copy-Item -Recurse -Path "$PWD/../../../cxx/src" -Destination cxx/src
+              phpize; if ($LASTEXITCODE) { throw "phpize failed for $side" }
+              ./configure | Out-Null; if ($LASTEXITCODE) { throw "configure failed for $side" }
+              make "-j$([Environment]::ProcessorCount)" | Out-Null; if ($LASTEXITCODE) { throw "make failed for $side" }
+            } finally {
+              Pop-Location
+            }
+            $composer = Get-Content -Raw "$package/composer.json" | ConvertFrom-Json -AsHashtable
+            $composer['repositories'] = @(foreach ($name in 'core', 'engines') {
+              @{ type = 'path'; url = "../../pipeline/$name"; options = @{ symlink = $true;
+                versions = @{ "51degrees/fiftyone.pipeline.$name" = '4.x-dev' } } }
+            })
+            $composer['minimum-stability'] = 'dev'
+            $composer['prefer-stable'] = $true
+            $composer | ConvertTo-Json -Depth 20 | Set-Content "$package/composer.ci.json"
+            $env:COMPOSER = 'composer.ci.json'
+            composer install --working-dir=$package --no-interaction --quiet
+            if ($LASTEXITCODE) { throw "composer install failed for $side" }
+            New-Item -ItemType Directory -Force -Path "$PWD/ini-$side" | Out-Null
+            @"
+          extension = "$package/on-premise/modules/FiftyOneDegreesHashEngine.so"
+          FiftyOneDegreesHashEngine.data_file = "$PWD/assets/TAC-HashV41.hash"
+          FiftyOneDegreesHashEngine.allow_unmatched = false
+          "@ | Out-File "$PWD/ini-$side/51degrees.ini"
+          }
+
+      - name: Rounds
+        shell: pwsh
+        run: |
+          $sep = [IO.Path]::PathSeparator
+          $csv = "$PWD/assets/20000 User Agents.csv"
+          $results = @{ 'side-main' = @(); 'side-head' = @() }
+          $won = @{ 'side-main' = 0; 'side-head' = 0 }
+          foreach ($round in 1..[int]$env:ROUNDS) {
+            $order = ($round % 2) ? @('side-main', 'side-head') : @('side-head', 'side-main')
+            $round_ = @{}
+            foreach ($side in $order) {
+              $env:PHP_INI_SCAN_DIR = "$sep$PWD/ini-$side"
+              $raw = php "$PWD/$side/device-detection/onpremise/performance-tests/benchmark.php" $csv --output
+              if ($LASTEXITCODE) { throw "benchmark failed for $side in round $round" }
+              $value = ($raw | ConvertFrom-Json).DetectionsPerSecond
+              $round_[$side] = $value
+              $results[$side] += $value
+            }
+            $winner = $round_['side-head'] -gt $round_['side-main'] ? 'side-head' : 'side-main'
+            $won[$winner]++
+            Write-Host ("Round {0,2} ({1} first): main {2:N1}, head {3:N1} detections per second" -f `
+              $round, ($order[0] -replace 'side-', ''), $round_['side-main'], $round_['side-head'])
+          }
+          foreach ($side in 'side-main', 'side-head') {
+            $sorted = $results[$side] | Sort-Object
+            $n = $sorted.Count
+            $median = $n % 2 ? $sorted[[int][math]::Floor($n / 2)] : ($sorted[$n / 2 - 1] + $sorted[$n / 2]) / 2
+            Write-Host ("{0}: median {1:N1}, lowest {2:N1}, highest {3:N1}, rounds won {4} of {5}" -f `
+              ($side -replace 'side-', ''), $median, $sorted[0], $sorted[-1], $won[$side], $n)
+          }

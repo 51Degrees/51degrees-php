@@ -27,13 +27,13 @@ use the Linux commands below.
   `phpize` and `php-config`, and [Composer](https://getcomposer.org/). CI
   tests PHP 8.0 to 8.5 on Linux and 8.1 to 8.5 on macOS (`ci/options.json`).
 - A C and C++ compiler and `make`. On Ubuntu, `ip-intelligence/OnPremise.md`
-  gives `sudo apt-get install -y php-cli php-dev swig build-essential autoconf pkg-config`,
+  gives `sudo apt-get install -y php-cli php-dev build-essential autoconf pkg-config`,
   and `device-detection/onpremise/readme.md` adds `libatomic1`.
-- SWIG 4.1 or later for IP Intelligence, which generates its wrapper when it
-  builds. On macOS, CI installs it with `brew install swig`.
-- SWIG 4.5.1 only to regenerate the Device Detection wrapper. That wrapper is
-  committed, and `device-detection/onpremise/on-premise/generate-wrapper.sh`
-  rewrites it (`--check` compares it), so never edit `hash_wrap.cxx` by hand.
+- SWIG 4.5.1 only to regenerate a wrapper. Both extensions' wrappers are
+  committed, and each package's `on-premise/generate-wrapper.sh` rewrites its
+  own (`--check` compares it), so never edit `hash_wrap.cxx` or
+  `ipi_wrap.cxx` by hand. Both must come from the same SWIG, because the two
+  extensions share one SWIG type table in a PHP that loads both.
 - For the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS), which the
   data repository's shell script needs, and network access to
   `distributor.51degrees.com`.
@@ -118,8 +118,6 @@ Build the extension, as `ip-intelligence/OnPremise.md` and the package's
 ```bash
 cd ip-intelligence/on-premise
 rm -rf cxx && mkdir cxx && cp -R ../../cxx/src cxx/src
-swig -c++ -php -module FiftyOneDegreesIpIntelligenceEngine -outdir src/php8 -o src/php8/ipi_wrap.cxx ipi-php.i
-cp src/php8/* .
 phpize
 ./configure --enable-FiftyOneDegreesIpIntelligenceEngine
 make
@@ -141,6 +139,27 @@ file in `ip-intelligence/assets`, then a file in `cxx/data/ip-intelligence`
 with a name in `IPI_DATA_FILE_NAMES` in `examples/classes/ExampleConstants.php`.
 When it finds none, it downloads the Lite file into `cxx/data/ip-intelligence`
 (`getDataFile` in `examples/classes/ExampleUtils.php`).
+
+### Device Detection and IP Intelligence together
+
+The mixed examples in `ip-intelligence/examples/onpremise/mixed` and
+`ip-intelligence/examples/onpremise/web-mixed` need both extensions, built as
+above, loaded in one PHP in either order, each with its data file. They load
+the Device Detection on-premise classes from `device-detection/onpremise/src`
+(`findDeviceDetectionOnPremise` in `examples/classes/ExampleUtils.php`).
+
+```bash
+cd ip-intelligence
+BOTH="-d extension=$PWD/../device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so
+ -d FiftyOneDegreesHashEngine.data_file=$PWD/../cxx/data/device-detection/51Degrees-LiteV4.1.hash
+ -d extension=$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
+ -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
+php $BOTH examples/onpremise/mixed/gettingstarted-console.php
+php $BOTH -S 127.0.0.1:8080 -t examples/onpremise/web-mixed
+cd ..
+```
+
+`tests/MixedExamplesTests.php` runs both, in each order, in CI.
 
 ### Correct output
 
@@ -215,9 +234,11 @@ its first argument or from `resource_key`, after a `composer install` in
   file, so download it before running the example. The IP Intelligence
   example downloads its file, so it needs the network and the tools under
   "Prerequisites". Check the file sizes as above.
-- **SWIG older than 4.1.** `ip-intelligence/OnPremise.md` says SWIG 4.1 or
-  newer is needed for PHP 8. Regenerating the wrapper also rewrites the
-  committed `src/php8` files, which `git status` then shows as modified.
+- **A wrapper from another SWIG.** Running `swig` by hand, or with a version
+  other than 4.5.1, rewrites the committed `src/php8` files, which
+  `git status` then shows as modified. An IP Intelligence wrapper from SWIG
+  4.2.0 crashed PHP when it loaded before the Device Detection extension,
+  so restore the committed files with `git checkout`.
 - **A checkout made on Windows.** Git for Windows usually checks files out
   with `core.autocrlf=true`, and this repository has no `.gitattributes`, so
   its shell scripts and the `config.m4` files that `phpize` reads get Windows

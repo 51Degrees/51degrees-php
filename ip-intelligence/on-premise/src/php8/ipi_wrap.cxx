@@ -1606,6 +1606,66 @@ SWIGINTERN int ResultsIpi_copyValueAsUTF8String(ResultsIpi *self,int requiredPro
         return required;
     }
 
+    #define IPI_CLASS_PREFIX "FiftyOneDegreesIpi"
+    #define IPI_MODULE_NAME "FiftyOneDegreesIpIntelligenceEngine"
+
+    static zend_result (*ipi_next_post_startup)(void) = NULL;
+    static bool ipi_earlier_names_pending = false;
+
+    /*
+     * Registers the earlier name of each of this extension's classes, where
+     * no class has that name. The classes are listed first, because adding a
+     * name changes the table being read.
+     */
+    static void ipi_register_earlier_names(bool persistent) {
+        const size_t prefixLength = strlen(IPI_CLASS_PREFIX);
+        uint32_t count = 0;
+        zend_class_entry **classes = (zend_class_entry **)malloc(
+            sizeof(zend_class_entry *) *
+            (zend_hash_num_elements(CG(class_table)) + 1));
+        zend_string *key;
+        zend_class_entry *ce;
+        if (classes == NULL) {
+            return;
+        }
+        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, ce) {
+            if (key != NULL &&
+                ce->type == ZEND_INTERNAL_CLASS &&
+                ce->info.internal.module != NULL &&
+                strcmp(ce->info.internal.module->name, IPI_MODULE_NAME) == 0 &&
+                zend_string_equals_ci(key, ce->name) &&
+                strncmp(ZSTR_VAL(ce->name), IPI_CLASS_PREFIX,
+                    prefixLength) == 0) {
+                classes[count++] = ce;
+            }
+        } ZEND_HASH_FOREACH_END();
+        for (uint32_t i = 0; i < count; i++) {
+            const char *earlier = ZSTR_VAL(classes[i]->name) + prefixLength;
+            if (*earlier == '\0') {
+                earlier = IPI_MODULE_NAME;
+            }
+            /* The table is keyed by the lower case name. */
+            char lower[256];
+            const size_t length = strlen(earlier);
+            if (length >= sizeof(lower)) {
+                continue;
+            }
+            zend_str_tolower_copy(lower, earlier, length);
+            if (!zend_hash_str_exists(CG(class_table), lower, length)) {
+                zend_register_class_alias_ex(
+                    earlier, length, classes[i], persistent);
+            }
+        }
+        free(classes);
+    }
+
+    /* Runs once every extension has registered its classes. */
+    static zend_result ipi_post_startup(void) {
+        ipi_register_earlier_names(true);
+        return ipi_next_post_startup != NULL ? ipi_next_post_startup() : SUCCESS;
+    }
+
+
     #include <string.h>
     #include <sys/stat.h>
 
@@ -1783,7 +1843,7 @@ static zend_object_handlers WeightedValueDoubleSwig_object_handlers;
 static zend_object *SWIG_Php_create_object_WeightedValueDoubleSwig(zend_class_entry *ce) {return SWIG_Php_do_create_object(ce, &WeightedValueDoubleSwig_object_handlers);}
 static void SWIG_Php_free_obj_WeightedValueDoubleSwig(zend_object *object) {delete (WeightedValue< double > *)SWIG_Php_free_obj(object);}
 
-static zend_class_entry *SWIG_Php_ce_FiftyOneDegreesIpIntelligenceEngine;
+static zend_class_entry *SWIG_Php_ce_FiftyOneDegreesIpi;
 
 static zend_class_entry *SWIG_Php_ce_IpAddressSwig;
 
@@ -2281,7 +2341,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_1) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -2307,7 +2367,7 @@ static PHP_METHOD(MapStringStringSwig,__construct) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,size) {
   std::map< std::string,std::string > *arg1 = 0 ;
   unsigned int result;
   
@@ -2325,7 +2385,7 @@ static PHP_METHOD(MapStringStringSwig,size) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,clear) {
   std::map< std::string,std::string > *arg1 = 0 ;
   
   arg1 = (std::map< std::string,std::string > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -2340,7 +2400,7 @@ static PHP_METHOD(MapStringStringSwig,clear) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,get) {
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -2373,7 +2433,7 @@ static PHP_METHOD(MapStringStringSwig,get) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,set) {
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string *arg3 = 0 ;
@@ -2403,7 +2463,7 @@ static PHP_METHOD(MapStringStringSwig,set) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,del) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,del) {
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -2433,7 +2493,7 @@ static PHP_METHOD(MapStringStringSwig,del) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,has_key) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,has_key) {
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -2459,7 +2519,7 @@ static PHP_METHOD(MapStringStringSwig,has_key) {
 }
 
 
-static PHP_METHOD(MapStringStringSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,is_empty) {
   std::map< std::string,std::string > *arg1 = 0 ;
   bool result;
   
@@ -2479,7 +2539,7 @@ static PHP_METHOD(MapStringStringSwig,is_empty) {
 
 
 
-PHP_METHOD(MapStringStringSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -2506,7 +2566,7 @@ PHP_METHOD(MapStringStringSwig,__set) {
 }
 
 
-PHP_METHOD(MapStringStringSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -2542,7 +2602,7 @@ PHP_METHOD(MapStringStringSwig,__get) {
 }
 
 
-PHP_METHOD(MapStringStringSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -2601,7 +2661,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg1 = (std::vector< std::string >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -2638,7 +2698,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -2675,7 +2735,7 @@ static PHP_METHOD(VectorStringSwig,__construct) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,size) {
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::size_type result;
   
@@ -2693,7 +2753,7 @@ static PHP_METHOD(VectorStringSwig,size) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,capacity) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,capacity) {
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::size_type result;
   
@@ -2711,7 +2771,7 @@ static PHP_METHOD(VectorStringSwig,capacity) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,reserve) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,reserve) {
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::size_type arg2 ;
   zval args[1];
@@ -2722,7 +2782,7 @@ static PHP_METHOD(VectorStringSwig,reserve) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (std::vector< std::string >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -2733,7 +2793,7 @@ static PHP_METHOD(VectorStringSwig,reserve) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,clear) {
   std::vector< std::string > *arg1 = 0 ;
   
   arg1 = (std::vector< std::string > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -2748,7 +2808,7 @@ static PHP_METHOD(VectorStringSwig,clear) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,push) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,push) {
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::value_type *arg2 = 0 ;
   std::vector< std::string >::value_type temp2 ;
@@ -2771,7 +2831,7 @@ static PHP_METHOD(VectorStringSwig,push) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,is_empty) {
   std::vector< std::string > *arg1 = 0 ;
   bool result;
   
@@ -2789,7 +2849,7 @@ static PHP_METHOD(VectorStringSwig,is_empty) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,pop) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,pop) {
   std::vector< std::string > *arg1 = 0 ;
   std::string result;
   
@@ -2814,7 +2874,7 @@ static PHP_METHOD(VectorStringSwig,pop) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,get) {
   std::vector< std::string > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -2826,7 +2886,7 @@ static PHP_METHOD(VectorStringSwig,get) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -2846,7 +2906,7 @@ static PHP_METHOD(VectorStringSwig,get) {
 }
 
 
-static PHP_METHOD(VectorStringSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,set) {
   std::vector< std::string > *arg1 = 0 ;
   int arg2 ;
   std::vector< std::string >::value_type *arg3 = 0 ;
@@ -2859,7 +2919,7 @@ static PHP_METHOD(VectorStringSwig,set) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -2884,7 +2944,7 @@ static PHP_METHOD(VectorStringSwig,set) {
 
 
 
-PHP_METHOD(VectorStringSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -2911,7 +2971,7 @@ PHP_METHOD(VectorStringSwig,__set) {
 }
 
 
-PHP_METHOD(VectorStringSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -2947,7 +3007,7 @@ PHP_METHOD(VectorStringSwig,__get) {
 }
 
 
-PHP_METHOD(VectorStringSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -3092,7 +3152,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_2) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
   if (Z_ISNULL(args[0])) {
     arg1 = (char *) 0;
   } else {
@@ -3141,7 +3201,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(RequiredPropertiesConfigSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -3174,7 +3234,7 @@ static PHP_METHOD(RequiredPropertiesConfigSwig,__construct) {
 }
 
 
-static PHP_METHOD(RequiredPropertiesConfigSwig,getProperties) {
+static PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,getProperties) {
   RequiredPropertiesConfig *arg1 = 0 ;
   std::vector< std::string > result;
   
@@ -3230,7 +3290,7 @@ static PHP_METHOD(RequiredPropertiesConfigSwig,getProperties) {
 
 
 
-PHP_METHOD(RequiredPropertiesConfigSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -3257,7 +3317,7 @@ PHP_METHOD(RequiredPropertiesConfigSwig,__set) {
 }
 
 
-PHP_METHOD(RequiredPropertiesConfigSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -3293,7 +3353,7 @@ PHP_METHOD(RequiredPropertiesConfigSwig,__get) {
 }
 
 
-PHP_METHOD(RequiredPropertiesConfigSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -3326,7 +3386,7 @@ PHP_METHOD(RequiredPropertiesConfigSwig,__isset) {
 
 
 
-static PHP_METHOD(StringValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__construct) {
   Value< std::string > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3373,7 +3433,7 @@ static PHP_METHOD(StringValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(StringValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,hasValue) {
   Value< std::string > *arg1 = 0 ;
   bool result;
   
@@ -3422,7 +3482,7 @@ static PHP_METHOD(StringValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(StringValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,getNoValueMessage) {
   Value< std::string > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -3475,7 +3535,7 @@ static PHP_METHOD(StringValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(StringValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,getValue) {
   Value< std::string > *arg1 = 0 ;
   std::string result;
   
@@ -3526,7 +3586,7 @@ static PHP_METHOD(StringValueSwig,getValue) {
 
 
 
-PHP_METHOD(StringValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -3553,7 +3613,7 @@ PHP_METHOD(StringValueSwig,__set) {
 }
 
 
-PHP_METHOD(StringValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -3589,7 +3649,7 @@ PHP_METHOD(StringValueSwig,__get) {
 }
 
 
-PHP_METHOD(StringValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -3622,7 +3682,7 @@ PHP_METHOD(StringValueSwig,__isset) {
 
 
 
-static PHP_METHOD(BoolValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__construct) {
   Value< bool > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3669,7 +3729,7 @@ static PHP_METHOD(BoolValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(BoolValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,hasValue) {
   Value< bool > *arg1 = 0 ;
   bool result;
   
@@ -3718,7 +3778,7 @@ static PHP_METHOD(BoolValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(BoolValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,getNoValueMessage) {
   Value< bool > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -3771,7 +3831,7 @@ static PHP_METHOD(BoolValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(BoolValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,getValue) {
   Value< bool > *arg1 = 0 ;
   bool result;
   
@@ -3822,7 +3882,7 @@ static PHP_METHOD(BoolValueSwig,getValue) {
 
 
 
-PHP_METHOD(BoolValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -3849,7 +3909,7 @@ PHP_METHOD(BoolValueSwig,__set) {
 }
 
 
-PHP_METHOD(BoolValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -3885,7 +3945,7 @@ PHP_METHOD(BoolValueSwig,__get) {
 }
 
 
-PHP_METHOD(BoolValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -3918,7 +3978,7 @@ PHP_METHOD(BoolValueSwig,__isset) {
 
 
 
-static PHP_METHOD(IntegerValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__construct) {
   Value< int > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3965,7 +4025,7 @@ static PHP_METHOD(IntegerValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(IntegerValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,hasValue) {
   Value< int > *arg1 = 0 ;
   bool result;
   
@@ -4014,7 +4074,7 @@ static PHP_METHOD(IntegerValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(IntegerValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,getNoValueMessage) {
   Value< int > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -4067,7 +4127,7 @@ static PHP_METHOD(IntegerValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(IntegerValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,getValue) {
   Value< int > *arg1 = 0 ;
   int result;
   
@@ -4118,7 +4178,7 @@ static PHP_METHOD(IntegerValueSwig,getValue) {
 
 
 
-PHP_METHOD(IntegerValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -4145,7 +4205,7 @@ PHP_METHOD(IntegerValueSwig,__set) {
 }
 
 
-PHP_METHOD(IntegerValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -4181,7 +4241,7 @@ PHP_METHOD(IntegerValueSwig,__get) {
 }
 
 
-PHP_METHOD(IntegerValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -4214,7 +4274,7 @@ PHP_METHOD(IntegerValueSwig,__isset) {
 
 
 
-static PHP_METHOD(VectorStringValuesSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__construct) {
   Value< std::vector< std::string > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -4261,7 +4321,7 @@ static PHP_METHOD(VectorStringValuesSwig,__construct) {
 }
 
 
-static PHP_METHOD(VectorStringValuesSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,hasValue) {
   Value< std::vector< std::string > > *arg1 = 0 ;
   bool result;
   
@@ -4310,7 +4370,7 @@ static PHP_METHOD(VectorStringValuesSwig,hasValue) {
 }
 
 
-static PHP_METHOD(VectorStringValuesSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,getNoValueMessage) {
   Value< std::vector< std::string > > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -4363,7 +4423,7 @@ static PHP_METHOD(VectorStringValuesSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(VectorStringValuesSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,getValue) {
   Value< std::vector< std::string > > *arg1 = 0 ;
   std::vector< std::string > result;
   
@@ -4419,7 +4479,7 @@ static PHP_METHOD(VectorStringValuesSwig,getValue) {
 
 
 
-PHP_METHOD(VectorStringValuesSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -4446,7 +4506,7 @@ PHP_METHOD(VectorStringValuesSwig,__set) {
 }
 
 
-PHP_METHOD(VectorStringValuesSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -4482,7 +4542,7 @@ PHP_METHOD(VectorStringValuesSwig,__get) {
 }
 
 
-PHP_METHOD(VectorStringValuesSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -4515,7 +4575,7 @@ PHP_METHOD(VectorStringValuesSwig,__isset) {
 
 
 
-static PHP_METHOD(DoubleValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__construct) {
   Value< double > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -4562,7 +4622,7 @@ static PHP_METHOD(DoubleValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(DoubleValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,hasValue) {
   Value< double > *arg1 = 0 ;
   bool result;
   
@@ -4611,7 +4671,7 @@ static PHP_METHOD(DoubleValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(DoubleValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,getNoValueMessage) {
   Value< double > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -4664,7 +4724,7 @@ static PHP_METHOD(DoubleValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(DoubleValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,getValue) {
   Value< double > *arg1 = 0 ;
   double result;
   
@@ -4715,7 +4775,7 @@ static PHP_METHOD(DoubleValueSwig,getValue) {
 
 
 
-PHP_METHOD(DoubleValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -4742,7 +4802,7 @@ PHP_METHOD(DoubleValueSwig,__set) {
 }
 
 
-PHP_METHOD(DoubleValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -4778,7 +4838,7 @@ PHP_METHOD(DoubleValueSwig,__get) {
 }
 
 
-PHP_METHOD(DoubleValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -4811,7 +4871,7 @@ PHP_METHOD(DoubleValueSwig,__isset) {
 
 
 
-static PHP_METHOD(ResultsBaseSwig,getAvailableProperties) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getAvailableProperties) {
   ResultsBase *arg1 = 0 ;
   int result;
   
@@ -4860,7 +4920,7 @@ static PHP_METHOD(ResultsBaseSwig,getAvailableProperties) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,containsProperty) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,containsProperty) {
   ResultsBase *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -4917,7 +4977,7 @@ static PHP_METHOD(ResultsBaseSwig,containsProperty) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getProperties) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getProperties) {
   ResultsBase *arg1 = 0 ;
   std::vector< std::string > result;
   
@@ -4971,7 +5031,7 @@ static PHP_METHOD(ResultsBaseSwig,getProperties) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getPropertyName) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getPropertyName) {
   ResultsBase *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -4983,7 +5043,7 @@ static PHP_METHOD(ResultsBaseSwig,getPropertyName) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -5101,7 +5161,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValues__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -5150,7 +5210,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValues__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValues) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValues) {
   int argc;
   zval argv[1];
   
@@ -5257,7 +5317,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsString__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -5306,7 +5366,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsString__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValueAsString) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsString) {
   int argc;
   zval argv[1];
   
@@ -5413,7 +5473,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsBool__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -5462,7 +5522,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsBool__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValueAsBool) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsBool) {
   int argc;
   zval argv[1];
   
@@ -5569,7 +5629,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsInteger__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -5618,7 +5678,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsInteger__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValueAsInteger) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsInteger) {
   int argc;
   zval argv[1];
   
@@ -5725,7 +5785,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsDouble__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -5774,7 +5834,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsDouble__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValueAsDouble) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsDouble) {
   int argc;
   zval argv[1];
   
@@ -5881,7 +5941,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsStrictBool__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -5930,7 +5990,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsStrictBool__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValueAsStrictBool) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictBool) {
   int argc;
   zval argv[1];
   
@@ -6037,7 +6097,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsStrictInteger__SWIG_1
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -6086,7 +6146,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsStrictInteger__SWIG_1
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValueAsStrictInteger) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictInteger) {
   int argc;
   zval argv[1];
   
@@ -6193,7 +6253,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsStrictDouble__SWIG_1)
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -6242,7 +6302,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsBaseSwig_getValueAsStrictDouble__SWIG_1)
 }
 
 
-static PHP_METHOD(ResultsBaseSwig,getValueAsStrictDouble) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictDouble) {
   int argc;
   zval argv[1];
   
@@ -6277,7 +6337,7 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsStrictDouble) {
 
 
 
-PHP_METHOD(ResultsBaseSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -6304,7 +6364,7 @@ PHP_METHOD(ResultsBaseSwig,__set) {
 }
 
 
-PHP_METHOD(ResultsBaseSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -6340,7 +6400,7 @@ PHP_METHOD(ResultsBaseSwig,__get) {
 }
 
 
-PHP_METHOD(ResultsBaseSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -6373,7 +6433,7 @@ PHP_METHOD(ResultsBaseSwig,__isset) {
 
 
 
-static PHP_METHOD(Date,getYear) {
+static PHP_METHOD(FiftyOneDegreesIpiDate,getYear) {
   Date *arg1 = 0 ;
   int result;
   
@@ -6422,7 +6482,7 @@ static PHP_METHOD(Date,getYear) {
 }
 
 
-static PHP_METHOD(Date,getMonth) {
+static PHP_METHOD(FiftyOneDegreesIpiDate,getMonth) {
   Date *arg1 = 0 ;
   int result;
   
@@ -6471,7 +6531,7 @@ static PHP_METHOD(Date,getMonth) {
 }
 
 
-static PHP_METHOD(Date,getDay) {
+static PHP_METHOD(FiftyOneDegreesIpiDate,getDay) {
   Date *arg1 = 0 ;
   int result;
   
@@ -6522,7 +6582,7 @@ static PHP_METHOD(Date,getDay) {
 
 
 
-PHP_METHOD(Date,__set) {
+PHP_METHOD(FiftyOneDegreesIpiDate,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -6549,7 +6609,7 @@ PHP_METHOD(Date,__set) {
 }
 
 
-PHP_METHOD(Date,__get) {
+PHP_METHOD(FiftyOneDegreesIpiDate,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -6585,7 +6645,7 @@ PHP_METHOD(Date,__get) {
 }
 
 
-PHP_METHOD(Date,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiDate,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -6618,7 +6678,7 @@ PHP_METHOD(Date,__isset) {
 
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getName) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getName) {
   PropertyMetaData *arg1 = 0 ;
   std::string result;
   
@@ -6667,7 +6727,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getName) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getDataFilesWherePresent) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getDataFilesWherePresent) {
   PropertyMetaData *arg1 = 0 ;
   std::vector< std::string > result;
   
@@ -6721,7 +6781,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getDataFilesWherePresent) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getType) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getType) {
   PropertyMetaData *arg1 = 0 ;
   std::string result;
   
@@ -6770,7 +6830,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getType) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getCategory) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getCategory) {
   PropertyMetaData *arg1 = 0 ;
   std::string result;
   
@@ -6819,7 +6879,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getCategory) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getUrl) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getUrl) {
   PropertyMetaData *arg1 = 0 ;
   std::string result;
   
@@ -6868,7 +6928,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getUrl) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getAvailable) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getAvailable) {
   PropertyMetaData *arg1 = 0 ;
   bool result;
   
@@ -6917,7 +6977,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getAvailable) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getDisplayOrder) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getDisplayOrder) {
   PropertyMetaData *arg1 = 0 ;
   int result;
   
@@ -6966,7 +7026,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getDisplayOrder) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getIsMandatory) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getIsMandatory) {
   PropertyMetaData *arg1 = 0 ;
   bool result;
   
@@ -7015,7 +7075,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getIsMandatory) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getIsList) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getIsList) {
   PropertyMetaData *arg1 = 0 ;
   bool result;
   
@@ -7064,7 +7124,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getIsList) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getIsObsolete) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getIsObsolete) {
   PropertyMetaData *arg1 = 0 ;
   bool result;
   
@@ -7113,7 +7173,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getIsObsolete) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getShow) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getShow) {
   PropertyMetaData *arg1 = 0 ;
   bool result;
   
@@ -7162,7 +7222,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getShow) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getShowValues) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getShowValues) {
   PropertyMetaData *arg1 = 0 ;
   bool result;
   
@@ -7211,7 +7271,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getShowValues) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataSwig,getDescription) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,getDescription) {
   PropertyMetaData *arg1 = 0 ;
   std::string result;
   
@@ -7262,7 +7322,7 @@ static PHP_METHOD(PropertyMetaDataSwig,getDescription) {
 
 
 
-PHP_METHOD(PropertyMetaDataSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -7289,7 +7349,7 @@ PHP_METHOD(PropertyMetaDataSwig,__set) {
 }
 
 
-PHP_METHOD(PropertyMetaDataSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -7325,7 +7385,7 @@ PHP_METHOD(PropertyMetaDataSwig,__get) {
 }
 
 
-PHP_METHOD(PropertyMetaDataSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -7358,7 +7418,7 @@ PHP_METHOD(PropertyMetaDataSwig,__isset) {
 
 
 
-static PHP_METHOD(ComponentMetaDataSwig,getComponentIdAsInt) {
+static PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,getComponentIdAsInt) {
   ComponentMetaData *arg1 = 0 ;
   int result;
   
@@ -7407,7 +7467,7 @@ static PHP_METHOD(ComponentMetaDataSwig,getComponentIdAsInt) {
 }
 
 
-static PHP_METHOD(ComponentMetaDataSwig,getComponentId) {
+static PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,getComponentId) {
   ComponentMetaData *arg1 = 0 ;
   byte result;
   
@@ -7461,7 +7521,7 @@ static PHP_METHOD(ComponentMetaDataSwig,getComponentId) {
 }
 
 
-static PHP_METHOD(ComponentMetaDataSwig,getName) {
+static PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,getName) {
   ComponentMetaData *arg1 = 0 ;
   std::string result;
   
@@ -7512,7 +7572,7 @@ static PHP_METHOD(ComponentMetaDataSwig,getName) {
 
 
 
-PHP_METHOD(ComponentMetaDataSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -7539,7 +7599,7 @@ PHP_METHOD(ComponentMetaDataSwig,__set) {
 }
 
 
-PHP_METHOD(ComponentMetaDataSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -7575,7 +7635,7 @@ PHP_METHOD(ComponentMetaDataSwig,__get) {
 }
 
 
-PHP_METHOD(ComponentMetaDataSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -7608,7 +7668,7 @@ PHP_METHOD(ComponentMetaDataSwig,__isset) {
 
 
 
-static PHP_METHOD(ProfileMetaDataSwig,getProfileId) {
+static PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,getProfileId) {
   ProfileMetaData *arg1 = 0 ;
   uint32_t result;
   
@@ -7659,7 +7719,7 @@ static PHP_METHOD(ProfileMetaDataSwig,getProfileId) {
 
 
 
-PHP_METHOD(ProfileMetaDataSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -7686,7 +7746,7 @@ PHP_METHOD(ProfileMetaDataSwig,__set) {
 }
 
 
-PHP_METHOD(ProfileMetaDataSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -7722,7 +7782,7 @@ PHP_METHOD(ProfileMetaDataSwig,__get) {
 }
 
 
-PHP_METHOD(ProfileMetaDataSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -7812,7 +7872,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg1 = (std::vector< unsigned char >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -7911,7 +7971,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -7948,7 +8008,7 @@ static PHP_METHOD(UTF8StringSwig,__construct) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,size) {
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::size_type result;
   
@@ -7997,7 +8057,7 @@ static PHP_METHOD(UTF8StringSwig,size) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,capacity) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,capacity) {
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::size_type result;
   
@@ -8046,7 +8106,7 @@ static PHP_METHOD(UTF8StringSwig,capacity) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,reserve) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,reserve) {
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::size_type arg2 ;
   zval args[1];
@@ -8057,7 +8117,7 @@ static PHP_METHOD(UTF8StringSwig,reserve) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (std::vector< unsigned char >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -8099,7 +8159,7 @@ static PHP_METHOD(UTF8StringSwig,reserve) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,clear) {
   std::vector< uint8_t > *arg1 = 0 ;
   
   arg1 = (std::vector< uint8_t > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -8145,7 +8205,7 @@ static PHP_METHOD(UTF8StringSwig,clear) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,push) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,push) {
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::value_type *arg2 = 0 ;
   std::vector< unsigned char >::value_type temp2 ;
@@ -8157,7 +8217,7 @@ static PHP_METHOD(UTF8StringSwig,push) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   temp2 = (std::vector< unsigned char >::value_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   arg2 = &temp2;
@@ -8200,7 +8260,7 @@ static PHP_METHOD(UTF8StringSwig,push) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,is_empty) {
   std::vector< uint8_t > *arg1 = 0 ;
   bool result;
   
@@ -8249,7 +8309,7 @@ static PHP_METHOD(UTF8StringSwig,is_empty) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,pop) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,pop) {
   std::vector< uint8_t > *arg1 = 0 ;
   unsigned char result;
   
@@ -8305,7 +8365,7 @@ static PHP_METHOD(UTF8StringSwig,pop) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,get) {
   std::vector< uint8_t > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -8317,7 +8377,7 @@ static PHP_METHOD(UTF8StringSwig,get) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -8368,7 +8428,7 @@ static PHP_METHOD(UTF8StringSwig,get) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,set) {
   std::vector< uint8_t > *arg1 = 0 ;
   int arg2 ;
   std::vector< unsigned char >::value_type *arg3 = 0 ;
@@ -8381,12 +8441,12 @@ static PHP_METHOD(UTF8StringSwig,set) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   temp3 = (std::vector< unsigned char >::value_type) zval_get_long(&args[1]);
   /*@SWIG@*/;
   arg3 = &temp3;
@@ -8436,7 +8496,7 @@ static PHP_METHOD(UTF8StringSwig,set) {
 }
 
 
-static PHP_METHOD(UTF8StringSwig,copyToArray) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,copyToArray) {
   std::vector< uint8_t > *arg1 = 0 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   int arg3 ;
@@ -8455,7 +8515,7 @@ static PHP_METHOD(UTF8StringSwig,copyToArray) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (int) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -8501,7 +8561,7 @@ static PHP_METHOD(UTF8StringSwig,copyToArray) {
 
 
 
-PHP_METHOD(UTF8StringSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -8528,7 +8588,7 @@ PHP_METHOD(UTF8StringSwig,__set) {
 }
 
 
-PHP_METHOD(UTF8StringSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -8564,7 +8624,7 @@ PHP_METHOD(UTF8StringSwig,__get) {
 }
 
 
-PHP_METHOD(UTF8StringSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -8677,7 +8737,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (long) zval_get_long(&args[2]);
   /*@SWIG@*/;
   
@@ -8721,7 +8781,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_1) {
 }
 
 
-static PHP_METHOD(ValueMetaDataKeySwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__construct) {
   int argc;
   zval argv[3];
   
@@ -8768,7 +8828,7 @@ static PHP_METHOD(ValueMetaDataKeySwig,__construct) {
 }
 
 
-static PHP_METHOD(ValueMetaDataKeySwig,getPropertyName) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,getPropertyName) {
   ValueMetaDataKey *arg1 = 0 ;
   std::string result;
   
@@ -8817,7 +8877,7 @@ static PHP_METHOD(ValueMetaDataKeySwig,getPropertyName) {
 }
 
 
-static PHP_METHOD(ValueMetaDataKeySwig,getValueName) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,getValueName) {
   ValueMetaDataKey *arg1 = 0 ;
   std::string result;
   
@@ -8868,7 +8928,7 @@ static PHP_METHOD(ValueMetaDataKeySwig,getValueName) {
 
 
 
-PHP_METHOD(ValueMetaDataKeySwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -8895,7 +8955,7 @@ PHP_METHOD(ValueMetaDataKeySwig,__set) {
 }
 
 
-PHP_METHOD(ValueMetaDataKeySwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -8931,7 +8991,7 @@ PHP_METHOD(ValueMetaDataKeySwig,__get) {
 }
 
 
-PHP_METHOD(ValueMetaDataKeySwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -8964,7 +9024,7 @@ PHP_METHOD(ValueMetaDataKeySwig,__isset) {
 
 
 
-static PHP_METHOD(ValueMetaDataSwig,getName) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,getName) {
   ValueMetaData *arg1 = 0 ;
   std::string result;
   
@@ -9013,7 +9073,7 @@ static PHP_METHOD(ValueMetaDataSwig,getName) {
 }
 
 
-static PHP_METHOD(ValueMetaDataSwig,getDescription) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,getDescription) {
   ValueMetaData *arg1 = 0 ;
   std::string result;
   
@@ -9062,7 +9122,7 @@ static PHP_METHOD(ValueMetaDataSwig,getDescription) {
 }
 
 
-static PHP_METHOD(ValueMetaDataSwig,getUrl) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,getUrl) {
   ValueMetaData *arg1 = 0 ;
   std::string result;
   
@@ -9111,7 +9171,7 @@ static PHP_METHOD(ValueMetaDataSwig,getUrl) {
 }
 
 
-static PHP_METHOD(ValueMetaDataSwig,getUtf8ValueName) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,getUtf8ValueName) {
   ValueMetaData *arg1 = 0 ;
   std::vector< uint8_t > result;
   
@@ -9167,7 +9227,7 @@ static PHP_METHOD(ValueMetaDataSwig,getUtf8ValueName) {
 
 
 
-PHP_METHOD(ValueMetaDataSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -9194,7 +9254,7 @@ PHP_METHOD(ValueMetaDataSwig,__set) {
 }
 
 
-PHP_METHOD(ValueMetaDataSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -9230,7 +9290,7 @@ PHP_METHOD(ValueMetaDataSwig,__get) {
 }
 
 
-PHP_METHOD(ValueMetaDataSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -9263,7 +9323,7 @@ PHP_METHOD(ValueMetaDataSwig,__isset) {
 
 
 
-static PHP_METHOD(ComponentMetaDataCollectionSwig,getByKey) {
+static PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,getByKey) {
   Collection< byte,ComponentMetaData > *arg1 = 0 ;
   byte arg2 ;
   byte *tmp2 ;
@@ -9322,7 +9382,7 @@ static PHP_METHOD(ComponentMetaDataCollectionSwig,getByKey) {
 }
 
 
-static PHP_METHOD(ComponentMetaDataCollectionSwig,getByIndex) {
+static PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,getByIndex) {
   Collection< byte,ComponentMetaData > *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -9334,7 +9394,7 @@ static PHP_METHOD(ComponentMetaDataCollectionSwig,getByIndex) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint32_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -9378,7 +9438,7 @@ static PHP_METHOD(ComponentMetaDataCollectionSwig,getByIndex) {
 }
 
 
-static PHP_METHOD(ComponentMetaDataCollectionSwig,getSize) {
+static PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,getSize) {
   Collection< byte,ComponentMetaData > *arg1 = 0 ;
   uint32_t result;
   
@@ -9429,7 +9489,7 @@ static PHP_METHOD(ComponentMetaDataCollectionSwig,getSize) {
 
 
 
-PHP_METHOD(ComponentMetaDataCollectionSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -9456,7 +9516,7 @@ PHP_METHOD(ComponentMetaDataCollectionSwig,__set) {
 }
 
 
-PHP_METHOD(ComponentMetaDataCollectionSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -9492,7 +9552,7 @@ PHP_METHOD(ComponentMetaDataCollectionSwig,__get) {
 }
 
 
-PHP_METHOD(ComponentMetaDataCollectionSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -9525,7 +9585,7 @@ PHP_METHOD(ComponentMetaDataCollectionSwig,__isset) {
 
 
 
-static PHP_METHOD(PropertyMetaDataCollectionSwig,getByKey) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,getByKey) {
   Collection< std::string,PropertyMetaData > *arg1 = 0 ;
   std::string arg2 ;
   zval args[1];
@@ -9580,7 +9640,7 @@ static PHP_METHOD(PropertyMetaDataCollectionSwig,getByKey) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataCollectionSwig,getByIndex) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,getByIndex) {
   Collection< std::string,PropertyMetaData > *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -9592,7 +9652,7 @@ static PHP_METHOD(PropertyMetaDataCollectionSwig,getByIndex) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint32_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -9636,7 +9696,7 @@ static PHP_METHOD(PropertyMetaDataCollectionSwig,getByIndex) {
 }
 
 
-static PHP_METHOD(PropertyMetaDataCollectionSwig,getSize) {
+static PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,getSize) {
   Collection< std::string,PropertyMetaData > *arg1 = 0 ;
   uint32_t result;
   
@@ -9687,7 +9747,7 @@ static PHP_METHOD(PropertyMetaDataCollectionSwig,getSize) {
 
 
 
-PHP_METHOD(PropertyMetaDataCollectionSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -9714,7 +9774,7 @@ PHP_METHOD(PropertyMetaDataCollectionSwig,__set) {
 }
 
 
-PHP_METHOD(PropertyMetaDataCollectionSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -9750,7 +9810,7 @@ PHP_METHOD(PropertyMetaDataCollectionSwig,__get) {
 }
 
 
-PHP_METHOD(PropertyMetaDataCollectionSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -9783,7 +9843,7 @@ PHP_METHOD(PropertyMetaDataCollectionSwig,__isset) {
 
 
 
-static PHP_METHOD(ProfileMetaDataCollectionSwig,getByKey) {
+static PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,getByKey) {
   Collection< uint32_t,ProfileMetaData > *arg1 = 0 ;
   unsigned int arg2 ;
   zval args[1];
@@ -9795,7 +9855,7 @@ static PHP_METHOD(ProfileMetaDataCollectionSwig,getByKey) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (unsigned int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -9839,7 +9899,7 @@ static PHP_METHOD(ProfileMetaDataCollectionSwig,getByKey) {
 }
 
 
-static PHP_METHOD(ProfileMetaDataCollectionSwig,getByIndex) {
+static PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,getByIndex) {
   Collection< uint32_t,ProfileMetaData > *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -9851,7 +9911,7 @@ static PHP_METHOD(ProfileMetaDataCollectionSwig,getByIndex) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint32_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -9895,7 +9955,7 @@ static PHP_METHOD(ProfileMetaDataCollectionSwig,getByIndex) {
 }
 
 
-static PHP_METHOD(ProfileMetaDataCollectionSwig,getSize) {
+static PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,getSize) {
   Collection< uint32_t,ProfileMetaData > *arg1 = 0 ;
   uint32_t result;
   
@@ -9946,7 +10006,7 @@ static PHP_METHOD(ProfileMetaDataCollectionSwig,getSize) {
 
 
 
-PHP_METHOD(ProfileMetaDataCollectionSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -9973,7 +10033,7 @@ PHP_METHOD(ProfileMetaDataCollectionSwig,__set) {
 }
 
 
-PHP_METHOD(ProfileMetaDataCollectionSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -10009,7 +10069,7 @@ PHP_METHOD(ProfileMetaDataCollectionSwig,__get) {
 }
 
 
-PHP_METHOD(ProfileMetaDataCollectionSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -10042,7 +10102,7 @@ PHP_METHOD(ProfileMetaDataCollectionSwig,__isset) {
 
 
 
-static PHP_METHOD(ValueMetaDataCollectionSwig,getByKey) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,getByKey) {
   Collection< ValueMetaDataKey,ValueMetaData > *arg1 = 0 ;
   SwigValueWrapper< ValueMetaDataKey > arg2 ;
   ValueMetaDataKey *tmp2 ;
@@ -10101,7 +10161,7 @@ static PHP_METHOD(ValueMetaDataCollectionSwig,getByKey) {
 }
 
 
-static PHP_METHOD(ValueMetaDataCollectionSwig,getByIndex) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,getByIndex) {
   Collection< ValueMetaDataKey,ValueMetaData > *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -10113,7 +10173,7 @@ static PHP_METHOD(ValueMetaDataCollectionSwig,getByIndex) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint32_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -10157,7 +10217,7 @@ static PHP_METHOD(ValueMetaDataCollectionSwig,getByIndex) {
 }
 
 
-static PHP_METHOD(ValueMetaDataCollectionSwig,getSize) {
+static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,getSize) {
   Collection< ValueMetaDataKey,ValueMetaData > *arg1 = 0 ;
   uint32_t result;
   
@@ -10208,7 +10268,7 @@ static PHP_METHOD(ValueMetaDataCollectionSwig,getSize) {
 
 
 
-PHP_METHOD(ValueMetaDataCollectionSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -10235,7 +10295,7 @@ PHP_METHOD(ValueMetaDataCollectionSwig,__set) {
 }
 
 
-PHP_METHOD(ValueMetaDataCollectionSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -10271,7 +10331,7 @@ PHP_METHOD(ValueMetaDataCollectionSwig,__get) {
 }
 
 
-PHP_METHOD(ValueMetaDataCollectionSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -10304,7 +10364,7 @@ PHP_METHOD(ValueMetaDataCollectionSwig,__isset) {
 
 
 
-static PHP_METHOD(MetaDataSwig,getComponents) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getComponents) {
   MetaData *arg1 = 0 ;
   Collection< byte,ComponentMetaData > *result = 0 ;
   
@@ -10353,7 +10413,7 @@ static PHP_METHOD(MetaDataSwig,getComponents) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getProperties) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getProperties) {
   MetaData *arg1 = 0 ;
   Collection< std::string,PropertyMetaData > *result = 0 ;
   
@@ -10402,7 +10462,7 @@ static PHP_METHOD(MetaDataSwig,getProperties) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getProfiles) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getProfiles) {
   MetaData *arg1 = 0 ;
   Collection< uint32_t,ProfileMetaData > *result = 0 ;
   
@@ -10451,7 +10511,7 @@ static PHP_METHOD(MetaDataSwig,getProfiles) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getValues) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getValues) {
   MetaData *arg1 = 0 ;
   Collection< ValueMetaDataKey,ValueMetaData > *result = 0 ;
   
@@ -10500,7 +10560,7 @@ static PHP_METHOD(MetaDataSwig,getValues) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getValuesForProperty) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getValuesForProperty) {
   MetaData *arg1 = 0 ;
   PropertyMetaData *arg2 = 0 ;
   zval args[1];
@@ -10557,7 +10617,7 @@ static PHP_METHOD(MetaDataSwig,getValuesForProperty) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getValuesForProfile) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getValuesForProfile) {
   MetaData *arg1 = 0 ;
   ProfileMetaData *arg2 = 0 ;
   zval args[1];
@@ -10614,7 +10674,7 @@ static PHP_METHOD(MetaDataSwig,getValuesForProfile) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getComponentForProfile) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getComponentForProfile) {
   MetaData *arg1 = 0 ;
   ProfileMetaData *arg2 = 0 ;
   zval args[1];
@@ -10671,7 +10731,7 @@ static PHP_METHOD(MetaDataSwig,getComponentForProfile) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getComponentForProperty) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getComponentForProperty) {
   MetaData *arg1 = 0 ;
   PropertyMetaData *arg2 = 0 ;
   zval args[1];
@@ -10728,7 +10788,7 @@ static PHP_METHOD(MetaDataSwig,getComponentForProperty) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getDefaultProfileForComponent) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getDefaultProfileForComponent) {
   MetaData *arg1 = 0 ;
   ComponentMetaData *arg2 = 0 ;
   zval args[1];
@@ -10785,7 +10845,7 @@ static PHP_METHOD(MetaDataSwig,getDefaultProfileForComponent) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getDefaultValueForProperty) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getDefaultValueForProperty) {
   MetaData *arg1 = 0 ;
   PropertyMetaData *arg2 = 0 ;
   zval args[1];
@@ -10842,7 +10902,7 @@ static PHP_METHOD(MetaDataSwig,getDefaultValueForProperty) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getPropertiesForComponent) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getPropertiesForComponent) {
   MetaData *arg1 = 0 ;
   ComponentMetaData *arg2 = 0 ;
   zval args[1];
@@ -10899,7 +10959,7 @@ static PHP_METHOD(MetaDataSwig,getPropertiesForComponent) {
 }
 
 
-static PHP_METHOD(MetaDataSwig,getPropertyForValue) {
+static PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,getPropertyForValue) {
   MetaData *arg1 = 0 ;
   ValueMetaData *arg2 = 0 ;
   zval args[1];
@@ -10958,7 +11018,7 @@ static PHP_METHOD(MetaDataSwig,getPropertyForValue) {
 
 
 
-PHP_METHOD(MetaDataSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -10985,7 +11045,7 @@ PHP_METHOD(MetaDataSwig,__set) {
 }
 
 
-PHP_METHOD(MetaDataSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -11021,7 +11081,7 @@ PHP_METHOD(MetaDataSwig,__get) {
 }
 
 
-PHP_METHOD(MetaDataSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -11054,7 +11114,7 @@ PHP_METHOD(MetaDataSwig,__isset) {
 
 
 
-static PHP_METHOD(EngineBaseSwig,setLicenseKey) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,setLicenseKey) {
   EngineBase *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -11108,7 +11168,7 @@ static PHP_METHOD(EngineBaseSwig,setLicenseKey) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,setDataUpdateUrl) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,setDataUpdateUrl) {
   EngineBase *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -11162,7 +11222,7 @@ static PHP_METHOD(EngineBaseSwig,setDataUpdateUrl) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getMetaData) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getMetaData) {
   EngineBase *arg1 = 0 ;
   MetaData *result = 0 ;
   
@@ -11211,7 +11271,7 @@ static PHP_METHOD(EngineBaseSwig,getMetaData) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getAutomaticUpdatesEnabled) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getAutomaticUpdatesEnabled) {
   EngineBase *arg1 = 0 ;
   bool result;
   
@@ -11260,7 +11320,7 @@ static PHP_METHOD(EngineBaseSwig,getAutomaticUpdatesEnabled) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,processBase) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,processBase) {
   EngineBase *arg1 = 0 ;
   EvidenceBase *arg2 = 0 ;
   zval args[1];
@@ -11374,7 +11434,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
   if (Z_ISNULL(args[0])) {
     arg2 = (char *) 0;
   } else {
@@ -11439,7 +11499,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_2) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (long) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -11481,7 +11541,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_2) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,refreshData) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,refreshData) {
   int argc;
   zval argv[2];
   
@@ -11520,7 +11580,7 @@ static PHP_METHOD(EngineBaseSwig,refreshData) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getDataUpdateUrl) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getDataUpdateUrl) {
   EngineBase *arg1 = 0 ;
   std::string result;
   
@@ -11569,7 +11629,7 @@ static PHP_METHOD(EngineBaseSwig,getDataUpdateUrl) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getPublishedTime) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getPublishedTime) {
   EngineBase *arg1 = 0 ;
   Date result;
   
@@ -11623,7 +11683,7 @@ static PHP_METHOD(EngineBaseSwig,getPublishedTime) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getUpdateAvailableTime) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getUpdateAvailableTime) {
   EngineBase *arg1 = 0 ;
   Date result;
   
@@ -11677,7 +11737,7 @@ static PHP_METHOD(EngineBaseSwig,getUpdateAvailableTime) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getDataFilePath) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getDataFilePath) {
   EngineBase *arg1 = 0 ;
   std::string result;
   
@@ -11726,7 +11786,7 @@ static PHP_METHOD(EngineBaseSwig,getDataFilePath) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getDataFileTempPath) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getDataFileTempPath) {
   EngineBase *arg1 = 0 ;
   std::string result;
   
@@ -11775,7 +11835,7 @@ static PHP_METHOD(EngineBaseSwig,getDataFileTempPath) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getProduct) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getProduct) {
   EngineBase *arg1 = 0 ;
   std::string result;
   
@@ -11824,7 +11884,7 @@ static PHP_METHOD(EngineBaseSwig,getProduct) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getType) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getType) {
   EngineBase *arg1 = 0 ;
   std::string result;
   
@@ -11873,7 +11933,7 @@ static PHP_METHOD(EngineBaseSwig,getType) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getKeys) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getKeys) {
   EngineBase *arg1 = 0 ;
   std::vector< std::string > *result = 0 ;
   
@@ -11922,7 +11982,7 @@ static PHP_METHOD(EngineBaseSwig,getKeys) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getRequiredProperties) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getRequiredProperties) {
   EngineBase *arg1 = 0 ;
   std::vector< std::string > result;
   
@@ -11976,7 +12036,7 @@ static PHP_METHOD(EngineBaseSwig,getRequiredProperties) {
 }
 
 
-static PHP_METHOD(EngineBaseSwig,getIsThreadSafe) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,getIsThreadSafe) {
   EngineBase *arg1 = 0 ;
   bool result;
   
@@ -12027,7 +12087,7 @@ static PHP_METHOD(EngineBaseSwig,getIsThreadSafe) {
 
 
 
-PHP_METHOD(EngineBaseSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -12054,7 +12114,7 @@ PHP_METHOD(EngineBaseSwig,__set) {
 }
 
 
-PHP_METHOD(EngineBaseSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -12090,7 +12150,7 @@ PHP_METHOD(EngineBaseSwig,__get) {
 }
 
 
-PHP_METHOD(EngineBaseSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -12123,7 +12183,7 @@ PHP_METHOD(EngineBaseSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedValueStringSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,getValue) {
   WeightedValue< std::string > *arg1 = 0 ;
   std::string result;
   
@@ -12172,7 +12232,7 @@ static PHP_METHOD(WeightedValueStringSwig,getValue) {
 }
 
 
-static PHP_METHOD(WeightedValueStringSwig,setValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,setValue) {
   WeightedValue< std::string > *arg1 = 0 ;
   std::string arg2 ;
   zval args[1];
@@ -12224,7 +12284,7 @@ static PHP_METHOD(WeightedValueStringSwig,setValue) {
 }
 
 
-static PHP_METHOD(WeightedValueStringSwig,getWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,getWeight) {
   WeightedValue< std::string > *arg1 = 0 ;
   float result;
   
@@ -12273,7 +12333,7 @@ static PHP_METHOD(WeightedValueStringSwig,getWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueStringSwig,getShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,getShortRawWeight) {
   WeightedValue< std::string > *arg1 = 0 ;
   uint16_t result;
   
@@ -12322,7 +12382,7 @@ static PHP_METHOD(WeightedValueStringSwig,getShortRawWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueStringSwig,setShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,setShortRawWeight) {
   WeightedValue< std::string > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -12333,7 +12393,7 @@ static PHP_METHOD(WeightedValueStringSwig,setShortRawWeight) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint16_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -12377,7 +12437,7 @@ static PHP_METHOD(WeightedValueStringSwig,setShortRawWeight) {
 
 
 
-PHP_METHOD(WeightedValueStringSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -12404,7 +12464,7 @@ PHP_METHOD(WeightedValueStringSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedValueStringSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -12440,7 +12500,7 @@ PHP_METHOD(WeightedValueStringSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedValueStringSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -12473,7 +12533,7 @@ PHP_METHOD(WeightedValueStringSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedValueUTF8StringSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getValue) {
   WeightedValue< std::vector< uint8_t > > *arg1 = 0 ;
   std::vector< uint8_t > result;
   
@@ -12527,7 +12587,7 @@ static PHP_METHOD(WeightedValueUTF8StringSwig,getValue) {
 }
 
 
-static PHP_METHOD(WeightedValueUTF8StringSwig,setValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,setValue) {
   WeightedValue< std::vector< uint8_t > > *arg1 = 0 ;
   std::vector< uint8_t > arg2 ;
   std::vector< uint8_t > *tmp2 ;
@@ -12583,7 +12643,7 @@ static PHP_METHOD(WeightedValueUTF8StringSwig,setValue) {
 }
 
 
-static PHP_METHOD(WeightedValueUTF8StringSwig,getWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getWeight) {
   WeightedValue< std::vector< uint8_t > > *arg1 = 0 ;
   float result;
   
@@ -12632,7 +12692,7 @@ static PHP_METHOD(WeightedValueUTF8StringSwig,getWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueUTF8StringSwig,getShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getShortRawWeight) {
   WeightedValue< std::vector< uint8_t > > *arg1 = 0 ;
   uint16_t result;
   
@@ -12681,7 +12741,7 @@ static PHP_METHOD(WeightedValueUTF8StringSwig,getShortRawWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueUTF8StringSwig,setShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,setShortRawWeight) {
   WeightedValue< std::vector< uint8_t > > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -12692,7 +12752,7 @@ static PHP_METHOD(WeightedValueUTF8StringSwig,setShortRawWeight) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint16_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -12736,7 +12796,7 @@ static PHP_METHOD(WeightedValueUTF8StringSwig,setShortRawWeight) {
 
 
 
-PHP_METHOD(WeightedValueUTF8StringSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -12763,7 +12823,7 @@ PHP_METHOD(WeightedValueUTF8StringSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedValueUTF8StringSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -12799,7 +12859,7 @@ PHP_METHOD(WeightedValueUTF8StringSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedValueUTF8StringSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -12832,7 +12892,7 @@ PHP_METHOD(WeightedValueUTF8StringSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedValueBoolSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,getValue) {
   WeightedValue< bool > *arg1 = 0 ;
   bool result;
   
@@ -12881,7 +12941,7 @@ static PHP_METHOD(WeightedValueBoolSwig,getValue) {
 }
 
 
-static PHP_METHOD(WeightedValueBoolSwig,setValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,setValue) {
   WeightedValue< bool > *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -12892,7 +12952,7 @@ static PHP_METHOD(WeightedValueBoolSwig,setValue) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
   arg2 = (bool) zval_is_true(&args[0]);
   /*@SWIG@*/;
   
@@ -12934,7 +12994,7 @@ static PHP_METHOD(WeightedValueBoolSwig,setValue) {
 }
 
 
-static PHP_METHOD(WeightedValueBoolSwig,getWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,getWeight) {
   WeightedValue< bool > *arg1 = 0 ;
   float result;
   
@@ -12983,7 +13043,7 @@ static PHP_METHOD(WeightedValueBoolSwig,getWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueBoolSwig,getShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,getShortRawWeight) {
   WeightedValue< bool > *arg1 = 0 ;
   uint16_t result;
   
@@ -13032,7 +13092,7 @@ static PHP_METHOD(WeightedValueBoolSwig,getShortRawWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueBoolSwig,setShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,setShortRawWeight) {
   WeightedValue< bool > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -13043,7 +13103,7 @@ static PHP_METHOD(WeightedValueBoolSwig,setShortRawWeight) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint16_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -13087,7 +13147,7 @@ static PHP_METHOD(WeightedValueBoolSwig,setShortRawWeight) {
 
 
 
-PHP_METHOD(WeightedValueBoolSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -13114,7 +13174,7 @@ PHP_METHOD(WeightedValueBoolSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedValueBoolSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -13150,7 +13210,7 @@ PHP_METHOD(WeightedValueBoolSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedValueBoolSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -13183,7 +13243,7 @@ PHP_METHOD(WeightedValueBoolSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedValueIntSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,getValue) {
   WeightedValue< int > *arg1 = 0 ;
   int result;
   
@@ -13232,7 +13292,7 @@ static PHP_METHOD(WeightedValueIntSwig,getValue) {
 }
 
 
-static PHP_METHOD(WeightedValueIntSwig,setValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,setValue) {
   WeightedValue< int > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -13243,7 +13303,7 @@ static PHP_METHOD(WeightedValueIntSwig,setValue) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -13285,7 +13345,7 @@ static PHP_METHOD(WeightedValueIntSwig,setValue) {
 }
 
 
-static PHP_METHOD(WeightedValueIntSwig,getWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,getWeight) {
   WeightedValue< int > *arg1 = 0 ;
   float result;
   
@@ -13334,7 +13394,7 @@ static PHP_METHOD(WeightedValueIntSwig,getWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueIntSwig,getShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,getShortRawWeight) {
   WeightedValue< int > *arg1 = 0 ;
   uint16_t result;
   
@@ -13383,7 +13443,7 @@ static PHP_METHOD(WeightedValueIntSwig,getShortRawWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueIntSwig,setShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,setShortRawWeight) {
   WeightedValue< int > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -13394,7 +13454,7 @@ static PHP_METHOD(WeightedValueIntSwig,setShortRawWeight) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint16_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -13438,7 +13498,7 @@ static PHP_METHOD(WeightedValueIntSwig,setShortRawWeight) {
 
 
 
-PHP_METHOD(WeightedValueIntSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -13465,7 +13525,7 @@ PHP_METHOD(WeightedValueIntSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedValueIntSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -13501,7 +13561,7 @@ PHP_METHOD(WeightedValueIntSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedValueIntSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -13534,7 +13594,7 @@ PHP_METHOD(WeightedValueIntSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedValueDoubleSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,getValue) {
   WeightedValue< double > *arg1 = 0 ;
   double result;
   
@@ -13583,7 +13643,7 @@ static PHP_METHOD(WeightedValueDoubleSwig,getValue) {
 }
 
 
-static PHP_METHOD(WeightedValueDoubleSwig,setValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,setValue) {
   WeightedValue< double > *arg1 = 0 ;
   double arg2 ;
   zval args[1];
@@ -13594,7 +13654,7 @@ static PHP_METHOD(WeightedValueDoubleSwig,setValue) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,48,CONVERT_FLOAT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,48,CONVERT_FLOAT_IN@*/
   arg2 = (double) zval_get_double(&args[0]);
   /*@SWIG@*/;
   
@@ -13636,7 +13696,7 @@ static PHP_METHOD(WeightedValueDoubleSwig,setValue) {
 }
 
 
-static PHP_METHOD(WeightedValueDoubleSwig,getWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,getWeight) {
   WeightedValue< double > *arg1 = 0 ;
   float result;
   
@@ -13685,7 +13745,7 @@ static PHP_METHOD(WeightedValueDoubleSwig,getWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueDoubleSwig,getShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,getShortRawWeight) {
   WeightedValue< double > *arg1 = 0 ;
   uint16_t result;
   
@@ -13734,7 +13794,7 @@ static PHP_METHOD(WeightedValueDoubleSwig,getShortRawWeight) {
 }
 
 
-static PHP_METHOD(WeightedValueDoubleSwig,setShortRawWeight) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,setShortRawWeight) {
   WeightedValue< double > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -13745,7 +13805,7 @@ static PHP_METHOD(WeightedValueDoubleSwig,setShortRawWeight) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint16_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -13789,7 +13849,7 @@ static PHP_METHOD(WeightedValueDoubleSwig,setShortRawWeight) {
 
 
 
-PHP_METHOD(WeightedValueDoubleSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -13816,7 +13876,7 @@ PHP_METHOD(WeightedValueDoubleSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedValueDoubleSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -13852,7 +13912,7 @@ PHP_METHOD(WeightedValueDoubleSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedValueDoubleSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -13902,7 +13962,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_IpAddressSwig__SWIG_0) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (fiftyoneDegreesIpType) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -13956,7 +14016,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_IpAddressSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
   if (Z_ISNULL(args[0])) {
     arg1 = (char *) 0;
   } else {
@@ -14005,7 +14065,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_IpAddressSwig__SWIG_1) {
 }
 
 
-static PHP_METHOD(IpAddressSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__construct) {
   int argc;
   zval argv[2];
   
@@ -14038,7 +14098,7 @@ static PHP_METHOD(IpAddressSwig,__construct) {
 }
 
 
-static PHP_METHOD(IpAddressSwig,getCopyOfIpAddress) {
+static PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,getCopyOfIpAddress) {
   IpAddress *arg1 = 0 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   uint32_t arg3 ;
@@ -14056,7 +14116,7 @@ static PHP_METHOD(IpAddressSwig,getCopyOfIpAddress) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (uint32_t) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -14098,7 +14158,7 @@ static PHP_METHOD(IpAddressSwig,getCopyOfIpAddress) {
 }
 
 
-static PHP_METHOD(IpAddressSwig,getType) {
+static PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,getType) {
   IpAddress *arg1 = 0 ;
   fiftyoneDegreesIpType result;
   
@@ -14149,7 +14209,7 @@ static PHP_METHOD(IpAddressSwig,getType) {
 
 
 
-PHP_METHOD(IpAddressSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -14176,7 +14236,7 @@ PHP_METHOD(IpAddressSwig,__set) {
 }
 
 
-PHP_METHOD(IpAddressSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -14212,7 +14272,7 @@ PHP_METHOD(IpAddressSwig,__get) {
 }
 
 
-PHP_METHOD(IpAddressSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -14302,7 +14362,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedStringListSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg1 = (std::vector< WeightedValue< std::string > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -14401,7 +14461,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedStringListSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -14438,7 +14498,7 @@ static PHP_METHOD(WeightedStringListSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,size) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   std::vector< WeightedValue< std::string > >::size_type result;
   
@@ -14487,7 +14547,7 @@ static PHP_METHOD(WeightedStringListSwig,size) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,capacity) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,capacity) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   std::vector< WeightedValue< std::string > >::size_type result;
   
@@ -14536,7 +14596,7 @@ static PHP_METHOD(WeightedStringListSwig,capacity) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,reserve) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,reserve) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   std::vector< WeightedValue< std::string > >::size_type arg2 ;
   zval args[1];
@@ -14547,7 +14607,7 @@ static PHP_METHOD(WeightedStringListSwig,reserve) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (std::vector< WeightedValue< std::string > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -14589,7 +14649,7 @@ static PHP_METHOD(WeightedStringListSwig,reserve) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,clear) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< std::string > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -14635,7 +14695,7 @@ static PHP_METHOD(WeightedStringListSwig,clear) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,push) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,push) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   std::vector< WeightedValue< std::string > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -14689,7 +14749,7 @@ static PHP_METHOD(WeightedStringListSwig,push) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,is_empty) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   bool result;
   
@@ -14738,7 +14798,7 @@ static PHP_METHOD(WeightedStringListSwig,is_empty) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,pop) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,pop) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   WeightedValue< std::string > result;
   
@@ -14799,7 +14859,7 @@ static PHP_METHOD(WeightedStringListSwig,pop) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,get) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -14811,7 +14871,7 @@ static PHP_METHOD(WeightedStringListSwig,get) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -14862,7 +14922,7 @@ static PHP_METHOD(WeightedStringListSwig,get) {
 }
 
 
-static PHP_METHOD(WeightedStringListSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,set) {
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< std::string > >::value_type *arg3 = 0 ;
@@ -14874,7 +14934,7 @@ static PHP_METHOD(WeightedStringListSwig,set) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -14931,7 +14991,7 @@ static PHP_METHOD(WeightedStringListSwig,set) {
 
 
 
-PHP_METHOD(WeightedStringListSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -14958,7 +15018,7 @@ PHP_METHOD(WeightedStringListSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedStringListSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -14994,7 +15054,7 @@ PHP_METHOD(WeightedStringListSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedStringListSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -15084,7 +15144,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedUTF8StringListSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg1 = (std::vector< WeightedValue< std::vector< unsigned char > > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -15183,7 +15243,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedUTF8StringListSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -15220,7 +15280,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,size) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::size_type result;
   
@@ -15269,7 +15329,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,size) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,capacity) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,capacity) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::size_type result;
   
@@ -15318,7 +15378,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,capacity) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,reserve) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,reserve) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::size_type arg2 ;
   zval args[1];
@@ -15329,7 +15389,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,reserve) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (std::vector< WeightedValue< std::vector< unsigned char > > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -15371,7 +15431,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,reserve) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,clear) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< std::vector< uint8_t > > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -15417,7 +15477,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,clear) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,push) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,push) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -15471,7 +15531,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,push) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,is_empty) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   bool result;
   
@@ -15520,7 +15580,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,is_empty) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,pop) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,pop) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   WeightedValue< std::vector< uint8_t > > result;
   
@@ -15581,7 +15641,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,pop) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,get) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -15593,7 +15653,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,get) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -15644,7 +15704,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,get) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,set) {
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::value_type *arg3 = 0 ;
@@ -15656,7 +15716,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,set) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -15713,7 +15773,7 @@ static PHP_METHOD(WeightedUTF8StringListSwig,set) {
 
 
 
-PHP_METHOD(WeightedUTF8StringListSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -15740,7 +15800,7 @@ PHP_METHOD(WeightedUTF8StringListSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedUTF8StringListSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -15776,7 +15836,7 @@ PHP_METHOD(WeightedUTF8StringListSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedUTF8StringListSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -15866,7 +15926,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedBoolListSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg1 = (std::vector< WeightedValue< bool > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -15965,7 +16025,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedBoolListSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -16002,7 +16062,7 @@ static PHP_METHOD(WeightedBoolListSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,size) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   std::vector< WeightedValue< bool > >::size_type result;
   
@@ -16051,7 +16111,7 @@ static PHP_METHOD(WeightedBoolListSwig,size) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,capacity) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,capacity) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   std::vector< WeightedValue< bool > >::size_type result;
   
@@ -16100,7 +16160,7 @@ static PHP_METHOD(WeightedBoolListSwig,capacity) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,reserve) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,reserve) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   std::vector< WeightedValue< bool > >::size_type arg2 ;
   zval args[1];
@@ -16111,7 +16171,7 @@ static PHP_METHOD(WeightedBoolListSwig,reserve) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (std::vector< WeightedValue< bool > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -16153,7 +16213,7 @@ static PHP_METHOD(WeightedBoolListSwig,reserve) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,clear) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< bool > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -16199,7 +16259,7 @@ static PHP_METHOD(WeightedBoolListSwig,clear) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,push) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,push) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   std::vector< WeightedValue< bool > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -16253,7 +16313,7 @@ static PHP_METHOD(WeightedBoolListSwig,push) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,is_empty) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   bool result;
   
@@ -16302,7 +16362,7 @@ static PHP_METHOD(WeightedBoolListSwig,is_empty) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,pop) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,pop) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   WeightedValue< bool > result;
   
@@ -16363,7 +16423,7 @@ static PHP_METHOD(WeightedBoolListSwig,pop) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,get) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -16375,7 +16435,7 @@ static PHP_METHOD(WeightedBoolListSwig,get) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -16426,7 +16486,7 @@ static PHP_METHOD(WeightedBoolListSwig,get) {
 }
 
 
-static PHP_METHOD(WeightedBoolListSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,set) {
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< bool > >::value_type *arg3 = 0 ;
@@ -16438,7 +16498,7 @@ static PHP_METHOD(WeightedBoolListSwig,set) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -16495,7 +16555,7 @@ static PHP_METHOD(WeightedBoolListSwig,set) {
 
 
 
-PHP_METHOD(WeightedBoolListSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -16522,7 +16582,7 @@ PHP_METHOD(WeightedBoolListSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedBoolListSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -16558,7 +16618,7 @@ PHP_METHOD(WeightedBoolListSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedBoolListSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -16648,7 +16708,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedIntListSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg1 = (std::vector< WeightedValue< int > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -16747,7 +16807,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedIntListSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -16784,7 +16844,7 @@ static PHP_METHOD(WeightedIntListSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,size) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   std::vector< WeightedValue< int > >::size_type result;
   
@@ -16833,7 +16893,7 @@ static PHP_METHOD(WeightedIntListSwig,size) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,capacity) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,capacity) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   std::vector< WeightedValue< int > >::size_type result;
   
@@ -16882,7 +16942,7 @@ static PHP_METHOD(WeightedIntListSwig,capacity) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,reserve) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,reserve) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   std::vector< WeightedValue< int > >::size_type arg2 ;
   zval args[1];
@@ -16893,7 +16953,7 @@ static PHP_METHOD(WeightedIntListSwig,reserve) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (std::vector< WeightedValue< int > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -16935,7 +16995,7 @@ static PHP_METHOD(WeightedIntListSwig,reserve) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,clear) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< int > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -16981,7 +17041,7 @@ static PHP_METHOD(WeightedIntListSwig,clear) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,push) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,push) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   std::vector< WeightedValue< int > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -17035,7 +17095,7 @@ static PHP_METHOD(WeightedIntListSwig,push) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,is_empty) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   bool result;
   
@@ -17084,7 +17144,7 @@ static PHP_METHOD(WeightedIntListSwig,is_empty) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,pop) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,pop) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   WeightedValue< int > result;
   
@@ -17145,7 +17205,7 @@ static PHP_METHOD(WeightedIntListSwig,pop) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,get) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -17157,7 +17217,7 @@ static PHP_METHOD(WeightedIntListSwig,get) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -17208,7 +17268,7 @@ static PHP_METHOD(WeightedIntListSwig,get) {
 }
 
 
-static PHP_METHOD(WeightedIntListSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,set) {
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< int > >::value_type *arg3 = 0 ;
@@ -17220,7 +17280,7 @@ static PHP_METHOD(WeightedIntListSwig,set) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -17277,7 +17337,7 @@ static PHP_METHOD(WeightedIntListSwig,set) {
 
 
 
-PHP_METHOD(WeightedIntListSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -17304,7 +17364,7 @@ PHP_METHOD(WeightedIntListSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedIntListSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -17340,7 +17400,7 @@ PHP_METHOD(WeightedIntListSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedIntListSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -17430,7 +17490,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedDoubleListSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg1 = (std::vector< WeightedValue< double > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -17529,7 +17589,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedDoubleListSwig__SWIG_2) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__construct) {
   int argc;
   zval argv[1];
   
@@ -17566,7 +17626,7 @@ static PHP_METHOD(WeightedDoubleListSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,size) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,size) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   std::vector< WeightedValue< double > >::size_type result;
   
@@ -17615,7 +17675,7 @@ static PHP_METHOD(WeightedDoubleListSwig,size) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,capacity) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,capacity) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   std::vector< WeightedValue< double > >::size_type result;
   
@@ -17664,7 +17724,7 @@ static PHP_METHOD(WeightedDoubleListSwig,capacity) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,reserve) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,reserve) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   std::vector< WeightedValue< double > >::size_type arg2 ;
   zval args[1];
@@ -17675,7 +17735,7 @@ static PHP_METHOD(WeightedDoubleListSwig,reserve) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (std::vector< WeightedValue< double > >::size_type) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -17717,7 +17777,7 @@ static PHP_METHOD(WeightedDoubleListSwig,reserve) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,clear) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,clear) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< double > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -17763,7 +17823,7 @@ static PHP_METHOD(WeightedDoubleListSwig,clear) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,push) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,push) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   std::vector< WeightedValue< double > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -17817,7 +17877,7 @@ static PHP_METHOD(WeightedDoubleListSwig,push) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,is_empty) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,is_empty) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   bool result;
   
@@ -17866,7 +17926,7 @@ static PHP_METHOD(WeightedDoubleListSwig,is_empty) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,pop) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,pop) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   WeightedValue< double > result;
   
@@ -17927,7 +17987,7 @@ static PHP_METHOD(WeightedDoubleListSwig,pop) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,get) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,get) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -17939,7 +17999,7 @@ static PHP_METHOD(WeightedDoubleListSwig,get) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -17990,7 +18050,7 @@ static PHP_METHOD(WeightedDoubleListSwig,get) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListSwig,set) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,set) {
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< double > >::value_type *arg3 = 0 ;
@@ -18002,7 +18062,7 @@ static PHP_METHOD(WeightedDoubleListSwig,set) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -18059,7 +18119,7 @@ static PHP_METHOD(WeightedDoubleListSwig,set) {
 
 
 
-PHP_METHOD(WeightedDoubleListSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -18086,7 +18146,7 @@ PHP_METHOD(WeightedDoubleListSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedDoubleListSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -18122,7 +18182,7 @@ PHP_METHOD(WeightedDoubleListSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedDoubleListSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -18155,7 +18215,7 @@ PHP_METHOD(WeightedDoubleListSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedStringListValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__construct) {
   Value< std::vector< WeightedValue< std::string > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -18202,7 +18262,7 @@ static PHP_METHOD(WeightedStringListValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedStringListValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,hasValue) {
   Value< std::vector< WeightedValue< std::string > > > *arg1 = 0 ;
   bool result;
   
@@ -18251,7 +18311,7 @@ static PHP_METHOD(WeightedStringListValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(WeightedStringListValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,getNoValueMessage) {
   Value< std::vector< WeightedValue< std::string > > > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -18304,7 +18364,7 @@ static PHP_METHOD(WeightedStringListValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(WeightedStringListValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,getValue) {
   Value< std::vector< WeightedValue< std::string > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::string > > result;
   
@@ -18360,7 +18420,7 @@ static PHP_METHOD(WeightedStringListValueSwig,getValue) {
 
 
 
-PHP_METHOD(WeightedStringListValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -18387,7 +18447,7 @@ PHP_METHOD(WeightedStringListValueSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedStringListValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -18423,7 +18483,7 @@ PHP_METHOD(WeightedStringListValueSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedStringListValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -18456,7 +18516,7 @@ PHP_METHOD(WeightedStringListValueSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedUTF8StringListValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__construct) {
   Value< std::vector< WeightedValue< std::vector< uint8_t > > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -18503,7 +18563,7 @@ static PHP_METHOD(WeightedUTF8StringListValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,hasValue) {
   Value< std::vector< WeightedValue< std::vector< uint8_t > > > > *arg1 = 0 ;
   bool result;
   
@@ -18552,7 +18612,7 @@ static PHP_METHOD(WeightedUTF8StringListValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,getNoValueMessage) {
   Value< std::vector< WeightedValue< std::vector< uint8_t > > > > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -18605,7 +18665,7 @@ static PHP_METHOD(WeightedUTF8StringListValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(WeightedUTF8StringListValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,getValue) {
   Value< std::vector< WeightedValue< std::vector< uint8_t > > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::vector< uint8_t > > > result;
   
@@ -18661,7 +18721,7 @@ static PHP_METHOD(WeightedUTF8StringListValueSwig,getValue) {
 
 
 
-PHP_METHOD(WeightedUTF8StringListValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -18688,7 +18748,7 @@ PHP_METHOD(WeightedUTF8StringListValueSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedUTF8StringListValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -18724,7 +18784,7 @@ PHP_METHOD(WeightedUTF8StringListValueSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedUTF8StringListValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -18757,7 +18817,7 @@ PHP_METHOD(WeightedUTF8StringListValueSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedBoolListValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__construct) {
   Value< std::vector< WeightedValue< bool > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -18804,7 +18864,7 @@ static PHP_METHOD(WeightedBoolListValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedBoolListValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,hasValue) {
   Value< std::vector< WeightedValue< bool > > > *arg1 = 0 ;
   bool result;
   
@@ -18853,7 +18913,7 @@ static PHP_METHOD(WeightedBoolListValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(WeightedBoolListValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,getNoValueMessage) {
   Value< std::vector< WeightedValue< bool > > > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -18906,7 +18966,7 @@ static PHP_METHOD(WeightedBoolListValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(WeightedBoolListValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,getValue) {
   Value< std::vector< WeightedValue< bool > > > *arg1 = 0 ;
   std::vector< WeightedValue< bool > > result;
   
@@ -18962,7 +19022,7 @@ static PHP_METHOD(WeightedBoolListValueSwig,getValue) {
 
 
 
-PHP_METHOD(WeightedBoolListValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -18989,7 +19049,7 @@ PHP_METHOD(WeightedBoolListValueSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedBoolListValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19025,7 +19085,7 @@ PHP_METHOD(WeightedBoolListValueSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedBoolListValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19058,7 +19118,7 @@ PHP_METHOD(WeightedBoolListValueSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedIntListValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__construct) {
   Value< std::vector< WeightedValue< int > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19105,7 +19165,7 @@ static PHP_METHOD(WeightedIntListValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedIntListValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,hasValue) {
   Value< std::vector< WeightedValue< int > > > *arg1 = 0 ;
   bool result;
   
@@ -19154,7 +19214,7 @@ static PHP_METHOD(WeightedIntListValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(WeightedIntListValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,getNoValueMessage) {
   Value< std::vector< WeightedValue< int > > > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -19207,7 +19267,7 @@ static PHP_METHOD(WeightedIntListValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(WeightedIntListValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,getValue) {
   Value< std::vector< WeightedValue< int > > > *arg1 = 0 ;
   std::vector< WeightedValue< int > > result;
   
@@ -19263,7 +19323,7 @@ static PHP_METHOD(WeightedIntListValueSwig,getValue) {
 
 
 
-PHP_METHOD(WeightedIntListValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -19290,7 +19350,7 @@ PHP_METHOD(WeightedIntListValueSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedIntListValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19326,7 +19386,7 @@ PHP_METHOD(WeightedIntListValueSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedIntListValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19359,7 +19419,7 @@ PHP_METHOD(WeightedIntListValueSwig,__isset) {
 
 
 
-static PHP_METHOD(WeightedDoubleListValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__construct) {
   Value< std::vector< WeightedValue< double > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19406,7 +19466,7 @@ static PHP_METHOD(WeightedDoubleListValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,hasValue) {
   Value< std::vector< WeightedValue< double > > > *arg1 = 0 ;
   bool result;
   
@@ -19455,7 +19515,7 @@ static PHP_METHOD(WeightedDoubleListValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,getNoValueMessage) {
   Value< std::vector< WeightedValue< double > > > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -19508,7 +19568,7 @@ static PHP_METHOD(WeightedDoubleListValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(WeightedDoubleListValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,getValue) {
   Value< std::vector< WeightedValue< double > > > *arg1 = 0 ;
   std::vector< WeightedValue< double > > result;
   
@@ -19564,7 +19624,7 @@ static PHP_METHOD(WeightedDoubleListValueSwig,getValue) {
 
 
 
-PHP_METHOD(WeightedDoubleListValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -19591,7 +19651,7 @@ PHP_METHOD(WeightedDoubleListValueSwig,__set) {
 }
 
 
-PHP_METHOD(WeightedDoubleListValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19627,7 +19687,7 @@ PHP_METHOD(WeightedDoubleListValueSwig,__get) {
 }
 
 
-PHP_METHOD(WeightedDoubleListValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19660,7 +19720,7 @@ PHP_METHOD(WeightedDoubleListValueSwig,__isset) {
 
 
 
-static PHP_METHOD(IpAddressValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__construct) {
   Value< IpAddress > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19707,7 +19767,7 @@ static PHP_METHOD(IpAddressValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(IpAddressValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,hasValue) {
   Value< IpAddress > *arg1 = 0 ;
   bool result;
   
@@ -19756,7 +19816,7 @@ static PHP_METHOD(IpAddressValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(IpAddressValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,getNoValueMessage) {
   Value< IpAddress > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -19809,7 +19869,7 @@ static PHP_METHOD(IpAddressValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(IpAddressValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,getValue) {
   Value< IpAddress > *arg1 = 0 ;
   SwigValueWrapper< IpAddress > result;
   
@@ -19865,7 +19925,7 @@ static PHP_METHOD(IpAddressValueSwig,getValue) {
 
 
 
-PHP_METHOD(IpAddressValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -19892,7 +19952,7 @@ PHP_METHOD(IpAddressValueSwig,__set) {
 }
 
 
-PHP_METHOD(IpAddressValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19928,7 +19988,7 @@ PHP_METHOD(IpAddressValueSwig,__get) {
 }
 
 
-PHP_METHOD(IpAddressValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -19961,7 +20021,7 @@ PHP_METHOD(IpAddressValueSwig,__isset) {
 
 
 
-static PHP_METHOD(UTF8StringValueSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__construct) {
   Value< std::vector< uint8_t > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -20008,7 +20068,7 @@ static PHP_METHOD(UTF8StringValueSwig,__construct) {
 }
 
 
-static PHP_METHOD(UTF8StringValueSwig,hasValue) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,hasValue) {
   Value< std::vector< uint8_t > > *arg1 = 0 ;
   bool result;
   
@@ -20057,7 +20117,7 @@ static PHP_METHOD(UTF8StringValueSwig,hasValue) {
 }
 
 
-static PHP_METHOD(UTF8StringValueSwig,getNoValueMessage) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,getNoValueMessage) {
   Value< std::vector< uint8_t > > *arg1 = 0 ;
   char *result = 0 ;
   
@@ -20110,7 +20170,7 @@ static PHP_METHOD(UTF8StringValueSwig,getNoValueMessage) {
 }
 
 
-static PHP_METHOD(UTF8StringValueSwig,getValue) {
+static PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,getValue) {
   Value< std::vector< uint8_t > > *arg1 = 0 ;
   std::vector< uint8_t > result;
   
@@ -20166,7 +20226,7 @@ static PHP_METHOD(UTF8StringValueSwig,getValue) {
 
 
 
-PHP_METHOD(UTF8StringValueSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -20193,7 +20253,7 @@ PHP_METHOD(UTF8StringValueSwig,__set) {
 }
 
 
-PHP_METHOD(UTF8StringValueSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -20229,7 +20289,7 @@ PHP_METHOD(UTF8StringValueSwig,__get) {
 }
 
 
-PHP_METHOD(UTF8StringValueSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -20336,7 +20396,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedStringList__S
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -20385,7 +20445,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedStringList__S
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValuesAsWeightedStringList) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedStringList) {
   int argc;
   zval argv[1];
   
@@ -20492,7 +20552,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedUTF8StringLis
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -20541,7 +20601,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedUTF8StringLis
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValuesAsWeightedUTF8StringList) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedUTF8StringList) {
   int argc;
   zval argv[1];
   
@@ -20648,7 +20708,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValueAsUTF8String__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -20697,7 +20757,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValueAsUTF8String__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValueAsUTF8String) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValueAsUTF8String) {
   int argc;
   zval argv[1];
   
@@ -20749,7 +20809,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedWKTStringList
   arg2 = &temp2;
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (uint8_t) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -20811,12 +20871,12 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedWKTStringList
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (uint8_t) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -20865,7 +20925,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedWKTStringList
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValuesAsWeightedWKTStringList) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedWKTStringList) {
   int argc;
   zval argv[2];
   
@@ -20984,7 +21044,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedBoolList__SWI
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -21033,7 +21093,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedBoolList__SWI
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValuesAsWeightedBoolList) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedBoolList) {
   int argc;
   zval argv[1];
   
@@ -21140,7 +21200,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedIntegerList__
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -21189,7 +21249,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedIntegerList__
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValuesAsWeightedIntegerList) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedIntegerList) {
   int argc;
   zval argv[1];
   
@@ -21296,7 +21356,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedDoubleList__S
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -21345,7 +21405,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValuesAsWeightedDoubleList__S
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValuesAsWeightedDoubleList) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedDoubleList) {
   int argc;
   zval argv[1];
   
@@ -21452,7 +21512,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValueAsIpAddress__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -21501,7 +21561,7 @@ static ZEND_NAMED_FUNCTION(_wrap_ResultsIpiSwig_getValueAsIpAddress__SWIG_1) {
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getValueAsIpAddress) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValueAsIpAddress) {
   int argc;
   zval argv[1];
   
@@ -21534,7 +21594,7 @@ static PHP_METHOD(ResultsIpiSwig,getValueAsIpAddress) {
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,getTargetIpAddress) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getTargetIpAddress) {
   ResultsIpi *arg1 = 0 ;
   Value< IpAddress > result;
   
@@ -21588,7 +21648,7 @@ static PHP_METHOD(ResultsIpiSwig,getTargetIpAddress) {
 }
 
 
-static PHP_METHOD(ResultsIpiSwig,copyValueAsUTF8String) {
+static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,copyValueAsUTF8String) {
   ResultsIpi *arg1 = 0 ;
   int arg2 ;
   unsigned char *arg3 = (unsigned char *)0 ;
@@ -21602,7 +21662,7 @@ static PHP_METHOD(ResultsIpiSwig,copyValueAsUTF8String) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (int) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -21613,7 +21673,7 @@ static PHP_METHOD(ResultsIpiSwig,copyValueAsUTF8String) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg4 = (int) zval_get_long(&args[2]);
   /*@SWIG@*/;
   
@@ -21659,7 +21719,7 @@ static PHP_METHOD(ResultsIpiSwig,copyValueAsUTF8String) {
 
 
 
-PHP_METHOD(ResultsIpiSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -21681,14 +21741,14 @@ PHP_METHOD(ResultsIpiSwig,__set) {
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
     arg->newobject = zval_get_long(&args[1]);
   } else {
-    PHP_MN(ResultsBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiResultsBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(ResultsIpiSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -21717,14 +21777,14 @@ PHP_METHOD(ResultsIpiSwig,__get) {
   }
   
   else {
-    PHP_MN(ResultsBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiResultsBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(ResultsIpiSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -21748,7 +21808,7 @@ PHP_METHOD(ResultsIpiSwig,__isset) {
   }
   
   else {
-    PHP_MN(ResultsBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiResultsBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
@@ -21757,7 +21817,7 @@ PHP_METHOD(ResultsIpiSwig,__isset) {
 
 
 
-static PHP_METHOD(ConfigBaseSwig,setUseUpperPrefixHeaders) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setUseUpperPrefixHeaders) {
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -21768,7 +21828,7 @@ static PHP_METHOD(ConfigBaseSwig,setUseUpperPrefixHeaders) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
   arg2 = (bool) zval_is_true(&args[0]);
   /*@SWIG@*/;
   
@@ -21810,7 +21870,7 @@ static PHP_METHOD(ConfigBaseSwig,setUseUpperPrefixHeaders) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,setUseTempFile) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setUseTempFile) {
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -21821,7 +21881,7 @@ static PHP_METHOD(ConfigBaseSwig,setUseTempFile) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
   arg2 = (bool) zval_is_true(&args[0]);
   /*@SWIG@*/;
   
@@ -21863,7 +21923,7 @@ static PHP_METHOD(ConfigBaseSwig,setUseTempFile) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,setReuseTempFile) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setReuseTempFile) {
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -21874,7 +21934,7 @@ static PHP_METHOD(ConfigBaseSwig,setReuseTempFile) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,2,CONVERT_BOOL_IN@*/
   arg2 = (bool) zval_is_true(&args[0]);
   /*@SWIG@*/;
   
@@ -21916,7 +21976,7 @@ static PHP_METHOD(ConfigBaseSwig,setReuseTempFile) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,setTempDirectories) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setTempDirectories) {
   ConfigBase *arg1 = 0 ;
   std::vector< std::string > arg2 ;
   std::vector< std::string > *tmp2 ;
@@ -21972,7 +22032,7 @@ static PHP_METHOD(ConfigBaseSwig,setTempDirectories) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,getUseUpperPrefixHeaders) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,getUseUpperPrefixHeaders) {
   ConfigBase *arg1 = 0 ;
   bool result;
   
@@ -22021,7 +22081,7 @@ static PHP_METHOD(ConfigBaseSwig,getUseUpperPrefixHeaders) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,getUseTempFile) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,getUseTempFile) {
   ConfigBase *arg1 = 0 ;
   bool result;
   
@@ -22070,7 +22130,7 @@ static PHP_METHOD(ConfigBaseSwig,getUseTempFile) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,getReuseTempFile) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,getReuseTempFile) {
   ConfigBase *arg1 = 0 ;
   bool result;
   
@@ -22119,7 +22179,7 @@ static PHP_METHOD(ConfigBaseSwig,getReuseTempFile) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,getTempDirectories) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,getTempDirectories) {
   ConfigBase *arg1 = 0 ;
   std::vector< std::string > result;
   
@@ -22173,7 +22233,7 @@ static PHP_METHOD(ConfigBaseSwig,getTempDirectories) {
 }
 
 
-static PHP_METHOD(ConfigBaseSwig,getConcurrency) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,getConcurrency) {
   ConfigBase *arg1 = 0 ;
   uint16_t result;
   
@@ -22224,7 +22284,7 @@ static PHP_METHOD(ConfigBaseSwig,getConcurrency) {
 
 
 
-PHP_METHOD(ConfigBaseSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -22251,7 +22311,7 @@ PHP_METHOD(ConfigBaseSwig,__set) {
 }
 
 
-PHP_METHOD(ConfigBaseSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -22287,7 +22347,7 @@ PHP_METHOD(ConfigBaseSwig,__get) {
 }
 
 
-PHP_METHOD(ConfigBaseSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -22320,7 +22380,7 @@ PHP_METHOD(ConfigBaseSwig,__isset) {
 
 
 
-static PHP_METHOD(CollectionConfigSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__construct) {
   CollectionConfig *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -22367,7 +22427,7 @@ static PHP_METHOD(CollectionConfigSwig,__construct) {
 }
 
 
-static PHP_METHOD(CollectionConfigSwig,setCapacity) {
+static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setCapacity) {
   CollectionConfig *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -22378,7 +22438,7 @@ static PHP_METHOD(CollectionConfigSwig,setCapacity) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint32_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -22420,7 +22480,7 @@ static PHP_METHOD(CollectionConfigSwig,setCapacity) {
 }
 
 
-static PHP_METHOD(CollectionConfigSwig,setConcurrency) {
+static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setConcurrency) {
   CollectionConfig *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -22431,7 +22491,7 @@ static PHP_METHOD(CollectionConfigSwig,setConcurrency) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint16_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -22473,7 +22533,7 @@ static PHP_METHOD(CollectionConfigSwig,setConcurrency) {
 }
 
 
-static PHP_METHOD(CollectionConfigSwig,setLoaded) {
+static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setLoaded) {
   CollectionConfig *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -22484,7 +22544,7 @@ static PHP_METHOD(CollectionConfigSwig,setLoaded) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint32_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -22526,7 +22586,7 @@ static PHP_METHOD(CollectionConfigSwig,setLoaded) {
 }
 
 
-static PHP_METHOD(CollectionConfigSwig,getCapacity) {
+static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,getCapacity) {
   CollectionConfig *arg1 = 0 ;
   uint32_t result;
   
@@ -22575,7 +22635,7 @@ static PHP_METHOD(CollectionConfigSwig,getCapacity) {
 }
 
 
-static PHP_METHOD(CollectionConfigSwig,getConcurrency) {
+static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,getConcurrency) {
   CollectionConfig *arg1 = 0 ;
   uint16_t result;
   
@@ -22624,7 +22684,7 @@ static PHP_METHOD(CollectionConfigSwig,getConcurrency) {
 }
 
 
-static PHP_METHOD(CollectionConfigSwig,getLoaded) {
+static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,getLoaded) {
   CollectionConfig *arg1 = 0 ;
   uint32_t result;
   
@@ -22675,7 +22735,7 @@ static PHP_METHOD(CollectionConfigSwig,getLoaded) {
 
 
 
-PHP_METHOD(CollectionConfigSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -22702,7 +22762,7 @@ PHP_METHOD(CollectionConfigSwig,__set) {
 }
 
 
-PHP_METHOD(CollectionConfigSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -22738,7 +22798,7 @@ PHP_METHOD(CollectionConfigSwig,__get) {
 }
 
 
-PHP_METHOD(CollectionConfigSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -22771,7 +22831,7 @@ PHP_METHOD(CollectionConfigSwig,__isset) {
 
 
 
-static PHP_METHOD(ConfigIpiSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__construct) {
   ConfigIpi *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -22818,7 +22878,7 @@ static PHP_METHOD(ConfigIpiSwig,__construct) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,setHighPerformance) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setHighPerformance) {
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -22864,7 +22924,7 @@ static PHP_METHOD(ConfigIpiSwig,setHighPerformance) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,setBalanced) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setBalanced) {
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -22910,7 +22970,7 @@ static PHP_METHOD(ConfigIpiSwig,setBalanced) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,setBalancedTemp) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setBalancedTemp) {
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -22956,7 +23016,7 @@ static PHP_METHOD(ConfigIpiSwig,setBalancedTemp) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,setLowMemory) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setLowMemory) {
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -23002,7 +23062,7 @@ static PHP_METHOD(ConfigIpiSwig,setLowMemory) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,setMaxPerformance) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setMaxPerformance) {
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -23048,7 +23108,7 @@ static PHP_METHOD(ConfigIpiSwig,setMaxPerformance) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,setConcurrency) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setConcurrency) {
   ConfigIpi *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -23059,7 +23119,7 @@ static PHP_METHOD(ConfigIpiSwig,setConcurrency) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (uint16_t) zval_get_long(&args[0]);
   /*@SWIG@*/;
   
@@ -23101,7 +23161,7 @@ static PHP_METHOD(ConfigIpiSwig,setConcurrency) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getStrings) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getStrings) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23150,7 +23210,7 @@ static PHP_METHOD(ConfigIpiSwig,getStrings) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getComponents) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getComponents) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23199,7 +23259,7 @@ static PHP_METHOD(ConfigIpiSwig,getComponents) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getMaps) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getMaps) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23248,7 +23308,7 @@ static PHP_METHOD(ConfigIpiSwig,getMaps) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getProperties) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getProperties) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23297,7 +23357,7 @@ static PHP_METHOD(ConfigIpiSwig,getProperties) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getValues) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getValues) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23346,7 +23406,7 @@ static PHP_METHOD(ConfigIpiSwig,getValues) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getProfiles) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getProfiles) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23395,7 +23455,7 @@ static PHP_METHOD(ConfigIpiSwig,getProfiles) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getGraphs) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getGraphs) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23444,7 +23504,7 @@ static PHP_METHOD(ConfigIpiSwig,getGraphs) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getProfileGroups) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getProfileGroups) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23493,7 +23553,7 @@ static PHP_METHOD(ConfigIpiSwig,getProfileGroups) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getProfileOffsets) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getProfileOffsets) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23542,7 +23602,7 @@ static PHP_METHOD(ConfigIpiSwig,getProfileOffsets) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getPropertyTypes) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getPropertyTypes) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23591,7 +23651,7 @@ static PHP_METHOD(ConfigIpiSwig,getPropertyTypes) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getGraph) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getGraph) {
   ConfigIpi *arg1 = 0 ;
   CollectionConfig *result = 0 ;
   
@@ -23640,7 +23700,7 @@ static PHP_METHOD(ConfigIpiSwig,getGraph) {
 }
 
 
-static PHP_METHOD(ConfigIpiSwig,getConcurrency) {
+static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,getConcurrency) {
   ConfigIpi *arg1 = 0 ;
   uint16_t result;
   
@@ -23691,7 +23751,7 @@ static PHP_METHOD(ConfigIpiSwig,getConcurrency) {
 
 
 
-PHP_METHOD(ConfigIpiSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -23713,14 +23773,14 @@ PHP_METHOD(ConfigIpiSwig,__set) {
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
     arg->newobject = zval_get_long(&args[1]);
   } else {
-    PHP_MN(ConfigBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiConfigBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(ConfigIpiSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -23749,14 +23809,14 @@ PHP_METHOD(ConfigIpiSwig,__get) {
   }
   
   else {
-    PHP_MN(ConfigBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiConfigBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(ConfigIpiSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -23780,7 +23840,7 @@ PHP_METHOD(ConfigIpiSwig,__isset) {
   }
   
   else {
-    PHP_MN(ConfigBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiConfigBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
@@ -23789,7 +23849,7 @@ PHP_METHOD(ConfigIpiSwig,__isset) {
 
 
 
-static PHP_METHOD(EvidenceBaseSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__construct) {
   EvidenceBase *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -23838,7 +23898,7 @@ static PHP_METHOD(EvidenceBaseSwig,__construct) {
 
 
 
-PHP_METHOD(EvidenceBaseSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -23860,14 +23920,14 @@ PHP_METHOD(EvidenceBaseSwig,__set) {
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
     arg->newobject = zval_get_long(&args[1]);
   } else {
-    PHP_MN(MapStringStringSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiMapStringStringSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(EvidenceBaseSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -23896,14 +23956,14 @@ PHP_METHOD(EvidenceBaseSwig,__get) {
   }
   
   else {
-    PHP_MN(MapStringStringSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiMapStringStringSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(EvidenceBaseSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -23927,7 +23987,7 @@ PHP_METHOD(EvidenceBaseSwig,__isset) {
   }
   
   else {
-    PHP_MN(MapStringStringSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiMapStringStringSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
@@ -23936,7 +23996,7 @@ PHP_METHOD(EvidenceBaseSwig,__isset) {
 
 
 
-static PHP_METHOD(EvidenceIpiSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__construct) {
   EvidenceIpi *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -23985,7 +24045,7 @@ static PHP_METHOD(EvidenceIpiSwig,__construct) {
 
 
 
-PHP_METHOD(EvidenceIpiSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -24007,14 +24067,14 @@ PHP_METHOD(EvidenceIpiSwig,__set) {
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
     arg->newobject = zval_get_long(&args[1]);
   } else {
-    PHP_MN(EvidenceBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiEvidenceBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(EvidenceIpiSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -24043,14 +24103,14 @@ PHP_METHOD(EvidenceIpiSwig,__get) {
   }
   
   else {
-    PHP_MN(EvidenceBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiEvidenceBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(EvidenceIpiSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -24074,7 +24134,7 @@ PHP_METHOD(EvidenceIpiSwig,__isset) {
   }
   
   else {
-    PHP_MN(EvidenceBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiEvidenceBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
@@ -24171,7 +24231,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_EngineIpiSwig__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg2 = (long) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -24227,7 +24287,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_EngineIpiSwig__SWIG_1) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,__construct) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__construct) {
   int argc;
   zval argv[4];
   
@@ -24289,7 +24349,7 @@ static PHP_METHOD(EngineIpiSwig,__construct) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,getPublishedTime) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getPublishedTime) {
   EngineIpi *arg1 = 0 ;
   Date result;
   
@@ -24343,7 +24403,7 @@ static PHP_METHOD(EngineIpiSwig,getPublishedTime) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,getUpdateAvailableTime) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getUpdateAvailableTime) {
   EngineIpi *arg1 = 0 ;
   Date result;
   
@@ -24397,7 +24457,7 @@ static PHP_METHOD(EngineIpiSwig,getUpdateAvailableTime) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,getDataFilePath) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getDataFilePath) {
   EngineIpi *arg1 = 0 ;
   std::string result;
   
@@ -24446,7 +24506,7 @@ static PHP_METHOD(EngineIpiSwig,getDataFilePath) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,getDataFileTempPath) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getDataFileTempPath) {
   EngineIpi *arg1 = 0 ;
   std::string result;
   
@@ -24552,7 +24612,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
   if (Z_ISNULL(args[0])) {
     arg2 = (char *) 0;
   } else {
@@ -24617,7 +24677,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_2) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (long) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
@@ -24659,7 +24719,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_2) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,refreshData) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,refreshData) {
   int argc;
   zval argv[2];
   
@@ -24767,7 +24827,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_process__SWIG_1) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,57,CONVERT_STRING_IN@*/
   if (Z_ISNULL(args[0])) {
     arg2 = (char *) 0;
   } else {
@@ -24836,12 +24896,12 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_process__SWIG_2) {
   }
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg3 = (long) zval_get_long(&args[1]);
   /*@SWIG@*/;
   
   
-  /*@SWIG:/opt/homebrew/Cellar/swig/4.5.1/share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
+  /*@SWIG:share/swig/4.5.1/php/utils.i,6,CONVERT_INT_IN@*/
   arg4 = (fiftyoneDegreesIpType) zval_get_long(&args[2]);
   /*@SWIG@*/;
   
@@ -24885,7 +24945,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_process__SWIG_2) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,process) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,process) {
   int argc;
   zval argv[3];
   
@@ -24934,7 +24994,7 @@ static PHP_METHOD(EngineIpiSwig,process) {
 }
 
 
-static PHP_METHOD(EngineIpiSwig,processBase) {
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,processBase) {
   EngineIpi *arg1 = 0 ;
   EvidenceBase *arg2 = 0 ;
   zval args[1];
@@ -24993,7 +25053,7 @@ static PHP_METHOD(EngineIpiSwig,processBase) {
 
 
 
-PHP_METHOD(EngineIpiSwig,__set) {
+PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__set) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[2];
   zend_string *arg2 = 0;
@@ -25015,14 +25075,14 @@ PHP_METHOD(EngineIpiSwig,__set) {
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
     arg->newobject = zval_get_long(&args[1]);
   } else {
-    PHP_MN(EngineBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiEngineBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(EngineIpiSwig,__get) {
+PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__get) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -25051,14 +25111,14 @@ PHP_METHOD(EngineIpiSwig,__get) {
   }
   
   else {
-    PHP_MN(EngineBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiEngineBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
 }
 
 
-PHP_METHOD(EngineIpiSwig,__isset) {
+PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__isset) {
   swig_object_wrapper *arg = SWIG_Z_FETCH_OBJ_P(ZEND_THIS);
   zval args[1];
   zend_string *arg2 = 0;
@@ -25082,7 +25142,7 @@ PHP_METHOD(EngineIpiSwig,__isset) {
   }
   
   else {
-    PHP_MN(EngineBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    PHP_MN(FiftyOneDegreesIpiEngineBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
   fail: SWIGUNUSED;
   return;
@@ -25091,7 +25151,7 @@ PHP_METHOD(EngineIpiSwig,__isset) {
 
 
 
-static PHP_METHOD(FiftyOneDegreesIpIntelligenceEngine,ipi_engine_get) {
+static PHP_METHOD(FiftyOneDegreesIpi,ipi_engine_get) {
   PHP_FN(ipi_engine_get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
@@ -25150,7 +25210,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_magic_arginfo_isset, 0, 1, MAY_BE_BOOL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ipi_engine_get, 0, 0, EngineIpiSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ipi_engine_get, 0, 0, FiftyOneDegreesIpiEngineIpiSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_BoolValueSwig, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -25169,21 +25229,21 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_CollectionConfigSwig_setCap
 ZEND_END_ARG_INFO()
 #define swig_arginfo_CollectionConfigSwig_setConcurrency swig_arginfo_CollectionConfigSwig_setCapacity
 #define swig_arginfo_CollectionConfigSwig_setLoaded swig_arginfo_CollectionConfigSwig_setCapacity
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ComponentMetaDataCollectionSwig_getByIndex, 0, 1, ComponentMetaDataSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ComponentMetaDataCollectionSwig_getByIndex, 0, 1, FiftyOneDegreesIpiComponentMetaDataSwig, MAY_BE_NULL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ComponentMetaDataCollectionSwig_getByKey, 0, 1, ComponentMetaDataSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,SWIG\\_byte,0,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ComponentMetaDataCollectionSwig_getByKey, 0, 1, FiftyOneDegreesIpiComponentMetaDataSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiSWIG\\_byte,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ComponentMetaDataCollectionSwig_getSize swig_arginfo_CollectionConfigSwig_getCapacity
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ComponentMetaDataSwig_getComponentId, 0, 0, SWIG\\_byte, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ComponentMetaDataSwig_getComponentId, 0, 0, FiftyOneDegreesIpiSWIG\\_byte, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ComponentMetaDataSwig_getComponentIdAsInt swig_arginfo_CollectionConfigSwig_getCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_ComponentMetaDataSwig_getName, 0, 0, MAY_BE_STRING)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ConfigBaseSwig_getConcurrency swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_ConfigBaseSwig_getReuseTempFile swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ConfigBaseSwig_getTempDirectories, 0, 0, VectorStringSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ConfigBaseSwig_getTempDirectories, 0, 0, FiftyOneDegreesIpiVectorStringSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ConfigBaseSwig_getUseTempFile swig_arginfo_BoolValueSwig_getValue
 #define swig_arginfo_ConfigBaseSwig_getUseUpperPrefixHeaders swig_arginfo_BoolValueSwig_getValue
@@ -25191,12 +25251,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_ConfigBaseSwig_setReuseTemp
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_BOOL,NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_ConfigBaseSwig_setTempDirectories, 0, 1, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,VectorStringSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiVectorStringSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ConfigBaseSwig_setUseTempFile swig_arginfo_ConfigBaseSwig_setReuseTempFile
 #define swig_arginfo_ConfigBaseSwig_setUseUpperPrefixHeaders swig_arginfo_ConfigBaseSwig_setReuseTempFile
 #define swig_arginfo_new_ConfigIpiSwig swig_arginfo_new_BoolValueSwig
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ConfigIpiSwig_getComponents, 0, 0, CollectionConfigSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ConfigIpiSwig_getComponents, 0, 0, FiftyOneDegreesIpiCollectionConfigSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ConfigIpiSwig_getConcurrency swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_ConfigIpiSwig_getGraph swig_arginfo_ConfigIpiSwig_getComponents
@@ -25229,21 +25289,21 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineBaseSwig_getDataFileTempPath swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineBaseSwig_getDataUpdateUrl swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineBaseSwig_getIsThreadSafe swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_getKeys, 0, 0, VectorStringSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_getKeys, 0, 0, FiftyOneDegreesIpiVectorStringSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_getMetaData, 0, 0, MetaDataSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_getMetaData, 0, 0, FiftyOneDegreesIpiMetaDataSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineBaseSwig_getProduct swig_arginfo_ComponentMetaDataSwig_getName
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_getPublishedTime, 0, 0, Date, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_getPublishedTime, 0, 0, FiftyOneDegreesIpiDate, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineBaseSwig_getRequiredProperties swig_arginfo_ConfigBaseSwig_getTempDirectories
 #define swig_arginfo_EngineBaseSwig_getType swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineBaseSwig_getUpdateAvailableTime swig_arginfo_EngineBaseSwig_getPublishedTime
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_processBase, 0, 1, ResultsBaseSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,EvidenceBaseSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_processBase, 0, 1, FiftyOneDegreesIpiResultsBaseSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiEvidenceBaseSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_refreshData, 0, 2, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,SWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_setDataUpdateUrl, 0, 1, MAY_BE_VOID)
@@ -25251,17 +25311,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_EngineBaseSwig_setDataUpdat
 ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineBaseSwig_setLicenseKey swig_arginfo_EngineBaseSwig_setDataUpdateUrl
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_EngineIpiSwig, 0, 0, 4)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,SWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,ConfigIpiSwig,MAY_BE_LONG|MAY_BE_NULL,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg3,ConfigIpiSwig|RequiredPropertiesConfigSwig,MAY_BE_NULL,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg4,RequiredPropertiesConfigSwig,MAY_BE_NULL,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiConfigIpiSwig,MAY_BE_LONG|MAY_BE_NULL,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg3,FiftyOneDegreesIpiConfigIpiSwig|FiftyOneDegreesIpiRequiredPropertiesConfigSwig,MAY_BE_NULL,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg4,FiftyOneDegreesIpiRequiredPropertiesConfigSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineIpiSwig_getDataFilePath swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineIpiSwig_getDataFileTempPath swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineIpiSwig_getPublishedTime swig_arginfo_EngineBaseSwig_getPublishedTime
 #define swig_arginfo_EngineIpiSwig_getUpdateAvailableTime swig_arginfo_EngineBaseSwig_getPublishedTime
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineIpiSwig_process, 0, 3, ResultsIpiSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,EvidenceIpiSwig|SWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineIpiSwig_process, 0, 3, FiftyOneDegreesIpiResultsIpiSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiEvidenceIpiSwig|FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_LONG,NULL)
  ZEND_ARG_TYPE_MASK(0,arg3,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
@@ -25274,21 +25334,21 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_IntegerValueSwig_getValue swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_IntegerValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_IpAddressSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,SWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_IpAddressSwig_getCopyOfIpAddress, 0, 2, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,SWIG\\_p_unsigned_char,MAY_BE_NULL,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL,NULL)
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_IpAddressSwig_getType swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_IpAddressValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_IpAddressValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_IpAddressValueSwig_getValue, 0, 0, IpAddressSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_IpAddressValueSwig_getValue, 0, 0, FiftyOneDegreesIpiIpAddressSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_IpAddressValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_MapStringStringSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,MapStringStringSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiMapStringStringSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_MapStringStringSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
 #define swig_arginfo_MapStringStringSwig_del swig_arginfo_EngineBaseSwig_setDataUpdateUrl
@@ -25304,48 +25364,48 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_set, 0,
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_MapStringStringSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getComponentForProfile, 0, 1, ComponentMetaDataSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,ProfileMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getComponentForProfile, 0, 1, FiftyOneDegreesIpiComponentMetaDataSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiProfileMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getComponentForProperty, 0, 1, ComponentMetaDataSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,PropertyMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getComponentForProperty, 0, 1, FiftyOneDegreesIpiComponentMetaDataSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiPropertyMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getComponents, 0, 0, ComponentMetaDataCollectionSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getComponents, 0, 0, FiftyOneDegreesIpiComponentMetaDataCollectionSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getDefaultProfileForComponent, 0, 1, ProfileMetaDataSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,ComponentMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getDefaultProfileForComponent, 0, 1, FiftyOneDegreesIpiProfileMetaDataSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiComponentMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getDefaultValueForProperty, 0, 1, ValueMetaDataSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,PropertyMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getDefaultValueForProperty, 0, 1, FiftyOneDegreesIpiValueMetaDataSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiPropertyMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getProfiles, 0, 0, ProfileMetaDataCollectionSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getProfiles, 0, 0, FiftyOneDegreesIpiProfileMetaDataCollectionSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getProperties, 0, 0, PropertyMetaDataCollectionSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getProperties, 0, 0, FiftyOneDegreesIpiPropertyMetaDataCollectionSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getPropertiesForComponent, 0, 1, PropertyMetaDataCollectionSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,ComponentMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getPropertiesForComponent, 0, 1, FiftyOneDegreesIpiPropertyMetaDataCollectionSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiComponentMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getPropertyForValue, 0, 1, PropertyMetaDataSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,ValueMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getPropertyForValue, 0, 1, FiftyOneDegreesIpiPropertyMetaDataSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiValueMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getValues, 0, 0, ValueMetaDataCollectionSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getValues, 0, 0, FiftyOneDegreesIpiValueMetaDataCollectionSwig, MAY_BE_NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getValuesForProfile, 0, 1, ValueMetaDataCollectionSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,ProfileMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getValuesForProfile, 0, 1, FiftyOneDegreesIpiValueMetaDataCollectionSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiProfileMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getValuesForProperty, 0, 1, ValueMetaDataCollectionSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,PropertyMetaDataSwig,MAY_BE_NULL,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_MetaDataSwig_getValuesForProperty, 0, 1, FiftyOneDegreesIpiValueMetaDataCollectionSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiPropertyMetaDataSwig,MAY_BE_NULL,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ProfileMetaDataCollectionSwig_getByIndex, 0, 1, ProfileMetaDataSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ProfileMetaDataCollectionSwig_getByIndex, 0, 1, FiftyOneDegreesIpiProfileMetaDataSwig, MAY_BE_NULL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ProfileMetaDataCollectionSwig_getByKey swig_arginfo_ProfileMetaDataCollectionSwig_getByIndex
 #define swig_arginfo_ProfileMetaDataCollectionSwig_getSize swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_ProfileMetaDataSwig_getProfileId swig_arginfo_CollectionConfigSwig_getCapacity
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_PropertyMetaDataCollectionSwig_getByIndex, 0, 1, PropertyMetaDataSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_PropertyMetaDataCollectionSwig_getByIndex, 0, 1, FiftyOneDegreesIpiPropertyMetaDataSwig, MAY_BE_NULL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_PropertyMetaDataCollectionSwig_getByKey, 0, 1, PropertyMetaDataSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_PropertyMetaDataCollectionSwig_getByKey, 0, 1, FiftyOneDegreesIpiPropertyMetaDataSwig, MAY_BE_NULL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_PropertyMetaDataCollectionSwig_getSize swig_arginfo_CollectionConfigSwig_getCapacity
@@ -25363,7 +25423,7 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_PropertyMetaDataSwig_getType swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_PropertyMetaDataSwig_getUrl swig_arginfo_ComponentMetaDataSwig_getName
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_RequiredPropertiesConfigSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,VectorStringSwig,MAY_BE_NULL|MAY_BE_STRING,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiVectorStringSwig,MAY_BE_NULL|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_RequiredPropertiesConfigSwig_getProperties swig_arginfo_ConfigBaseSwig_getTempDirectories
 #define swig_arginfo_ResultsBaseSwig_containsProperty swig_arginfo_MapStringStringSwig_has_key
@@ -25372,53 +25432,53 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getPropertyName, 0, 1, MAY_BE_STRING)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsBool, 0, 1, BoolValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsBool, 0, 1, FiftyOneDegreesIpiBoolValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsDouble, 0, 1, DoubleValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsDouble, 0, 1, FiftyOneDegreesIpiDoubleValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsInteger, 0, 1, IntegerValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsInteger, 0, 1, FiftyOneDegreesIpiIntegerValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ResultsBaseSwig_getValueAsStrictBool swig_arginfo_ResultsBaseSwig_getValueAsBool
 #define swig_arginfo_ResultsBaseSwig_getValueAsStrictDouble swig_arginfo_ResultsBaseSwig_getValueAsDouble
 #define swig_arginfo_ResultsBaseSwig_getValueAsStrictInteger swig_arginfo_ResultsBaseSwig_getValueAsInteger
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsString, 0, 1, StringValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValueAsString, 0, 1, FiftyOneDegreesIpiStringValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValues, 0, 1, VectorStringValuesSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsBaseSwig_getValues, 0, 1, FiftyOneDegreesIpiVectorStringValuesSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_copyValueAsUTF8String, 0, 3, MAY_BE_LONG)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,SWIG\\_p_unsigned_char,MAY_BE_NULL,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL,NULL)
  ZEND_ARG_TYPE_MASK(0,arg3,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getTargetIpAddress, 0, 0, IpAddressValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getTargetIpAddress, 0, 0, FiftyOneDegreesIpiIpAddressValueSwig, 0)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValueAsIpAddress, 0, 1, IpAddressValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValueAsIpAddress, 0, 1, FiftyOneDegreesIpiIpAddressValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValueAsUTF8String, 0, 1, UTF8StringValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValueAsUTF8String, 0, 1, FiftyOneDegreesIpiUTF8StringValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedBoolList, 0, 1, WeightedBoolListValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedBoolList, 0, 1, FiftyOneDegreesIpiWeightedBoolListValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedDoubleList, 0, 1, WeightedDoubleListValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedDoubleList, 0, 1, FiftyOneDegreesIpiWeightedDoubleListValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedIntegerList, 0, 1, WeightedIntListValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedIntegerList, 0, 1, FiftyOneDegreesIpiWeightedIntListValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedStringList, 0, 1, WeightedStringListValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedStringList, 0, 1, FiftyOneDegreesIpiWeightedStringListValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedUTF8StringList, 0, 1, WeightedUTF8StringListValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedUTF8StringList, 0, 1, FiftyOneDegreesIpiWeightedUTF8StringListValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedWKTStringList, 0, 2, WeightedStringListValueSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ResultsIpiSwig_getValuesAsWeightedWKTStringList, 0, 2, FiftyOneDegreesIpiWeightedStringListValueSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG|MAY_BE_STRING,NULL)
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
@@ -25427,12 +25487,12 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_StringValueSwig_getValue swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_StringValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_UTF8StringSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,UTF8StringSwig,MAY_BE_LONG,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiUTF8StringSwig,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_UTF8StringSwig_capacity swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_UTF8StringSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_UTF8StringSwig_copyToArray, 0, 2, MAY_BE_LONG)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,SWIG\\_p_unsigned_char,MAY_BE_NULL,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL,NULL)
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_UTF8StringSwig_get, 0, 1, MAY_BE_LONG)
@@ -25449,19 +25509,19 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_UTF8StringSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_UTF8StringValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_UTF8StringValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_UTF8StringValueSwig_getValue, 0, 0, UTF8StringSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_UTF8StringValueSwig_getValue, 0, 0, FiftyOneDegreesIpiUTF8StringSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_UTF8StringValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ValueMetaDataCollectionSwig_getByIndex, 0, 1, ValueMetaDataSwig, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ValueMetaDataCollectionSwig_getByIndex, 0, 1, FiftyOneDegreesIpiValueMetaDataSwig, MAY_BE_NULL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ValueMetaDataCollectionSwig_getByKey, 0, 1, ValueMetaDataSwig, MAY_BE_NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,ValueMetaDataKeySwig,0,NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_ValueMetaDataCollectionSwig_getByKey, 0, 1, FiftyOneDegreesIpiValueMetaDataSwig, MAY_BE_NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiValueMetaDataKeySwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ValueMetaDataCollectionSwig_getSize swig_arginfo_CollectionConfigSwig_getCapacity
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_ValueMetaDataKeySwig, 0, 0, 3)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,SWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
  ZEND_ARG_TYPE_MASK(0,arg3,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_ValueMetaDataKeySwig_getPropertyName swig_arginfo_ComponentMetaDataSwig_getName
@@ -25471,7 +25531,7 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_ValueMetaDataSwig_getUrl swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_ValueMetaDataSwig_getUtf8ValueName swig_arginfo_UTF8StringValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_VectorStringSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,VectorStringSwig,MAY_BE_LONG,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiVectorStringSwig,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_VectorStringSwig_capacity swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_VectorStringSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
@@ -25490,128 +25550,128 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_VectorStringValuesSwig_getValue swig_arginfo_ConfigBaseSwig_getTempDirectories
 #define swig_arginfo_VectorStringValuesSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_WeightedBoolListSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedBoolListSwig,MAY_BE_LONG,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedBoolListSwig,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedBoolListSwig_capacity swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_WeightedBoolListSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedBoolListSwig_get, 0, 1, WeightedValueBoolSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedBoolListSwig_get, 0, 1, FiftyOneDegreesIpiWeightedValueBoolSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedBoolListSwig_is_empty swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedBoolListSwig_pop, 0, 0, WeightedValueBoolSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedBoolListSwig_pop, 0, 0, FiftyOneDegreesIpiWeightedValueBoolSwig, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedBoolListSwig_push, 0, 1, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedValueBoolSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedValueBoolSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedBoolListSwig_reserve swig_arginfo_CollectionConfigSwig_setCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedBoolListSwig_set, 0, 2, MAY_BE_VOID)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,WeightedValueBoolSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiWeightedValueBoolSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedBoolListSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_WeightedBoolListValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_WeightedBoolListValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedBoolListValueSwig_getValue, 0, 0, WeightedBoolListSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedBoolListValueSwig_getValue, 0, 0, FiftyOneDegreesIpiWeightedBoolListSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedBoolListValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_WeightedDoubleListSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedDoubleListSwig,MAY_BE_LONG,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedDoubleListSwig,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedDoubleListSwig_capacity swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_WeightedDoubleListSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListSwig_get, 0, 1, WeightedValueDoubleSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListSwig_get, 0, 1, FiftyOneDegreesIpiWeightedValueDoubleSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedDoubleListSwig_is_empty swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListSwig_pop, 0, 0, WeightedValueDoubleSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListSwig_pop, 0, 0, FiftyOneDegreesIpiWeightedValueDoubleSwig, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListSwig_push, 0, 1, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedValueDoubleSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedValueDoubleSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedDoubleListSwig_reserve swig_arginfo_CollectionConfigSwig_setCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListSwig_set, 0, 2, MAY_BE_VOID)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,WeightedValueDoubleSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiWeightedValueDoubleSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedDoubleListSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_WeightedDoubleListValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_WeightedDoubleListValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListValueSwig_getValue, 0, 0, WeightedDoubleListSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedDoubleListValueSwig_getValue, 0, 0, FiftyOneDegreesIpiWeightedDoubleListSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedDoubleListValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_WeightedIntListSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedIntListSwig,MAY_BE_LONG,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedIntListSwig,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedIntListSwig_capacity swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_WeightedIntListSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedIntListSwig_get, 0, 1, WeightedValueIntSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedIntListSwig_get, 0, 1, FiftyOneDegreesIpiWeightedValueIntSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedIntListSwig_is_empty swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedIntListSwig_pop, 0, 0, WeightedValueIntSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedIntListSwig_pop, 0, 0, FiftyOneDegreesIpiWeightedValueIntSwig, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedIntListSwig_push, 0, 1, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedValueIntSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedValueIntSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedIntListSwig_reserve swig_arginfo_CollectionConfigSwig_setCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedIntListSwig_set, 0, 2, MAY_BE_VOID)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,WeightedValueIntSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiWeightedValueIntSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedIntListSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_WeightedIntListValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_WeightedIntListValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedIntListValueSwig_getValue, 0, 0, WeightedIntListSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedIntListValueSwig_getValue, 0, 0, FiftyOneDegreesIpiWeightedIntListSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedIntListValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_WeightedStringListSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedStringListSwig,MAY_BE_LONG,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedStringListSwig,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedStringListSwig_capacity swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_WeightedStringListSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedStringListSwig_get, 0, 1, WeightedValueStringSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedStringListSwig_get, 0, 1, FiftyOneDegreesIpiWeightedValueStringSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedStringListSwig_is_empty swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedStringListSwig_pop, 0, 0, WeightedValueStringSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedStringListSwig_pop, 0, 0, FiftyOneDegreesIpiWeightedValueStringSwig, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedStringListSwig_push, 0, 1, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedValueStringSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedValueStringSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedStringListSwig_reserve swig_arginfo_CollectionConfigSwig_setCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedStringListSwig_set, 0, 2, MAY_BE_VOID)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,WeightedValueStringSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiWeightedValueStringSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedStringListSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_WeightedStringListValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_WeightedStringListValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedStringListValueSwig_getValue, 0, 0, WeightedStringListSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedStringListValueSwig_getValue, 0, 0, FiftyOneDegreesIpiWeightedStringListSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedStringListValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_WeightedUTF8StringListSwig, 0, 0, 1)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedUTF8StringListSwig,MAY_BE_LONG,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedUTF8StringListSwig,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedUTF8StringListSwig_capacity swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_WeightedUTF8StringListSwig_clear swig_arginfo_ConfigIpiSwig_setBalanced
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListSwig_get, 0, 1, WeightedValueUTF8StringSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListSwig_get, 0, 1, FiftyOneDegreesIpiWeightedValueUTF8StringSwig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedUTF8StringListSwig_is_empty swig_arginfo_BoolValueSwig_getValue
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListSwig_pop, 0, 0, WeightedValueUTF8StringSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListSwig_pop, 0, 0, FiftyOneDegreesIpiWeightedValueUTF8StringSwig, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListSwig_push, 0, 1, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,WeightedValueUTF8StringSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiWeightedValueUTF8StringSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedUTF8StringListSwig_reserve swig_arginfo_CollectionConfigSwig_setCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListSwig_set, 0, 2, MAY_BE_VOID)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_LONG,NULL)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg2,WeightedValueUTF8StringSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg2,FiftyOneDegreesIpiWeightedValueUTF8StringSwig,0,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedUTF8StringListSwig_size swig_arginfo_CollectionConfigSwig_getCapacity
 #define swig_arginfo_new_WeightedUTF8StringListValueSwig swig_arginfo_new_BoolValueSwig
 #define swig_arginfo_WeightedUTF8StringListValueSwig_getNoValueMessage swig_arginfo_BoolValueSwig_getNoValueMessage
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListValueSwig_getValue, 0, 0, WeightedUTF8StringListSwig, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_WeightedUTF8StringListValueSwig_getValue, 0, 0, FiftyOneDegreesIpiWeightedUTF8StringListSwig, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedUTF8StringListValueSwig_hasValue swig_arginfo_BoolValueSwig_getValue
 #define swig_arginfo_WeightedValueBoolSwig_getShortRawWeight swig_arginfo_CollectionConfigSwig_getCapacity
@@ -25641,628 +25701,628 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_WeightedValueUTF8StringSwig_getWeight swig_arginfo_DoubleValueSwig_getValue
 #define swig_arginfo_WeightedValueUTF8StringSwig_setShortRawWeight swig_arginfo_CollectionConfigSwig_setCapacity
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_WeightedValueUTF8StringSwig_setValue, 0, 1, MAY_BE_VOID)
- ZEND_ARG_OBJ_TYPE_MASK(0,arg1,UTF8StringSwig,0,NULL)
+ ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiUTF8StringSwig,0,NULL)
 ZEND_END_ARG_INFO()
 
 
 /* class entry subsection */
 static const zend_function_entry class_MapStringStringSwig_functions[] = {
- PHP_ME(MapStringStringSwig,__construct,swig_arginfo_new_MapStringStringSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(MapStringStringSwig,size,swig_arginfo_MapStringStringSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,clear,swig_arginfo_MapStringStringSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,get,swig_arginfo_MapStringStringSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,set,swig_arginfo_MapStringStringSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,del,swig_arginfo_MapStringStringSwig_del,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,has_key,swig_arginfo_MapStringStringSwig_has_key,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,is_empty,swig_arginfo_MapStringStringSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(MapStringStringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,__construct,swig_arginfo_new_MapStringStringSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,size,swig_arginfo_MapStringStringSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,clear,swig_arginfo_MapStringStringSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,get,swig_arginfo_MapStringStringSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,set,swig_arginfo_MapStringStringSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,del,swig_arginfo_MapStringStringSwig_del,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,has_key,swig_arginfo_MapStringStringSwig_has_key,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,is_empty,swig_arginfo_MapStringStringSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMapStringStringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_VectorStringSwig_functions[] = {
- PHP_ME(VectorStringSwig,__construct,swig_arginfo_new_VectorStringSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(VectorStringSwig,size,swig_arginfo_VectorStringSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,capacity,swig_arginfo_VectorStringSwig_capacity,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,reserve,swig_arginfo_VectorStringSwig_reserve,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,clear,swig_arginfo_VectorStringSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,push,swig_arginfo_VectorStringSwig_push,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,is_empty,swig_arginfo_VectorStringSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,pop,swig_arginfo_VectorStringSwig_pop,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,get,swig_arginfo_VectorStringSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,set,swig_arginfo_VectorStringSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,__construct,swig_arginfo_new_VectorStringSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,size,swig_arginfo_VectorStringSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,capacity,swig_arginfo_VectorStringSwig_capacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,reserve,swig_arginfo_VectorStringSwig_reserve,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,clear,swig_arginfo_VectorStringSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,push,swig_arginfo_VectorStringSwig_push,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,is_empty,swig_arginfo_VectorStringSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,pop,swig_arginfo_VectorStringSwig_pop,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,get,swig_arginfo_VectorStringSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,set,swig_arginfo_VectorStringSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_RequiredPropertiesConfigSwig_functions[] = {
- PHP_ME(RequiredPropertiesConfigSwig,__construct,swig_arginfo_new_RequiredPropertiesConfigSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(RequiredPropertiesConfigSwig,getProperties,swig_arginfo_RequiredPropertiesConfigSwig_getProperties,ZEND_ACC_PUBLIC)
- PHP_ME(RequiredPropertiesConfigSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(RequiredPropertiesConfigSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(RequiredPropertiesConfigSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__construct,swig_arginfo_new_RequiredPropertiesConfigSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,getProperties,swig_arginfo_RequiredPropertiesConfigSwig_getProperties,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_StringValueSwig_functions[] = {
- PHP_ME(StringValueSwig,__construct,swig_arginfo_new_StringValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(StringValueSwig,hasValue,swig_arginfo_StringValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(StringValueSwig,getNoValueMessage,swig_arginfo_StringValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(StringValueSwig,getValue,swig_arginfo_StringValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(StringValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(StringValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(StringValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiStringValueSwig,__construct,swig_arginfo_new_StringValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiStringValueSwig,hasValue,swig_arginfo_StringValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiStringValueSwig,getNoValueMessage,swig_arginfo_StringValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiStringValueSwig,getValue,swig_arginfo_StringValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiStringValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiStringValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiStringValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_BoolValueSwig_functions[] = {
- PHP_ME(BoolValueSwig,__construct,swig_arginfo_new_BoolValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(BoolValueSwig,hasValue,swig_arginfo_BoolValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(BoolValueSwig,getNoValueMessage,swig_arginfo_BoolValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(BoolValueSwig,getValue,swig_arginfo_BoolValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(BoolValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(BoolValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(BoolValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiBoolValueSwig,__construct,swig_arginfo_new_BoolValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiBoolValueSwig,hasValue,swig_arginfo_BoolValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiBoolValueSwig,getNoValueMessage,swig_arginfo_BoolValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiBoolValueSwig,getValue,swig_arginfo_BoolValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiBoolValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiBoolValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiBoolValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_IntegerValueSwig_functions[] = {
- PHP_ME(IntegerValueSwig,__construct,swig_arginfo_new_IntegerValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(IntegerValueSwig,hasValue,swig_arginfo_IntegerValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(IntegerValueSwig,getNoValueMessage,swig_arginfo_IntegerValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(IntegerValueSwig,getValue,swig_arginfo_IntegerValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(IntegerValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(IntegerValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(IntegerValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIntegerValueSwig,__construct,swig_arginfo_new_IntegerValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiIntegerValueSwig,hasValue,swig_arginfo_IntegerValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIntegerValueSwig,getNoValueMessage,swig_arginfo_IntegerValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIntegerValueSwig,getValue,swig_arginfo_IntegerValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIntegerValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIntegerValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIntegerValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_VectorStringValuesSwig_functions[] = {
- PHP_ME(VectorStringValuesSwig,__construct,swig_arginfo_new_VectorStringValuesSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(VectorStringValuesSwig,hasValue,swig_arginfo_VectorStringValuesSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringValuesSwig,getNoValueMessage,swig_arginfo_VectorStringValuesSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringValuesSwig,getValue,swig_arginfo_VectorStringValuesSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringValuesSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringValuesSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(VectorStringValuesSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringValuesSwig,__construct,swig_arginfo_new_VectorStringValuesSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiVectorStringValuesSwig,hasValue,swig_arginfo_VectorStringValuesSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringValuesSwig,getNoValueMessage,swig_arginfo_VectorStringValuesSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringValuesSwig,getValue,swig_arginfo_VectorStringValuesSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringValuesSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringValuesSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiVectorStringValuesSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_DoubleValueSwig_functions[] = {
- PHP_ME(DoubleValueSwig,__construct,swig_arginfo_new_DoubleValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(DoubleValueSwig,hasValue,swig_arginfo_DoubleValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(DoubleValueSwig,getNoValueMessage,swig_arginfo_DoubleValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(DoubleValueSwig,getValue,swig_arginfo_DoubleValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(DoubleValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(DoubleValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(DoubleValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDoubleValueSwig,__construct,swig_arginfo_new_DoubleValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiDoubleValueSwig,hasValue,swig_arginfo_DoubleValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDoubleValueSwig,getNoValueMessage,swig_arginfo_DoubleValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDoubleValueSwig,getValue,swig_arginfo_DoubleValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDoubleValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDoubleValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDoubleValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ResultsBaseSwig_functions[] = {
- PHP_ME(ResultsBaseSwig,getAvailableProperties,swig_arginfo_ResultsBaseSwig_getAvailableProperties,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,containsProperty,swig_arginfo_ResultsBaseSwig_containsProperty,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getProperties,swig_arginfo_ResultsBaseSwig_getProperties,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getPropertyName,swig_arginfo_ResultsBaseSwig_getPropertyName,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValues,swig_arginfo_ResultsBaseSwig_getValues,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValueAsString,swig_arginfo_ResultsBaseSwig_getValueAsString,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValueAsBool,swig_arginfo_ResultsBaseSwig_getValueAsBool,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValueAsInteger,swig_arginfo_ResultsBaseSwig_getValueAsInteger,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValueAsDouble,swig_arginfo_ResultsBaseSwig_getValueAsDouble,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValueAsStrictBool,swig_arginfo_ResultsBaseSwig_getValueAsStrictBool,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValueAsStrictInteger,swig_arginfo_ResultsBaseSwig_getValueAsStrictInteger,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,getValueAsStrictDouble,swig_arginfo_ResultsBaseSwig_getValueAsStrictDouble,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getAvailableProperties,swig_arginfo_ResultsBaseSwig_getAvailableProperties,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,containsProperty,swig_arginfo_ResultsBaseSwig_containsProperty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getProperties,swig_arginfo_ResultsBaseSwig_getProperties,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getPropertyName,swig_arginfo_ResultsBaseSwig_getPropertyName,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValues,swig_arginfo_ResultsBaseSwig_getValues,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValueAsString,swig_arginfo_ResultsBaseSwig_getValueAsString,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValueAsBool,swig_arginfo_ResultsBaseSwig_getValueAsBool,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValueAsInteger,swig_arginfo_ResultsBaseSwig_getValueAsInteger,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValueAsDouble,swig_arginfo_ResultsBaseSwig_getValueAsDouble,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictBool,swig_arginfo_ResultsBaseSwig_getValueAsStrictBool,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictInteger,swig_arginfo_ResultsBaseSwig_getValueAsStrictInteger,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictDouble,swig_arginfo_ResultsBaseSwig_getValueAsStrictDouble,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_Date_functions[] = {
- PHP_ME(Date,getYear,swig_arginfo_Date_getYear,ZEND_ACC_PUBLIC)
- PHP_ME(Date,getMonth,swig_arginfo_Date_getMonth,ZEND_ACC_PUBLIC)
- PHP_ME(Date,getDay,swig_arginfo_Date_getDay,ZEND_ACC_PUBLIC)
- PHP_ME(Date,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(Date,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(Date,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDate,getYear,swig_arginfo_Date_getYear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDate,getMonth,swig_arginfo_Date_getMonth,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDate,getDay,swig_arginfo_Date_getDay,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDate,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDate,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiDate,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_PropertyMetaDataSwig_functions[] = {
- PHP_ME(PropertyMetaDataSwig,getName,swig_arginfo_PropertyMetaDataSwig_getName,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getDataFilesWherePresent,swig_arginfo_PropertyMetaDataSwig_getDataFilesWherePresent,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getType,swig_arginfo_PropertyMetaDataSwig_getType,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getCategory,swig_arginfo_PropertyMetaDataSwig_getCategory,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getUrl,swig_arginfo_PropertyMetaDataSwig_getUrl,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getAvailable,swig_arginfo_PropertyMetaDataSwig_getAvailable,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getDisplayOrder,swig_arginfo_PropertyMetaDataSwig_getDisplayOrder,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getIsMandatory,swig_arginfo_PropertyMetaDataSwig_getIsMandatory,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getIsList,swig_arginfo_PropertyMetaDataSwig_getIsList,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getIsObsolete,swig_arginfo_PropertyMetaDataSwig_getIsObsolete,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getShow,swig_arginfo_PropertyMetaDataSwig_getShow,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getShowValues,swig_arginfo_PropertyMetaDataSwig_getShowValues,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,getDescription,swig_arginfo_PropertyMetaDataSwig_getDescription,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getName,swig_arginfo_PropertyMetaDataSwig_getName,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getDataFilesWherePresent,swig_arginfo_PropertyMetaDataSwig_getDataFilesWherePresent,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getType,swig_arginfo_PropertyMetaDataSwig_getType,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getCategory,swig_arginfo_PropertyMetaDataSwig_getCategory,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getUrl,swig_arginfo_PropertyMetaDataSwig_getUrl,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getAvailable,swig_arginfo_PropertyMetaDataSwig_getAvailable,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getDisplayOrder,swig_arginfo_PropertyMetaDataSwig_getDisplayOrder,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getIsMandatory,swig_arginfo_PropertyMetaDataSwig_getIsMandatory,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getIsList,swig_arginfo_PropertyMetaDataSwig_getIsList,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getIsObsolete,swig_arginfo_PropertyMetaDataSwig_getIsObsolete,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getShow,swig_arginfo_PropertyMetaDataSwig_getShow,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getShowValues,swig_arginfo_PropertyMetaDataSwig_getShowValues,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,getDescription,swig_arginfo_PropertyMetaDataSwig_getDescription,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ComponentMetaDataSwig_functions[] = {
- PHP_ME(ComponentMetaDataSwig,getComponentIdAsInt,swig_arginfo_ComponentMetaDataSwig_getComponentIdAsInt,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataSwig,getComponentId,swig_arginfo_ComponentMetaDataSwig_getComponentId,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataSwig,getName,swig_arginfo_ComponentMetaDataSwig_getName,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataSwig,getComponentIdAsInt,swig_arginfo_ComponentMetaDataSwig_getComponentIdAsInt,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataSwig,getComponentId,swig_arginfo_ComponentMetaDataSwig_getComponentId,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataSwig,getName,swig_arginfo_ComponentMetaDataSwig_getName,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ProfileMetaDataSwig_functions[] = {
- PHP_ME(ProfileMetaDataSwig,getProfileId,swig_arginfo_ProfileMetaDataSwig_getProfileId,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataSwig,getProfileId,swig_arginfo_ProfileMetaDataSwig_getProfileId,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_UTF8StringSwig_functions[] = {
- PHP_ME(UTF8StringSwig,__construct,swig_arginfo_new_UTF8StringSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(UTF8StringSwig,size,swig_arginfo_UTF8StringSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,capacity,swig_arginfo_UTF8StringSwig_capacity,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,reserve,swig_arginfo_UTF8StringSwig_reserve,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,clear,swig_arginfo_UTF8StringSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,push,swig_arginfo_UTF8StringSwig_push,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,is_empty,swig_arginfo_UTF8StringSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,pop,swig_arginfo_UTF8StringSwig_pop,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,get,swig_arginfo_UTF8StringSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,set,swig_arginfo_UTF8StringSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,copyToArray,swig_arginfo_UTF8StringSwig_copyToArray,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,__construct,swig_arginfo_new_UTF8StringSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,size,swig_arginfo_UTF8StringSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,capacity,swig_arginfo_UTF8StringSwig_capacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,reserve,swig_arginfo_UTF8StringSwig_reserve,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,clear,swig_arginfo_UTF8StringSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,push,swig_arginfo_UTF8StringSwig_push,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,is_empty,swig_arginfo_UTF8StringSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,pop,swig_arginfo_UTF8StringSwig_pop,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,get,swig_arginfo_UTF8StringSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,set,swig_arginfo_UTF8StringSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,copyToArray,swig_arginfo_UTF8StringSwig_copyToArray,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ValueMetaDataKeySwig_functions[] = {
- PHP_ME(ValueMetaDataKeySwig,__construct,swig_arginfo_new_ValueMetaDataKeySwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(ValueMetaDataKeySwig,getPropertyName,swig_arginfo_ValueMetaDataKeySwig_getPropertyName,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataKeySwig,getValueName,swig_arginfo_ValueMetaDataKeySwig_getValueName,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataKeySwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataKeySwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataKeySwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataKeySwig,__construct,swig_arginfo_new_ValueMetaDataKeySwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataKeySwig,getPropertyName,swig_arginfo_ValueMetaDataKeySwig_getPropertyName,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataKeySwig,getValueName,swig_arginfo_ValueMetaDataKeySwig_getValueName,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataKeySwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataKeySwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataKeySwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ValueMetaDataSwig_functions[] = {
- PHP_ME(ValueMetaDataSwig,getName,swig_arginfo_ValueMetaDataSwig_getName,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataSwig,getDescription,swig_arginfo_ValueMetaDataSwig_getDescription,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataSwig,getUrl,swig_arginfo_ValueMetaDataSwig_getUrl,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataSwig,getUtf8ValueName,swig_arginfo_ValueMetaDataSwig_getUtf8ValueName,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataSwig,getName,swig_arginfo_ValueMetaDataSwig_getName,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataSwig,getDescription,swig_arginfo_ValueMetaDataSwig_getDescription,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataSwig,getUrl,swig_arginfo_ValueMetaDataSwig_getUrl,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataSwig,getUtf8ValueName,swig_arginfo_ValueMetaDataSwig_getUtf8ValueName,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ComponentMetaDataCollectionSwig_functions[] = {
- PHP_ME(ComponentMetaDataCollectionSwig,getByKey,swig_arginfo_ComponentMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataCollectionSwig,getByIndex,swig_arginfo_ComponentMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataCollectionSwig,getSize,swig_arginfo_ComponentMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ComponentMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,getByKey,swig_arginfo_ComponentMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,getByIndex,swig_arginfo_ComponentMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,getSize,swig_arginfo_ComponentMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_PropertyMetaDataCollectionSwig_functions[] = {
- PHP_ME(PropertyMetaDataCollectionSwig,getByKey,swig_arginfo_PropertyMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataCollectionSwig,getByIndex,swig_arginfo_PropertyMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataCollectionSwig,getSize,swig_arginfo_PropertyMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(PropertyMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,getByKey,swig_arginfo_PropertyMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,getByIndex,swig_arginfo_PropertyMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,getSize,swig_arginfo_PropertyMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ProfileMetaDataCollectionSwig_functions[] = {
- PHP_ME(ProfileMetaDataCollectionSwig,getByKey,swig_arginfo_ProfileMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataCollectionSwig,getByIndex,swig_arginfo_ProfileMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataCollectionSwig,getSize,swig_arginfo_ProfileMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ProfileMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,getByKey,swig_arginfo_ProfileMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,getByIndex,swig_arginfo_ProfileMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,getSize,swig_arginfo_ProfileMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ValueMetaDataCollectionSwig_functions[] = {
- PHP_ME(ValueMetaDataCollectionSwig,getByKey,swig_arginfo_ValueMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataCollectionSwig,getByIndex,swig_arginfo_ValueMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataCollectionSwig,getSize,swig_arginfo_ValueMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ValueMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataCollectionSwig,getByKey,swig_arginfo_ValueMetaDataCollectionSwig_getByKey,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataCollectionSwig,getByIndex,swig_arginfo_ValueMetaDataCollectionSwig_getByIndex,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataCollectionSwig,getSize,swig_arginfo_ValueMetaDataCollectionSwig_getSize,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_MetaDataSwig_functions[] = {
- PHP_ME(MetaDataSwig,getComponents,swig_arginfo_MetaDataSwig_getComponents,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getProperties,swig_arginfo_MetaDataSwig_getProperties,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getProfiles,swig_arginfo_MetaDataSwig_getProfiles,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getValues,swig_arginfo_MetaDataSwig_getValues,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getValuesForProperty,swig_arginfo_MetaDataSwig_getValuesForProperty,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getValuesForProfile,swig_arginfo_MetaDataSwig_getValuesForProfile,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getComponentForProfile,swig_arginfo_MetaDataSwig_getComponentForProfile,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getComponentForProperty,swig_arginfo_MetaDataSwig_getComponentForProperty,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getDefaultProfileForComponent,swig_arginfo_MetaDataSwig_getDefaultProfileForComponent,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getDefaultValueForProperty,swig_arginfo_MetaDataSwig_getDefaultValueForProperty,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getPropertiesForComponent,swig_arginfo_MetaDataSwig_getPropertiesForComponent,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,getPropertyForValue,swig_arginfo_MetaDataSwig_getPropertyForValue,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(MetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getComponents,swig_arginfo_MetaDataSwig_getComponents,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getProperties,swig_arginfo_MetaDataSwig_getProperties,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getProfiles,swig_arginfo_MetaDataSwig_getProfiles,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getValues,swig_arginfo_MetaDataSwig_getValues,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getValuesForProperty,swig_arginfo_MetaDataSwig_getValuesForProperty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getValuesForProfile,swig_arginfo_MetaDataSwig_getValuesForProfile,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getComponentForProfile,swig_arginfo_MetaDataSwig_getComponentForProfile,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getComponentForProperty,swig_arginfo_MetaDataSwig_getComponentForProperty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getDefaultProfileForComponent,swig_arginfo_MetaDataSwig_getDefaultProfileForComponent,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getDefaultValueForProperty,swig_arginfo_MetaDataSwig_getDefaultValueForProperty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getPropertiesForComponent,swig_arginfo_MetaDataSwig_getPropertiesForComponent,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,getPropertyForValue,swig_arginfo_MetaDataSwig_getPropertyForValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiMetaDataSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_EngineBaseSwig_functions[] = {
- PHP_ME(EngineBaseSwig,setLicenseKey,swig_arginfo_EngineBaseSwig_setLicenseKey,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,setDataUpdateUrl,swig_arginfo_EngineBaseSwig_setDataUpdateUrl,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getMetaData,swig_arginfo_EngineBaseSwig_getMetaData,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getAutomaticUpdatesEnabled,swig_arginfo_EngineBaseSwig_getAutomaticUpdatesEnabled,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,processBase,swig_arginfo_EngineBaseSwig_processBase,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,refreshData,swig_arginfo_EngineBaseSwig_refreshData,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getDataUpdateUrl,swig_arginfo_EngineBaseSwig_getDataUpdateUrl,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getPublishedTime,swig_arginfo_EngineBaseSwig_getPublishedTime,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getUpdateAvailableTime,swig_arginfo_EngineBaseSwig_getUpdateAvailableTime,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getDataFilePath,swig_arginfo_EngineBaseSwig_getDataFilePath,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getDataFileTempPath,swig_arginfo_EngineBaseSwig_getDataFileTempPath,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getProduct,swig_arginfo_EngineBaseSwig_getProduct,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getType,swig_arginfo_EngineBaseSwig_getType,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getKeys,swig_arginfo_EngineBaseSwig_getKeys,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getRequiredProperties,swig_arginfo_EngineBaseSwig_getRequiredProperties,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,getIsThreadSafe,swig_arginfo_EngineBaseSwig_getIsThreadSafe,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(EngineBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,setLicenseKey,swig_arginfo_EngineBaseSwig_setLicenseKey,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,setDataUpdateUrl,swig_arginfo_EngineBaseSwig_setDataUpdateUrl,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getMetaData,swig_arginfo_EngineBaseSwig_getMetaData,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getAutomaticUpdatesEnabled,swig_arginfo_EngineBaseSwig_getAutomaticUpdatesEnabled,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,processBase,swig_arginfo_EngineBaseSwig_processBase,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,refreshData,swig_arginfo_EngineBaseSwig_refreshData,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getDataUpdateUrl,swig_arginfo_EngineBaseSwig_getDataUpdateUrl,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getPublishedTime,swig_arginfo_EngineBaseSwig_getPublishedTime,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getUpdateAvailableTime,swig_arginfo_EngineBaseSwig_getUpdateAvailableTime,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getDataFilePath,swig_arginfo_EngineBaseSwig_getDataFilePath,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getDataFileTempPath,swig_arginfo_EngineBaseSwig_getDataFileTempPath,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getProduct,swig_arginfo_EngineBaseSwig_getProduct,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getType,swig_arginfo_EngineBaseSwig_getType,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getKeys,swig_arginfo_EngineBaseSwig_getKeys,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getRequiredProperties,swig_arginfo_EngineBaseSwig_getRequiredProperties,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,getIsThreadSafe,swig_arginfo_EngineBaseSwig_getIsThreadSafe,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedValueStringSwig_functions[] = {
- PHP_ME(WeightedValueStringSwig,getValue,swig_arginfo_WeightedValueStringSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueStringSwig,setValue,swig_arginfo_WeightedValueStringSwig_setValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueStringSwig,getWeight,swig_arginfo_WeightedValueStringSwig_getWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueStringSwig,getShortRawWeight,swig_arginfo_WeightedValueStringSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueStringSwig,setShortRawWeight,swig_arginfo_WeightedValueStringSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueStringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueStringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueStringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,getValue,swig_arginfo_WeightedValueStringSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,setValue,swig_arginfo_WeightedValueStringSwig_setValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,getWeight,swig_arginfo_WeightedValueStringSwig_getWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,getShortRawWeight,swig_arginfo_WeightedValueStringSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,setShortRawWeight,swig_arginfo_WeightedValueStringSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueStringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedValueUTF8StringSwig_functions[] = {
- PHP_ME(WeightedValueUTF8StringSwig,getValue,swig_arginfo_WeightedValueUTF8StringSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueUTF8StringSwig,setValue,swig_arginfo_WeightedValueUTF8StringSwig_setValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueUTF8StringSwig,getWeight,swig_arginfo_WeightedValueUTF8StringSwig_getWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueUTF8StringSwig,getShortRawWeight,swig_arginfo_WeightedValueUTF8StringSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueUTF8StringSwig,setShortRawWeight,swig_arginfo_WeightedValueUTF8StringSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueUTF8StringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueUTF8StringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueUTF8StringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getValue,swig_arginfo_WeightedValueUTF8StringSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,setValue,swig_arginfo_WeightedValueUTF8StringSwig_setValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getWeight,swig_arginfo_WeightedValueUTF8StringSwig_getWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getShortRawWeight,swig_arginfo_WeightedValueUTF8StringSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,setShortRawWeight,swig_arginfo_WeightedValueUTF8StringSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedValueBoolSwig_functions[] = {
- PHP_ME(WeightedValueBoolSwig,getValue,swig_arginfo_WeightedValueBoolSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueBoolSwig,setValue,swig_arginfo_WeightedValueBoolSwig_setValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueBoolSwig,getWeight,swig_arginfo_WeightedValueBoolSwig_getWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueBoolSwig,getShortRawWeight,swig_arginfo_WeightedValueBoolSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueBoolSwig,setShortRawWeight,swig_arginfo_WeightedValueBoolSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueBoolSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueBoolSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueBoolSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,getValue,swig_arginfo_WeightedValueBoolSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,setValue,swig_arginfo_WeightedValueBoolSwig_setValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,getWeight,swig_arginfo_WeightedValueBoolSwig_getWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,getShortRawWeight,swig_arginfo_WeightedValueBoolSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,setShortRawWeight,swig_arginfo_WeightedValueBoolSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueBoolSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedValueIntSwig_functions[] = {
- PHP_ME(WeightedValueIntSwig,getValue,swig_arginfo_WeightedValueIntSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueIntSwig,setValue,swig_arginfo_WeightedValueIntSwig_setValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueIntSwig,getWeight,swig_arginfo_WeightedValueIntSwig_getWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueIntSwig,getShortRawWeight,swig_arginfo_WeightedValueIntSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueIntSwig,setShortRawWeight,swig_arginfo_WeightedValueIntSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueIntSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueIntSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueIntSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,getValue,swig_arginfo_WeightedValueIntSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,setValue,swig_arginfo_WeightedValueIntSwig_setValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,getWeight,swig_arginfo_WeightedValueIntSwig_getWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,getShortRawWeight,swig_arginfo_WeightedValueIntSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,setShortRawWeight,swig_arginfo_WeightedValueIntSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueIntSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedValueDoubleSwig_functions[] = {
- PHP_ME(WeightedValueDoubleSwig,getValue,swig_arginfo_WeightedValueDoubleSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueDoubleSwig,setValue,swig_arginfo_WeightedValueDoubleSwig_setValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueDoubleSwig,getWeight,swig_arginfo_WeightedValueDoubleSwig_getWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueDoubleSwig,getShortRawWeight,swig_arginfo_WeightedValueDoubleSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueDoubleSwig,setShortRawWeight,swig_arginfo_WeightedValueDoubleSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueDoubleSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueDoubleSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedValueDoubleSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,getValue,swig_arginfo_WeightedValueDoubleSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,setValue,swig_arginfo_WeightedValueDoubleSwig_setValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,getWeight,swig_arginfo_WeightedValueDoubleSwig_getWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,getShortRawWeight,swig_arginfo_WeightedValueDoubleSwig_getShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,setShortRawWeight,swig_arginfo_WeightedValueDoubleSwig_setShortRawWeight,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedValueDoubleSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_IpAddressSwig_functions[] = {
- PHP_ME(IpAddressSwig,__construct,swig_arginfo_new_IpAddressSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(IpAddressSwig,getCopyOfIpAddress,swig_arginfo_IpAddressSwig_getCopyOfIpAddress,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressSwig,getType,swig_arginfo_IpAddressSwig_getType,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressSwig,__construct,swig_arginfo_new_IpAddressSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiIpAddressSwig,getCopyOfIpAddress,swig_arginfo_IpAddressSwig_getCopyOfIpAddress,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressSwig,getType,swig_arginfo_IpAddressSwig_getType,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedStringListSwig_functions[] = {
- PHP_ME(WeightedStringListSwig,__construct,swig_arginfo_new_WeightedStringListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedStringListSwig,size,swig_arginfo_WeightedStringListSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,capacity,swig_arginfo_WeightedStringListSwig_capacity,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,reserve,swig_arginfo_WeightedStringListSwig_reserve,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,clear,swig_arginfo_WeightedStringListSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,push,swig_arginfo_WeightedStringListSwig_push,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,is_empty,swig_arginfo_WeightedStringListSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,pop,swig_arginfo_WeightedStringListSwig_pop,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,get,swig_arginfo_WeightedStringListSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,set,swig_arginfo_WeightedStringListSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,__construct,swig_arginfo_new_WeightedStringListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,size,swig_arginfo_WeightedStringListSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,capacity,swig_arginfo_WeightedStringListSwig_capacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,reserve,swig_arginfo_WeightedStringListSwig_reserve,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,clear,swig_arginfo_WeightedStringListSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,push,swig_arginfo_WeightedStringListSwig_push,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,is_empty,swig_arginfo_WeightedStringListSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,pop,swig_arginfo_WeightedStringListSwig_pop,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,get,swig_arginfo_WeightedStringListSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,set,swig_arginfo_WeightedStringListSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedUTF8StringListSwig_functions[] = {
- PHP_ME(WeightedUTF8StringListSwig,__construct,swig_arginfo_new_WeightedUTF8StringListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedUTF8StringListSwig,size,swig_arginfo_WeightedUTF8StringListSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,capacity,swig_arginfo_WeightedUTF8StringListSwig_capacity,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,reserve,swig_arginfo_WeightedUTF8StringListSwig_reserve,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,clear,swig_arginfo_WeightedUTF8StringListSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,push,swig_arginfo_WeightedUTF8StringListSwig_push,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,is_empty,swig_arginfo_WeightedUTF8StringListSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,pop,swig_arginfo_WeightedUTF8StringListSwig_pop,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,get,swig_arginfo_WeightedUTF8StringListSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,set,swig_arginfo_WeightedUTF8StringListSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__construct,swig_arginfo_new_WeightedUTF8StringListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,size,swig_arginfo_WeightedUTF8StringListSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,capacity,swig_arginfo_WeightedUTF8StringListSwig_capacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,reserve,swig_arginfo_WeightedUTF8StringListSwig_reserve,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,clear,swig_arginfo_WeightedUTF8StringListSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,push,swig_arginfo_WeightedUTF8StringListSwig_push,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,is_empty,swig_arginfo_WeightedUTF8StringListSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,pop,swig_arginfo_WeightedUTF8StringListSwig_pop,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,get,swig_arginfo_WeightedUTF8StringListSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,set,swig_arginfo_WeightedUTF8StringListSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedBoolListSwig_functions[] = {
- PHP_ME(WeightedBoolListSwig,__construct,swig_arginfo_new_WeightedBoolListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedBoolListSwig,size,swig_arginfo_WeightedBoolListSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,capacity,swig_arginfo_WeightedBoolListSwig_capacity,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,reserve,swig_arginfo_WeightedBoolListSwig_reserve,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,clear,swig_arginfo_WeightedBoolListSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,push,swig_arginfo_WeightedBoolListSwig_push,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,is_empty,swig_arginfo_WeightedBoolListSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,pop,swig_arginfo_WeightedBoolListSwig_pop,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,get,swig_arginfo_WeightedBoolListSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,set,swig_arginfo_WeightedBoolListSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,__construct,swig_arginfo_new_WeightedBoolListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,size,swig_arginfo_WeightedBoolListSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,capacity,swig_arginfo_WeightedBoolListSwig_capacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,reserve,swig_arginfo_WeightedBoolListSwig_reserve,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,clear,swig_arginfo_WeightedBoolListSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,push,swig_arginfo_WeightedBoolListSwig_push,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,is_empty,swig_arginfo_WeightedBoolListSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,pop,swig_arginfo_WeightedBoolListSwig_pop,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,get,swig_arginfo_WeightedBoolListSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,set,swig_arginfo_WeightedBoolListSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedIntListSwig_functions[] = {
- PHP_ME(WeightedIntListSwig,__construct,swig_arginfo_new_WeightedIntListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedIntListSwig,size,swig_arginfo_WeightedIntListSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,capacity,swig_arginfo_WeightedIntListSwig_capacity,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,reserve,swig_arginfo_WeightedIntListSwig_reserve,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,clear,swig_arginfo_WeightedIntListSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,push,swig_arginfo_WeightedIntListSwig_push,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,is_empty,swig_arginfo_WeightedIntListSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,pop,swig_arginfo_WeightedIntListSwig_pop,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,get,swig_arginfo_WeightedIntListSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,set,swig_arginfo_WeightedIntListSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,__construct,swig_arginfo_new_WeightedIntListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,size,swig_arginfo_WeightedIntListSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,capacity,swig_arginfo_WeightedIntListSwig_capacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,reserve,swig_arginfo_WeightedIntListSwig_reserve,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,clear,swig_arginfo_WeightedIntListSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,push,swig_arginfo_WeightedIntListSwig_push,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,is_empty,swig_arginfo_WeightedIntListSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,pop,swig_arginfo_WeightedIntListSwig_pop,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,get,swig_arginfo_WeightedIntListSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,set,swig_arginfo_WeightedIntListSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedDoubleListSwig_functions[] = {
- PHP_ME(WeightedDoubleListSwig,__construct,swig_arginfo_new_WeightedDoubleListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedDoubleListSwig,size,swig_arginfo_WeightedDoubleListSwig_size,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,capacity,swig_arginfo_WeightedDoubleListSwig_capacity,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,reserve,swig_arginfo_WeightedDoubleListSwig_reserve,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,clear,swig_arginfo_WeightedDoubleListSwig_clear,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,push,swig_arginfo_WeightedDoubleListSwig_push,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,is_empty,swig_arginfo_WeightedDoubleListSwig_is_empty,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,pop,swig_arginfo_WeightedDoubleListSwig_pop,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,get,swig_arginfo_WeightedDoubleListSwig_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,set,swig_arginfo_WeightedDoubleListSwig_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,__construct,swig_arginfo_new_WeightedDoubleListSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,size,swig_arginfo_WeightedDoubleListSwig_size,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,capacity,swig_arginfo_WeightedDoubleListSwig_capacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,reserve,swig_arginfo_WeightedDoubleListSwig_reserve,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,clear,swig_arginfo_WeightedDoubleListSwig_clear,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,push,swig_arginfo_WeightedDoubleListSwig_push,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,is_empty,swig_arginfo_WeightedDoubleListSwig_is_empty,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,pop,swig_arginfo_WeightedDoubleListSwig_pop,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,get,swig_arginfo_WeightedDoubleListSwig_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,set,swig_arginfo_WeightedDoubleListSwig_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedStringListValueSwig_functions[] = {
- PHP_ME(WeightedStringListValueSwig,__construct,swig_arginfo_new_WeightedStringListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedStringListValueSwig,hasValue,swig_arginfo_WeightedStringListValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListValueSwig,getNoValueMessage,swig_arginfo_WeightedStringListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListValueSwig,getValue,swig_arginfo_WeightedStringListValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedStringListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListValueSwig,__construct,swig_arginfo_new_WeightedStringListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListValueSwig,hasValue,swig_arginfo_WeightedStringListValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListValueSwig,getNoValueMessage,swig_arginfo_WeightedStringListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListValueSwig,getValue,swig_arginfo_WeightedStringListValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedStringListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedUTF8StringListValueSwig_functions[] = {
- PHP_ME(WeightedUTF8StringListValueSwig,__construct,swig_arginfo_new_WeightedUTF8StringListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedUTF8StringListValueSwig,hasValue,swig_arginfo_WeightedUTF8StringListValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListValueSwig,getNoValueMessage,swig_arginfo_WeightedUTF8StringListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListValueSwig,getValue,swig_arginfo_WeightedUTF8StringListValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedUTF8StringListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__construct,swig_arginfo_new_WeightedUTF8StringListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,hasValue,swig_arginfo_WeightedUTF8StringListValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,getNoValueMessage,swig_arginfo_WeightedUTF8StringListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,getValue,swig_arginfo_WeightedUTF8StringListValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedBoolListValueSwig_functions[] = {
- PHP_ME(WeightedBoolListValueSwig,__construct,swig_arginfo_new_WeightedBoolListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedBoolListValueSwig,hasValue,swig_arginfo_WeightedBoolListValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListValueSwig,getNoValueMessage,swig_arginfo_WeightedBoolListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListValueSwig,getValue,swig_arginfo_WeightedBoolListValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedBoolListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListValueSwig,__construct,swig_arginfo_new_WeightedBoolListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListValueSwig,hasValue,swig_arginfo_WeightedBoolListValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListValueSwig,getNoValueMessage,swig_arginfo_WeightedBoolListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListValueSwig,getValue,swig_arginfo_WeightedBoolListValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedBoolListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedIntListValueSwig_functions[] = {
- PHP_ME(WeightedIntListValueSwig,__construct,swig_arginfo_new_WeightedIntListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedIntListValueSwig,hasValue,swig_arginfo_WeightedIntListValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListValueSwig,getNoValueMessage,swig_arginfo_WeightedIntListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListValueSwig,getValue,swig_arginfo_WeightedIntListValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedIntListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListValueSwig,__construct,swig_arginfo_new_WeightedIntListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListValueSwig,hasValue,swig_arginfo_WeightedIntListValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListValueSwig,getNoValueMessage,swig_arginfo_WeightedIntListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListValueSwig,getValue,swig_arginfo_WeightedIntListValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedIntListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_WeightedDoubleListValueSwig_functions[] = {
- PHP_ME(WeightedDoubleListValueSwig,__construct,swig_arginfo_new_WeightedDoubleListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(WeightedDoubleListValueSwig,hasValue,swig_arginfo_WeightedDoubleListValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListValueSwig,getNoValueMessage,swig_arginfo_WeightedDoubleListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListValueSwig,getValue,swig_arginfo_WeightedDoubleListValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(WeightedDoubleListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__construct,swig_arginfo_new_WeightedDoubleListValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListValueSwig,hasValue,swig_arginfo_WeightedDoubleListValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListValueSwig,getNoValueMessage,swig_arginfo_WeightedDoubleListValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListValueSwig,getValue,swig_arginfo_WeightedDoubleListValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_IpAddressValueSwig_functions[] = {
- PHP_ME(IpAddressValueSwig,__construct,swig_arginfo_new_IpAddressValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(IpAddressValueSwig,hasValue,swig_arginfo_IpAddressValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressValueSwig,getNoValueMessage,swig_arginfo_IpAddressValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressValueSwig,getValue,swig_arginfo_IpAddressValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(IpAddressValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressValueSwig,__construct,swig_arginfo_new_IpAddressValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiIpAddressValueSwig,hasValue,swig_arginfo_IpAddressValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressValueSwig,getNoValueMessage,swig_arginfo_IpAddressValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressValueSwig,getValue,swig_arginfo_IpAddressValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiIpAddressValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_UTF8StringValueSwig_functions[] = {
- PHP_ME(UTF8StringValueSwig,__construct,swig_arginfo_new_UTF8StringValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(UTF8StringValueSwig,hasValue,swig_arginfo_UTF8StringValueSwig_hasValue,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringValueSwig,getNoValueMessage,swig_arginfo_UTF8StringValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringValueSwig,getValue,swig_arginfo_UTF8StringValueSwig_getValue,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(UTF8StringValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringValueSwig,__construct,swig_arginfo_new_UTF8StringValueSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringValueSwig,hasValue,swig_arginfo_UTF8StringValueSwig_hasValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringValueSwig,getNoValueMessage,swig_arginfo_UTF8StringValueSwig_getNoValueMessage,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringValueSwig,getValue,swig_arginfo_UTF8StringValueSwig_getValue,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringValueSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringValueSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiUTF8StringValueSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ResultsIpiSwig_functions[] = {
- PHP_ME(ResultsIpiSwig,getValuesAsWeightedStringList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedStringList,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getValuesAsWeightedUTF8StringList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedUTF8StringList,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getValueAsUTF8String,swig_arginfo_ResultsIpiSwig_getValueAsUTF8String,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getValuesAsWeightedWKTStringList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedWKTStringList,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getValuesAsWeightedBoolList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedBoolList,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getValuesAsWeightedIntegerList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedIntegerList,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getValuesAsWeightedDoubleList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedDoubleList,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getValueAsIpAddress,swig_arginfo_ResultsIpiSwig_getValueAsIpAddress,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,getTargetIpAddress,swig_arginfo_ResultsIpiSwig_getTargetIpAddress,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,copyValueAsUTF8String,swig_arginfo_ResultsIpiSwig_copyValueAsUTF8String,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ResultsIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedStringList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedStringList,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedUTF8StringList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedUTF8StringList,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValueAsUTF8String,swig_arginfo_ResultsIpiSwig_getValueAsUTF8String,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedWKTStringList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedWKTStringList,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedBoolList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedBoolList,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedIntegerList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedIntegerList,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedDoubleList,swig_arginfo_ResultsIpiSwig_getValuesAsWeightedDoubleList,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getValueAsIpAddress,swig_arginfo_ResultsIpiSwig_getValueAsIpAddress,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,getTargetIpAddress,swig_arginfo_ResultsIpiSwig_getTargetIpAddress,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,copyValueAsUTF8String,swig_arginfo_ResultsIpiSwig_copyValueAsUTF8String,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiResultsIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ConfigBaseSwig_functions[] = {
- PHP_ME(ConfigBaseSwig,setUseUpperPrefixHeaders,swig_arginfo_ConfigBaseSwig_setUseUpperPrefixHeaders,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,setUseTempFile,swig_arginfo_ConfigBaseSwig_setUseTempFile,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,setReuseTempFile,swig_arginfo_ConfigBaseSwig_setReuseTempFile,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,setTempDirectories,swig_arginfo_ConfigBaseSwig_setTempDirectories,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,getUseUpperPrefixHeaders,swig_arginfo_ConfigBaseSwig_getUseUpperPrefixHeaders,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,getUseTempFile,swig_arginfo_ConfigBaseSwig_getUseTempFile,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,getReuseTempFile,swig_arginfo_ConfigBaseSwig_getReuseTempFile,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,getTempDirectories,swig_arginfo_ConfigBaseSwig_getTempDirectories,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,getConcurrency,swig_arginfo_ConfigBaseSwig_getConcurrency,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,setUseUpperPrefixHeaders,swig_arginfo_ConfigBaseSwig_setUseUpperPrefixHeaders,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,setUseTempFile,swig_arginfo_ConfigBaseSwig_setUseTempFile,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,setReuseTempFile,swig_arginfo_ConfigBaseSwig_setReuseTempFile,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,setTempDirectories,swig_arginfo_ConfigBaseSwig_setTempDirectories,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,getUseUpperPrefixHeaders,swig_arginfo_ConfigBaseSwig_getUseUpperPrefixHeaders,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,getUseTempFile,swig_arginfo_ConfigBaseSwig_getUseTempFile,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,getReuseTempFile,swig_arginfo_ConfigBaseSwig_getReuseTempFile,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,getTempDirectories,swig_arginfo_ConfigBaseSwig_getTempDirectories,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,getConcurrency,swig_arginfo_ConfigBaseSwig_getConcurrency,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_CollectionConfigSwig_functions[] = {
- PHP_ME(CollectionConfigSwig,__construct,swig_arginfo_new_CollectionConfigSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(CollectionConfigSwig,setCapacity,swig_arginfo_CollectionConfigSwig_setCapacity,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,setConcurrency,swig_arginfo_CollectionConfigSwig_setConcurrency,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,setLoaded,swig_arginfo_CollectionConfigSwig_setLoaded,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,getCapacity,swig_arginfo_CollectionConfigSwig_getCapacity,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,getConcurrency,swig_arginfo_CollectionConfigSwig_getConcurrency,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,getLoaded,swig_arginfo_CollectionConfigSwig_getLoaded,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(CollectionConfigSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,__construct,swig_arginfo_new_CollectionConfigSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,setCapacity,swig_arginfo_CollectionConfigSwig_setCapacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,setConcurrency,swig_arginfo_CollectionConfigSwig_setConcurrency,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,setLoaded,swig_arginfo_CollectionConfigSwig_setLoaded,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,getCapacity,swig_arginfo_CollectionConfigSwig_getCapacity,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,getConcurrency,swig_arginfo_CollectionConfigSwig_getConcurrency,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,getLoaded,swig_arginfo_CollectionConfigSwig_getLoaded,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiCollectionConfigSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_ConfigIpiSwig_functions[] = {
- PHP_ME(ConfigIpiSwig,__construct,swig_arginfo_new_ConfigIpiSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(ConfigIpiSwig,setHighPerformance,swig_arginfo_ConfigIpiSwig_setHighPerformance,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,setBalanced,swig_arginfo_ConfigIpiSwig_setBalanced,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,setBalancedTemp,swig_arginfo_ConfigIpiSwig_setBalancedTemp,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,setLowMemory,swig_arginfo_ConfigIpiSwig_setLowMemory,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,setMaxPerformance,swig_arginfo_ConfigIpiSwig_setMaxPerformance,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,setConcurrency,swig_arginfo_ConfigIpiSwig_setConcurrency,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getStrings,swig_arginfo_ConfigIpiSwig_getStrings,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getComponents,swig_arginfo_ConfigIpiSwig_getComponents,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getMaps,swig_arginfo_ConfigIpiSwig_getMaps,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getProperties,swig_arginfo_ConfigIpiSwig_getProperties,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getValues,swig_arginfo_ConfigIpiSwig_getValues,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getProfiles,swig_arginfo_ConfigIpiSwig_getProfiles,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getGraphs,swig_arginfo_ConfigIpiSwig_getGraphs,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getProfileGroups,swig_arginfo_ConfigIpiSwig_getProfileGroups,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getProfileOffsets,swig_arginfo_ConfigIpiSwig_getProfileOffsets,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getPropertyTypes,swig_arginfo_ConfigIpiSwig_getPropertyTypes,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getGraph,swig_arginfo_ConfigIpiSwig_getGraph,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,getConcurrency,swig_arginfo_ConfigIpiSwig_getConcurrency,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(ConfigIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,__construct,swig_arginfo_new_ConfigIpiSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,setHighPerformance,swig_arginfo_ConfigIpiSwig_setHighPerformance,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,setBalanced,swig_arginfo_ConfigIpiSwig_setBalanced,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,setBalancedTemp,swig_arginfo_ConfigIpiSwig_setBalancedTemp,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,setLowMemory,swig_arginfo_ConfigIpiSwig_setLowMemory,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,setMaxPerformance,swig_arginfo_ConfigIpiSwig_setMaxPerformance,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,setConcurrency,swig_arginfo_ConfigIpiSwig_setConcurrency,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getStrings,swig_arginfo_ConfigIpiSwig_getStrings,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getComponents,swig_arginfo_ConfigIpiSwig_getComponents,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getMaps,swig_arginfo_ConfigIpiSwig_getMaps,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getProperties,swig_arginfo_ConfigIpiSwig_getProperties,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getValues,swig_arginfo_ConfigIpiSwig_getValues,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getProfiles,swig_arginfo_ConfigIpiSwig_getProfiles,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getGraphs,swig_arginfo_ConfigIpiSwig_getGraphs,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getProfileGroups,swig_arginfo_ConfigIpiSwig_getProfileGroups,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getProfileOffsets,swig_arginfo_ConfigIpiSwig_getProfileOffsets,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getPropertyTypes,swig_arginfo_ConfigIpiSwig_getPropertyTypes,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getGraph,swig_arginfo_ConfigIpiSwig_getGraph,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,getConcurrency,swig_arginfo_ConfigIpiSwig_getConcurrency,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiConfigIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_EvidenceBaseSwig_functions[] = {
- PHP_ME(EvidenceBaseSwig,__construct,swig_arginfo_new_EvidenceBaseSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(EvidenceBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(EvidenceBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(EvidenceBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEvidenceBaseSwig,__construct,swig_arginfo_new_EvidenceBaseSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiEvidenceBaseSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEvidenceBaseSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEvidenceBaseSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_EvidenceIpiSwig_functions[] = {
- PHP_ME(EvidenceIpiSwig,__construct,swig_arginfo_new_EvidenceIpiSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(EvidenceIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(EvidenceIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(EvidenceIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEvidenceIpiSwig,__construct,swig_arginfo_new_EvidenceIpiSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiEvidenceIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEvidenceIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEvidenceIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
 static const zend_function_entry class_EngineIpiSwig_functions[] = {
- PHP_ME(EngineIpiSwig,__construct,swig_arginfo_new_EngineIpiSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
- PHP_ME(EngineIpiSwig,getPublishedTime,swig_arginfo_EngineIpiSwig_getPublishedTime,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,getUpdateAvailableTime,swig_arginfo_EngineIpiSwig_getUpdateAvailableTime,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,getDataFilePath,swig_arginfo_EngineIpiSwig_getDataFilePath,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,getDataFileTempPath,swig_arginfo_EngineIpiSwig_getDataFileTempPath,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,refreshData,swig_arginfo_EngineIpiSwig_refreshData,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,process,swig_arginfo_EngineIpiSwig_process,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,processBase,swig_arginfo_EngineIpiSwig_processBase,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
- PHP_ME(EngineIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,__construct,swig_arginfo_new_EngineIpiSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getPublishedTime,swig_arginfo_EngineIpiSwig_getPublishedTime,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getUpdateAvailableTime,swig_arginfo_EngineIpiSwig_getUpdateAvailableTime,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getDataFilePath,swig_arginfo_EngineIpiSwig_getDataFilePath,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getDataFileTempPath,swig_arginfo_EngineIpiSwig_getDataFileTempPath,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,refreshData,swig_arginfo_EngineIpiSwig_refreshData,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,process,swig_arginfo_EngineIpiSwig_process,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,processBase,swig_arginfo_EngineIpiSwig_processBase,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,__set,swig_magic_arginfo_set,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,__get,swig_magic_arginfo_get,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,__isset,swig_magic_arginfo_isset,ZEND_ACC_PUBLIC)
  ZEND_FE_END
 };
 
@@ -26275,8 +26335,8 @@ static const zend_function_entry module_FiftyOneDegreesIpIntelligenceEngine_func
  ZEND_FE_END
 };
 
-static const zend_function_entry class_FiftyOneDegreesIpIntelligenceEngine_functions[] = {
- PHP_ME(FiftyOneDegreesIpIntelligenceEngine,ipi_engine_get,swig_arginfo_ipi_engine_get,ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+static const zend_function_entry class_FiftyOneDegreesIpi_functions[] = {
+ PHP_ME(FiftyOneDegreesIpi,ipi_engine_get,swig_arginfo_ipi_engine_get,ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
  ZEND_FE_END
 };
 
@@ -26287,7 +26347,7 @@ zend_module_entry FiftyOneDegreesIpIntelligenceEngine_module_entry = {
     module_FiftyOneDegreesIpIntelligenceEngine_functions,
     PHP_MINIT(FiftyOneDegreesIpIntelligenceEngine),
     PHP_MSHUTDOWN(FiftyOneDegreesIpIntelligenceEngine),
-    NULL, /* No RINIT code */
+    PHP_RINIT(FiftyOneDegreesIpIntelligenceEngine),
     NULL, /* No RSHUTDOWN code */
     NULL, /* No MINFO code */
     NO_VERSION_YET,
@@ -26719,6 +26779,18 @@ SWIG_php_minit {
 #endif
 
 
+    /*
+     * An extension loaded when PHP starts registers the earlier class names
+     * after every extension has started. One loaded later with dl() starts
+     * alone, and registers them when its first request starts.
+     */
+    if (type == MODULE_PERSISTENT) {
+        ipi_next_post_startup = zend_post_startup_cb;
+        zend_post_startup_cb = ipi_post_startup;
+    } else {
+        ipi_earlier_names_pending = true;
+    }
+
     REGISTER_INI_ENTRIES();
     char *filePath = INI_STR("FiftyOneDegreesIpIntelligenceEngine.data_file");
     struct stat sb;
@@ -26743,7 +26815,7 @@ SWIG_php_minit {
     }
 
   /* oinit subsection */
-  INIT_CLASS_ENTRY(internal_ce, "MapStringStringSwig", class_MapStringStringSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiMapStringStringSwig", class_MapStringStringSwig_functions);
   SWIG_Php_ce_MapStringStringSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_MapStringStringSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26760,7 +26832,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__mapT_std__string_std__string_t,SWIG_Php_ce_MapStringStringSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "VectorStringSwig", class_VectorStringSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiVectorStringSwig", class_VectorStringSwig_functions);
   SWIG_Php_ce_VectorStringSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_VectorStringSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26773,7 +26845,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__vectorT_std__string_t,SWIG_Php_ce_VectorStringSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "RequiredPropertiesConfigSwig", class_RequiredPropertiesConfigSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiRequiredPropertiesConfigSwig", class_RequiredPropertiesConfigSwig_functions);
   SWIG_Php_ce_RequiredPropertiesConfigSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_RequiredPropertiesConfigSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26786,7 +26858,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_RequiredPropertiesConfig,SWIG_Php_ce_RequiredPropertiesConfigSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "StringValueSwig", class_StringValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiStringValueSwig", class_StringValueSwig_functions);
   SWIG_Php_ce_StringValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_StringValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26799,7 +26871,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__string_t,SWIG_Php_ce_StringValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "BoolValueSwig", class_BoolValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiBoolValueSwig", class_BoolValueSwig_functions);
   SWIG_Php_ce_BoolValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_BoolValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26812,7 +26884,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_bool_t,SWIG_Php_ce_BoolValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "IntegerValueSwig", class_IntegerValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiIntegerValueSwig", class_IntegerValueSwig_functions);
   SWIG_Php_ce_IntegerValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_IntegerValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26825,7 +26897,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_int_t,SWIG_Php_ce_IntegerValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "VectorStringValuesSwig", class_VectorStringValuesSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiVectorStringValuesSwig", class_VectorStringValuesSwig_functions);
   SWIG_Php_ce_VectorStringValuesSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_VectorStringValuesSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26838,7 +26910,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__vectorT_std__string_t_t,SWIG_Php_ce_VectorStringValuesSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "DoubleValueSwig", class_DoubleValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiDoubleValueSwig", class_DoubleValueSwig_functions);
   SWIG_Php_ce_DoubleValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_DoubleValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26851,7 +26923,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_double_t,SWIG_Php_ce_DoubleValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ResultsBaseSwig", class_ResultsBaseSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiResultsBaseSwig", class_ResultsBaseSwig_functions);
   SWIG_Php_ce_ResultsBaseSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ResultsBaseSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26864,7 +26936,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ResultsBase,SWIG_Php_ce_ResultsBaseSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "Date", class_Date_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiDate", class_Date_functions);
   SWIG_Php_ce_Date = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_Date->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26877,7 +26949,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_Date,SWIG_Php_ce_Date);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "PropertyMetaDataSwig", class_PropertyMetaDataSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiPropertyMetaDataSwig", class_PropertyMetaDataSwig_functions);
   SWIG_Php_ce_PropertyMetaDataSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_PropertyMetaDataSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26890,7 +26962,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_PropertyMetaData,SWIG_Php_ce_PropertyMetaDataSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ComponentMetaDataSwig", class_ComponentMetaDataSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiComponentMetaDataSwig", class_ComponentMetaDataSwig_functions);
   SWIG_Php_ce_ComponentMetaDataSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ComponentMetaDataSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26903,7 +26975,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ComponentMetaData,SWIG_Php_ce_ComponentMetaDataSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ProfileMetaDataSwig", class_ProfileMetaDataSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiProfileMetaDataSwig", class_ProfileMetaDataSwig_functions);
   SWIG_Php_ce_ProfileMetaDataSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ProfileMetaDataSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26916,7 +26988,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ProfileMetaData,SWIG_Php_ce_ProfileMetaDataSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "UTF8StringSwig", class_UTF8StringSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiUTF8StringSwig", class_UTF8StringSwig_functions);
   SWIG_Php_ce_UTF8StringSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_UTF8StringSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26929,7 +27001,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__vectorT_uint8_t_t,SWIG_Php_ce_UTF8StringSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ValueMetaDataKeySwig", class_ValueMetaDataKeySwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiValueMetaDataKeySwig", class_ValueMetaDataKeySwig_functions);
   SWIG_Php_ce_ValueMetaDataKeySwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ValueMetaDataKeySwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26942,7 +27014,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueMetaDataKey,SWIG_Php_ce_ValueMetaDataKeySwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ValueMetaDataSwig", class_ValueMetaDataSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiValueMetaDataSwig", class_ValueMetaDataSwig_functions);
   SWIG_Php_ce_ValueMetaDataSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ValueMetaDataSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26955,7 +27027,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueMetaData,SWIG_Php_ce_ValueMetaDataSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ComponentMetaDataCollectionSwig", class_ComponentMetaDataCollectionSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiComponentMetaDataCollectionSwig", class_ComponentMetaDataCollectionSwig_functions);
   SWIG_Php_ce_ComponentMetaDataCollectionSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ComponentMetaDataCollectionSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26968,7 +27040,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_CollectionT_byte_ComponentMetaData_t,SWIG_Php_ce_ComponentMetaDataCollectionSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "PropertyMetaDataCollectionSwig", class_PropertyMetaDataCollectionSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiPropertyMetaDataCollectionSwig", class_PropertyMetaDataCollectionSwig_functions);
   SWIG_Php_ce_PropertyMetaDataCollectionSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_PropertyMetaDataCollectionSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26981,7 +27053,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_CollectionT_std__string_PropertyMetaData_t,SWIG_Php_ce_PropertyMetaDataCollectionSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ProfileMetaDataCollectionSwig", class_ProfileMetaDataCollectionSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiProfileMetaDataCollectionSwig", class_ProfileMetaDataCollectionSwig_functions);
   SWIG_Php_ce_ProfileMetaDataCollectionSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ProfileMetaDataCollectionSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -26994,7 +27066,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_CollectionT_uint32_t_ProfileMetaData_t,SWIG_Php_ce_ProfileMetaDataCollectionSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ValueMetaDataCollectionSwig", class_ValueMetaDataCollectionSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiValueMetaDataCollectionSwig", class_ValueMetaDataCollectionSwig_functions);
   SWIG_Php_ce_ValueMetaDataCollectionSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ValueMetaDataCollectionSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27007,7 +27079,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_CollectionT_ValueMetaDataKey_ValueMetaData_t,SWIG_Php_ce_ValueMetaDataCollectionSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "MetaDataSwig", class_MetaDataSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiMetaDataSwig", class_MetaDataSwig_functions);
   SWIG_Php_ce_MetaDataSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_MetaDataSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27020,7 +27092,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_MetaData,SWIG_Php_ce_MetaDataSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "EngineBaseSwig", class_EngineBaseSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiEngineBaseSwig", class_EngineBaseSwig_functions);
   SWIG_Php_ce_EngineBaseSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_EngineBaseSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27033,7 +27105,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_EngineBase,SWIG_Php_ce_EngineBaseSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedValueStringSwig", class_WeightedValueStringSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedValueStringSwig", class_WeightedValueStringSwig_functions);
   SWIG_Php_ce_WeightedValueStringSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedValueStringSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27046,7 +27118,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_WeightedValueT_std__string_t,SWIG_Php_ce_WeightedValueStringSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedValueUTF8StringSwig", class_WeightedValueUTF8StringSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedValueUTF8StringSwig", class_WeightedValueUTF8StringSwig_functions);
   SWIG_Php_ce_WeightedValueUTF8StringSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedValueUTF8StringSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27059,7 +27131,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_WeightedValueT_std__vectorT_uint8_t_t_t,SWIG_Php_ce_WeightedValueUTF8StringSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedValueBoolSwig", class_WeightedValueBoolSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedValueBoolSwig", class_WeightedValueBoolSwig_functions);
   SWIG_Php_ce_WeightedValueBoolSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedValueBoolSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27072,7 +27144,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_WeightedValueT_bool_t,SWIG_Php_ce_WeightedValueBoolSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedValueIntSwig", class_WeightedValueIntSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedValueIntSwig", class_WeightedValueIntSwig_functions);
   SWIG_Php_ce_WeightedValueIntSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedValueIntSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27085,7 +27157,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_WeightedValueT_int_t,SWIG_Php_ce_WeightedValueIntSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedValueDoubleSwig", class_WeightedValueDoubleSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedValueDoubleSwig", class_WeightedValueDoubleSwig_functions);
   SWIG_Php_ce_WeightedValueDoubleSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedValueDoubleSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27098,10 +27170,10 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_WeightedValueT_double_t,SWIG_Php_ce_WeightedValueDoubleSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpIntelligenceEngine", class_FiftyOneDegreesIpIntelligenceEngine_functions);
-  SWIG_Php_ce_FiftyOneDegreesIpIntelligenceEngine = zend_register_internal_class(&internal_ce);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpi", class_FiftyOneDegreesIpi_functions);
+  SWIG_Php_ce_FiftyOneDegreesIpi = zend_register_internal_class(&internal_ce);
 
-  INIT_CLASS_ENTRY(internal_ce, "IpAddressSwig", class_IpAddressSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiIpAddressSwig", class_IpAddressSwig_functions);
   SWIG_Php_ce_IpAddressSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_IpAddressSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27114,7 +27186,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_IpAddress,SWIG_Php_ce_IpAddressSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedStringListSwig", class_WeightedStringListSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedStringListSwig", class_WeightedStringListSwig_functions);
   SWIG_Php_ce_WeightedStringListSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedStringListSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27127,7 +27199,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__vectorT_WeightedValueT_std__string_t_t,SWIG_Php_ce_WeightedStringListSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedUTF8StringListSwig", class_WeightedUTF8StringListSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedUTF8StringListSwig", class_WeightedUTF8StringListSwig_functions);
   SWIG_Php_ce_WeightedUTF8StringListSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedUTF8StringListSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27140,7 +27212,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__vectorT_WeightedValueT_std__vectorT_uint8_t_t_t_t,SWIG_Php_ce_WeightedUTF8StringListSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedBoolListSwig", class_WeightedBoolListSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedBoolListSwig", class_WeightedBoolListSwig_functions);
   SWIG_Php_ce_WeightedBoolListSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedBoolListSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27153,7 +27225,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__vectorT_WeightedValueT_bool_t_t,SWIG_Php_ce_WeightedBoolListSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedIntListSwig", class_WeightedIntListSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedIntListSwig", class_WeightedIntListSwig_functions);
   SWIG_Php_ce_WeightedIntListSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedIntListSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27166,7 +27238,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__vectorT_WeightedValueT_int_t_t,SWIG_Php_ce_WeightedIntListSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedDoubleListSwig", class_WeightedDoubleListSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedDoubleListSwig", class_WeightedDoubleListSwig_functions);
   SWIG_Php_ce_WeightedDoubleListSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedDoubleListSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27179,7 +27251,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_std__vectorT_WeightedValueT_double_t_t,SWIG_Php_ce_WeightedDoubleListSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedStringListValueSwig", class_WeightedStringListValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedStringListValueSwig", class_WeightedStringListValueSwig_functions);
   SWIG_Php_ce_WeightedStringListValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedStringListValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27192,7 +27264,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__vectorT_WeightedValueT_std__string_t_t_t,SWIG_Php_ce_WeightedStringListValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedUTF8StringListValueSwig", class_WeightedUTF8StringListValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedUTF8StringListValueSwig", class_WeightedUTF8StringListValueSwig_functions);
   SWIG_Php_ce_WeightedUTF8StringListValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedUTF8StringListValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27205,7 +27277,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__vectorT_WeightedValueT_std__vectorT_uint8_t_t_t_t_t,SWIG_Php_ce_WeightedUTF8StringListValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedBoolListValueSwig", class_WeightedBoolListValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedBoolListValueSwig", class_WeightedBoolListValueSwig_functions);
   SWIG_Php_ce_WeightedBoolListValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedBoolListValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27218,7 +27290,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__vectorT_WeightedValueT_bool_t_t_t,SWIG_Php_ce_WeightedBoolListValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedIntListValueSwig", class_WeightedIntListValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedIntListValueSwig", class_WeightedIntListValueSwig_functions);
   SWIG_Php_ce_WeightedIntListValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedIntListValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27231,7 +27303,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__vectorT_WeightedValueT_int_t_t_t,SWIG_Php_ce_WeightedIntListValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "WeightedDoubleListValueSwig", class_WeightedDoubleListValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiWeightedDoubleListValueSwig", class_WeightedDoubleListValueSwig_functions);
   SWIG_Php_ce_WeightedDoubleListValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_WeightedDoubleListValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27244,7 +27316,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__vectorT_WeightedValueT_double_t_t_t,SWIG_Php_ce_WeightedDoubleListValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "IpAddressValueSwig", class_IpAddressValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiIpAddressValueSwig", class_IpAddressValueSwig_functions);
   SWIG_Php_ce_IpAddressValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_IpAddressValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27257,7 +27329,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_IpAddress_t,SWIG_Php_ce_IpAddressValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "UTF8StringValueSwig", class_UTF8StringValueSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiUTF8StringValueSwig", class_UTF8StringValueSwig_functions);
   SWIG_Php_ce_UTF8StringValueSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_UTF8StringValueSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27270,7 +27342,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ValueT_std__vectorT_uint8_t_t_t,SWIG_Php_ce_UTF8StringValueSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ResultsIpiSwig", class_ResultsIpiSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiResultsIpiSwig", class_ResultsIpiSwig_functions);
   SWIG_Php_ce_ResultsIpiSwig = zend_register_internal_class_ex(&internal_ce, SWIG_Php_ce_ResultsBaseSwig);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ResultsIpiSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27283,7 +27355,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ResultsIpi,SWIG_Php_ce_ResultsIpiSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ConfigBaseSwig", class_ConfigBaseSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiConfigBaseSwig", class_ConfigBaseSwig_functions);
   SWIG_Php_ce_ConfigBaseSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ConfigBaseSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27296,7 +27368,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ConfigBase,SWIG_Php_ce_ConfigBaseSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "CollectionConfigSwig", class_CollectionConfigSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiCollectionConfigSwig", class_CollectionConfigSwig_functions);
   SWIG_Php_ce_CollectionConfigSwig = zend_register_internal_class(&internal_ce);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_CollectionConfigSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27309,7 +27381,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_CollectionConfig,SWIG_Php_ce_CollectionConfigSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "ConfigIpiSwig", class_ConfigIpiSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiConfigIpiSwig", class_ConfigIpiSwig_functions);
   SWIG_Php_ce_ConfigIpiSwig = zend_register_internal_class_ex(&internal_ce, SWIG_Php_ce_ConfigBaseSwig);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_ConfigIpiSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27322,7 +27394,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_ConfigIpi,SWIG_Php_ce_ConfigIpiSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "EvidenceBaseSwig", class_EvidenceBaseSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiEvidenceBaseSwig", class_EvidenceBaseSwig_functions);
   SWIG_Php_ce_EvidenceBaseSwig = zend_register_internal_class_ex(&internal_ce, SWIG_Php_ce_MapStringStringSwig);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_EvidenceBaseSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27335,7 +27407,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_EvidenceBase,SWIG_Php_ce_EvidenceBaseSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "EvidenceIpiSwig", class_EvidenceIpiSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiEvidenceIpiSwig", class_EvidenceIpiSwig_functions);
   SWIG_Php_ce_EvidenceIpiSwig = zend_register_internal_class_ex(&internal_ce, SWIG_Php_ce_EvidenceBaseSwig);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_EvidenceIpiSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27348,7 +27420,7 @@ SWIG_php_minit {
   SWIG_TypeClientData(SWIGTYPE_p_EvidenceIpi,SWIG_Php_ce_EvidenceIpiSwig);
 #endif
 
-  INIT_CLASS_ENTRY(internal_ce, "EngineIpiSwig", class_EngineIpiSwig_functions);
+  INIT_CLASS_ENTRY(internal_ce, "FiftyOneDegreesIpiEngineIpiSwig", class_EngineIpiSwig_functions);
   SWIG_Php_ce_EngineIpiSwig = zend_register_internal_class_ex(&internal_ce, SWIG_Php_ce_EngineBaseSwig);
 #ifdef ZEND_ACC_NO_DYNAMIC_PROPERTIES
   SWIG_Php_ce_EngineIpiSwig->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
@@ -27467,17 +27539,30 @@ SWIG_php_minit {
   /* cinit subsection */
 SWIG_LONG_CONSTANT(FIFTYONE_DEGREES_IP_TYPE_INVALID, (int)(FIFTYONE_DEGREES_IP_TYPE_INVALID));
 
-  zend_declare_class_constant_long(SWIG_Php_ce_FiftyOneDegreesIpIntelligenceEngine, "FIFTYONE_DEGREES_IP_TYPE_INVALID", sizeof("FIFTYONE_DEGREES_IP_TYPE_INVALID") - 1, (int)(FIFTYONE_DEGREES_IP_TYPE_INVALID));
+  zend_declare_class_constant_long(SWIG_Php_ce_FiftyOneDegreesIpi, "FIFTYONE_DEGREES_IP_TYPE_INVALID", sizeof("FIFTYONE_DEGREES_IP_TYPE_INVALID") - 1, (int)(FIFTYONE_DEGREES_IP_TYPE_INVALID));
 
 SWIG_LONG_CONSTANT(FIFTYONE_DEGREES_IP_TYPE_IPV4, (int)(FIFTYONE_DEGREES_IP_TYPE_IPV4));
 
-  zend_declare_class_constant_long(SWIG_Php_ce_FiftyOneDegreesIpIntelligenceEngine, "FIFTYONE_DEGREES_IP_TYPE_IPV4", sizeof("FIFTYONE_DEGREES_IP_TYPE_IPV4") - 1, (int)(FIFTYONE_DEGREES_IP_TYPE_IPV4));
+  zend_declare_class_constant_long(SWIG_Php_ce_FiftyOneDegreesIpi, "FIFTYONE_DEGREES_IP_TYPE_IPV4", sizeof("FIFTYONE_DEGREES_IP_TYPE_IPV4") - 1, (int)(FIFTYONE_DEGREES_IP_TYPE_IPV4));
 
 SWIG_LONG_CONSTANT(FIFTYONE_DEGREES_IP_TYPE_IPV6, (int)(FIFTYONE_DEGREES_IP_TYPE_IPV6));
 
-  zend_declare_class_constant_long(SWIG_Php_ce_FiftyOneDegreesIpIntelligenceEngine, "FIFTYONE_DEGREES_IP_TYPE_IPV6", sizeof("FIFTYONE_DEGREES_IP_TYPE_IPV6") - 1, (int)(FIFTYONE_DEGREES_IP_TYPE_IPV6));
+  zend_declare_class_constant_long(SWIG_Php_ce_FiftyOneDegreesIpi, "FIFTYONE_DEGREES_IP_TYPE_IPV6", sizeof("FIFTYONE_DEGREES_IP_TYPE_IPV6") - 1, (int)(FIFTYONE_DEGREES_IP_TYPE_IPV6));
 
   /* end cinit subsection */
+
+  return SUCCESS;
+}
+
+PHP_RINIT_FUNCTION(FiftyOneDegreesIpIntelligenceEngine)
+{
+/* rinit section */
+
+    if (ipi_earlier_names_pending) {
+        ipi_earlier_names_pending = false;
+        ipi_register_earlier_names(false);
+    }
+
 
   return SUCCESS;
 }

@@ -1837,7 +1837,9 @@ class FodIdTest extends TestCase
         $raw = $this->signedOwid(self::canonicalPayload())->asByteArray();
         $shortSha256 = $this->signedOwid(substr(self::canonicalPayload(), 0, FodIdLayout::PAYLOAD_LENGTH - 1));
         $shortRandom = $this->signedOwid(substr(self::canonicalRandomPayload(), 0, FodIdLayout::HEADER_LENGTH));
-        $noHeader = $this->signedOwid("\xA5\x01");
+        // Version 0, so it is refused for its length rather than for its
+        // version.
+        $noHeader = $this->signedOwid(chr(self::CANONICAL_FLAGS) . "\x01");
 
         // The envelope could not be read, so the OWID exception, naming
         // the library's status in the message.

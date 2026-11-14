@@ -1,0 +1,95 @@
+name: tmp fixer dt
+# Throwaway. Builds the extensions as CI does on Ubuntu and macOS, fetches
+# the free Lite Device Detection data file, and runs the new on-premise
+# Device Detection tests and testAvailableProperties with PHP started on that
+# file, then the cloud Device Detection Unit suite. The timing tests print
+# their figures to standard error.
+on:
+  push:
+    branches:
+      - tmp/fixer-dt-red
+      - tmp/fixer-dt-green
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.0' }
+          - { os: ubuntu-24.04, php: '8.5' }
+          - { os: macos-latest, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Fetch the Lite data file and name it in a php.ini
+        working-directory: common-ci/51degrees-php
+        run: |
+          sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
+          ls -laL cxx/data/device-detection/51Degrees-LiteV4.1.hash
+          mkdir -p ../lite-ini
+          printf 'extension = "%s"\nFiftyOneDegreesHashEngine.data_file = "%s"\nFiftyOneDegreesHashEngine.allow_unmatched = false\n' \
+            "$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so" \
+            "$PWD/cxx/data/device-detection/51Degrees-LiteV4.1.hash" > ../lite-ini/php.ini
+          cat ../lite-ini/php.ini
+      - name: On-premise tests with the Lite file
+        id: onpremise
+        if: always()
+        continue-on-error: true
+        working-directory: common-ci/51degrees-php/device-detection/onpremise
+        run: |
+          export PHP_INI_SCAN_DIR=":$PWD/../../../lite-ini"
+          php -r 'echo PHP_VERSION, " ", extension_loaded("FiftyOneDegreesHashEngine") ? "loaded" : "not loaded", PHP_EOL;'
+          php vendor/bin/phpunit --version
+          failed=0
+          for test in DataModelTests NativeCallTests ProfileIdsTests PackagingTests ReadTimingTests; do
+            echo "::group::$test"
+            php vendor/bin/phpunit --testdox "tests/$test.php" || failed=1
+            echo "::endgroup::"
+          done
+          echo "::group::testAvailableProperties"
+          php vendor/bin/phpunit --testdox --filter testAvailableProperties tests/DeviceDetectionTests.php || failed=1
+          echo "::endgroup::"
+          exit $failed
+      - name: Cloud Unit suite
+        id: cloud
+        if: always()
+        continue-on-error: true
+        working-directory: common-ci/51degrees-php/device-detection/cloud
+        run: |
+          php vendor/bin/phpunit --version
+          php vendor/bin/phpunit --testdox --testsuite Unit
+      - name: Result
+        if: always()
+        run: |
+          echo "On-premise tests with the Lite file: ${{ steps.onpremise.outcome }}"
+          echo "Cloud Unit suite: ${{ steps.cloud.outcome }}"
+          test "${{ steps.onpremise.outcome }}" = success
+          test "${{ steps.cloud.outcome }}" = success

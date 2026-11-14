@@ -137,6 +137,10 @@ class SwigData extends AspectData
         $name = $property['name'];
         $type = strtolower((string) $property['type']);
 
+        // Every value is read at the property's position in the names the
+        // engine was built with, which a data refresh does not change.
+        $position = $this->flowElement->getPosition($key);
+
         // Mcc is weighted even though its metadata type is "string"
         // (ip-intelligence-dotnet parity).
         if ($type === 'string' && strtolower($name) === 'mcc') {
@@ -147,17 +151,17 @@ class SwigData extends AspectData
             case 'weightedstring':
             case 'weightedwkbr':
             case 'weightedwkb':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedStringList($name));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedStringList($position));
             case 'weightedint':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedIntegerList($name));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedIntegerList($position));
             case 'weighteddouble':
             case 'weightedsingle':
                 return $this->weightedListToValue(
-                    $this->result->getValuesAsWeightedDoubleList($name),
+                    $this->result->getValuesAsWeightedDoubleList($position),
                     self::isAngle($name)
                 );
             case 'weightedbool':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedBoolList($name));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedBoolList($position));
             case 'wkb':
             case 'wkbr':
             case 'ipaddress':
@@ -165,26 +169,26 @@ class SwigData extends AspectData
             case 'javascript':
                 // WKB geometry (e.g. Areas) and IP address properties are
                 // exposed via their string form, matching the .NET binding.
-                return $this->singleValue($this->result->getValueAsString($name));
+                return $this->singleValue($this->result->getValueAsString($position));
             case 'int':
-                return $this->singleValue($this->result->getValueAsInteger($name));
+                return $this->singleValue($this->result->getValueAsInteger($position));
             case 'double':
             case 'single':
                 return $this->singleValue(
-                    $this->result->getValueAsDouble($name),
+                    $this->result->getValueAsDouble($position),
                     self::isAngle($name)
                 );
             case 'bool':
-                return $this->singleValue($this->result->getValueAsBool($name));
+                return $this->singleValue($this->result->getValueAsBool($position));
             case 'string[]':
-                $value = $this->result->getValues($name);
+                $value = $this->result->getValues($position);
                 if ($value->hasValue()) {
                     return new AspectPropertyValue(null, SwigHelpers::vectorToArray($value->getValue()));
                 }
 
                 return new AspectPropertyValue($value->getNoValueMessage());
             default:
-                return $this->singleValue($this->result->getValueAsString($name));
+                return $this->singleValue($this->result->getValueAsString($position));
         }
     }
 

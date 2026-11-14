@@ -99,12 +99,27 @@ class IpIntelligenceOnPremise extends Engine
     private array $evidenceKeys = [];
 
     /**
+     * A position given for a name the engine was not created with, which
+     * the native code reads as a property the data set does not have.
+     */
+    private const NO_POSITION = -1;
+
+    /**
      * Each name the engine was built with, keyed by the lowercase name, as
      * the engine gives it.
      *
      * @var null|array<string, string>
      */
     private ?array $requiredNames = null;
+
+    /**
+     * The position of each name the engine was built with, keyed by the
+     * lowercase name, being its index in those names. Every read of a value
+     * goes by it.
+     *
+     * @var null|array<string, int>
+     */
+    private ?array $positions = null;
 
     /**
      * The name, type and category of each property read so far, keyed by
@@ -315,7 +330,8 @@ class IpIntelligenceOnPremise extends Engine
             $this->engine->refreshData($fileName);
         }
 
-        // The metadata follows the new data file.
+        // The metadata follows the new data file. The positions do not, as
+        // the native engine keeps the names it was created with.
         $this->initEngineMetaData();
     }
 
@@ -387,6 +403,23 @@ class IpIntelligenceOnPremise extends Engine
         return $this->readProperties[$key];
     }
 
+    /**
+     * The position a value of the property is read at, being the index of
+     * its name in the names the engine was built with, or -1 for any other
+     * name, which the native code reads as a property the data set does not
+     * have. Reading by position saves the native code a lookup of the name.
+     *
+     * @throws \Exception
+     */
+    public function getPosition(string $name): int
+    {
+        if ($this->positions === null) {
+            $this->requiredNames();
+        }
+
+        return $this->positions[strtolower($name)] ?? self::NO_POSITION;
+    }
+
     private function applyPerformanceProfile($config, string $profile): void
     {
         switch ($profile) {
@@ -438,7 +471,10 @@ class IpIntelligenceOnPremise extends Engine
     /**
      * Each name the engine was built with, keyed by the lowercase name, as
      * the engine gives it, which for a property the data set has is the
-     * data set's spelling.
+     * data set's spelling. Built with the positions the first time either
+     * is needed, and kept through a data refresh, because the native engine
+     * keeps the names it was built with, so they must never be taken from a
+     * later data set.
      *
      * @return array<string, string>
      * @throws \Exception
@@ -447,13 +483,20 @@ class IpIntelligenceOnPremise extends Engine
     {
         if ($this->requiredNames === null) {
             $this->assertOpen();
-            $this->requiredNames = [];
+            $names = [];
+            $positions = [];
             $required = $this->engine->getRequiredProperties();
             $count = $required->size();
             for ($i = 0; $i < $count; ++$i) {
                 $name = $required->get($i);
-                $this->requiredNames[strtolower($name)] ??= $name;
+                $key = strtolower($name);
+                // A name given twice keeps its first position, as in the
+                // native code.
+                $names[$key] ??= $name;
+                $positions[$key] ??= $i;
             }
+            $this->requiredNames = $names;
+            $this->positions = $positions;
         }
 
         return $this->requiredNames;
@@ -485,9 +528,9 @@ class IpIntelligenceOnPremise extends Engine
         // PHP constructs this class on every request, so the table of every
         // property is built when it is first read (see __get), and a read
         // looks up only its own property (see findProperty). Each follows
-        // the data file in use.
+        // the data file in use. The names and positions do not (see
+        // requiredNames).
         unset($this->properties);
-        $this->requiredNames = null;
         $this->readProperties = [];
     }
 
@@ -501,6 +544,9 @@ class IpIntelligenceOnPremise extends Engine
     private function buildProperties(): array
     {
         $this->assertOpen();
+        // The positions are taken with the table, so that a read the table
+        // answers needs no engine, as the read goes to the results.
+        $this->requiredNames();
         $propertiesInternal = $this->engine->getMetaData()->getProperties();
         $properties = [];
         for ($i = 0; $i < $propertiesInternal->getSize(); ++$i) {

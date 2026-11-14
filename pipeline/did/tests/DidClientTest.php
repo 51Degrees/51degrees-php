@@ -1820,6 +1820,49 @@ class DidClientTest extends TestCase
         );
     }
 
+    /**
+     * A factor word is compared without regard to case, so a word in
+     * another case reads as its own outcome rather than as a mismatch,
+     * whilst a word the package does not know is still a mismatch in any
+     * case. See
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#what-the-verification-outcomes-are
+     */
+    public function testRedeemReadsAFactorWordInAnyCase(): void
+    {
+        $this->queueJson(200, [
+            'signature' => 'verified',
+            'context' => 'mismatch',
+            'factors' => [
+                'transport' => 'Verified',
+                'device' => 'NotRecorded',
+                'browserip' => 'MISCONFIGURED',
+                'connectionip' => 'Mismatch',
+                'asn' => 'SomethingNewer',
+            ],
+        ]);
+        $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(
+            [
+                'transport' => FactorOutcome::Verified,
+                'device' => FactorOutcome::NotRecorded,
+                'browserip' => FactorOutcome::Misconfigured,
+                'connectionip' => FactorOutcome::Mismatch,
+                'asn' => FactorOutcome::Mismatch,
+            ],
+            $result->factors
+        );
+        foreach (FactorOutcome::cases() as $outcome) {
+            $words = [strtoupper($outcome->value), ucfirst($outcome->value)];
+            foreach ($words as $word) {
+                $this->assertSame(
+                    $outcome,
+                    FactorOutcome::fromCloud($word),
+                    $word
+                );
+            }
+        }
+    }
+
     /** Every outcome carries the cloud's own word for itself. */
     public function testTheFactorOutcomesAreTheWordsTheCloudWrites(): void
     {

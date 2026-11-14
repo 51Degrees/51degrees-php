@@ -35,6 +35,10 @@ use fiftyone\pipeline\did\Terms;
 use fiftyone\pipeline\did\Usage;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use ReflectionMethod;
+use ReflectionNamedType;
+use ReflectionProperty;
 use SwanCommunity\Owid\Creator;
 use SwanCommunity\Owid\Crypto;
 use SwanCommunity\Owid\Io;
@@ -42,6 +46,7 @@ use SwanCommunity\Owid\Owid;
 use SwanCommunity\Owid\OwidException;
 use SwanCommunity\Owid\ParseStatus;
 use SwanCommunity\Owid\SignatureStatus;
+use SwanCommunity\Owid\Version;
 use TypeError;
 
 class FodIdTest extends TestCase
@@ -912,6 +917,50 @@ class FodIdTest extends TestCase
         }
     }
 
+    /**
+     * The flags byte is the first byte, so a payload of one byte already
+     * says its version. A payload shorter than the header that names a
+     * version this package does not know is refused for that version,
+     * naming it, rather than for being too short under the layout of
+     * version 0. See
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md#version
+     */
+    public function testAShortPayloadNamingAnotherVersionIsRefusedForIt(): void
+    {
+        for ($length = 1; $length < FodIdLayout::HEADER_LENGTH; $length++) {
+            foreach ([1, 2, 3] as $version) {
+                $case = "length $length version $version";
+                $owid = $this->signedOwid(substr(
+                    self::withPayloadVersion(self::canonicalPayload(), $version),
+                    0,
+                    $length
+                ));
+                foreach ([
+                    FodId::tryFromBase64($owid->asBase64()),
+                    FodId::tryFromByteArray($owid->asByteArray()),
+                    FodId::tryFromOwid($owid),
+                ] as $result) {
+                    $this->assertSame(
+                        FodIdParseStatus::UnsupportedPayloadVersion,
+                        $result->status,
+                        $case
+                    );
+                    $this->assertNull($result->fodId, $case);
+                }
+                try {
+                    new FodId($owid);
+                    $this->fail("$case should have been refused");
+                } catch (InvalidArgumentException $thrown) {
+                    $this->assertStringContainsString(
+                        "payload version $version is not",
+                        $thrown->getMessage(),
+                        $case
+                    );
+                }
+            }
+        }
+    }
+
     public function testThePayloadVersionIsReadApartFromTheOtherBits(): void
     {
         // A reader masking the wrong bits would refuse a version 0
@@ -951,6 +1000,145 @@ class FodIdTest extends TestCase
                 }
             }
         }
+    }
+
+    // ----- What the public surface keeps out -----
+
+    /**
+     * The offsets and lengths are kept on a class marked internal, and the
+     * class a caller reads an identifier through offers no constant at
+     * all, because the only reason to want an offset is to read the
+     * payload by hand. See
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#what-a-package-does-not-expose
+     */
+    public function testTheOffsetsAndLengthsAreKeptOffThePublicSurface(): void
+    {
+        $layout = new ReflectionClass(FodIdLayout::class);
+        $this->assertStringContainsString(
+            '@internal',
+            (string) $layout->getDocComment()
+        );
+        $this->assertTrue($layout->isFinal());
+        $this->assertTrue($layout->getConstructor()->isPrivate());
+        $fodId = new ReflectionClass(FodId::class);
+        foreach ($fodId->getReflectionConstants() as $constant) {
+            $this->assertTrue($constant->isPrivate(), $constant->getName());
+        }
+    }
+
+    /**
+     * The internal offsets and lengths are the ones the payload table
+     * gives, which every 51Did package reads the same way. See
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md#payload
+     */
+    public function testTheOffsetsAndLengthsAreThoseOfThePayloadTable(): void
+    {
+        $expected = [
+            'FLAGS_OFFSET' => 0,
+            'LICENSE_ID_OFFSET' => 1,
+            'LICENSE_ID_LENGTH' => 4,
+            'MATCH_KEY_OFFSET' => 5,
+            'HEADER_LENGTH' => 5,
+            'MATCH_KEY_LENGTH' => 32,
+            'GUID_LENGTH' => 16,
+            'PAYLOAD_LENGTH' => 37,
+            'RANDOM_PAYLOAD_LENGTH' => 21,
+        ];
+        $actual = (new ReflectionClass(FodIdLayout::class))->getConstants();
+        ksort($expected);
+        ksort($actual);
+        $this->assertSame($expected, $actual);
+    }
+
+    /**
+     * An identifier is only made by reading an envelope that is already
+     * whole, because the envelope is signed and one a caller put together
+     * could not be told from a genuine one. The constructor takes an OWID,
+     * which can itself only be read or signed, and every other public
+     * route to an identifier is one of the readers. See
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md#envelope
+     */
+    public function testAnIdentifierIsOnlyMadeByReadingAnEnvelope(): void
+    {
+        $class = new ReflectionClass(FodId::class);
+        $parameters = $class->getConstructor()->getParameters();
+        $this->assertCount(1, $parameters);
+        $type = $parameters[0]->getType();
+        $this->assertInstanceOf(ReflectionNamedType::class, $type);
+        $this->assertSame(Owid::class, $type->getName());
+        $this->assertFalse($type->allowsNull());
+        $this->assertTrue(
+            (new ReflectionMethod(Owid::class, '__construct'))->isPrivate()
+        );
+
+        $makers = [];
+        $made = ['self', 'static', FodId::class, FodIdParseResult::class];
+        foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+            $returns = $method->getReturnType();
+            if ($returns instanceof ReflectionNamedType
+                && in_array($returns->getName(), $made, true)
+            ) {
+                $makers[] = $method->getName();
+            }
+        }
+        sort($makers);
+        $this->assertSame(
+            [
+                'fromBase64',
+                'fromByteArray',
+                'fromOwid',
+                'tryFromBase64',
+                'tryFromByteArray',
+                'tryFromOwid',
+            ],
+            $makers
+        );
+
+        // Nothing read can be changed afterwards.
+        $this->assertTrue($class->isFinal());
+        $this->assertSame(
+            [],
+            $class->getProperties(ReflectionProperty::IS_PUBLIC)
+        );
+    }
+
+    /**
+     * The payload version belongs to the refusal and is not a member of
+     * the identifier, because a caller has nothing to decide with it. The
+     * one public member named for a version is the envelope's own, which
+     * versions the envelope rather than the payload. See
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#what-a-package-exposes
+     */
+    public function testThePayloadVersionIsNotAMemberOfTheIdentifier(): void
+    {
+        $class = new ReflectionClass(FodId::class);
+        $named = [];
+        foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+            $named[] = $method->getName();
+        }
+        $properties = $class->getProperties(ReflectionProperty::IS_PUBLIC);
+        foreach ($properties as $property) {
+            $named[] = $property->getName();
+        }
+        foreach ($class->getReflectionConstants() as $constant) {
+            if ($constant->isPublic()) {
+                $named[] = $constant->getName();
+            }
+        }
+        $this->assertSame(
+            ['getVersion'],
+            array_values(array_filter(
+                $named,
+                static fn (string $name): bool =>
+                    stripos($name, 'version') !== false
+            ))
+        );
+        $this->assertSame(
+            Version::class,
+            $class->getMethod('getVersion')->getReturnType()->getName()
+        );
+        $owid = $this->signedOwid(self::canonicalPayload());
+        $this->assertSame($owid->version, (new FodId($owid))->getVersion());
     }
 
     // ----- Gap tests (runbook section 6b) -----
@@ -1515,7 +1703,8 @@ class FodIdTest extends TestCase
     public function testPayloadShorterThanTheHeaderReportsPayloadTooShort(): void
     {
         // Every length under the header, including no payload at all, is
-        // the same answer, because the type cannot be read to say more.
+        // the same answer for a payload of version 0, because the type
+        // cannot be read to say more.
         for ($length = 0; $length < FodIdLayout::HEADER_LENGTH; $length++) {
             $owid = $this->signedOwid(substr(self::canonicalPayload(), 0, $length));
             foreach ([

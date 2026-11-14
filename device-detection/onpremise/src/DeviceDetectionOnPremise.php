@@ -137,6 +137,10 @@ class DeviceDetectionOnPremise extends Engine
         // List of pipelines the flowElement has been added to
         $this->pipelines = [];
 
+        if (!extension_loaded('FiftyOneDegreesHashEngine')) {
+            throw new \Exception(Messages::EXTENSION_NOT_LOADED);
+        }
+
         // The on-premise Hash engine for PHP can only run with the in-memory
         // MaxPerformance profile. PHP is normally run under a process manager
         // (Apache MPM prefork, php-fpm) that forks the worker process. Any other
@@ -152,7 +156,7 @@ class DeviceDetectionOnPremise extends Engine
             throw new \Exception(sprintf(Messages::PERFORMANCE_PROFILE_ERROR, $performanceProfile));
         }
 
-        $this->engine = \FiftyOneDegreesHashEngine::engine_get();
+        $this->engine = self::startupEngine();
 
         $requiredProperties = self::startupSetting(
             'FiftyOneDegreesHashEngine.required_properties'
@@ -401,6 +405,38 @@ class DeviceDetectionOnPremise extends Engine
         $value = get_cfg_var($name);
 
         return is_string($value) ? $value : '';
+    }
+
+    /**
+     * The engine the extension built when PHP started. PHP starts without
+     * one when the data file setting names no file the engine can be built
+     * from, and then the exception says why and which setting to set.
+     *
+     * @throws \Exception
+     */
+    private static function startupEngine(): \EngineHashSwig
+    {
+        $engine = \FiftyOneDegreesHashEngine::engine_get();
+        if ($engine !== null) {
+            return $engine;
+        }
+
+        // The value PHP started with, which is the extension's default when
+        // php.ini leaves the setting out.
+        $settings = ini_get_all('FiftyOneDegreesHashEngine');
+        $dataFile = (string) (
+            $settings[Constants::DATA_FILE_SETTING]['global_value'] ?? ''
+        );
+        $configured = self::startupSetting(Constants::DATA_FILE_SETTING);
+        if ($dataFile !== '' && file_exists($dataFile)) {
+            $reason = sprintf(Messages::DATA_FILE_NOT_LOADED, $dataFile);
+        } elseif ($configured !== '') {
+            $reason = sprintf(Messages::DATA_FILE_MISSING, $configured);
+        } else {
+            $reason = Messages::DATA_FILE_NOT_SET;
+        }
+
+        throw new \Exception(sprintf(Messages::NO_ENGINE, $reason));
     }
 
     private function getComponentName($property)

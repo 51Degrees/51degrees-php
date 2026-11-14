@@ -44,6 +44,13 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\MatchMetrics;
 // This prevents main from being run where examples are run as part of
 // PHPUnit tests.
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
+    // The example uses the engine the extension builds once, when PHP
+    // starts, from the FiftyOneDegreesHashEngine.data_file php.ini setting.
+    // Without it, the example runs again in a PHP started with a data file,
+    // the free Lite file unless another is named, downloaded when it is
+    // missing.
+    ExampleUtils::startWithEngine($argv);
+
     function main($argv)
     {
         // Configure a logger to output to the console.

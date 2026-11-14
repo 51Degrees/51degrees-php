@@ -206,6 +206,12 @@ class JsonBundlerElement extends FlowElement
                     continue;
                 }
 
+                // Each item of a list of Element Data, such as the hardware
+                // profiles, is written by the same rules as a Property.
+                if (self::isElementDataList($value)) {
+                    $value = self::listJson($value);
+                }
+
                 // A Property assigned no value is written as null with its
                 // reason. Any other null, such as a plain null from an
                 // element that is not an Engine, has no entry. Only a Property
@@ -237,5 +243,107 @@ class JsonBundlerElement extends FlowElement
         $data = new ElementDataDictionary($this, ['json' => $output]);
 
         $flowData->setElementData($data);
+    }
+
+    /**
+     * Whether a value is a list of Element Data, being a list whose items
+     * are each Element Data or an array keyed by Property name, as the
+     * hardware profiles are, with at least one Property among them. A list
+     * of plain values, such as a list of names, is not.
+     *
+     * @param mixed $value
+     */
+    private static function isElementDataList($value): bool
+    {
+        if (!is_array($value) || $value === [] ||
+            array_keys($value) !== range(0, count($value) - 1)) {
+            return false;
+        }
+
+        $hasProperty = false;
+        foreach ($value as $item) {
+            if ($item instanceof ElementData) {
+                $hasProperty = true;
+                continue;
+            }
+
+            if (!is_array($item)) {
+                return false;
+            }
+
+            foreach (array_keys($item) as $name) {
+                if (!is_string($name)) {
+                    return false;
+                }
+
+                $hasProperty = true;
+            }
+        }
+
+        return $hasProperty;
+    }
+
+    /**
+     * Each item of a list of Element Data as a JSON object.
+     *
+     * @param array<int, ElementData|array<string, mixed>> $items
+     * @return array<int, array<string, mixed>|\stdClass>
+     */
+    private static function listJson(array $items): array
+    {
+        $json = [];
+        foreach ($items as $item) {
+            $json[] = self::itemJson($item);
+        }
+
+        return $json;
+    }
+
+    /**
+     * One item of a list of Element Data, written by the rules for a
+     * Property. A Property assigned no value is null with its nullreason, a
+     * null has no entry, and every name is lower case. An item with nothing
+     * to write is an empty object, so that it is still an object in the
+     * JSON.
+     *
+     * @param ElementData|array<string, mixed> $item
+     * @return array<string, mixed>|\stdClass
+     */
+    private static function itemJson($item)
+    {
+        $properties = $item instanceof ElementData
+            ? $item->asDictionary()
+            : $item;
+        $json = [];
+
+        foreach ($properties as $name => $property) {
+            $name = strtolower((string) $name);
+            $value = $property;
+
+            if (is_object($property) && property_exists($property, 'hasValue')) {
+                if (!$property->hasValue) {
+                    $json[$name] = null;
+                    $json[$name . 'nullreason'] = !empty($property->noValueMessage)
+                        ? $property->noValueMessage
+                        : self::NO_VALUE_MESSAGE;
+
+                    continue;
+                }
+
+                $value = $property->value;
+            }
+
+            if ($value === null) {
+                continue;
+            }
+
+            if (self::isElementDataList($value)) {
+                $value = self::listJson($value);
+            }
+
+            $json[$name] = $value;
+        }
+
+        return $json === [] ? new \stdClass() : $json;
     }
 }

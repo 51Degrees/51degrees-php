@@ -1,0 +1,55 @@
+name: tmp fixer 110 wrapper dd
+# Throwaway. Regenerates the Device Detection wrapper from hash-php.i with
+# SWIG 4.5.1, as php-wrapper-check.yml builds it, and uploads the result.
+on:
+  push:
+    branches:
+      - 'tmp/fixer-110-gen*'
+permissions:
+  contents: read
+env:
+  SWIG_VERSION: 4.5.1
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout cxx
+        run: git submodule update --init cxx
+      - name: Restore SWIG
+        id: swig-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/swig
+          key: swig-${{ env.SWIG_VERSION }}-${{ runner.os }}
+      - name: Build SWIG ${{ env.SWIG_VERSION }}
+        if: steps.swig-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison autoconf automake libpcre2-dev
+          git clone --depth 1 --branch "v${SWIG_VERSION}" \
+            https://github.com/swig/swig.git swig-src
+          cd swig-src
+          ./autogen.sh
+          ./configure --prefix="$HOME/swig"
+          make -j"$(nproc)"
+          make install
+      - name: Regenerate the wrapper
+        run: |
+          export PATH="$HOME/swig/bin:$PATH"
+          swig -version
+          sh device-detection/onpremise/on-premise/generate-wrapper.sh
+          git status --short
+          git diff --stat
+          git diff -- device-detection/onpremise/on-premise/src/php8 | head -n 60
+          sh device-detection/onpremise/on-premise/generate-wrapper.sh --check
+          sh ip-intelligence/on-premise/generate-wrapper.sh --check
+          sha256sum device-detection/onpremise/on-premise/src/php8/hash_wrap.cxx device-detection/onpremise/on-premise/src/php8/php_FiftyOneDegreesHashEngine.h
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hash-wrapper
+          path: |
+            device-detection/onpremise/on-premise/src/php8/hash_wrap.cxx
+            device-detection/onpremise/on-premise/src/php8/php_FiftyOneDegreesHashEngine.h

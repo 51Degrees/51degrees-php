@@ -79,16 +79,20 @@ class ReadTimingTests extends TestCase
 
     /**
      * The least that process on an engine configured with every name may
-     * take, as a multiple of process on one configured with no names. An
-     * engine created with no names walks no graph in process, so a multiple
-     * near 1 means the names were passed after all.
+     * take, as a multiple of process on one configured with no names. It is
+     * under half the smallest multiple measured on the runners the test runs
+     * on. An engine created with no names walks no graph in process, so a
+     * multiple near 1 means the names were passed after all.
      */
-    private const MIN_EVERY_NAME_OVER_NO_NAMES = 1.2;
+    private const MIN_EVERY_NAME_OVER_NO_NAMES = 4.0;
 
     /**
      * The most a read by name may take, as a multiple of a read by position.
+     * It is a quarter above the largest multiple measured on the runners the
+     * test runs on, so this fails when reading by name, which SwigData does,
+     * becomes much slower than reading by position.
      */
-    private const MAX_NAME_OVER_POSITION = 2.0;
+    private const MAX_NAME_OVER_POSITION = 1.5;
 
     // Times process on the engine PHP built when it started, and prints the
     // names the engine was built with and the mean time of a process in
@@ -311,7 +315,8 @@ class ReadTimingTests extends TestCase
 
     /**
      * A read by name is timed against a read by position, which is what the
-     * specification's exception for reading by name rests on.
+     * specification's exception for reading by name rests on, and against a
+     * read by a position found for each read in PHP, which is printed only.
      */
     public function testReadingByNameAgainstByPosition(): void
     {

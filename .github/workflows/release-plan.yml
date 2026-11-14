@@ -1,0 +1,59 @@
+name: Release plan
+
+# Shows which packages a release of this commit would publish, at which
+# version, and with which requirements, using the scripts the publish runs.
+# It fails when the release plan cannot be worked out, for example when a
+# composer.json requires a package that the DependsOn of ci/packages.json
+# does not list, or when it gives a version that a package's mirror already
+# has, so that is found on the pull request rather than at the publish.
+# Nothing is tagged or pushed.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - rc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-plan:
+    name: The release plan can be worked out
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # The plan compares each package with its last tag, so it needs the
+          # tags and the history back to them.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          path: common-ci
+          persist-credentials: false
+
+      - name: Test the release plan filter
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/release-plan-filter.Tests.ps1 -CI
+
+      - name: Show the release plan
+        shell: pwsh
+        env:
+          COMMON_CI: ${{ github.workspace }}/common-ci
+        run: |
+          # Exits 0 when something would be released and 1 when nothing
+          # would, and both are answers. Anything else is a failure.
+          $global:LASTEXITCODE = 0
+          ./ci/package-update-required.ps1 -RepoName .
+          if ($LASTEXITCODE -gt 1) {
+            exit $LASTEXITCODE
+          }
+          exit 0

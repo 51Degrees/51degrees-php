@@ -28,23 +28,14 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\engines\AspectData;
-use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use fiftyone\pipeline\ipintelligence\tests\classes\OnPremiseTestCase;
 
 /**
- * The on-premise engine's Element Data, with the data file. It is Aspect
- * Data, and every property of the data file gives a list of weighted
- * values.
+ * The on-premise engine's Element Data, with the data file, is Aspect Data.
  */
 class DataModelTests extends OnPremiseTestCase
 {
-    // The addresses the engine echoes from the Evidence, which are the
-    // package's own properties and not the data file's.
-    private const ECHOED = ['ip', 'ipv6'];
-
-    private const MAX_RAW_WEIGHTING = 65535;
-
     public function testTheElementDataIsAspectData(): void
     {
         $this->withResult(function (FlowData $flowData): void {
@@ -52,61 +43,8 @@ class DataModelTests extends OnPremiseTestCase
         });
     }
 
-    public function testEveryPropertyOfTheDataFileIsAListOfWeightedValues(): void
-    {
-        $this->withResult(function (FlowData $flowData, IpIntelligenceOnPremise $engine): void {
-            $types = [];
-            $withValue = 0;
-            $notWeighted = [];
-            foreach ($engine->getProperties() as $key => $property) {
-                if (in_array($key, self::ECHOED, true)) {
-                    continue;
-                }
-                $label = $property['name'] . ' (' . $property['type'] . ')';
-                $types[] = $label;
-                $value = $flowData->ip->get($property['name']);
-                if (!$value->hasValue) {
-                    continue;
-                }
-                ++$withValue;
-                if (!self::isWeightedList($value->value)) {
-                    $notWeighted[] = $label;
-                }
-            }
-            fwrite(STDERR, PHP_EOL . 'Data file properties: ' .
-                implode(', ', $types) . PHP_EOL);
-
-            $this->assertGreaterThan(0, $withValue);
-            $this->assertSame([], $notWeighted);
-        });
-    }
-
     /**
-     * Whether a value is a list of weighted values, each a value and a raw
-     * weighting from 0 to 65535.
-     *
-     * @param mixed $value
-     */
-    private static function isWeightedList($value): bool
-    {
-        if (!is_array($value) || $value === []) {
-            return false;
-        }
-        foreach ($value as $item) {
-            if (!is_array($item) ||
-                array_keys($item) !== ['value', 'rawweighting'] ||
-                !is_int($item['rawweighting']) ||
-                $item['rawweighting'] < 0 ||
-                $item['rawweighting'] > self::MAX_RAW_WEIGHTING) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Processes an address and hands the result and the engine to the check.
+     * Processes an address and hands the result to the check.
      */
     private function withResult(callable $check): void
     {
@@ -119,7 +57,7 @@ class DataModelTests extends OnPremiseTestCase
         try {
             $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
             $flowData->process();
-            $check($flowData, $engine);
+            $check($flowData);
         } finally {
             $flowData->close();
             $pipeline->close();

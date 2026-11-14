@@ -57,11 +57,28 @@ class ReadTimingTests extends OnPremiseTestCase
 
     private const PROFILE = 'MaxPerformance';
 
+    /**
+     * The least that process on an engine created with every name may take,
+     * as a multiple of process on one created with no names. It is under
+     * half the smallest multiple measured on the runners the test runs on.
+     * An engine created with no names walks no graph in process, so a
+     * multiple near 1 means the names were passed after all.
+     */
+    private const MIN_EVERY_NAME_OVER_NO_NAMES = 3;
+
+    /**
+     * The accessor SwigData reads each timed type of property with.
+     */
+    private const ACCESSORS = [
+        'string' => 'getValueAsString',
+        'weightedstring' => 'getValuesAsWeightedStringList',
+    ];
+
     public function testReadingByNameAgainstByPosition(): void
     {
         $engine = self::buildEngine(['performanceProfile' => self::PROFILE]);
         try {
-            $names = self::weightedStringNames($engine);
+            $names = self::stringNames($engine);
             $this->assertNotSame([], $names);
             $positions = array_flip(self::requiredNames($engine));
 
@@ -125,7 +142,8 @@ class ReadTimingTests extends OnPremiseTestCase
                 }
             }
 
-            fwrite(STDERR, PHP_EOL . sprintf(
+            $multiple = self::median($withEvery) / self::median($withNone);
+            $summary = sprintf(
                 'IP Intelligence process on PHP %s, %s, %d names: ' .
                 'created with no names %.3f us (%.3f to %.3f), with every ' .
                 'name %.3f us (%.3f to %.3f), every name over no names %.2f ' .
@@ -139,10 +157,17 @@ class ReadTimingTests extends OnPremiseTestCase
                 self::median($withEvery),
                 min($withEvery),
                 max($withEvery),
-                self::median($withEvery) / self::median($withNone),
+                $multiple,
                 self::roundsBelow($withNone, $withEvery),
                 self::ROUNDS
-            ) . PHP_EOL);
+            );
+            fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
+
+            $this->assertGreaterThanOrEqual(
+                self::MIN_EVERY_NAME_OVER_NO_NAMES,
+                $multiple,
+                $summary
+            );
         } finally {
             $noNames->close();
             $everyName->close();
@@ -153,7 +178,7 @@ class ReadTimingTests extends OnPremiseTestCase
      * The mean time of one read of a value, by name, or by position when
      * the positions are given.
      *
-     * @param array<string> $names
+     * @param array<string, string> $names the accessor of each, keyed by name
      * @param null|array<string, int> $positions keyed by name
      */
     private static function nanosecondsPerRead(
@@ -164,13 +189,13 @@ class ReadTimingTests extends OnPremiseTestCase
         $elapsed = 0;
         for ($request = 0; $request < self::REQUESTS_PER_ROUND; ++$request) {
             $results = $engine->engine->process(Constants::IPV4_ADDRESS);
-            foreach ($names as $name) {
-                $results->getValuesAsWeightedStringList($name);
+            foreach ($names as $name => $accessor) {
+                $results->{$accessor}($name);
             }
             $start = hrtime(true);
             for ($read = 0; $read < self::READS_PER_REQUEST; ++$read) {
-                foreach ($names as $name) {
-                    $results->getValuesAsWeightedStringList(
+                foreach ($names as $name => $accessor) {
+                    $results->{$accessor}(
                         $positions === null ? $name : $positions[$name]
                     );
                 }
@@ -194,17 +219,18 @@ class ReadTimingTests extends OnPremiseTestCase
     }
 
     /**
-     * The names of the data file's properties whose values are weighted
-     * strings.
+     * The names of the data file's properties whose values are strings or
+     * weighted strings, each with the accessor SwigData reads it with.
      *
-     * @return array<string>
+     * @return array<string, string>
      */
-    private static function weightedStringNames(IpIntelligenceOnPremise $engine): array
+    private static function stringNames(IpIntelligenceOnPremise $engine): array
     {
         $names = [];
         foreach ($engine->getProperties() as $property) {
-            if (strcasecmp((string) $property['type'], 'WeightedString') === 0) {
-                $names[] = $property['name'];
+            $accessor = self::ACCESSORS[strtolower((string) $property['type'])] ?? null;
+            if ($accessor !== null) {
+                $names[$property['name']] = $accessor;
             }
         }
 

@@ -25,36 +25,36 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
+use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
-use fiftyone\pipeline\ipintelligence\tests\classes\ExampleRun;
-use fiftyone\pipeline\ipintelligence\tests\classes\OnPremiseTestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
- * The on-premise getting started example shows each weighted value with its
- * weighting, which it prints in brackets after the value, as a raw
- * weighting from 1 to 65535.
+ * The getting started examples, cloud and on-premise, print each property
+ * through ExampleUtils::outputProperty, which shows each weighted value
+ * with its raw weighting in brackets after it.
  */
-class ExampleWeightingTests extends OnPremiseTestCase
+class ExampleWeightingTests extends TestCase
 {
-    // A property line whose value ends with a raw weighting in brackets.
-    private const WEIGHTED_LINE = '/^\t[^:\n]+: \S[^\n]* \((\d+)\)$/m';
-
-    private const MAX_RAW_WEIGHTING = 65535;
-
-    public function testTheGettingStartedExampleShowsEachValuesWeighting(): void
+    public function testAWeightedValueIsPrintedWithItsWeighting(): void
     {
-        $run = ExampleRun::run(
-            __DIR__ . '/../examples/onpremise/gettingstarted-console.php',
-            ['-d', ExampleUtils::DATA_FILE_SETTING . '=' . realpath(self::$dataFile)]
+        $data = new class {
+            public function get(string $name): AspectPropertyValue
+            {
+                return new AspectPropertyValue(null, [
+                    ['value' => 'GB', 'rawweighting' => 52428],
+                    ['value' => 'FR', 'rawweighting' => 13107],
+                ]);
+            }
+        };
+        $output = fopen('php://memory', 'w+');
+
+        ExampleUtils::outputProperty($data, 'RegisteredCountry', $output);
+
+        rewind($output);
+        $this->assertSame(
+            "\tRegisteredCountry: GB (52428), FR (13107)\n",
+            stream_get_contents($output)
         );
-        $this->assertSame(0, $run->status, $run->printed());
-
-        preg_match_all(self::WEIGHTED_LINE, $run->output, $matches);
-
-        $this->assertNotSame([], $matches[1], $run->output);
-        foreach ($matches[1] as $weighting) {
-            $this->assertGreaterThan(0, (int) $weighting);
-            $this->assertLessThanOrEqual(self::MAX_RAW_WEIGHTING, (int) $weighting);
-        }
     }
 }

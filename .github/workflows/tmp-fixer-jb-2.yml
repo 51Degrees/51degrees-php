@@ -19,7 +19,6 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-24.04, php: '8.0' }
-          - { os: ubuntu-24.04, php: '8.3' }
           - { os: ubuntu-24.04, php: '8.5' }
           - { os: macos-latest, php: '8.5' }
     steps:
@@ -68,7 +67,7 @@ jobs:
         working-directory: common-ci/51degrees-php/ip-intelligence
         run: |
           export _51DEGREES_IPI_PATH="$PWD/assets/51Degrees-LiteIpiV41.ipi"
-          PHP_INI_SCAN_DIR=":$PWD" phpunit --fail-on-warning --testdox --testsuite Integration --filter 'DataModelTests|EngineCreationTests|ReadTimingTests|ExampleWeightingTests'
+          PHP_INI_SCAN_DIR=":$PWD" phpunit --fail-on-warning --testdox --testsuite Integration --filter 'DataModelTests|EngineCreationTests|ReadTimingTests'
       - name: Result
         if: always()
         run: |

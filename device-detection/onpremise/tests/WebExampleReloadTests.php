@@ -28,12 +28,12 @@ use fiftyone\pipeline\devicedetection\tests\classes\ExampleRun;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Serves the web example with the PHP built-in server, as the readme runs
- * it, with php.ini's data file set to the Lite file and _51DEGREES_DD_PATH
- * naming another file. The first request reloads the engine from the file
+ * Serves the web example with the PHP built-in server, with php.ini's data
+ * file set to the Lite file and _51DEGREES_DD_PATH naming another file.
+ * The first request reloads the engine from the file
  * the variable names, and every request must then answer from that file.
- * A script PHP runs before each request records which data file the
- * engine used.
+ * The server runs the example through a router of the same name, which
+ * records the data file the engine used for each request.
  */
 class WebExampleReloadTests extends TestCase
 {
@@ -54,9 +54,15 @@ class WebExampleReloadTests extends TestCase
     // The requests made, in order. The first reloads the engine.
     private const PATHS = ['/', '/', '/json'];
 
-    // Run by PHP before each request. Once the request is done, it adds
-    // the data file the engine used to the file named by %s.
-    private const RECORDER = <<<'PHP'
+    private const EXAMPLE = __DIR__ .
+        '/../examples/onpremise/gettingStartedWeb.php';
+
+    // The router the server runs. Once each request is done, it adds the
+    // data file the engine used to the file named first. It has the
+    // example's file name, which the example checks before it runs. It is
+    // a router rather than auto_prepend_file, which the built-in server
+    // does not run before a router script in every PHP version.
+    private const ROUTER = <<<'PHP'
         <?php
         register_shutdown_function(function () {
             $engine = FiftyOneDegreesHashEngine::engine_get();
@@ -66,6 +72,7 @@ class WebExampleReloadTests extends TestCase
                 FILE_APPEND
             );
         });
+        require %s;
         PHP;
 
     /** @var string A folder of this test's own files */
@@ -146,11 +153,12 @@ class WebExampleReloadTests extends TestCase
     private function serve(string $dataFile): array
     {
         $record = $this->folder . '/data-files.txt';
-        $recorder = $this->folder . '/record-data-file.php';
-        file_put_contents(
-            $recorder,
-            sprintf(self::RECORDER, var_export($record, true))
-        );
+        $router = $this->folder . '/' . basename(self::EXAMPLE);
+        file_put_contents($router, sprintf(
+            self::ROUTER,
+            var_export($record, true),
+            var_export(realpath(self::EXAMPLE), true)
+        ));
         $log = $this->folder . '/server.txt';
         $environment = getenv();
         unset($environment[ExampleUtils::DATA_FILE_ENV_VAR]);
@@ -161,9 +169,8 @@ class WebExampleReloadTests extends TestCase
                 PHP_BINARY,
                 '-d', ExampleUtils::DATA_FILE_SETTING . '=' .
                     $this->liteDataFile(),
-                '-d', 'auto_prepend_file=' . $recorder,
                 '-S', "localhost:{$port}",
-                'examples/onpremise/gettingStartedWeb.php'
+                $router
             ],
             [
                 0 => ['pipe', 'r'],

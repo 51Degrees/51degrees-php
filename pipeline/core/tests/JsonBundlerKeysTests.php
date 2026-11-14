@@ -102,6 +102,36 @@ class CloudStandInElement extends FlowElement
 }
 
 /**
+ * One of several elements with the Data Key shared, as Translation Engines
+ * can be, each adding its one Property to the Element Data an element
+ * before it set.
+ */
+class SharedKeyElement extends FlowElement
+{
+    public string $dataKey = 'shared';
+
+    private string $name;
+
+    public function __construct(string $name)
+    {
+        $this->name = $name;
+        $this->properties = [
+            strtolower($name) => ['name' => $name, 'type' => 'string']
+        ];
+        parent::__construct();
+    }
+
+    public function processInternal($flowData): void
+    {
+        $values = isset($flowData->data[$this->dataKey])
+            ? $flowData->data[$this->dataKey]->asDictionary()
+            : [];
+        $values[strtolower($this->name)] = new AspectPropertyValue(null, $this->name);
+        $flowData->setElementData(new ElementDataDictionary($this, $values));
+    }
+}
+
+/**
  * Every key the JSON Bundler writes is lower case, except
  * javascriptProperties.
  */
@@ -183,5 +213,24 @@ class JsonBundlerKeysTests extends TestCase
 
         $this->assertArrayNotHasKey('cloud-response', $json);
         $this->assertArrayHasKey('mixedkey', $json);
+    }
+
+    /**
+     * Elements that share a Data Key populate one Element Data, and the JSON
+     * has one entry for it holding the Properties of every one of them.
+     */
+    public function testElementsThatShareADataKeyHaveOneEntryWithEveryProperty()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new SharedKeyElement('First'))
+            ->add(new SharedKeyElement('Second'))
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(
+            ['first' => 'First', 'second' => 'Second'],
+            $flowData->jsonbundler->json['shared']
+        );
     }
 }

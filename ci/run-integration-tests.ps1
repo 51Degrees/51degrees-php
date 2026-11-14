@@ -7,14 +7,14 @@ $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot/packages.ps1"
 
-# Chrome's first start on a fresh runner is many times slower than the starts
-# after it, so it is made here, before the packages' Selenium contract tests,
-# rather than inside their first test. The tests still run when it cannot be
-# made.
+# A browser's first start on a fresh runner is many times slower than the
+# starts after it, so Chrome and Firefox are started here, before the packages'
+# Selenium contract tests, rather than inside their first tests. The tests still
+# run when they cannot be started.
 try {
-    & "$PSScriptRoot/start-chrome-once.ps1"
+    & "$PSScriptRoot/start-browsers-once.ps1"
 } catch {
-    Write-Host "::warning title=Chrome not started::$_"
+    Write-Host "::warning title=Browsers not started::$_"
 }
 
 # The device-detection/cloud script runs composer install in its package for

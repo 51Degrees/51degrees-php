@@ -12,6 +12,12 @@ dnl otherwise bind this extension's calls to the other's copy.
 VISIBILITY="-fvisibility=hidden"
 CFLAGS="$CFLAGS $VISIBILITY -std=gnu11 -Wall -Werror -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
 CXXFLAGS="${CXXFLAGS} $VISIBILITY -std=gnu++17 -fpermissive -Wall -Werror -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
+dnl From C23, strrchr on a const string gives a const pointer, and one line
+dnl of the C library still takes it as a plain pointer, so with a newer C
+dnl library GCC warns there. That warning stays a warning. The flag is added
+dnl only where the compiler accepts it, as clang does not know it and the
+dnl -Werror above makes its unknown option warning fail the check.
+AX_CHECK_COMPILE_FLAG([-Wno-error=discarded-qualifiers], [CFLAGS="$CFLAGS -Wno-error=discarded-qualifiers"])
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

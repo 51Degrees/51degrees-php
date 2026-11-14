@@ -76,7 +76,17 @@ class CloudRequestEngine extends Engine
     // The failure of a fetch made for the filter, which processInternal
     // reports rather than fetching again.
     private ?\Throwable $evidenceKeysFailure = null;
+    // Set once the accessible properties have been obtained.
+    private bool $propertiesLoaded = false;
     private HttpClient $httpClient;
+
+    /**
+     * Warnings to log once the engine is added to a pipeline, which has the
+     * logger.
+     *
+     * @var array<string>
+     */
+    private array $pendingWarnings = [];
 
     /**
      * Settings should contain a resourceKey, a licenseKey or both,
@@ -87,6 +97,16 @@ class CloudRequestEngine extends Engine
      *    service adds them to the properties the resource key carries.
      * 2) a cloudEndPoint to overwrite the default baseurl
      * 3) a cloudRequestOrigin to use when sending requests to cloud.
+     * 4) discoveryResults, what getDiscoveryResults() gave after an earlier
+     *    build with the same keys and cloudEndPoint, so that the engine
+     *    asks the cloud service for nothing when it is built.
+     *
+     * Without discoveryResults the engine asks the cloud service for its
+     * accessible properties and its accepted Evidence keys when it is
+     * built. A 4xx answer, such as for a resource key the cloud service
+     * does not accept, is thrown. Any other failure is logged as a warning
+     * once the engine is in a pipeline, and the request is made again when
+     * the engine is first used.
      *
      * @param array{
      *     resourceKey?: string,
@@ -94,8 +114,13 @@ class CloudRequestEngine extends Engine
      *     requestedProperties?: array<string>|string,
      *     cloudEndPoint?: string,
      *     cloudRequestOrigin?: string,
+     *     discoveryResults?: array<string, mixed>,
      *     httpClient?: \fiftyone\pipeline\cloudrequestengine\HttpClient
      * } $settings
+     * @throws \fiftyone\pipeline\cloudrequestengine\CloudRequestException
+     *   for a 4xx answer to a discovery request
+     * @throws \Exception for keys, requested properties or discovery
+     *   results the engine cannot be built with
      */
     public function __construct(array $settings)
     {
@@ -133,34 +158,69 @@ class CloudRequestEngine extends Engine
         $this->cloudRequestOrigin = $settings['cloudRequestOrigin'] ?? null;
 
         parent::__construct();
+
+        if (isset($settings['discoveryResults'])) {
+            $this->useDiscoveryResults($settings['discoveryResults']);
+        } else {
+            $this->discover();
+        }
     }
 
     /**
-     * Logs, as a warning through the logger of the first pipeline the
+     * Logs, as warnings through the logger of the first pipeline the
      * engine is added to, that the base URL came from the deprecated
-     * environment variable. Each engine logs it once, so a site that
-     * builds its pipeline in every request logs it in every request.
+     * environment variable, and anything the engine had to warn about
+     * while it was built. Each engine logs these once, so a site that
+     * builds its pipeline in every request logs them in every request.
      */
     public function onRegistration(Pipeline $pipeline): void
     {
-        if (!$this->oldEndPointVariableToReport) {
-            return;
+        if ($this->oldEndPointVariableToReport) {
+            $this->oldEndPointVariableToReport = false;
+            $pipeline->log('warning', sprintf(
+                Constants::MESSAGE_ENDPOINT_VARIABLE_DEPRECATED,
+                Constants::FOD_CLOUD_API_URL,
+                Constants::CLOUD_ENDPOINT_VARIABLE
+            ));
         }
 
-        $this->oldEndPointVariableToReport = false;
-        $pipeline->log('warning', sprintf(
-            Constants::MESSAGE_ENDPOINT_VARIABLE_DEPRECATED,
-            Constants::FOD_CLOUD_API_URL,
-            Constants::CLOUD_ENDPOINT_VARIABLE
-        ));
+        $warnings = $this->pendingWarnings;
+        $this->pendingWarnings = [];
+        foreach ($warnings as $warning) {
+            $pipeline->log('warning', $warning);
+        }
+    }
+
+    /**
+     * The discovery results, being the accessible properties and the
+     * accepted Evidence keys, which depend only on the keys and the cloud
+     * endpoint. Pass them as the discoveryResults setting to build an
+     * engine with the same keys and endpoint without asking the cloud
+     * service. They hold no key, and can be stored as JSON. Null until
+     * both have been obtained.
+     *
+     * @return null|array{credentials: string, evidenceKeys: array<string>, accessibleProperties: array<string, array<string, array<string, mixed>>>}
+     */
+    public function getDiscoveryResults(): ?array
+    {
+        if (!$this->propertiesLoaded || !$this->evidenceKeysLoaded) {
+            return null;
+        }
+
+        return [
+            'credentials' => $this->credentialsHash(),
+            'evidenceKeys' => $this->evidenceKeys,
+            'accessibleProperties' => $this->flowElementProperties,
+        ];
     }
 
     /**
      * Instance of EvidenceKeyFilter of the evidence keys the cloud service
-     * lists. The keys are fetched the first time they are needed, which is
-     * when the first Evidence is set, so that the Evidence the cloud service
-     * uses is kept. A failed fetch leaves the list empty, and processInternal
-     * reports the failure.
+     * lists. The keys are asked for when the engine is built. Where that
+     * failed, they are asked for again the first time they are needed,
+     * which is when the first Evidence is set, so that the Evidence the
+     * cloud service uses is kept. A failed request leaves the list empty,
+     * and processInternal reports the failure.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
@@ -183,7 +243,7 @@ class CloudRequestEngine extends Engine
      */
     public function processInternal(FlowData $flowData): void
     {
-        if (count($this->flowElementProperties) === 0) {
+        if (!$this->propertiesLoaded) {
             $this->flowElementProperties = $this->getEngineProperties();
         }
 
@@ -461,8 +521,158 @@ class CloudRequestEngine extends Engine
         }
 
         $this->flowElementProperties = $flowElementProperties;
+        $this->propertiesLoaded = true;
 
         return $flowElementProperties;
+    }
+
+    /**
+     * Asks the cloud service for the accessible properties and the
+     * accepted Evidence keys. A 4xx answer is thrown, as the same keys can
+     * never succeed. Any other failure, such as a request that could not be
+     * made, a 5xx answer or an answer that could not be read, is logged as
+     * a warning, and the request is made again when the engine is first
+     * used.
+     *
+     * @throws \fiftyone\pipeline\cloudrequestengine\CloudRequestException
+     */
+    private function discover(): void
+    {
+        try {
+            $this->getEngineProperties();
+        } catch (\Throwable $e) {
+            $this->deferDiscovery('accessible properties', $e);
+        }
+
+        try {
+            $this->loadEvidenceKeys();
+        } catch (\Throwable $e) {
+            $this->deferDiscovery('accepted Evidence keys', $e);
+        }
+    }
+
+    /**
+     * Throws a 4xx answer to a discovery request, and warns of any other
+     * failure, leaving the request to be made on first use.
+     *
+     * @throws \fiftyone\pipeline\cloudrequestengine\CloudRequestException
+     */
+    private function deferDiscovery(string $asked, \Throwable $failure): void
+    {
+        if (
+            $failure instanceof CloudRequestException &&
+            $failure->httpStatusCode >= 400 &&
+            $failure->httpStatusCode < 500
+        ) {
+            throw $failure;
+        }
+
+        $this->warn(sprintf(
+            Constants::MESSAGE_DISCOVERY_DEFERRED,
+            $asked,
+            $failure->getMessage()
+        ));
+    }
+
+    /**
+     * Uses the discovery results getDiscoveryResults() gave, refusing
+     * anything else and results made for other keys or another endpoint.
+     *
+     * @param mixed $results
+     * @throws \Exception
+     */
+    private function useDiscoveryResults($results): void
+    {
+        if (
+            !is_array($results) ||
+            !is_string($results['credentials'] ?? null) ||
+            !is_array($results['evidenceKeys'] ?? null) ||
+            !is_array($results['accessibleProperties'] ?? null)
+        ) {
+            throw new \Exception(Constants::MESSAGE_DISCOVERY_RESULTS_NOT_A_COPY);
+        }
+        foreach ($results['evidenceKeys'] as $key) {
+            if (!is_string($key)) {
+                throw new \Exception(Constants::MESSAGE_DISCOVERY_RESULTS_NOT_A_COPY);
+            }
+        }
+        if (!hash_equals($this->credentialsHash(), $results['credentials'])) {
+            throw new \Exception(Constants::MESSAGE_DISCOVERY_RESULTS_OTHER_CREDENTIALS);
+        }
+
+        $this->evidenceKeys = array_values($results['evidenceKeys']);
+        $this->evidenceKeysLoaded = true;
+        $this->flowElementProperties = $results['accessibleProperties'];
+        $this->propertiesLoaded = true;
+    }
+
+    /**
+     * Stands for the cloud endpoint and the keys in the discovery results,
+     * so that results made for others are refused, without holding a key.
+     */
+    private function credentialsHash(): string
+    {
+        return hash(
+            'sha256',
+            $this->baseURL . "\n" . $this->resourceKey . "\n" . $this->licenseKey
+        );
+    }
+
+    /**
+     * Logs a warning through the logger of the first pipeline the engine
+     * is in, or once it is added to one.
+     */
+    private function warn(string $message): void
+    {
+        if (count($this->pipelines) > 0) {
+            $this->pipelines[0]->log('warning', $message);
+
+            return;
+        }
+
+        $this->pendingWarnings[] = $message;
+    }
+
+    /**
+     * Logs each entry of the warnings array in a response as a warning.
+     *
+     * @param array<string> $warnings
+     */
+    private function logCloudWarnings(array $warnings): void
+    {
+        foreach ($warnings as $warning) {
+            $this->warn(sprintf(
+                Constants::MESSAGE_CLOUD_WARNING,
+                $this->maskLicenseKeys((string) $warning)
+            ));
+        }
+    }
+
+    /**
+     * The entries of the warnings array in a successful response. Most
+     * responses have none, so only one that names the array is decoded.
+     *
+     * @return array<string>
+     */
+    private static function warningsIn(string $body): array
+    {
+        if (stripos($body, '"warnings"') === false) {
+            return [];
+        }
+
+        $json = json_decode($body, true);
+        if (!is_array($json) || !isset($json['warnings']) || !is_array($json['warnings'])) {
+            return [];
+        }
+
+        $warnings = [];
+        foreach ($json['warnings'] as $warning) {
+            $warnings[] = is_scalar($warning)
+                ? (string) $warning
+                : (string) json_encode($warning);
+        }
+
+        return $warnings;
     }
 
     /**
@@ -487,38 +697,58 @@ class CloudRequestEngine extends Engine
     }
 
     /**
-     * Makes a request to the cloud service. The cloud service's error text
-     * can name the license key it was sent, so each of this engine's
-     * license keys is masked in the message of any error the request
-     * raises.
+     * Makes a request to the cloud service, logging each entry of the
+     * warnings array in its response as a warning. The cloud service's
+     * text can name the license key it was sent, so each of this engine's
+     * license keys is masked in the warnings, and in the message and errors
+     * of any error the request raises.
      *
      * @throws \Exception the error the request raised, with the keys masked
      */
     private function request(string $type, string $url, ?string $content = null): string
     {
         try {
-            return $this->httpClient->makeCloudRequest(
+            $body = $this->httpClient->makeCloudRequest(
                 $type,
                 $url,
                 $content,
                 $this->cloudRequestOrigin
+            );
+        } catch (CloudRequestException $e) {
+            $this->logCloudWarnings($e->warnings);
+            $mask = fn (string $text): string => $this->maskLicenseKeys($text);
+            $message = $mask($e->getMessage());
+            $errors = array_map($mask, $e->errors);
+            $warnings = array_map($mask, $e->warnings);
+            if (
+                $message === $e->getMessage() &&
+                $errors === $e->errors &&
+                $warnings === $e->warnings
+            ) {
+                throw $e;
+            }
+
+            // No previous exception, as its message holds the key.
+            throw new CloudRequestException(
+                $message,
+                $e->httpStatusCode,
+                $e->responseHeaders,
+                $errors,
+                $warnings
             );
         } catch (\Exception $e) {
             $message = $this->maskLicenseKeys($e->getMessage());
             if ($message === $e->getMessage()) {
                 throw $e;
             }
-            if ($e instanceof CloudRequestException) {
-                throw new CloudRequestException(
-                    $message,
-                    $e->httpStatusCode,
-                    $e->responseHeaders
-                );
-            }
 
             // No previous exception, as its message holds the key.
             throw new \Exception($message, (int) $e->getCode());
         }
+
+        $this->logCloudWarnings(self::warningsIn($body));
+
+        return $body;
     }
 
     /**

@@ -69,5 +69,12 @@ for ($round = 0; $round < 3; $round++) {
     unset($country, $results);
 }
 
+// Throwaway: the chained read of 51degrees-php#92, which reads freed memory
+// with the wrapper rc has.
+echo $ipIntelligence->process('116.154.188.222')
+    ->getValuesAsWeightedStringList('RegisteredCountry')
+    ->getValue()->get(0)->getValue(), "
+";
+
 gc_collect_cycles();
 echo "done\n";

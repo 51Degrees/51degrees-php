@@ -59,6 +59,12 @@ use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesHashEngine.data_file php.ini setting. Without it,
+// the page says what to set, as the server cannot be started again from a
+// request.
+ExampleUtils::startWithEngine();
+
 // The example is run as a router script for the PHP built-in server
 // (php -S localhost:3000 userAgentClientHints-Web.php), so every request,
 // including the shared CSS and JS assets, is routed here. Serve the

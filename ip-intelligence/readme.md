@@ -154,6 +154,22 @@ Enterprise data file has as needing it, and gives a link to
 about a copy. The suspicious and translation examples need those properties
 throughout, so with a free data file they say which and stop.
 
+A web example cannot start PHP again, so start it with the launcher,
+`examples/onpremise/serve.php`, which finds the data file in the same way and
+starts the PHP built-in server on port 3000 with it. Run this from the root
+of the repository, and open http://localhost:3000/.
+
+```bash
+php ip-intelligence/examples/onpremise/serve.php web
+```
+
+`web-mixed` in place of `web` starts the page that also uses Device
+Detection. It needs that extension loaded as well, and the launcher gives it
+the Device Detection data file that `_51DEGREES_DD_PATH` names, or else the
+free Lite file, downloaded when it is missing. A data file or a port can
+follow the example's name. For real use, set the data file in php.ini, so
+that the web server builds the engine once when it starts.
+
 ## Tests
 
 ```bash

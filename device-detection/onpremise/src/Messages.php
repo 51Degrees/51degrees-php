@@ -61,4 +61,41 @@ class Messages
         'These device detection results have been closed, so their ' .
         'properties cannot be read. Read the values needed before closing ' .
         'the FlowData.';
+
+    /**
+     * Error message thrown when the extension is not loaded.
+     */
+    public const EXTENSION_NOT_LOADED =
+        'The FiftyOneDegreesHashEngine extension is not loaded. Build it and ' .
+        'add it to php.ini, as readme.md says.';
+
+    /**
+     * Error message thrown when PHP started without building the engine. The
+     * placeholder is DATA_FILE_NOT_SET, DATA_FILE_MISSING or
+     * DATA_FILE_NOT_LOADED.
+     */
+    public const NO_ENGINE =
+        'No device detection engine was built when PHP started, because %s ' .
+        'Set FiftyOneDegreesHashEngine.data_file in php.ini to the path of a ' .
+        '.hash data file, so that PHP builds the engine once when it starts. ' .
+        'The Data file section of readme.md says where to get the free Lite ' .
+        'data file.';
+
+    public const DATA_FILE_NOT_SET =
+        'FiftyOneDegreesHashEngine.data_file is not set.';
+
+    /**
+     * The placeholder is the path the setting names.
+     */
+    public const DATA_FILE_MISSING =
+        "there is no data file at '%s', which " .
+        'FiftyOneDegreesHashEngine.data_file names.';
+
+    /**
+     * The placeholder is the path the setting names.
+     */
+    public const DATA_FILE_NOT_LOADED =
+        "the engine could not be built from '%s', which " .
+        'FiftyOneDegreesHashEngine.data_file names. PHP gave the reason in a ' .
+        'warning when it started.';
 }

@@ -23,6 +23,7 @@
       <file>tests/IpIntelligenceTranslationTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>
+      <file>tests/MixedExamplesTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

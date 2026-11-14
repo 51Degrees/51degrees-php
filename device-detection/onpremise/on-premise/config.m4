@@ -4,8 +4,14 @@ PHP_ADD_LIBRARY(stdc++, , FIFTYONEDEGREESHASHENGINE_LIBADD)
 PHP_ARG_ENABLE(FiftyOneDegreesHashEngine, whether to enable 51Degrees Hash engine,
 [ --enable-FiftyOneDegreesHashEngine   Enable 51Degrees Hash Device Detection])
 
-CFLAGS="$CFLAGS -std=gnu11 -Wall -Werror -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
-CXXFLAGS="${CXXFLAGS} -std=gnu++17 -fpermissive -Wall -Werror -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
+dnl Every symbol but get_module, which the SWIG wrapper marks as exported, is
+dnl hidden. The IP intelligence extension holds common's functions under the
+dnl same names, built with different settings, and a PHP that loads
+dnl extensions without RTLD_DEEPBIND, as PHP 8.5 on Linux does, would
+dnl otherwise bind this extension's calls to the other's copy.
+VISIBILITY="-fvisibility=hidden"
+CFLAGS="$CFLAGS $VISIBILITY -std=gnu11 -Wall -Werror -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
+CXXFLAGS="${CXXFLAGS} $VISIBILITY -std=gnu++17 -fpermissive -Wall -Werror -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

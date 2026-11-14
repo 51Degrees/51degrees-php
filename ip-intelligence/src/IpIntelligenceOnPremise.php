@@ -60,6 +60,11 @@ class IpIntelligenceOnPremise extends Engine
      */
     private const MAX_PORT = 65535;
 
+    /**
+     * The prefixes of the client IP keys, in the order they are tried.
+     */
+    private const CLIENT_IP_PREFIXES = ['query.', 'server.'];
+
     public string $dataKey = Constants::ELEMENT_DATA_KEY;
 
     public $engine;
@@ -233,11 +238,10 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * The accepted evidence keys (query.client-ip, server.client-ip,
-     * query.client-ip-51d, ...). Note that this engine performs a single-IP
-     * lookup: only the first parseable IPv4/IPv6 value from the evidence (in
-     * the priority order used by getClientIps) actually drives the lookup.
-     * This is not multi-evidence detection.
+     * The accepted evidence keys, being each client IP header of the data
+     * file under the query and the server prefix, in the order getKeys()
+     * gives them. One value is looked up, chosen as clientIpsFromEvidence
+     * says.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
@@ -521,32 +525,39 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * Get the IPv4 and IPv6 addresses from the evidence, using the same
-     * priority order as the other IP intelligence engines: query.client-ip
-     * first, then server.client-ip, then any other parseable value in the
-     * evidence accepted by the engine.
+     * The client IP address to look up, chosen from the evidence in the
+     * engine's order.
      *
      * @return array{0: null|string, 1: null|string}
      */
     private function getClientIps(FlowData $flowData): array
     {
-        return self::clientIpsFromEvidence($flowData->evidence->getAll());
+        return self::clientIpsFromEvidence(
+            $flowData->evidence->getAll(),
+            $this->evidenceKeys
+        );
     }
 
     /**
-     * Picks the first IPv4 and the first IPv6 address out of the evidence,
-     * query.client-ip and server.client-ip first. A value is read only when
-     * all of it is an address, as addressInValue says, and a value that is
-     * not read does not hide one under a later key.
+     * Chooses one client IP value, as the Choosing the IP address section of
+     * the IP Intelligence specification says, and gives its address as
+     * [ipv4, null] or [null, ipv6]. Only the keys the engine accepts are
+     * read, every query key before every server key, each in the order of
+     * the engine's keys, which list the data file's client IP headers in
+     * priority order. The first value that addressInValue reads is chosen,
+     * whatever its family, so a value that is not read does not hide one
+     * under a later key. The native code chooses in the same way when it is
+     * given Evidence.
      *
      * An IPv4-mapped IPv6 address such as ::ffff:8.8.8.8 counts as the IPv4
      * address it carries, so it is reported as Ip and looked up as 8.8.8.8.
      * See the Address forms section of the IP Intelligence specification.
      *
      * @param array<string, mixed> $evidence
+     * @param array<string> $keys The engine's keys, as getKeys() gives them
      * @return array{0: ?string, 1: ?string} [ipv4, ipv6]
      */
-    private static function clientIpsFromEvidence(array $evidence): array
+    private static function clientIpsFromEvidence(array $evidence, array $keys): array
     {
         // Evidence keys ignore letter case and arrive in the letters they
         // were first set with, so every key is lowered before it is read.
@@ -557,38 +568,28 @@ class IpIntelligenceOnPremise extends Engine
             $lowered[strtolower((string) $key)] = $value;
         }
 
-        $ordered = [];
-        foreach (['query.client-ip', 'server.client-ip'] as $key) {
-            if (isset($lowered[$key])) {
-                $ordered[] = $lowered[$key];
-            }
-        }
-        foreach ($lowered as $value) {
-            if (!in_array($value, $ordered, true)) {
-                $ordered[] = $value;
-            }
-        }
-
-        $ipv4 = null;
-        $ipv6 = null;
-        foreach ($ordered as $value) {
-            $candidate = self::addressInValue((string) $value);
-            if ($candidate === null) {
-                continue;
-            }
-            if (self::isIpv4($candidate)) {
-                $ipv4 ??= $candidate;
-            } else {
-                $mapped = self::ipv4MappedAddress($candidate);
-                if ($mapped !== null) {
-                    $ipv4 ??= $mapped;
-                } else {
-                    $ipv6 ??= $candidate;
+        foreach (self::CLIENT_IP_PREFIXES as $prefix) {
+            foreach ($keys as $key) {
+                $key = strtolower($key);
+                if (strncmp($key, $prefix, strlen($prefix)) !== 0
+                    || !isset($lowered[$key])
+                ) {
+                    continue;
                 }
+                $address = self::addressInValue((string) $lowered[$key]);
+                if ($address === null) {
+                    continue;
+                }
+                if (self::isIpv4($address)) {
+                    return [$address, null];
+                }
+                $mapped = self::ipv4MappedAddress($address);
+
+                return $mapped !== null ? [$mapped, null] : [null, $address];
             }
         }
 
-        return [$ipv4, $ipv6];
+        return [null, null];
     }
 
     /**

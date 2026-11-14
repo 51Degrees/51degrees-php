@@ -1,0 +1,47 @@
+name: No value check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-dx10-**'
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: Core Unit suite (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, php: '8.1' }
+          - { os: ubuntu-latest, php: '8.5' }
+          - { os: windows-latest, php: '8.3' }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch the submodules the core package and composer need
+        run: git submodule update --init --depth 1 pipeline/did/owid-php javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          coverage: none
+      - name: Install from the repository root
+        run: composer install --no-interaction --no-progress
+      - name: Give the core package the root autoloader, as ci/packages.ps1 does
+        run: |
+          mkdir -p pipeline/core/vendor/bin
+          printf '%s\n' '<?php' 'return require __DIR__ . "/../../../vendor/autoload.php";' > pipeline/core/vendor/autoload.php
+          cat pipeline/core/vendor/autoload.php
+      - name: Run the core package's Unit suite
+        working-directory: pipeline/core
+        run: |
+          php ../../vendor/bin/phpunit --version
+          php ../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit

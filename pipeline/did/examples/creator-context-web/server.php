@@ -67,8 +67,9 @@ declare(strict_types=1);
  * its end, and at most once a minute while 51Dids arrive that fail their
  * signature or are dated past the keys it holds.
  *
- * Uses the 51Did package from this repository (PHP 8.1 or later), so run
- * `composer install` at the repository root first, then from this folder
+ * Uses the 51Did package this demo is part of (PHP 8.1 or later), so run
+ * `composer install` in the package's folder first, which is two folders
+ * above this one (`pipeline/did` in 51degrees-php). Then from this folder
  * start the built-in server and open http://localhost:5100/ in a browser.
  *
  *   php -S localhost:5100 server.php
@@ -90,12 +91,13 @@ use fiftyone\pipeline\did\DidClient;
 use fiftyone\pipeline\did\FodId;
 use fiftyone\pipeline\did\NotSupportedException;
 
-// The package from this repository, through the repository's own
-// autoloader, so the demo exercises the checked-out code.
+// The package this demo is part of, through the package's own autoloader,
+// so the demo exercises the checked-out code.
 $autoload = __DIR__ . '/../../vendor/autoload.php';
 if (!is_file($autoload)) {
     http_response_code(500);
-    exit('Run composer install at the repository root first.');
+    exit('Run composer install in the package folder, two folders above ' .
+        'this demo, first.');
 }
 require $autoload;
 

@@ -27,6 +27,8 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
+use fiftyone\pipeline\ipintelligence\tests\classes\ExampleRun;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -103,6 +105,7 @@ class MixedExamplesTests extends TestCase
      *
      * @dataProvider loadOrders
      */
+    #[DataProvider('loadOrders')]
     public function testEachExtensionKeepsItsOwnClasses(
         bool $deviceDetectionFirst
     ): void {
@@ -187,14 +190,20 @@ class MixedExamplesTests extends TestCase
     /**
      * @dataProvider loadOrders
      */
+    #[DataProvider('loadOrders')]
     public function testMixedConsoleExample(bool $deviceDetectionFirst): void
     {
-        [$status, $text] = $this->runPhp(
+        // Run as the other example tests run, with standard error kept apart,
+        // so that the Find out more check reads only standard output.
+        $run = ExampleRun::run(
+            self::EXAMPLES . '/mixed/gettingstarted-console.php',
             $this->both($deviceDetectionFirst, true),
-            [self::EXAMPLES . '/mixed/gettingstarted-console.php']
+            [],
+            $this->onlyPhpIniFiles()
         );
+        $text = $run->output;
 
-        $this->assertSame(0, $status, $text);
+        $this->assertSame(0, $run->status, $run->printed());
         $this->assertStringContainsString("Device Detection Results:\n", $text);
         $this->assertStringContainsString("\tPlatformName: iOS\n", $text);
         $this->assertStringContainsString(
@@ -215,11 +224,13 @@ class MixedExamplesTests extends TestCase
             'Contact us for a copy at ' . self::CONTACT_US,
             $text
         );
+        $run->assertEndsWithFindOutMore();
     }
 
     /**
      * @dataProvider loadOrders
      */
+    #[DataProvider('loadOrders')]
     public function testMixedWebExample(bool $deviceDetectionFirst): void
     {
         $page = $this->fetchPage(
@@ -250,6 +261,12 @@ class MixedExamplesTests extends TestCase
             '<a href="' . self::CONTACT_US,
             $page
         );
+
+        // The page is the body of the response, so the server's own output
+        // is not part of it.
+        $run = new ExampleRun();
+        $run->output = $page;
+        $run->assertPageEndsWithFindOutMore();
     }
 
     /**
@@ -415,17 +432,24 @@ class MixedExamplesTests extends TestCase
     }
 
     /**
-     * The environment for a PHP that reads only PHP's own ini files, so that
-     * the settings given are the only ones that load the extensions.
+     * The variable that makes PHP read only its own ini files, so that the
+     * settings given are the only ones that load the extensions.
+     *
+     * @return array<string, string>
+     */
+    private function onlyPhpIniFiles(): array
+    {
+        return ['PHP_INI_SCAN_DIR' => PHP_CONFIG_FILE_SCAN_DIR];
+    }
+
+    /**
+     * The environment of the tests, with PHP reading only its own ini files.
      *
      * @return array<string, string>
      */
     private function environment(): array
     {
-        $environment = getenv();
-        $environment['PHP_INI_SCAN_DIR'] = PHP_CONFIG_FILE_SCAN_DIR;
-
-        return $environment;
+        return $this->onlyPhpIniFiles() + getenv();
     }
 
     /**

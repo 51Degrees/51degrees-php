@@ -58,7 +58,7 @@
  * ```
  *
  * Results can also be accessed in client-side code by using the `fod` object. See the
- * [JavaScriptBuilderElement](/documentation/4.5/apis/pipeline-php-core/classfiftyone_1_1pipeline_1_1core_1_1_javascript_builder_element.html)
+ * [JavaScriptBuilderElement](https://51degrees.com/pipeline-php/4.5/classfiftyone_1_1pipeline_1_1core_1_1_javascript_builder_element.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-gettingstartedweb.php&utm_term=header)
  * for details on available settings such as changing the `fod` name.
  * ```{js}
  * window.onload = function () {
@@ -78,6 +78,7 @@
 require __DIR__ . '/../../vendor/autoload.php';
 
 use fiftyone\pipeline\core\Logger;
+use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\GettingStartedWeb;
 
 function main($argv)
@@ -91,5 +92,11 @@ function main($argv)
 }
 
 if (basename(__FILE__) == basename($_SERVER['SCRIPT_FILENAME'])) {
+    // The example uses the engine the extension builds once, when PHP
+    // starts, from the FiftyOneDegreesHashEngine.data_file php.ini setting.
+    // Without it, the page says what to set, as the server cannot be
+    // started again from a request.
+    ExampleUtils::startWithEngine();
+
     main(isset($argv) ? array_slice($argv, 1) : null);
 }

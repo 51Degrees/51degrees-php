@@ -64,9 +64,9 @@ sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
 ```
 
 The script keeps a file that is already there, and with no names it downloads
-every free file. The Device Detection engine reads its file when PHP starts and
-never downloads it, so download it first. The IP Intelligence example downloads
-the Lite file itself when it finds no data file.
+every free file. Each on-premise console example also downloads its Lite file
+itself when it finds no data file, so this step only saves waiting for the
+download when the example first runs.
 
 #### Check the files
 
@@ -87,11 +87,39 @@ make
 cd ..
 ```
 
-The engine loads its data file when PHP starts, from the
-`FiftyOneDegreesHashEngine.data_file` setting, so the example takes no data
-file argument. Write the settings `ci/build-project.ps1` writes into a
-`php.ini` in `device-detection/onpremise`, then install the package's own
-dependencies, as CI does for this package.
+Install the package's own dependencies, as CI does for this package, and run
+the example with the extension loaded by `-d`, as for IP Intelligence below.
+
+```bash
+composer install
+php -d extension="$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so" examples/onpremise/gettingStartedConsole.php
+```
+
+The engine is built when PHP starts, from the
+`FiftyOneDegreesHashEngine.data_file` setting. With no setting, PHP starts
+with no engine, and the example takes the data file its first argument names,
+then the one the `_51DEGREES_DD_PATH` environment variable names, then the
+Lite file in `cxx/data/device-detection`, which it downloads when it is
+missing (`getDataFile` in `examples/onpremise/classes/ExampleUtils.php`). It
+then runs again in a PHP started with that file. Before the example's own
+output it writes to standard error
+`No device detection engine was built when PHP started, so the example runs again in a PHP that builds one from`
+followed by the file, then the command, after the download's own lines when
+it downloads the file.
+
+A web example cannot start PHP again, so start it with the launcher, which
+finds the data file in the same way and starts the PHP built-in server on
+port 3000 with it, passing on the `-d extension=...` it was given. Open
+http://localhost:3000/ and stop the server with Ctrl+C.
+
+```bash
+php -d extension="$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so" examples/onpremise/serve.php gettingStartedWeb.php
+```
+
+To have PHP build the engine once when it starts, as a web server needs, write
+the settings `ci/build-project.ps1` writes into a `php.ini` in
+`device-detection/onpremise`, and run PHP reading that file as well as its own
+settings, as `ci/run-unit-tests.ps1` sets `PHP_INI_SCAN_DIR`.
 
 ```bash
 cat > php.ini <<EOF
@@ -99,13 +127,6 @@ extension = "$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so"
 FiftyOneDegreesHashEngine.data_file = "$PWD/../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 FiftyOneDegreesHashEngine.allow_unmatched = false
 EOF
-composer install
-```
-
-Run the example with PHP reading that file as well as its own settings, as
-`ci/run-unit-tests.ps1` sets `PHP_INI_SCAN_DIR`.
-
-```bash
 PHP_INI_SCAN_DIR=":$PWD" php examples/onpremise/gettingStartedConsole.php
 cd ../..
 ```
@@ -133,6 +154,14 @@ php -d extension="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
 cd ..
 ```
 
+Start the IP Intelligence web example from the repository root with its
+launcher, which finds the data file as the next paragraph says and starts
+the PHP built-in server on port 3000 with it. Open http://localhost:3000/.
+
+```bash
+php -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web
+```
+
 The example uses the argument when that file is there. Otherwise it takes the
 file the `_51DEGREES_IPI_PATH` environment variable names, then any `.ipi`
 file in `ip-intelligence/assets`, then a file in `cxx/data/ip-intelligence`
@@ -155,11 +184,22 @@ BOTH="-d extension=$PWD/../device-detection/onpremise/on-premise/modules/FiftyOn
  -d extension=$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
  -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
 php $BOTH examples/onpremise/mixed/gettingstarted-console.php
-php $BOTH -S 127.0.0.1:8080 -t examples/onpremise/web-mixed
 cd ..
 ```
 
-`tests/MixedExamplesTests.php` runs both, in each order, in CI.
+Start the mixed web page from the repository root with the launcher, loading
+only the two extensions. The launcher finds both data files, downloading the
+free Lite files when they are missing, and starts the PHP built-in server on
+port 3000 with them. Open http://localhost:3000/.
+
+```bash
+php -d extension="$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so" -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web-mixed
+```
+
+`tests/MixedExamplesTests.php` runs the mixed console example and the mixed
+web page with both extensions in each order, and
+`tests/ServeWebExamplesTests.php` starts both web pages with the launcher, in
+CI.
 
 ### Correct output
 
@@ -240,16 +280,20 @@ or empty, and write to the PHP error log that the old name is deprecated.
   does not create. Run `composer install` in the package folder, as above.
   After one in `device-detection/cloud`, the root `ci/build-project.ps1`
   refuses to run until that `vendor` folder is removed, as "CI" below says.
-- **The extension or the data file setting is missing.** The Device Detection
-  engine reads both from PHP's settings when PHP starts, so run the example
-  with `PHP_INI_SCAN_DIR` as above, and keep the data file where `php.ini`
-  says. Without its `-d extension=...`, the IP Intelligence example stops
-  with `The FiftyOneDegreesIpIntelligenceEngine extension is not loaded`.
+- **The extension is not loaded.** Each on-premise example needs its
+  extension, from `php.ini` or `-d extension=...` as above. Without it, the
+  Device Detection example stops with
+  `The FiftyOneDegreesHashEngine extension is not loaded` and the IP
+  Intelligence example with
+  `The FiftyOneDegreesIpIntelligenceEngine extension is not loaded`.
 - **A data file that is not there.** `cxx/data` holds a `.link` for each file
-  rather than the file. The Device Detection engine cannot start without its
-  file, so download it before running the example. The IP Intelligence
-  example downloads its file, so it needs the network and the tools under
-  "Prerequisites". Check the file sizes as above.
+  rather than the file. Each on-premise example downloads its Lite file when
+  it is missing, so it needs the network and the tools under "Prerequisites".
+  A `php.ini` naming a Device Detection data file that is missing, or that
+  the engine cannot be built from, leaves PHP with no engine and a warning
+  when it starts, and the example then runs again with the file it finds,
+  unless that is the file `php.ini` names.
+  Check the file sizes as above.
 - **A wrapper from another SWIG.** Running `swig` by hand, or with a version
   other than 4.5.1, rewrites the committed `src/php8` files, which
   `git status` then shows as modified. An IP Intelligence wrapper from SWIG
@@ -270,7 +314,11 @@ or empty, and write to the PHP error log that the old name is deprecated.
   cloud example with no resource key. Pipeline core's `tests/ExampleTests.php`
   and 51Did's `tests/ExamplesTest.php` run theirs the same way. Each checks
   that the example ends with Find out more and that every 51degrees.com link
-  it prints is tagged. The cloud examples' classes also run with a key, or
+  it prints is tagged. `device-detection/onpremise/tests/StartWithoutDataFileTests.php`
+  and `ip-intelligence/tests/ServeWebExamplesTests.php` also run the Device
+  Detection console examples and both packages' web examples, through their
+  launchers, with nothing set at all, so the data file is found or downloaded.
+  The cloud examples' classes also run with a key, or
   against a mocked cloud service for IP Intelligence, in each package's
   `tests/ExampleTests.php`. The Device Detection on-premise suite runs only
   when the TAC data file is there (`ci/run-unit-tests.ps1` returns early

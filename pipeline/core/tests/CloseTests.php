@@ -212,4 +212,32 @@ class CloseTests extends TestCase
         $this->assertSame('element failed to build', $message);
         $this->assertCount(1, RecordedElement::$closed);
     }
+
+    /**
+     * When a web integration element the builder adds to a configuration
+     * fails to build, the elements built from the configuration are closed,
+     * and the error that stopped the build is thrown.
+     */
+    public function testFailedWebIntegrationElementClosesConfiguredElements()
+    {
+        RecordedElement::$closed = [];
+        $config = ['PipelineOptions' => ['Elements' => [
+            ['BuilderName' => RecordedElement::class]
+        ]]];
+
+        $message = null;
+        try {
+            (new PipelineBuilder([
+                'javascriptBuilderSettings' => ['objName' => '1fod']
+            ]))->buildFromConfig($config);
+        } catch (\InvalidArgumentException $e) {
+            $message = $e->getMessage();
+        }
+
+        $this->assertStringStartsWith(
+            "The JavaScript builder's objName setting",
+            (string) $message
+        );
+        $this->assertCount(1, RecordedElement::$closed);
+    }
 }

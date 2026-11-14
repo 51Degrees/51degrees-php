@@ -81,7 +81,8 @@ class HardwareProfileCloud extends CloudEngine
                 }
             }
 
-            $devices[] = $device;
+            // Each profile is read as the device results are.
+            $devices[] = new HardwareProfileData($this, $device);
         }
 
         // The aspect level values are exposed alongside the profiles so a

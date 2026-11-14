@@ -211,17 +211,18 @@ class IpIntelligenceOnPremise extends Engine
         $concurrency = $settings['concurrency'] ?? null;
 
         // Build the required properties configuration.
-        $propertiesVector = new \VectorStringSwig();
+        $propertiesVector = new \FiftyOneDegreesIpiVectorStringSwig();
         foreach ($restrictedProperties as $property) {
             $propertiesVector->push($property);
         }
         if (!empty($restrictedProperties)) {
             $this->setRestrictedProperties($restrictedProperties);
         }
-        $propertiesConfig = new \RequiredPropertiesConfigSwig($propertiesVector);
+        $propertiesConfig =
+            new \FiftyOneDegreesIpiRequiredPropertiesConfigSwig($propertiesVector);
 
         // Assemble the engine configuration.
-        $this->config = new \ConfigIpiSwig();
+        $this->config = new \FiftyOneDegreesIpiConfigIpiSwig();
         $this->applyPerformanceProfile($this->config, $performanceProfile);
         // Do not prefix evidence keys with http_.
         $this->config->setUseUpperPrefixHeaders(false);
@@ -230,7 +231,11 @@ class IpIntelligenceOnPremise extends Engine
         }
 
         // Build the native engine.
-        $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
+        $this->engine = new \FiftyOneDegreesIpiEngineIpiSwig(
+            $dataFile,
+            $this->config,
+            $propertiesConfig
+        );
 
         $this->initEngineMetaData();
 

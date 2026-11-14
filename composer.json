@@ -11,6 +11,7 @@
         { "type": "path", "url": "./pipeline/did", "options": { "symlink": true } },
         { "type": "path", "url": "./pipeline/did/owid-php", "options": { "symlink": true } },
         { "type": "path", "url": "./pipeline/translation", "options": { "symlink": true } },
+        { "type": "path", "url": "./pipeline/derivedproperty", "options": { "symlink": true } },
         { "type": "path", "url": "./device-detection/cloud", "options": { "symlink": true } },
         { "type": "path", "url": "./location", "options": { "symlink": true } },
         { "type": "path", "url": "./ip-intelligence", "options": { "symlink": true } }
@@ -21,6 +22,7 @@
         "51degrees/fiftyone.pipeline.cloudrequestengine": "@dev",
         "51degrees/fiftyone.pipeline.did": "@dev",
         "51degrees/fiftyone.pipeline.translation": "@dev",
+        "51degrees/fiftyone.pipeline.derivedproperty": "@dev",
         "51degrees/fiftyone.devicedetection": "@dev",
         "51degrees/fiftyone.geolocation": "@dev",
         "51degrees/fiftyone.ipintelligence": "@dev",
@@ -33,6 +35,7 @@
             "fiftyone\\pipeline\\cloudrequestengine\\tests\\": "pipeline/cloudrequestengine/tests/",
             "fiftyone\\pipeline\\did\\tests\\": "pipeline/did/tests/",
             "fiftyone\\pipeline\\translation\\tests\\": "pipeline/translation/tests/",
+            "fiftyone\\pipeline\\derivedproperty\\tests\\": "pipeline/derivedproperty/tests/",
             "fiftyone\\pipeline\\devicedetection\\tests\\": "device-detection/cloud/tests/",
             "fiftyone\\pipeline\\devicedetection\\examples\\cloud\\classes\\": "device-detection/cloud/examples/cloud/classes",
             "fiftyone\\pipeline\\geolocation\\tests\\": "location/tests/",

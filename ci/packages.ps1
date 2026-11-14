@@ -56,6 +56,8 @@
 #     tree has the OWID source copied in.
 #   pipeline/translation: Unit suite. No mirror, and its code is also
 #     tested through ip-intelligence, which requires it.
+#   pipeline/derivedproperty: Unit suite, which runs the shared cases from
+#     the derived-properties submodule at the root. No mirror.
 #   device-detection/cloud: Unit suite without keys, Integration suite and the
 #     Selenium contract tests against the cloud example when TestResourceKey
 #     and the CSV file are present.
@@ -75,6 +77,7 @@ $Packages = @(
     @{ Path = 'pipeline/cloudrequestengine'; Mirror = 'pipeline-php-cloudrequestengine'; Vendor = 'Root'; Ci = $true }
     @{ Path = 'pipeline/did'; Mirror = 'pipeline-php-did'; Vendor = 'Root'; Ci = $true; Assembled = $true }
     @{ Path = 'pipeline/translation'; Mirror = $null; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline/derivedproperty'; Mirror = $null; Vendor = 'Root'; Ci = $true }
     @{ Path = 'device-detection/cloud'; Mirror = 'device-detection-php'; Vendor = 'Root'; Ci = $true }
     @{ Path = 'device-detection/onpremise'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
     @{ Path = 'location'; Mirror = 'location-php'; Vendor = 'Root'; Ci = $true }

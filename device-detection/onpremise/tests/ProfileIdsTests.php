@@ -33,8 +33,8 @@ use PHPUnit\Framework\TestCase;
 /**
  * The engine gives the ids of the profiles that hold a value of a property
  * through the native getProfileIdsForPropertyValue, matching the property
- * name and the value exactly, in ascending order with each id once. Every
- * data file, the free Lite file included, holds the property used here.
+ * name and the value exactly, in ascending order with each id once. The
+ * Lite and TAC data files both hold the property used here.
  */
 class ProfileIdsTests extends TestCase
 {

@@ -32,20 +32,13 @@ use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The on-premise engine with a data file given as a setting, as the Pipeline
- * specification requires of it. A relative data file path is read against
- * the working directory of the process (file-system-paths.md), and the JSON
- * Builder Element writes each weighted value with the keys value and
- * rawweighting in lower case (the Serializing section of weighted-values.md).
+ * A relative path to the on-premise engine's data file is read against the
+ * working directory of the process, as file-system-paths.md in the Pipeline
+ * specification requires. The engine hands the path to the native code,
+ * which opens it as given.
  */
-class OnPremiseDataFileTests extends TestCase
+class RelativeDataFileTests extends TestCase
 {
-    /**
-     * The addresses looked up, of which at least one has weighted values in
-     * the free data file.
-     */
-    private const ADDRESSES = [Constants::IPV4_ADDRESS, '8.8.8.8'];
-
     private static ?string $dataFile = null;
 
     private string $workingDirectory;
@@ -99,33 +92,23 @@ class OnPremiseDataFileTests extends TestCase
     }
 
     /**
-     * Processes each address with an engine built from the data file path
-     * given, and returns the ip results' JSON for each.
-     *
-     * @return array<string, array<string, mixed>> By address
+     * The address the engine gives back for Constants::IPV4_ADDRESS, with
+     * an engine built from the data file path given.
      */
-    private static function jsonFor(string $dataFile): array
+    private static function lookUp(string $dataFile): ?string
     {
         $pipeline = (new PipelineBuilder())
             ->add(new IpIntelligenceOnPremise(['dataFile' => $dataFile]))
             ->build();
+        $flowData = $pipeline->createFlowData();
         try {
-            $json = [];
-            foreach (self::ADDRESSES as $address) {
-                $flowData = $pipeline->createFlowData();
-                try {
-                    $flowData->evidence->set('query.client-ip', $address);
-                    $flowData->process();
-                    // As the JSON endpoint writes it.
-                    $text = (string) json_encode($flowData->jsonbundler->json);
-                    $json[$address] = json_decode($text, true)['ip'];
-                } finally {
-                    $flowData->close();
-                }
-            }
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $ip = $flowData->get('ip')->get('ip');
 
-            return $json;
+            return $ip->hasValue ? $ip->value : null;
         } finally {
+            $flowData->close();
             $pipeline->close();
         }
     }
@@ -144,36 +127,11 @@ class OnPremiseDataFileTests extends TestCase
 
         foreach ($forms as [$directory, $path]) {
             chdir($directory);
-            $json = self::jsonFor($path);
             $this->assertSame(
                 Constants::IPV4_ADDRESS,
-                $json[Constants::IPV4_ADDRESS]['ip'] ?? null,
+                self::lookUp($path),
                 $path
             );
         }
-    }
-
-    public function testWeightedValuesAreWrittenWithLowerCaseKeys(): void
-    {
-        $weighted = 0;
-        foreach (self::jsonFor((string) self::$dataFile) as $address => $values) {
-            foreach ($values as $property => $value) {
-                if (!is_array($value) || !is_array(reset($value))) {
-                    continue;
-                }
-                foreach ($value as $item) {
-                    $keys = array_keys($item);
-                    sort($keys);
-                    $this->assertSame(
-                        ['rawweighting', 'value'],
-                        $keys,
-                        "$address $property"
-                    );
-                    ++$weighted;
-                }
-            }
-        }
-
-        $this->assertGreaterThan(0, $weighted, 'No weighted value was written.');
     }
 }

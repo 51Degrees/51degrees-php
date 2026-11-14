@@ -200,6 +200,14 @@ $urlSafe  = $fodId->asBase64Url();    // for a URL, no padding
 constructor remain and raise for the same inputs the `try` factories
 report, so code written against them keeps working.
 
+A `FodId` can be serialized, for example into a session. The serialized
+form holds only the envelope's bytes, and `unserialize()` reads them again
+with the same checks, raising `OwidException` or `InvalidArgumentException`
+as `FodId::fromByteArray()` does, so an unserialized 51Did is made by
+reading a complete envelope. A string written by an earlier release still
+reads, and only the envelope is taken from it, never the fields stored
+beside it. A clone is the same identifier, read from the same envelope.
+
 ## What the identifier says it may be used for
 
 `getUsage()` answers the usage the 51Did was created for, which decides

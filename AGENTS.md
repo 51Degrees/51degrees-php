@@ -409,6 +409,13 @@ for the whole repository. Those run each package's own `ci/` scripts with
 mirrors, and which packages test against the root `vendor` and which install
 their own. Add a package there, not in the workflows.
 
+Both on-premise extensions register SWIG's pointer classes, such as
+`SWIG\_p_byte`, under the same names, so the second to load replaces the
+first's. The Native extensions under Valgrind workflow
+(`.github/workflows/extensions-valgrind.yml`) loads both in each order and
+runs `ci/read-pointer-classes.php` under Valgrind on a pull request that
+changes either extension or `cxx`, and fails on any memory error.
+
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a
 `composer install` run inside the package stops it, as the tests would then

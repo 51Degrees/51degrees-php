@@ -1,0 +1,83 @@
+name: Native extensions under Valgrind
+
+# Both on-premise extensions register SWIG's pointer classes, such as
+# SWIG\_p_byte, under the same names, so the second to load replaces the
+# first's. This builds both, loads them in each order, and runs
+# ci/read-pointer-classes.php under Valgrind, failing on any memory error,
+# so a change that leaves one extension using a class entry the other freed
+# fails here.
+
+on:
+  pull_request:
+    paths:
+      - 'device-detection/onpremise/on-premise/**'
+      - 'ip-intelligence/on-premise/**'
+      - 'cxx'
+      - 'ci/read-pointer-classes.php'
+      - '.github/workflows/extensions-valgrind.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  valgrind:
+    name: Both extensions in each order
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout cxx and its data
+        run: |
+          git submodule update --init --depth 1 cxx
+          git -C cxx submodule update --init --depth 1 data
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q valgrind
+
+      # As each package's ci/build-project.ps1 does.
+      - name: Build both extensions
+        run: |
+          build() {
+            (
+              cd "$1"
+              rm -rf cxx
+              mkdir cxx
+              cp -R "$GITHUB_WORKSPACE/cxx/src" cxx/src
+              phpize
+              ./configure $2
+              make -j"$(nproc)"
+            )
+          }
+          build device-detection/onpremise/on-premise ''
+          build ip-intelligence/on-premise --enable-FiftyOneDegreesIpIntelligenceEngine
+
+      - name: Fetch the free data files
+        run: sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
+
+      # PHP's own allocator is off so that Valgrind sees every allocation,
+      # and PCRE's compiled patterns are off because Valgrind cannot see into
+      # them.
+      - name: Run both extensions in each order
+        env:
+          USE_ZEND_ALLOC: '0'
+          ZEND_DONT_UNLOAD_MODULES: '1'
+        run: |
+          dd="-d extension=$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so
+            -d FiftyOneDegreesHashEngine.data_file=$PWD/cxx/data/device-detection/51Degrees-LiteV4.1.hash"
+          ipi="-d extension=$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
+            -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
+          for order in "$dd $ipi" "$ipi $dd"; do
+            valgrind --error-exitcode=1 --num-callers=30 \
+              php -n -d pcre.jit=0 $order ci/read-pointer-classes.php
+          done

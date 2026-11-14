@@ -82,7 +82,7 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
                 "of this message with the resource key or pass it as the first " .
                 "argument on the command line.";
 
-            ExampleUtils::logErrorAndExit($logger, $message, __FILE__);
+            ExampleUtils::endWithoutResourceKey($message, __FILE__);
         }
         
         ExampleUtils::setResourceKeyInConfig($config, $resourceKey);

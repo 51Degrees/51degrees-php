@@ -253,6 +253,12 @@ none is set. The Device Detection example says a key with the properties it
 needs can be created
 [here](https://51degrees.com/configure/g3gMZdPY?utm_source=github&utm_medium=docs&utm_campaign=51degrees-php&utm_content=agents.md&utm_term=cloud-examples).
 
+Run with no resource key, every cloud example, console or web page, names
+`_51DEGREES_RESOURCE_KEY`, gives a tagged link to the configurator, where a
+key is created, and ends with Find out more. It then ends successfully, a
+console example with exit status 0 and a web page with HTTP status 200, so
+that CI runs every cloud example with nothing set.
+
 `device-detection/cloud/readme.md` runs the example from the package's
 `examples` folder after a `composer install` in the package.
 

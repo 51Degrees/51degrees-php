@@ -91,6 +91,30 @@ class RequestLineEvidenceTests extends TestCase
                 '/p?a=?b&c',
                 ['GET', '/p', 'a=?b&c']
             ],
+            // A target in absolute form gives its path alone, as RFC 9421
+            // section 2.2.6 defines the path a signature covers.
+            'absolute form' => [
+                'GET',
+                'http://example.com/page?x=1',
+                ['GET', '/page', 'x=1']
+            ],
+            'absolute form, encoded, with a port' => [
+                'GET',
+                'HTTPS://user@Example.com:8443/a%20b/c%2F?q=%2F',
+                ['GET', '/a%20b/c%2F', 'q=%2F']
+            ],
+            // A target with no path keeps what the request line carries.
+            'absolute form with no path' => [
+                'GET',
+                'http://example.com?x=1',
+                ['GET', '', 'x=1']
+            ],
+            'absolute form with no path or query' => [
+                'GET',
+                'http://example.com',
+                ['GET', '', '']
+            ],
+            'asterisk form' => ['OPTIONS', '*', ['OPTIONS', '*', '']],
         ];
     }
 

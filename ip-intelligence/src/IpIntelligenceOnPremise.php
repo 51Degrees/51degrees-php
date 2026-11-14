@@ -55,6 +55,11 @@ class IpIntelligenceOnPremise extends Engine
      */
     private const ENGINE_SETTINGS = ['performanceProfile', 'restrictedProperties', 'concurrency'];
 
+    /**
+     * The highest port a client IP value can carry.
+     */
+    private const MAX_PORT = 65535;
+
     public string $dataKey = Constants::ELEMENT_DATA_KEY;
 
     public $engine;
@@ -530,7 +535,9 @@ class IpIntelligenceOnPremise extends Engine
 
     /**
      * Picks the first IPv4 and the first IPv6 address out of the evidence,
-     * query.client-ip and server.client-ip first.
+     * query.client-ip and server.client-ip first. A value is read only when
+     * all of it is an address, as addressInValue says, and a value that is
+     * not read does not hide one under a later key.
      *
      * An IPv4-mapped IPv6 address such as ::ffff:8.8.8.8 counts as the IPv4
      * address it carries, so it is reported as Ip and looked up as 8.8.8.8.
@@ -565,10 +572,13 @@ class IpIntelligenceOnPremise extends Engine
         $ipv4 = null;
         $ipv6 = null;
         foreach ($ordered as $value) {
-            $candidate = trim((string) $value);
-            if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+            $candidate = self::addressInValue((string) $value);
+            if ($candidate === null) {
+                continue;
+            }
+            if (self::isIpv4($candidate)) {
                 $ipv4 ??= $candidate;
-            } elseif (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+            } else {
                 $mapped = self::ipv4MappedAddress($candidate);
                 if ($mapped !== null) {
                     $ipv4 ??= $mapped;
@@ -579,6 +589,84 @@ class IpIntelligenceOnPremise extends Engine
         }
 
         return [$ipv4, $ipv6];
+    }
+
+    /**
+     * The address a client IP value holds, or null when the whole value is
+     * not one of the forms the Reading the client IP value section of the
+     * IP Intelligence specification accepts. Those are an IPv4 or IPv6
+     * address, an IPv4 address with a port, and an IPv6 address in brackets
+     * with or without a port. The port is dropped. Nothing is trimmed, and
+     * a zone index is refused rather than stripped.
+     */
+    private static function addressInValue(string $value): ?string
+    {
+        if (strncmp($value, '[', 1) === 0) {
+            $close = strpos($value, ']');
+            if ($close === false) {
+                return null;
+            }
+            $address = substr($value, 1, $close - 1);
+            $after = substr($value, $close + 1);
+            if ($after !== '' && !self::isPort($after)) {
+                return null;
+            }
+
+            return self::isIpv6($address) ? $address : null;
+        }
+        if (self::isIpv4($value) || self::isIpv6($value)) {
+            return $value;
+        }
+        $colon = strrpos($value, ':');
+        if ($colon !== false
+            && self::isIpv4(substr($value, 0, $colon))
+            && self::isPort(substr($value, $colon))
+        ) {
+            return substr($value, 0, $colon);
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the text is an IPv4 address in dotted decimal form with no
+     * leading zero in any part, which is what filter_var accepts. The
+     * character check keeps out anything around the address.
+     */
+    private static function isIpv4(string $text): bool
+    {
+        return strspn($text, '0123456789.') === strlen($text)
+            && filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false;
+    }
+
+    /**
+     * Whether the text is an IPv6 address in a text form of RFC 4291
+     * section 2.2. The character check refuses a zone index, which
+     * follows a percent sign.
+     */
+    private static function isIpv6(string $text): bool
+    {
+        return strspn($text, '0123456789abcdefABCDEF:.') === strlen($text)
+            && filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
+    }
+
+    /**
+     * Whether the text is a colon followed by a port, being one or more
+     * digits for a number from 0 to 65535.
+     */
+    private static function isPort(string $text): bool
+    {
+        if (strncmp($text, ':', 1) !== 0) {
+            return false;
+        }
+        $digits = substr($text, 1);
+        if ($digits === '' || strspn($digits, '0123456789') !== strlen($digits)) {
+            return false;
+        }
+        $number = ltrim($digits, '0');
+
+        return strlen($number) <= strlen((string) self::MAX_PORT)
+            && (int) $number <= self::MAX_PORT;
     }
 
     /**

@@ -1,0 +1,150 @@
+name: Compiled derived property scripts check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-96-**'
+
+jobs:
+  test:
+    name: Test ${{ matrix.os }} PHP ${{ matrix.php }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, php: '8.1' }
+          - { os: ubuntu-latest, php: '8.3' }
+          - { os: ubuntu-latest, php: '8.5' }
+          - { os: windows-latest, php: '8.3' }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the derived-properties submodule
+        run: git submodule update --init --depth 1 derived-properties pipeline/did/owid-php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          coverage: none
+      - name: Install from the repository root
+        run: composer install --no-interaction --no-progress
+      - name: Run the package's Unit suite
+        working-directory: pipeline/derivedproperty
+        run: ../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit
+
+  compile:
+    name: Run the generator and keep what it writes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the derived-properties submodule
+        run: git submodule update --init --depth 1 derived-properties pipeline/did/owid-php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+          coverage: none
+      - name: Install from the repository root
+        run: composer install --no-interaction --no-progress
+      - name: Compile the built in scripts
+        run: |
+          php pipeline/derivedproperty/ci/compile-built-in-scripts.php
+          git status --short
+          git diff --stat
+          ls -l pipeline/derivedproperty/compiled
+          head -30 pipeline/derivedproperty/compiled/IsGdpr.php
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiled
+          path: pipeline/derivedproperty/compiled/*.php
+
+  update:
+    name: Run update-packages.ps1 as the nightly does
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+      - name: Run the package's update script from a checkout with no install
+        shell: pwsh
+        run: |
+          php --version
+          composer --version
+          ./repo/pipeline/derivedproperty/ci/update-packages.ps1 -RepoName repo/pipeline/derivedproperty -OrgName 51Degrees
+          Write-Host "Left behind in the package:"
+          Get-ChildItem repo/pipeline/derivedproperty -Name
+          Write-Host "Changes:"
+          git -C repo status --short --untracked-files=all
+          git -C repo diff --stat
+
+  timing:
+    name: Time the element build ${{ matrix.os }} PHP ${{ matrix.php }}
+    if: startsWith(github.ref_name, 'tmp/ipnp-96-green')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, php: '8.3' }
+          - { os: ubuntu-latest, php: '8.5' }
+          - { os: windows-latest, php: '8.3' }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: after
+      - uses: actions/checkout@v4
+        with:
+          ref: rc
+          path: before
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          coverage: none
+      - name: Install each from its root
+        run: |
+          for side in before after; do
+            echo "$side is $(git -C $side rev-parse HEAD)"
+            git -C $side submodule update --init --depth 1 derived-properties pipeline/did/owid-php
+            (cd $side && composer install --no-interaction --no-progress --quiet)
+          done
+          ls after/pipeline/derivedproperty/compiled
+          ls before/pipeline/derivedproperty/compiled 2>/dev/null || echo "before has no compiled folder"
+      - name: Time building an element with both built in scripts
+        run: |
+          cat > "$RUNNER_TEMP/bench.php" <<'EOF'
+          <?php
+          require $argv[1];
+          use fiftyone\pipeline\derivedproperty\DerivedPropertyElement;
+          $build = function () {
+              return new DerivedPropertyElement(['Scripts' => ['HumanConfidence', 'IsGdpr']]);
+          };
+          for ($i = 0; $i < 20; $i++) {
+              $build();
+          }
+          $count = 200;
+          $times = [];
+          for ($i = 0; $i < $count; $i++) {
+              $start = hrtime(true);
+              $build();
+              $times[] = (hrtime(true) - $start) / 1e6;
+          }
+          sort($times);
+          printf("%-6s opcache %-3s median %.3f ms, fastest %.3f ms, slowest %.3f ms, %d builds\n",
+              $argv[2], ini_get('opcache.enable_cli') ? 'on' : 'off',
+              $times[intdiv($count, 2)], $times[0], $times[$count - 1], $count);
+          EOF
+          php -r 'echo "opcache loaded: ", extension_loaded("Zend OPcache") ? "yes" : "no", PHP_EOL;'
+          for round in 1 2 3; do
+            for opcache in 0 1; do
+              for side in before after; do
+                php -d opcache.enable_cli=$opcache "$RUNNER_TEMP/bench.php" "$side/vendor/autoload.php" "$side"
+              done
+            done
+          done

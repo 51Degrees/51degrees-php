@@ -57,7 +57,8 @@ try {
     $env:PAID_RESOURCE_KEY = $Keys.TestResourceKey
     $env:EXAMPLE_URL = "http://localhost:$env:PORT"
     $env:EXAMPLE_LANG = 'php'
-    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract
+    # Normal verbosity prints each test's time, passed or failed.
+    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"
 } catch {
     if ($example) { Write-Host '>>> example app output >>>'; Receive-Job $example | Out-Host; Write-Host '<<< app output <<<' }
     throw

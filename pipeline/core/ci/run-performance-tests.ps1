@@ -1,6 +1,9 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
+    # Given by common-ci for the performance summary, which this package
+    # does not write.
+    [string]$Name,
     [boolean]$RunPerformance = $true
 )
 

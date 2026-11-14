@@ -54,7 +54,8 @@ class ScriptPropertyElement extends FlowElement
 /**
  * Measures what minification adds to the time a Pipeline with the
  * JavaScript Builder takes for one request, by timing the same Pipeline with
- * minification on and off in alternate rounds.
+ * minification on and off in alternate rounds, and checks the median round
+ * against a limit.
  */
 class JavaScriptBuilderPerformanceTests extends TestCase
 {
@@ -65,7 +66,7 @@ class JavaScriptBuilderPerformanceTests extends TestCase
     private const WARM_UP_REQUESTS = 5;
 
     /**
-     * Rounds timed. The cost reported is the median round's.
+     * Rounds timed. The cost reported and checked is the median round's.
      */
     private const ROUNDS = 9;
 
@@ -74,9 +75,16 @@ class JavaScriptBuilderPerformanceTests extends TestCase
      */
     private const REQUESTS_PER_ROUND = 10;
 
+    /**
+     * The most minification may add to one request, in milliseconds. It is
+     * twice the slowest round measured on the runners the test runs on,
+     * rounded up, so that only a real change in the cost fails the test.
+     */
+    private const MAX_MINIFICATION_MILLISECONDS = 30;
+
     private const NANOSECONDS_PER_MILLISECOND = 1000000;
 
-    public function testMinificationCost()
+    public function testMinificationCostIsWithinTheLimit()
     {
         $minified = self::pipeline(true);
         $plain = self::pipeline(false);
@@ -106,14 +114,15 @@ class JavaScriptBuilderPerformanceTests extends TestCase
             $costs[] = $with - $without;
         }
 
-        fwrite(STDERR, sprintf(
-            "\nJavaScript Builder minification on PHP %s, %s: " .
+        $cost = self::median($costs);
+        $summary = sprintf(
+            'JavaScript Builder minification on PHP %s, %s: ' .
             'cost %.3f ms per request (lowest %.3f, highest %.3f), ' .
             '%.3f ms with and %.3f ms without, over %d rounds of %d ' .
-            "requests. Script %d bytes minified, %d bytes not.\n",
+            'requests. Script %d bytes minified, %d bytes not.',
             PHP_VERSION,
             PHP_OS_FAMILY,
-            self::median($costs),
+            $cost,
             min($costs),
             max($costs),
             self::median($withTimes),
@@ -122,7 +131,14 @@ class JavaScriptBuilderPerformanceTests extends TestCase
             self::REQUESTS_PER_ROUND,
             $minifiedBytes,
             $plainBytes
-        ));
+        );
+        fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
+
+        $this->assertLessThanOrEqual(
+            self::MAX_MINIFICATION_MILLISECONDS,
+            $cost,
+            $summary
+        );
     }
 
     private static function pipeline(bool $minify): Pipeline

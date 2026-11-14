@@ -21554,6 +21554,14 @@ PHP_MSHUTDOWN_FUNCTION(FiftyOneDegreesHashEngine)
     delete properties;
     delete config;
 
+    /*
+     * The settings leave with the extension. PHP removes them itself only for
+     * an extension with no shutdown function, and when a request that loaded
+     * this one with dl() ends, PHP frees their names and default values, so
+     * settings left behind are read after they are freed when PHP stops.
+     */
+    UNREGISTER_INI_ENTRIES();
+
   return SUCCESS;
 }
 

@@ -172,23 +172,14 @@ class DeviceDetectionOnPremise extends Engine
         // looks up only its own property (see findProperty).
         unset($this->properties);
 
-        // Make evidence list
-        $evidences = $this->engine->getKeys();
-        $evidenceKeysList = [];
-        for ($i = 0; $i < $evidences->size(); ++$i) {
-            $evidence = strtolower($evidences->get($i));
-            $evidence = str_replace('http_', '', $evidence);
-            $evidence = str_replace('http_x-', '', $evidence);
-            $evidenceKeysList[] = $evidence;
-        }
-        $this->evidenceKeys = $evidenceKeysList;
+        $this->readEvidenceKeys();
 
         parent::__construct(...func_get_args());
     }
 
     /**
-     * Instance of EvidenceKeyFilter based on the evidence keys fetched
-     * from the cloud service by the private getEvidenceKeys() method.
+     * The Evidence keys the data file in use accepts, as the engine gives
+     * them, in lower case.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
@@ -204,7 +195,10 @@ class DeviceDetectionOnPremise extends Engine
 
         foreach ($evidence as $key => $value) {
             if ($this->filterEvidenceKey($key) && is_string($value)) {
-                $evidenceInternal->set($key, $value);
+                // Evidence keys ignore letter case, and the native code
+                // finds the prefix in lower case only, so the key is
+                // lowered. It matches the field in any case.
+                $evidenceInternal->set(strtolower($key), $value);
             }
         }
 
@@ -253,10 +247,27 @@ class DeviceDetectionOnPremise extends Engine
                 $this->engine->refreshData($fileName_or_data, $length);
         }
 
-        // The metadata follows the new data set.
+        // The metadata and the accepted Evidence follow the new data set.
         unset($this->properties);
         $this->requiredNames = null;
         $this->readProperties = [];
+        $this->readEvidenceKeys();
+    }
+
+    /**
+     * Reads the Evidence keys the data set in use accepts from the engine.
+     */
+    private function readEvidenceKeys(): void
+    {
+        $evidences = $this->engine->getKeys();
+        $evidenceKeysList = [];
+        for ($i = 0; $i < $evidences->size(); ++$i) {
+            $evidence = strtolower($evidences->get($i));
+            $evidence = str_replace('http_', '', $evidence);
+            $evidence = str_replace('http_x-', '', $evidence);
+            $evidenceKeysList[] = $evidence;
+        }
+        $this->evidenceKeys = $evidenceKeysList;
     }
 
     /**

@@ -73,6 +73,11 @@ final class ScriptSet
 
             return;
         }
+        $compiled = BuiltInScripts::compiled($path);
+        if ($compiled !== null) {
+            $this->scripts[] = $compiled;
+            return;
+        }
         $script = pathinfo($path, PATHINFO_FILENAME);
         $this->read($path, $script, 'built in ' . $script);
     }

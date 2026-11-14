@@ -94,6 +94,51 @@ final class DerivedScript
      */
     public array $rules = [];
 
+    /**
+     * The script's fields, as a compiled built in script holds them. The
+     * source is left out, as it says where a script came from rather than
+     * what it is.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'format' => $this->format,
+            'name' => $this->name,
+            'version' => $this->version,
+            'deprecated' => $this->deprecated,
+            'deprecationNote' => $this->deprecationNote,
+            'output' => $this->output,
+            'properties' => $this->properties,
+            'checks' => $this->checks,
+            'rules' => $this->rules,
+        ];
+    }
+
+    /**
+     * The script whose fields toArray gave.
+     *
+     * @param array<string, mixed> $fields
+     * @throws \TypeError where a field is missing or of the wrong type
+     */
+    public static function fromArray(array $fields, string $source): self
+    {
+        $script = new self();
+        $script->format = $fields['format'] ?? null;
+        $script->name = $fields['name'] ?? null;
+        $script->version = $fields['version'] ?? null;
+        $script->deprecated = $fields['deprecated'] ?? null;
+        $script->deprecationNote = $fields['deprecationNote'] ?? null;
+        $script->output = $fields['output'] ?? null;
+        $script->properties = $fields['properties'] ?? null;
+        $script->checks = $fields['checks'] ?? null;
+        $script->rules = $fields['rules'] ?? null;
+        $script->source = $source;
+
+        return $script;
+    }
+
     public function outputName(): string
     {
         return $this->output['Name'];

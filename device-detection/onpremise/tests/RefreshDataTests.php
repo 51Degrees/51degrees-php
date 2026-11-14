@@ -24,12 +24,14 @@
 namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
+use fiftyone\pipeline\devicedetection\Messages;
 use PHPUnit\Framework\TestCase;
 
 /**
  * refreshData makes the engine use another data file, or the updated file
  * it was built from. A data file it cannot use fails the refresh with an
- * exception, and the engine goes on with the data it had. Each case starts
+ * exception, and the engine goes on with the data it had, as it does when
+ * it is given a data file held in memory, which it refuses. Each case starts
  * its own PHP process, as the engine is built when PHP starts and a refresh
  * changes it for the rest of the process.
  *
@@ -57,10 +59,11 @@ class RefreshDataTests extends TestCase
     // Prints, as JSON, the published date, the data file path and the
     // values before and after, and the exception the refresh threw, if
     // any. The arguments are the autoloader, the User-Agent, how to
-    // refresh ('file' from the source, or 'original' after copying the
-    // source over the file the engine was built from), the source, and
-    // 'stale' to set the accepted keys to one no data file has before the
-    // refresh.
+    // refresh ('file' from the source, 'memory' from the source's bytes
+    // and length, or 'original' and 'original-null' with no file name and
+    // a null one, after copying the source over the file the engine was
+    // built from), the source, and 'stale' to set the accepted keys to one
+    // no data file has before the refresh.
     private const REFRESH = <<<'PHP'
         require $argv[1];
         [, , $agent, $how, $source] = $argv;
@@ -101,12 +104,18 @@ class RefreshDataTests extends TestCase
             if ($how === 'original') {
                 copy($source, $engine->engine->getDataFilePath());
                 $engine->refreshData();
+            } elseif ($how === 'original-null') {
+                copy($source, $engine->engine->getDataFilePath());
+                $engine->refreshData(null);
+            } elseif ($how === 'memory') {
+                $data = file_get_contents($source);
+                $engine->refreshData($data, strlen($data));
             } else {
                 $engine->refreshData($source);
             }
         } catch (Throwable $e) {
             $error = ['exception' => $e instanceof Exception,
-                'message' => $e->getMessage()];
+                'class' => get_class($e), 'message' => $e->getMessage()];
         }
         $after = $state();
         $fresh = (new fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise())
@@ -233,6 +242,42 @@ class RefreshDataTests extends TestCase
         $printed = $this->refresh($original, 'original', $this->notData());
 
         $this->assertFailedAndKept($printed, $original);
+    }
+
+    /**
+     * A null file name is the same as none, so the engine reloads the
+     * updated file it was built from.
+     */
+    public function testARefreshWithANullFileNameReloadsTheOriginalFile()
+    {
+        $original = $this->copyPublished($this->lite(), 'original.hash', null);
+        $newer = $this->copyPublished($original, 'newer.hash', self::NEW_PUBLISHED);
+
+        $printed = $this->refresh($original, 'original-null', $newer);
+
+        $this->assertNull($printed['error']);
+        $this->assertSame(self::NEW_PUBLISHED, $printed['after']['published']);
+        $this->assertSame($original, $printed['after']['path']);
+        $this->assertSame($printed['before']['values'], $printed['after']['values']);
+    }
+
+    /**
+     * A data file held in memory cannot be passed to the engine from PHP,
+     * so a refresh given one throws an exception saying how to refresh
+     * instead, and the engine goes on with the data it had.
+     */
+    public function testARefreshFromDataInMemoryIsRefusedAndKeepsTheData()
+    {
+        $lite = $this->lite();
+        $newer = $this->copyPublished($lite, 'newer.hash', self::NEW_PUBLISHED);
+
+        $printed = $this->refresh($lite, 'memory', $newer);
+
+        $this->assertNotNull($printed['error'], 'The refresh did not throw.');
+        $this->assertSame('Exception', $printed['error']['class'], $printed['error']['message']);
+        $this->assertSame(Messages::REFRESH_FROM_MEMORY, $printed['error']['message']);
+        $this->assertSame($printed['before'], $printed['after']);
+        $this->assertTrue($printed['after']['values']['ismobile']);
     }
 
     /**

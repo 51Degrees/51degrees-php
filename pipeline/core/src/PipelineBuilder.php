@@ -150,6 +150,10 @@ class PipelineBuilder
      *  }]
      * }`.
      *
+     * The configured elements are then built into a Pipeline as build()
+     * builds added ones, so the web integration elements the switches ask
+     * for are added unless the configuration lists them.
+     *
      * If an element fails to build, the elements already built from the
      * configuration are closed and the error is thrown.
      *
@@ -180,7 +184,7 @@ class PipelineBuilder
                 $this->flowElements[] = $flowElement;
             }
 
-            return new Pipeline($this->flowElements, $this->settings);
+            return $this->build();
         } catch (\Throwable $e) {
             $this->closeBuilt($built);
 

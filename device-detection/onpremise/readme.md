@@ -169,8 +169,10 @@ then the free Lite file in `cxx/data/device-detection`, which it downloads with 
 repository's script when it is missing. It then runs again in a PHP started with that file, and
 says so on standard error with the command. Set `FiftyOneDegreesHashEngine.data_file` in php.ini,
 as [Configuration](#configuration) describes, so that PHP builds the engine once when it starts.
-A web example cannot start PHP again, so with no data file setting it answers with a page saying
-which setting to set and where the free file is.
+A web example cannot start PHP again, so start it with the launcher, `examples/onpremise/serve.php`,
+which finds the data file in the same way and starts the PHP built-in server on port 3000 with it,
+as below. A data file or a port can follow the example's name. A web example started some other
+way with no data file setting answers with a page giving the launcher command and the setting.
 
 The gettingStartedWeb example uses the data file named by the `_51DEGREES_DD_PATH`
 environment variable in place of the php.ini one, when it is set. If that is a
@@ -189,7 +191,7 @@ This will create the vendor directory containing autoload.php.
 Now navigate to the examples directory and start a PHP server with the relevant file. For example:
 
 ```
-php -S localhost:3000 gettingStartedWeb.php
+php onpremise/serve.php gettingStartedWeb.php
 ```
 
 This will start a local web server listening on port 3000. 

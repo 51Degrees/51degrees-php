@@ -107,6 +107,15 @@ output it writes to standard error
 followed by the file, then the command, after the download's own lines when
 it downloads the file.
 
+A web example cannot start PHP again, so start it with the launcher, which
+finds the data file in the same way and starts the PHP built-in server on
+port 3000 with it, passing on the `-d extension=...` it was given. Open
+http://localhost:3000/ and stop the server with Ctrl+C.
+
+```bash
+php -d extension="$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so" examples/onpremise/serve.php gettingStartedWeb.php
+```
+
 To have PHP build the engine once when it starts, as a web server needs, write
 the settings `ci/build-project.ps1` writes into a `php.ini` in
 `device-detection/onpremise`, and run PHP reading that file as well as its own
@@ -145,6 +154,14 @@ give the Lite file as the first argument.
 ```bash
 php -d extension="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" examples/onpremise/gettingstarted-console.php "$PWD/../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
 cd ..
+```
+
+Start the IP Intelligence web example from the repository root with its
+launcher, which finds the data file as the next paragraph says and starts
+the PHP built-in server on port 3000 with it. Open http://localhost:3000/.
+
+```bash
+php -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web
 ```
 
 The example uses the argument when that file is there. Otherwise it takes the

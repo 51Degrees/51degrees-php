@@ -198,8 +198,8 @@ class ExampleUtils
      * so that the example runs with nothing set, and exits with that PHP's
      * status. It exits with 1 and a message on standard error when it
      * cannot. A web server cannot be started again from a request, so under
-     * one it shows a page saying which php.ini setting to set and where the
-     * free file is, and exits.
+     * one it shows a page giving the command that starts the example with
+     * the launcher, serve.php, and the php.ini setting to set, and exits.
      *
      * When the engine is there, a data file named by the first argument or
      * the _51DEGREES_DD_PATH environment variable that is not the one
@@ -388,10 +388,11 @@ class ExampleUtils
     }
 
     /**
-     * The page a web example shows when PHP started without the engine. It
-     * says which php.ini setting to set and where the free Lite data file
-     * is, or how to download it, as a request cannot start the server
-     * again.
+     * The page a web example shows when PHP started without the engine, as
+     * a request cannot start the server again. It gives the launcher
+     * command, which starts the example with the free Lite data file, and
+     * says which php.ini setting to set and where that file is, or how to
+     * download it.
      *
      * @param bool $loaded Whether the extension is loaded
      */
@@ -415,7 +416,12 @@ class ExampleUtils
                 'php.ini.</p>';
         }
         $page .= '<p>No device detection engine was built when PHP ' .
-            'started. Set <code>' . $html($setting) . '</code> in php.ini' .
+            'started. Start this example with the launcher, which finds a ' .
+            'data file, downloading the free Lite data file when there is ' .
+            'none, and starts the PHP built-in server with it, by running ' .
+            '<code>' . $html(ExampleUtils::launcherCommand()) . '</code></p>' .
+            '<p>For real use, set <code>' . $html($setting) . '</code> in ' .
+            'php.ini' .
             ($ini === false ? '' : ' (<code>' . $html($ini) . '</code>)') .
             ' to the path of a .hash data file, then start PHP again, so ' .
             'that PHP builds the engine once when it starts.</p>';
@@ -430,39 +436,40 @@ class ExampleUtils
                     : 'Download it by running <code>' . $html($command) .
                         '</code>.') . '</p>';
         }
-        if (PHP_SAPI === 'cli-server') {
-            $page .= '<p>Or start this example with the setting, by running ' .
-                '<code>' . $html(ExampleUtils::serverCommand($path)) .
-                '</code></p>';
-        }
-
         return $page . '</body></html>';
     }
 
     /**
-     * The command that starts the PHP built-in server again with the data
-     * file setting. Where the system gives the server's own command line,
-     * it is kept, with the setting added after the PHP binary.
-     *
-     * @param string $path The data file
+     * The command that starts this example with the launcher, serve.php.
+     * Under the PHP built-in server, where the system gives the server's own
+     * command line, the options before -S, such as one loading the
+     * extension, are kept.
      */
-    private static function serverCommand($path)
+    private static function launcherCommand()
     {
-        $line = is_readable('/proc/self/cmdline')
-            ? (string) file_get_contents('/proc/self/cmdline')
-            : '';
-        $parts = $line === ''
-            ? [PHP_BINARY, '-S', $_SERVER['HTTP_HOST'] ?? 'localhost:3000',
-                basename($_SERVER['SCRIPT_FILENAME'])]
-            : explode("\0", rtrim($line, "\0"));
-        $parts[0] = PHP_BINARY;
-        $quoted = array_map('escapeshellarg', $parts);
-        array_splice($quoted, 1, 0, [
-            '-d',
-            escapeshellarg(ExampleUtils::DATA_FILE_SETTING . '=' . $path)
-        ]);
+        $options = [];
+        $binary = 'php';
+        if (PHP_SAPI === 'cli-server') {
+            $binary = PHP_BINARY;
+            $line = is_readable('/proc/self/cmdline')
+                ? (string) file_get_contents('/proc/self/cmdline')
+                : '';
+            $started = $line === '' ? [] : explode("\0", rtrim($line, "\0"));
+            $server = array_search('-S', $started, true);
+            if ($server !== false) {
+                $options = array_slice($started, 1, $server - 1);
+            }
+        }
+        $launcher = __DIR__ . '/../serve.php';
 
-        return implode(' ', $quoted);
+        return implode(' ', array_map('escapeshellarg', array_merge(
+            [$binary],
+            $options,
+            [
+                realpath($launcher) ?: $launcher,
+                basename($_SERVER['SCRIPT_FILENAME'] ?? 'gettingStartedWeb.php')
+            ]
+        )));
     }
 
     public static function output($message)

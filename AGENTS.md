@@ -184,11 +184,22 @@ BOTH="-d extension=$PWD/../device-detection/onpremise/on-premise/modules/FiftyOn
  -d extension=$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
  -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
 php $BOTH examples/onpremise/mixed/gettingstarted-console.php
-php $BOTH -S 127.0.0.1:8080 -t examples/onpremise/web-mixed
 cd ..
 ```
 
-`tests/MixedExamplesTests.php` runs both, in each order, in CI.
+Start the mixed web page from the repository root with the launcher, loading
+only the two extensions. The launcher finds both data files, downloading the
+free Lite files when they are missing, and starts the PHP built-in server on
+port 3000 with them. Open http://localhost:3000/.
+
+```bash
+php -d extension="$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so" -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web-mixed
+```
+
+`tests/MixedExamplesTests.php` runs the mixed console example and the mixed
+web page with both extensions in each order, and
+`tests/ServeWebExamplesTests.php` starts both web pages with the launcher, in
+CI.
 
 ### Correct output
 

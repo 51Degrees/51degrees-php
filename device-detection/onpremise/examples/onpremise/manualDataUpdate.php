@@ -78,7 +78,7 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 // from the FiftyOneDegreesHashEngine.data_file php.ini setting. Without it,
 // the example runs again in a PHP started with a data file, the free Lite
 // file unless another is named, downloaded when it is missing.
-\fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils::startWithEngine($argv ?? []);
+ExampleUtils::startWithEngine($argv ?? []);
 
 $deviceEngine = new DeviceDetectionOnPremise();
 

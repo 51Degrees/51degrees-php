@@ -342,14 +342,16 @@ class WebIntegrationElementsTests extends TestCase
             'negative number' => [-3, 1],
             'decimal text' => ['1.5', 1],
             'decimal number' => [1.5, 1],
+            'floating-point whole number' => [2.0, 1],
         ];
     }
 
     /**
-     * A query.sequence counts only when it is a whole number, or a string of
+     * A query.sequence counts only when it is an integer, or a string of
      * the digits 0 to 9 with no sign or spaces, from 0 up to 2147483646, so
      * that adding one stays within a 32 bit integer. Any other value counts
-     * as absent, and 0 and an absent sequence both give 1.
+     * as absent, a floating-point number such as 2.0 included, and 0 and an
+     * absent sequence both give 1.
      * @dataProvider provider_sequenceInput
      */
     #[DataProvider('provider_sequenceInput')]

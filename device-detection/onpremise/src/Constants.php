@@ -50,4 +50,8 @@ class Constants
     public const METHOD_DESCRIPTION =
         'Provides information about the algorithm that was used to perform ' .
         'detection for a particular User-Agent.';
+
+    // The php.ini setting naming the data file the extension builds its
+    // engine from when PHP starts.
+    public const DATA_FILE_SETTING = 'FiftyOneDegreesHashEngine.data_file';
 }

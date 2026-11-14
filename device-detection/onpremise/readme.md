@@ -30,8 +30,11 @@ sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 
 On Windows, run `cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash` in PowerShell instead.
 Then set `FiftyOneDegreesHashEngine.data_file` in php.ini to that file, as
-[Configuration](#configuration) describes. The engine loads the file when PHP starts, so the
-file must be there first.
+[Configuration](#configuration) describes. The engine loads the file when PHP starts. When the
+setting names no file, or a file the engine cannot be built from, PHP still starts, with no
+engine, and `DeviceDetectionOnPremise` refuses with a message naming the setting. A file named
+by the setting that is missing or cannot be loaded also gives a warning when PHP starts, with
+the reason.
 
 ## Install
 
@@ -137,8 +140,9 @@ turns the performance graph on. Anything else, an empty value included, is
 off. A setting left out of php.ini keeps the default in the table.
 
 The engine needs at least one of the two graphs. Turning `use_predictive_graph`
-off without turning `use_performance_graph` on stops PHP when it starts, with
-the message "The configuration provided was not valid".
+off without turning `use_performance_graph` on leaves PHP with no engine, and
+PHP gives a warning when it starts, beginning "No device detection engine was
+built from" and giving the reason.
 
 ### Running Under Process Manager
 
@@ -158,8 +162,17 @@ To reload the data file, *refreshData()* needs to be called as described in this
 
 ## Examples
 
-Before running the examples, the configuration for the native module MUST be
-added to the php.ini file. See [Configuration](#configuration).
+The examples need the extension, built as [Install](#install) describes and loaded from php.ini
+or with `-d extension=...`. A console example runs with no data file setting. It takes the data
+file its first argument names, then the one the `_51DEGREES_DD_PATH` environment variable names,
+then the free Lite file in `cxx/data/device-detection`, which it downloads with the data
+repository's script when it is missing. It then runs again in a PHP started with that file, and
+says so on standard error with the command. Set `FiftyOneDegreesHashEngine.data_file` in php.ini,
+as [Configuration](#configuration) describes, so that PHP builds the engine once when it starts.
+A web example cannot start PHP again, so start it with the launcher, `examples/onpremise/serve.php`,
+which finds the data file in the same way and starts the PHP built-in server on port 3000 with it,
+as below. A data file or a port can follow the example's name. A web example started some other
+way with no data file setting answers with a page giving the launcher command and the setting.
 
 The gettingStartedWeb example uses the data file named by the `_51DEGREES_DD_PATH`
 environment variable in place of the php.ini one, when it is set. If that is a
@@ -177,10 +190,10 @@ composer install
 ```
 
 This will create the vendor directory containing autoload.php.
-Now, still in `device-detection/onpremise`, start a PHP server with the relevant file. For example:
+Now, still in `device-detection/onpremise`, start a web example with the launcher. For example:
 
 ```
-php -S localhost:3000 examples/onpremise/gettingStartedWeb.php
+php examples/onpremise/serve.php gettingStartedWeb.php
 ```
 
 This will start a local web server listening on port 3000. 

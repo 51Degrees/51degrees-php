@@ -145,12 +145,14 @@ class Pipeline
     }
 
     /**
-     * Whether a property read through __get is there, so that isset and ??
-     * work on flowElements and flowElementsList.
+     * Whether a property read through __get is there, so that isset, ?? and
+     * empty read it. The element lists always are, and so is
+     * propertyDatabase, which __get builds when it is first read.
      */
     public function __isset(string $name): bool
     {
-        return in_array($name, self::ELEMENT_LISTS, true);
+        return in_array($name, self::ELEMENT_LISTS, true) ||
+            $name === 'propertyDatabase';
     }
 
     /**
@@ -229,8 +231,9 @@ class Pipeline
     public function updatePropertyDatabaseForFlowElement(FlowElement $flowElement): void
     {
         // Before its first read there is no database, and the read builds
-        // it from the properties the elements have then.
-        if (!isset($this->propertyDatabase)) {
+        // it from the properties the elements have then. The check does not
+        // go through __isset, which would build it.
+        if (!array_key_exists('propertyDatabase', get_object_vars($this))) {
             return;
         }
 

@@ -87,6 +87,8 @@ class PipelineImmutableTests extends TestCase
         $pipeline = self::pipeline();
 
         $this->assertCount(1, $pipeline->flowElements);
+        $this->assertTrue(isset($pipeline->flowElements));
+        $this->assertFalse(empty($pipeline->flowElementsList));
         $this->assertSame('first', $pipeline->flowElements[0]->dataKey);
         $this->assertTrue(isset($pipeline->flowElementsList['first']));
         $this->assertFalse(isset($pipeline->flowElementsList['second']));

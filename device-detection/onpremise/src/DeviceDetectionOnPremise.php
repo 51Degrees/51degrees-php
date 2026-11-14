@@ -36,6 +36,12 @@ class DeviceDetectionOnPremise extends Engine
     public \EngineHashSwig $engine;
 
     /**
+     * The component the match metrics belong to, which the data set does
+     * not hold, so getComponents adds it after the data set's components.
+     */
+    public const METRICS_COMPONENT = 'Metrics';
+
+    /**
      * The match metrics, which the results give rather than the data set.
      */
     private const METRIC_PROPERTIES = [
@@ -45,7 +51,7 @@ class DeviceDetectionOnPremise extends Engine
             'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
             'description' => Constants::MATCHED_NODES_DESCRIPTION,
             'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
@@ -55,7 +61,7 @@ class DeviceDetectionOnPremise extends Engine
             'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
             'description' => Constants::DIFFERENCE_DESCRIPTION,
             'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
@@ -65,7 +71,7 @@ class DeviceDetectionOnPremise extends Engine
             'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
             'description' => Constants::DRIFT_DESCRIPTION,
             'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
@@ -75,7 +81,7 @@ class DeviceDetectionOnPremise extends Engine
             'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
             'description' => Constants::DEVICE_ID_DESCRIPTION,
             'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
@@ -85,7 +91,7 @@ class DeviceDetectionOnPremise extends Engine
             'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
             'description' => Constants::USER_AGENTS_DESCRIPTION,
             'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'component' => self::METRICS_COMPONENT,
             'isList' => true,
             'available' => true
         ],
@@ -95,7 +101,7 @@ class DeviceDetectionOnPremise extends Engine
             'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
             'description' => Constants::ITERATIONS_DESCRIPTION,
             'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
@@ -105,7 +111,7 @@ class DeviceDetectionOnPremise extends Engine
             'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
             'description' => Constants::METHOD_DESCRIPTION,
             'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ]
@@ -257,6 +263,89 @@ class DeviceDetectionOnPremise extends Engine
         unset($this->properties);
         $this->requiredNames = null;
         $this->readProperties = [];
+    }
+
+    /**
+     * The components of the data set, each with its name, its id, the id
+     * of its default profile and the names of its properties, followed by
+     * the Metrics component, which holds the match metrics. Keyed by the
+     * lowercase name.
+     *
+     * @return array<string, array{name: string, componentId: ?int,
+     *     defaultProfileId: ?int, properties: array<string>}>
+     */
+    public function getComponents(): array
+    {
+        $metaData = $this->engine->getMetaData();
+        $native = $metaData->getComponents();
+        $components = [];
+        for ($i = 0; $i < $native->getSize(); ++$i) {
+            $component = $native->getByIndex($i);
+            $properties = $metaData->getPropertiesForComponent($component);
+            $names = [];
+            for ($j = 0; $j < $properties->getSize(); ++$j) {
+                $names[] = $properties->getByIndex($j)->getName();
+            }
+            $default = $metaData->getDefaultProfileForComponent($component);
+            $components[strtolower($component->getName())] = [
+                'name' => $component->getName(),
+                'componentId' => $component->getComponentIdAsInt(),
+                'defaultProfileId' => $default === null ? null : $default->getProfileId(),
+                'properties' => $names
+            ];
+        }
+        $components[strtolower(self::METRICS_COMPONENT)] = [
+            'name' => self::METRICS_COMPONENT,
+            'componentId' => null,
+            'defaultProfileId' => null,
+            'properties' => array_values(array_column(self::METRIC_PROPERTIES, 'name'))
+        ];
+
+        return $components;
+    }
+
+    /**
+     * Every profile in the data set, each with its id and the name of its
+     * component. A data set holds many profiles, so they are read from
+     * native code one at a time as the caller iterates.
+     *
+     * @return \Generator<int, array{profileId: int, component: string}>
+     */
+    public function getProfiles(): \Generator
+    {
+        $metaData = $this->engine->getMetaData();
+        $profiles = $metaData->getProfiles();
+        for ($i = 0; $i < $profiles->getSize(); ++$i) {
+            $profile = $profiles->getByIndex($i);
+            yield [
+                'profileId' => $profile->getProfileId(),
+                'component' => $metaData->getComponentForProfile($profile)->getName()
+            ];
+        }
+    }
+
+    /**
+     * Every value in the data set, each with its name, the name of its
+     * property, its description and its URL. A data set holds many values,
+     * so they are read from native code one at a time as the caller
+     * iterates.
+     *
+     * @return \Generator<int, array{name: string, property: string,
+     *     description: string, url: string}>
+     */
+    public function getValues(): \Generator
+    {
+        $metaData = $this->engine->getMetaData();
+        $values = $metaData->getValues();
+        for ($i = 0; $i < $values->getSize(); ++$i) {
+            $value = $values->getByIndex($i);
+            yield [
+                'name' => $value->getName(),
+                'property' => $metaData->getPropertyForValue($value)->getName(),
+                'description' => $value->getDescription(),
+                'url' => $value->getUrl()
+            ];
+        }
     }
 
     /**

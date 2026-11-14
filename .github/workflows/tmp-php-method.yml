@@ -1,0 +1,63 @@
+name: Method match metric check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-method-**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.0' }
+          - { os: ubuntu-24.04, php: '8.3' }
+          - { os: ubuntu-24.04, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Point the Device Detection extension at the free Lite file
+        working-directory: common-ci/51degrees-php
+        run: |
+          sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
+          so="$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so"
+          lite="$PWD/cxx/data/device-detection/51Degrees-LiteV4.1.hash"
+          ls -laL "$so" "$lite"
+          printf '%s\n' "extension = \"$so\"" "FiftyOneDegreesHashEngine.data_file = \"$lite\"" > "$RUNNER_TEMP/dd.ini"
+          cat "$RUNNER_TEMP/dd.ini"
+      - name: Run the Method test beside two other metric tests
+        working-directory: common-ci/51degrees-php/device-detection/onpremise
+        run: |
+          export PHP_INI_SCAN_DIR=":$RUNNER_TEMP"
+          php -m | grep -i FiftyOneDegreesHashEngine
+          phpunit --version
+          phpunit --filter 'testMethodIsTheMatchMethodName|testMatchMetricsDescription|testCloseReleasesResults' tests/DeviceDetectionTests.php

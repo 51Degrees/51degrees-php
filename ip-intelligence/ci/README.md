@@ -15,7 +15,7 @@ scripts below are therefore deliberate no-ops.
 |---|---|---|
 | `setup-environment.ps1` | build-and-test, publish prebuild/test | Set up the PHP version for the build. |
 | `fetch-assets.ps1` | Configure (prefetch), build-and-test, publish test | Download the `.ipi` data files. Must declare **only** parameters named after workflow secrets - the `prefetch_assets` action passes nothing else. |
-| `build-project.ps1` | build-and-test | Generate the SWIG wrapper, build the native on-premise extension, clone the translation package, then run the standard PHP build. |
+| `build-project.ps1` | build-and-test | Build the native on-premise extension from the committed SWIG wrapper, clone the translation package, then run the standard PHP build. |
 | `run-unit-tests.ps1` | build-and-test | Run the PHPUnit `Unit` suite. |
 | `run-integration-tests.ps1` | build-and-test, publish test | Run the PHPUnit `Integration` suite with a resource key. |
 | `run-performance-tests.ps1` | build-and-test, publish test | Only invoked when a matrix entry sets `RunPerformance`. Not yet implemented - see the note in the script. |
@@ -32,14 +32,18 @@ workflow here - PHP reads properties by name and generates no accessor classes.
 
 ## Required secrets / keys
 
-- `resource_key` — a 51Degrees cloud resource key authorised for IP intelligence
-  (`ip.*`) properties, used by the live cloud and mixed-cloud tests.
+- `TestResourceKey`, which `run-integration-tests.ps1` sets as the
+  `_51DEGREES_RESOURCE_KEY` environment variable. It is a 51Degrees cloud
+  resource key authorised for IP intelligence (`ip.*`) properties, used by
+  the live cloud and mixed-cloud tests.
 - An IP intelligence licence key (for the distributor) is only needed for
   automatic data-file updates, which the tests do not exercise.
 
 ## Notes
 
 - The native on-premise extension is built under Linux/WSL (see
-  [../OnPremise.md](../OnPremise.md)). SWIG 4.1+ is required for PHP 8.
+  [../OnPremise.md](../OnPremise.md)). The build needs no SWIG, as the
+  wrapper is committed and `../on-premise/generate-wrapper.sh` regenerates it
+  with SWIG 4.5.1.
 - On Windows, live cloud tests need a CA bundle: run PHP with
   `-d curl.cainfo=/path/to/cacert.pem`. Linux CI uses the system CA store.

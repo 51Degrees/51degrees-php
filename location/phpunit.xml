@@ -6,6 +6,7 @@
   <testsuites>
     <testsuite name="Integration">
       <file>tests/ExampleTests.php</file>
+      <file>tests/ExamplesWithoutKeyTests.php</file>
       <file>tests/GeoLocationTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
     </testsuite>

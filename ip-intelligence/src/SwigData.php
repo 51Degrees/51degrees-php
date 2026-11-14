@@ -39,6 +39,16 @@ use fiftyone\pipeline\engines\AspectData;
  */
 class SwigData extends AspectData
 {
+    /**
+     * The properties the data file stores as an Azimuth or a Declination.
+     * The native code writes their text to 3 places, and their numbers are
+     * rounded here to match. The wrapper does not say how a value is stored,
+     * so they are named.
+     */
+    private const ANGLE_PROPERTIES = ['latitude', 'longitude'];
+
+    private const ANGLE_DECIMAL_PLACES = 3;
+
     private $result;
 
     private ?string $echoIp;
@@ -142,7 +152,10 @@ class SwigData extends AspectData
                 return $this->weightedListToValue($this->result->getValuesAsWeightedIntegerList($name));
             case 'weighteddouble':
             case 'weightedsingle':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedDoubleList($name));
+                return $this->weightedListToValue(
+                    $this->result->getValuesAsWeightedDoubleList($name),
+                    self::isAngle($name)
+                );
             case 'weightedbool':
                 return $this->weightedListToValue($this->result->getValuesAsWeightedBoolList($name));
             case 'wkb':
@@ -157,7 +170,10 @@ class SwigData extends AspectData
                 return $this->singleValue($this->result->getValueAsInteger($name));
             case 'double':
             case 'single':
-                return $this->singleValue($this->result->getValueAsDouble($name));
+                return $this->singleValue(
+                    $this->result->getValueAsDouble($name),
+                    self::isAngle($name)
+                );
             case 'bool':
                 return $this->singleValue($this->result->getValueAsBool($name));
             case 'string[]':
@@ -176,14 +192,40 @@ class SwigData extends AspectData
      * Convert a SWIG wrapped Value to an AspectPropertyValue.
      *
      * @param object $value SWIG Value wrapper with hasValue()/getValue()
+     * @param bool $angle Whether the value is an Azimuth or a Declination
      */
-    private function singleValue($value): AspectPropertyValue
+    private function singleValue($value, bool $angle = false): AspectPropertyValue
     {
         if ($value->hasValue()) {
-            return new AspectPropertyValue(null, $value->getValue());
+            return new AspectPropertyValue(null, self::number($value->getValue(), $angle));
         }
 
         return new AspectPropertyValue($value->getNoValueMessage());
+    }
+
+    /**
+     * Whether the property's values are converted from an Azimuth or a
+     * Declination.
+     */
+    private static function isAngle(string $name): bool
+    {
+        return in_array(strtolower($name), self::ANGLE_PROPERTIES, true);
+    }
+
+    /**
+     * An angle to 3 decimal places, as the value types section of the
+     * Pipeline specification requires, rounding a half away from zero as
+     * the native code does when it writes the text. Any other value is
+     * returned as it is.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private static function number($value, bool $angle)
+    {
+        return $angle && is_float($value)
+            ? round($value, self::ANGLE_DECIMAL_PLACES)
+            : $value;
     }
 
     /**
@@ -192,8 +234,9 @@ class SwigData extends AspectData
      * AspectPropertyValue.
      *
      * @param object $value SWIG Value wrapper holding a weighted value list
+     * @param bool $angle Whether the values are an Azimuth or a Declination
      */
-    private function weightedListToValue($value): AspectPropertyValue
+    private function weightedListToValue($value, bool $angle = false): AspectPropertyValue
     {
         if (!$value->hasValue()) {
             return new AspectPropertyValue($value->getNoValueMessage());
@@ -204,7 +247,7 @@ class SwigData extends AspectData
         for ($i = 0; $i < $list->size(); ++$i) {
             $weighted = $list->get($i);
             $items[] = [
-                Constants::WEIGHTED_VALUE_KEY => $weighted->getValue(),
+                Constants::WEIGHTED_VALUE_KEY => self::number($weighted->getValue(), $angle),
                 Constants::WEIGHTED_RAW_WEIGHTING_KEY => self::rawWeighting($weighted),
             ];
         }

@@ -48,7 +48,7 @@ Examples can be found in the `examples` folder. See below for a list of examples
 |combiningservices.php|This example uses geo-location alongside device detection to determine the country and device.|Cloud|
 |webIntegration.php|This example demonstrates how to integrate the geo-location solution into a website.|Cloud|
 
-Ensure the `resource_key` environment variable is set to your resource key prior to running the example scripts.
+Ensure the `_51DEGREES_RESOURCE_KEY` environment variable is set to your resource key prior to running the example scripts.
 
 To run the examples, go to the `examples` directory and run:
 

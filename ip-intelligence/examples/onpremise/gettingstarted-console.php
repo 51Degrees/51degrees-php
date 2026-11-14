@@ -35,3 +35,5 @@ use fiftyone\pipeline\ipintelligence\examples\classes\GettingStartedConsoleOnPre
 ExampleUtils::startWithEngine($argv);
 
 (new GettingStartedConsoleOnPremise())->run(STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

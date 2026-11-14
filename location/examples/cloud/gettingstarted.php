@@ -73,6 +73,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
     $message .= 'Once complete, populate the environment variable ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
     echo $message;
+    Constants::printFindOutMore(__FILE__);
 
     return;
 }
@@ -117,3 +118,5 @@ if ($country->hasValue) {
     // Echo out why the value isn't meaningful
     echo $country->noValueMessage;
 }
+
+Constants::printFindOutMore(__FILE__);

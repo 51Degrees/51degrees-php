@@ -18,6 +18,7 @@
     <testsuite name="Unit">
       <file>tests/HardwareProfileCloudTest.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/ExamplesWithoutKeyTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/ExampleTests.php</file>

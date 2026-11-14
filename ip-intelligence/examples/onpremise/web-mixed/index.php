@@ -22,23 +22,29 @@
  * ********************************************************************* */
 
 /*
- * Combined device detection + IP intelligence (on-premise) web example.
+ * Combined device detection and IP intelligence (on-premise) web example.
  * Mirrors the design of ip-intelligence-dotnet-examples and
  * ip-intelligence-java-examples (same 51Degrees examples-main.min.css and
  * two-column layout).
  *
- * Device detection is performed by the native FiftyOneDegreesHashEngine
- * extension (from a .hash data file) and IP intelligence by the native
- * FiftyOneDegreesIpIntelligenceEngine extension (from a .ipi data file).
- * Both look-ups use the single-value process() overload (User-Agent string /
- * IP string) which is the safe path through the SWIG PHP binding.
+ * One pipeline holds the Device Detection on-premise engine and the IP
+ * Intelligence on-premise engine. Each uses the engine its extension builds
+ * once, when PHP starts, from the data file its php.ini setting names, so no
+ * request loads either data file.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
 
-use fiftyone\pipeline\ipintelligence\Messages;
+use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
+use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
+
+// Where to ask for a copy of the Enterprise data file, tagged with this
+// example.
+$contactUs = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-web-mixed-index.php&utm_term=enterprise-data-file';
 
 // ---- Inputs -------------------------------------------------------------
 $ip = isset($_GET['client-ip']) && $_GET['client-ip'] !== '' ? trim((string) $_GET['client-ip']) : '8.8.8.8';
@@ -47,96 +53,158 @@ $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64
 $error = null;
 $dd = [];   // device detection results (label => value)
 $ipi = [];  // ip intelligence results (label => value)
+$map = ['Areas' => '', 'Latitude' => '', 'Longitude' => ''];
 $evidence = [
     'header.user-agent' => $userAgent,
     'query.client-ip' => $ip,
 ];
 
+// The properties shown, by label.
+$deviceProperties = [
+    'Hardware Vendor' => 'HardwareVendor',
+    'Hardware Name' => 'HardwareName',
+    'Device Type' => 'DeviceType',
+    'Platform Name' => 'PlatformName',
+    'Platform Version' => 'PlatformVersion',
+    'Browser Name' => 'BrowserName',
+    'Browser Version' => 'BrowserVersion',
+    'Screen Width (pixels)' => 'ScreenPixelsWidth',
+    'Screen Height (pixels)' => 'ScreenPixelsHeight',
+];
+$ipProperties = [
+    'Registered Name' => 'RegisteredName',
+    'Registered Owner' => 'RegisteredOwner',
+    'Registered Country' => 'RegisteredCountry',
+    'IP Range Start' => 'IpRangeStart',
+    'IP Range End' => 'IpRangeEnd',
+    'Country' => 'Country',
+    'Country Code' => 'CountryCode',
+    'Country Code 3' => 'CountryCode3',
+    'Region' => 'Region',
+    'State' => 'State',
+    'Town' => 'Town',
+    'Latitude' => 'Latitude',
+    'Longitude' => 'Longitude',
+    'Areas' => 'Areas',
+    'Accuracy Radius' => 'AccuracyRadiusMin',
+    'Time Zone Offset' => 'TimeZoneOffset',
+    'Location Confidence' => 'LocationConfidence',
+    'Connection Type' => 'ConnectionType',
+    'Human Probability' => 'HumanProbability',
+    'Hardware Diversity' => 'HardwareDiversity',
+    'Browser Diversity' => 'BrowserDiversity',
+    'Platform Diversity' => 'PlatformDiversity',
+];
+
 /**
- * Read a SWIG Value wrapper as a display string.
+ * A property's value as the console examples write it, each weighted value
+ * followed by its weighting, or Unknown when it has none.
+ *
+ * @param mixed $data The engine's element data
  */
-function valStr($value): string
+function valStr($data, string $name): string
 {
     try {
-        if ($value->hasValue()) {
-            $v = $value->getValue();
-            if (is_bool($v)) {
-                return $v ? 'True' : 'False';
-            }
-            return (string) $v;
-        }
+        $apv = $data->get(strtolower($name));
     } catch (\Throwable $e) {
-        // fall through
+        return 'Unknown';
     }
-    return 'Unknown';
+    if (!($apv instanceof AspectPropertyValue) || !$apv->hasValue) {
+        return 'Unknown';
+    }
+
+    return ExampleUtils::formatValue($apv);
 }
 
-if (!extension_loaded('FiftyOneDegreesHashEngine')) {
+/**
+ * A location property's value for the map, the most likely one of a
+ * weighted value, or empty when the data file does not have it.
+ *
+ * @param mixed $engine
+ * @param mixed $data
+ */
+function mapValue($engine, $data, string $name): string
+{
+    if (!ExampleUtils::hasProperty($engine, $name)) {
+        return '';
+    }
+    try {
+        $apv = $data->get(strtolower($name));
+    } catch (\Throwable $e) {
+        return '';
+    }
+    if (!($apv instanceof AspectPropertyValue) || !$apv->hasValue) {
+        return '';
+    }
+    $value = $apv->value;
+    if (is_array($value)) {
+        $first = reset($value);
+        $value = is_array($first) ? ($first['value'] ?? '') : $first;
+    }
+
+    return (string) $value;
+}
+
+/**
+ * Each property's value by label, or that it needs the Enterprise data file
+ * when the engine's data file does not have it.
+ *
+ * @param mixed $engine
+ * @param mixed $data
+ * @param array<string, string> $properties
+ * @return array<string, string>
+ */
+function rows($engine, $data, array $properties): array
+{
+    $rows = [];
+    foreach ($properties as $label => $name) {
+        $rows[$label] = ExampleUtils::hasProperty($engine, $name)
+            ? valStr($data, $name)
+            : ExampleUtils::NEEDS_ENTERPRISE;
+    }
+
+    return $rows;
+}
+
+if (!ExampleUtils::findDeviceDetectionOnPremise()) {
+    $error = 'The device detection on-premise package is not installed.';
+} elseif (!extension_loaded('FiftyOneDegreesHashEngine')) {
     $error = 'The FiftyOneDegreesHashEngine (device detection) native extension is not loaded.';
 } elseif (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
     $error = 'The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.';
 } else {
     try {
-        // ---- Device detection -------------------------------------------
-        // The device detection extension builds its engine once at module load
-        // from the FiftyOneDegreesHashEngine.data_file php.ini setting, with the
-        // correct graph configuration. Reuse that global engine via engine_get()
-        // rather than constructing another (direct construction needs the full
-        // graph config and is not the supported PHP path).
-        $ddEngine = \engine_get();
-        $ddResults = $ddEngine->process($userAgent);
+        $deviceClass = ExampleUtils::DEVICE_DETECTION_ONPREMISE_CLASS;
+        $deviceEngine = new $deviceClass();
+        $ipEngine = new IpIntelligenceOnPremise();
+        $pipeline = (new PipelineBuilder([]))
+            ->add($deviceEngine)
+            ->add($ipEngine)
+            ->build();
 
-        $dd = [
-            'Hardware Vendor' => valStr($ddResults->getValueAsString('HardwareVendor')),
-            'Hardware Name' => str_replace('|', ', ', valStr($ddResults->getValueAsString('HardwareName'))),
-            'Device Type' => valStr($ddResults->getValueAsString('DeviceType')),
-            'Platform Name' => valStr($ddResults->getValueAsString('PlatformName')),
-            'Platform Version' => valStr($ddResults->getValueAsString('PlatformVersion')),
-            'Browser Name' => valStr($ddResults->getValueAsString('BrowserName')),
-            'Browser Version' => valStr($ddResults->getValueAsString('BrowserVersion')),
-            'Screen Width (pixels)' => valStr($ddResults->getValueAsString('ScreenPixelsWidth')),
-            'Screen Height (pixels)' => valStr($ddResults->getValueAsString('ScreenPixelsHeight')),
-            'Device Id' => $ddResults->getDeviceId(),
-        ];
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->setArray($evidence);
+        $result = $flowData->process();
 
-        // ---- IP intelligence --------------------------------------------
-        // The IP intelligence extension also builds its engine once, when PHP
-        // starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file
-        // php.ini setting, so no request opens the data file again.
-        $ipiEngine = \ipi_engine_get();
-        if ($ipiEngine === null) {
-            throw new \Exception(Messages::NO_STARTUP_ENGINE);
+        $dd = rows($deviceEngine, $result->device, $deviceProperties);
+        $dd['Device Id'] = valStr($result->device, 'DeviceId');
+        $ipi = rows($ipEngine, $result->ip, $ipProperties);
+        foreach (array_keys($map) as $name) {
+            $map[$name] = mapValue($ipEngine, $result->ip, $name);
         }
-        $ipiResults = $ipiEngine->process($ip);
-
-        $ipi = [
-            'Registered Name' => valStr($ipiResults->getValueAsString('RegisteredName')),
-            'Registered Owner' => valStr($ipiResults->getValueAsString('RegisteredOwner')),
-            'Registered Country' => valStr($ipiResults->getValueAsString('RegisteredCountry')),
-            'IP Range Start' => valStr($ipiResults->getValueAsString('IpRangeStart')),
-            'IP Range End' => valStr($ipiResults->getValueAsString('IpRangeEnd')),
-            'Country' => valStr($ipiResults->getValueAsString('Country')),
-            'Country Code' => valStr($ipiResults->getValueAsString('CountryCode')),
-            'Country Code 3' => valStr($ipiResults->getValueAsString('CountryCode3')),
-            'Region' => valStr($ipiResults->getValueAsString('Region')),
-            'State' => valStr($ipiResults->getValueAsString('State')),
-            'Town' => valStr($ipiResults->getValueAsString('Town')),
-            'Latitude' => valStr($ipiResults->getValueAsString('Latitude')),
-            'Longitude' => valStr($ipiResults->getValueAsString('Longitude')),
-            'Areas' => valStr($ipiResults->getValueAsString('Areas')),
-            'Accuracy Radius' => valStr($ipiResults->getValueAsString('AccuracyRadiusMin')),
-            'Time Zone Offset' => valStr($ipiResults->getValueAsString('TimeZoneOffset')),
-            'Location Confidence' => valStr($ipiResults->getValueAsString('LocationConfidence')),
-            'Connection Type' => valStr($ipiResults->getValueAsString('ConnectionType')),
-            'Human Probability' => valStr($ipiResults->getValueAsString('HumanProbability')),
-            'Hardware Diversity' => valStr($ipiResults->getValueAsString('HardwareDiversity')),
-            'Browser Diversity' => valStr($ipiResults->getValueAsString('BrowserDiversity')),
-            'Platform Diversity' => valStr($ipiResults->getValueAsString('PlatformDiversity')),
-        ];
     } catch (\Throwable $e) {
         // The message can carry server side detail such as data file paths.
         error_log('IP intelligence example failed: ' . $e->getMessage());
         $error = 'The lookup could not be completed. See the server log for details.';
+    } finally {
+        // Closing the FlowData, once the values needed have been read, and
+        // then the pipeline releases the results of the lookup straight away.
+        if (isset($flowData)) {
+            $flowData->close();
+        }
+        if (isset($pipeline)) {
+            $pipeline->close();
+        }
     }
 }
 
@@ -249,6 +317,11 @@ foreach ($evidence as $k => $v) {
                     </table>
                 </div>
             </div>
+            <?php if (in_array(ExampleUtils::NEEDS_ENTERPRISE, array_merge($dd, $ipi), true)): ?>
+                <div class="c-eg-message">
+                    <p class="c-eg-message__text">Some of these properties need the Enterprise data file. <a href="<?= h($contactUs) ?>">Contact us</a> for a copy.</p>
+                </div>
+            <?php endif; ?>
 
             <div id="map-section" class="c-eg-map" style="display: none;">
                 <h3 class="c-eg-map__title">Location map</h3>
@@ -272,6 +345,8 @@ foreach ($evidence as $k => $v) {
             </details>
         </div>
         <?php endif; ?>
+
+        <?= \fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -281,9 +356,9 @@ foreach ($evidence as $k => $v) {
         window.onload = function () {
             if (window.fodExamples && fodExamples.initLocationMap) {
                 fodExamples.initLocationMap({
-                    areasWkt: <?= js($ipi['Areas'] ?? '') ?>,
-                    latitude: <?= js($ipi['Latitude'] ?? '') ?>,
-                    longitude: <?= js($ipi['Longitude'] ?? '') ?>
+                    areasWkt: <?= js($map['Areas']) ?>,
+                    latitude: <?= js($map['Latitude']) ?>,
+                    longitude: <?= js($map['Longitude']) ?>
                 });
             }
         };

@@ -27,7 +27,6 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
-use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleOnPremise;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -37,7 +36,8 @@ use PHPUnit\Framework\TestCase;
  * file. Each runs in its own PHP process, because the extension builds its
  * engine from the data file when PHP starts. Each example must finish, show
  * the properties only the Enterprise data file has as needing it, and give
- * the link to ask for a copy.
+ * the link to ask for a copy. MixedExamplesTests runs the examples that use
+ * the Device Detection extension as well.
  */
 class ExamplesWithoutSettingsTests extends TestCase
 {
@@ -130,22 +130,6 @@ class ExamplesWithoutSettingsTests extends TestCase
         $this->assertStringContainsString(self::CONTACT_US, $text);
     }
 
-    public function testMixed(): void
-    {
-        if (!class_exists(MixedConsoleOnPremise::DEVICE_DETECTION_ONPREMISE_CLASS) ||
-            !extension_loaded('FiftyOneDegreesHashEngine')) {
-            $this->markTestSkipped(
-                'The device detection on-premise package and extension are not installed.'
-            );
-        }
-        $text = $this->runExample('mixed/gettingstarted-console.php');
-        $this->assertStringContainsString(ExampleUtils::NEEDS_ENTERPRISE, $text);
-        $this->assertStringContainsString(
-            'Some of these properties need the Enterprise data file.',
-            $text
-        );
-    }
-
     /**
      * With no data file in php.ini, an example runs again in a PHP that
      * builds the engine when it starts, from the data file the example
@@ -178,7 +162,8 @@ class ExamplesWithoutSettingsTests extends TestCase
 
     /**
      * Runs an example script with php.ini's data file set to $dataFile, the
-     * Lite file unless another is given, and returns what it printed.
+     * Lite file unless another is given, checks that it ended with Find out
+     * more, and returns what it printed.
      *
      * @param array<string> $args
      */
@@ -189,17 +174,18 @@ class ExamplesWithoutSettingsTests extends TestCase
     ): string {
         $dataFile = realpath($dataFile ?? $this->liteDataFile());
         $this->assertNotFalse($dataFile, 'The data file is missing.');
-        $command = escapeshellarg(PHP_BINARY) . ' -d ' .
-            escapeshellarg(ExampleUtils::DATA_FILE_SETTING . "={$dataFile}") .
-            ' ' . escapeshellarg(__DIR__ . "/../examples/onpremise/{$script}");
-        foreach ($args as $arg) {
-            $command .= ' ' . escapeshellarg($arg);
-        }
-        exec($command . ' 2>&1', $lines, $status);
-        $printed = implode("\n", $lines);
-        $this->assertSame(0, $status, $printed);
+        $run = classes\ExampleRun::run(
+            __DIR__ . "/../examples/onpremise/{$script}",
+            ['-d', ExampleUtils::DATA_FILE_SETTING . "={$dataFile}"],
+            [],
+            [],
+            $args
+        );
+        $this->assertSame(0, $run->status, $run->printed());
+        // Every example ends with the links to find out more.
+        $run->assertEndsWithFindOutMore();
 
-        return $printed;
+        return $run->output . "\n" . $run->errors;
     }
 
     /**

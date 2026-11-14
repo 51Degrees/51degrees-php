@@ -81,7 +81,7 @@ if (empty($resourceKey)) {
     $message .= 'Once complete, populate the environment variable or query parameter ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
 
-    ExampleUtils::logErrorAndExit(new Logger('info'), $message);
+    ExampleUtils::logErrorAndExit(new Logger('info'), $message, __FILE__);
 }
 
 $builder = new DeviceDetectionPipelineBuilder(array(
@@ -244,6 +244,8 @@ Utils::setResponseHeader($flowData);
         echo '  <p class="c-eg-message__text">Want to try on-premise? <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-useragentclienthints-web.php&utm_term=try-on-premise">Contact us</a> to discuss requirements.</p>';
         echo '  <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-useragentclienthints-web.php&utm_term=try-on-premise">Contact us</a>';
         echo '</div>';
+
+        echo ExampleUtils::getFindOutMoreHtml(__FILE__);
     ?>
 </div>
 

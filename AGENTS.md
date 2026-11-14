@@ -27,13 +27,13 @@ use the Linux commands below.
   `phpize` and `php-config`, and [Composer](https://getcomposer.org/). CI
   tests PHP 8.0 to 8.5 on Linux and 8.1 to 8.5 on macOS (`ci/options.json`).
 - A C and C++ compiler and `make`. On Ubuntu, `ip-intelligence/OnPremise.md`
-  gives `sudo apt-get install -y php-cli php-dev swig build-essential autoconf pkg-config`,
+  gives `sudo apt-get install -y php-cli php-dev build-essential autoconf pkg-config`,
   and `device-detection/onpremise/readme.md` adds `libatomic1`.
-- SWIG 4.1 or later for IP Intelligence, which generates its wrapper when it
-  builds. On macOS, CI installs it with `brew install swig`.
-- SWIG 4.5.1 only to regenerate the Device Detection wrapper. That wrapper is
-  committed, and `device-detection/onpremise/on-premise/generate-wrapper.sh`
-  rewrites it (`--check` compares it), so never edit `hash_wrap.cxx` by hand.
+- SWIG 4.5.1 only to regenerate a wrapper. Both extensions' wrappers are
+  committed, and each package's `on-premise/generate-wrapper.sh` rewrites its
+  own (`--check` compares it), so never edit `hash_wrap.cxx` or
+  `ipi_wrap.cxx` by hand. Both must come from the same SWIG, because the two
+  extensions share one SWIG type table in a PHP that loads both.
 - For the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS), which the
   data repository's shell script needs, and network access to
   `distributor.51degrees.com`.
@@ -139,8 +139,6 @@ Build the extension, as `ip-intelligence/OnPremise.md` and the package's
 ```bash
 cd ip-intelligence/on-premise
 rm -rf cxx && mkdir cxx && cp -R ../../cxx/src cxx/src
-swig -c++ -php -module FiftyOneDegreesIpIntelligenceEngine -outdir src/php8 -o src/php8/ipi_wrap.cxx ipi-php.i
-cp src/php8/* .
 phpize
 ./configure --enable-FiftyOneDegreesIpIntelligenceEngine
 make
@@ -171,6 +169,27 @@ with a name in `IPI_DATA_FILE_NAMES` in `examples/classes/ExampleConstants.php`.
 When it finds none, it downloads the Lite file into `cxx/data/ip-intelligence`
 (`getDataFile` in `examples/classes/ExampleUtils.php`).
 
+### Device Detection and IP Intelligence together
+
+The mixed examples in `ip-intelligence/examples/onpremise/mixed` and
+`ip-intelligence/examples/onpremise/web-mixed` need both extensions, built as
+above, loaded in one PHP in either order, each with its data file. They load
+the Device Detection on-premise classes from `device-detection/onpremise/src`
+(`findDeviceDetectionOnPremise` in `examples/classes/ExampleUtils.php`).
+
+```bash
+cd ip-intelligence
+BOTH="-d extension=$PWD/../device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so
+ -d FiftyOneDegreesHashEngine.data_file=$PWD/../cxx/data/device-detection/51Degrees-LiteV4.1.hash
+ -d extension=$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
+ -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
+php $BOTH examples/onpremise/mixed/gettingstarted-console.php
+php $BOTH -S 127.0.0.1:8080 -t examples/onpremise/web-mixed
+cd ..
+```
+
+`tests/MixedExamplesTests.php` runs both, in each order, in CI.
+
 ### Correct output
 
 When the IP Intelligence example downloads its data file, it first writes two
@@ -182,9 +201,13 @@ download ends.
 The Device Detection example processes three sets of evidence. For each it
 prints `Input values:` and the evidence, then `Results:` with `Mobile Device`,
 `Platform Name`, `Platform Version`, `Browser Name` and `Browser Version`, all
-of which the Lite file has. It prints nothing about the data file, because
-the messages go to `fiftyone\pipeline\core\Logger`, whose `logInternal` writes
-nothing.
+of which the Lite file has, then `Hardware Vendor`, `Hardware Name` and
+`Device Type`, which only the Enterprise data file has, so with the Lite file
+they read `needs the Enterprise data file`. After the three it prints
+`Some of these properties need the Enterprise data file. Contact us for a copy
+at` and the tagged contact page. It prints nothing about the data file,
+because the messages go to `fiftyone\pipeline\core\Logger`, whose
+`logInternal` writes nothing.
 
 The IP Intelligence example looks up four addresses, being
 `116.154.188.222`, `1.3.32.31`, `45.236.48.61` and
@@ -192,10 +215,20 @@ The IP Intelligence example looks up four addresses, being
 with the address, then `Results:` with the 16 properties in `OUTPUT_PROPERTIES`,
 from `RegisteredName` to `TimeZoneOffset`. A weighted value prints as the
 value followed by its raw weighting in brackets. The Lite file has only
-RegisteredCountry, RegisteredName and RegisteredOwner. `outputProperty` in
-`examples/classes/ExampleUtils.php` catches the error a missing property
-raises, so the other lines read `(not available - ...)` and the example
-carries on.
+RegisteredCountry, RegisteredName and RegisteredOwner, so the other lines read
+`needs the Enterprise data file` (`outputEnterpriseProperty` in
+`examples/classes/ExampleUtils.php`). After the four it prints the same
+sentence and contact page as the Device Detection example.
+
+Every example, console or web, cloud or on-premise, ends with a `Find out
+more` section, a heading underlined with hyphens and then one `label: address`
+line for each link, or the same list at the foot of a web page. A cloud
+example run with no resource key prints where to create one and then the same
+section. Each package's helper (`ExampleUtils` in Device Detection and IP
+Intelligence, `Constants` in location) writes it, the pipeline core and 51Did
+examples write their own, and every 51degrees.com link an example prints
+carries `utm_source=code&utm_medium=example`, the campaign `51degrees-php` and
+the example's file as `utm_content`.
 
 The paid data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-php&utm_content=agents.md&utm_term=correct-output)
@@ -224,8 +257,10 @@ The example reads `_51DEGREES_RESOURCE_KEY`, or takes the key as its first
 argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
-its first argument or from `resource_key`, after a `composer install` in
-`ip-intelligence`.
+its first argument or from `_51DEGREES_RESOURCE_KEY`, after a `composer install` in
+`ip-intelligence`. The Device Detection, IP Intelligence and location examples
+still read the old name `resource_key` when `_51DEGREES_RESOURCE_KEY` is unset
+or empty, and write to the PHP error log that the old name is deprecated.
 
 ### Pitfalls
 
@@ -248,19 +283,33 @@ its first argument or from `resource_key`, after a `composer install` in
   when it starts, and the example then runs again with the file it finds,
   unless that is the file `php.ini` names.
   Check the file sizes as above.
-- **SWIG older than 4.1.** `ip-intelligence/OnPremise.md` says SWIG 4.1 or
-  newer is needed for PHP 8. Regenerating the wrapper also rewrites the
-  committed `src/php8` files, which `git status` then shows as modified.
+- **A wrapper from another SWIG.** Running `swig` by hand, or with a version
+  other than 4.5.1, rewrites the committed `src/php8` files, which
+  `git status` then shows as modified. An IP Intelligence wrapper from SWIG
+  4.2.0 crashed PHP when it loaded before the Device Detection extension,
+  so restore the committed files with `git checkout`.
 - **A checkout made on Windows.** Git for Windows usually checks files out
   with `core.autocrlf=true`, and this repository has no `.gitattributes`, so
   its shell scripts and the `config.m4` files that `phpize` reads get Windows
   line endings, which a Linux shell does not expect. Clone inside WSL rather
   than using a Windows checkout from WSL.
-- **What CI does not test.** CI runs the examples' classes through PHPUnit
-  (the packages' `tests/ExampleTests.php`), not the example scripts. It
-  tests Device Detection with a paid data file (`ci/run-unit-tests.ps1` skips
-  the tests without one), and IP Intelligence with the Lite file that
-  `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
+- **What CI tests.** CI runs the example scripts, each in its own PHP as a
+  person runs them, with no settings beyond php.ini naming a free data file.
+  `device-detection/onpremise/tests/ExamplesWithoutSettingsTests.php` runs
+  every Device Detection on-premise example, `ip-intelligence/tests` runs the
+  IP Intelligence on-premise ones in `ExamplesWithoutSettingsTests.php` and
+  `WebExamplesWithoutSettingsTests.php`, and the `ExamplesWithoutKeyTests.php`
+  of `device-detection/cloud`, `ip-intelligence` and `location` run every
+  cloud example with no resource key. Pipeline core's `tests/ExampleTests.php`
+  and 51Did's `tests/ExamplesTest.php` run theirs the same way. Each checks
+  that the example ends with Find out more and that every 51degrees.com link
+  it prints is tagged. The cloud examples' classes also run with a key, or
+  against a mocked cloud service for IP Intelligence, in each package's
+  `tests/ExampleTests.php`. The Device Detection on-premise suite runs only
+  when the TAC data file is there (`ci/run-unit-tests.ps1` returns early
+  without it), the location suite only with a resource key, and neither
+  on-premise package is built on Windows or on PHP 7.4. IP Intelligence uses
+  the Lite file that `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
 
 ## Environment variable names
 
@@ -282,6 +331,11 @@ follow.
 - `pipeline/cloudrequestengine`: `51degrees/fiftyone.pipeline.cloudrequestengine`
 - `pipeline/did`: `51degrees/fiftyone.pipeline.did`
 - `pipeline/translation`: `51degrees/fiftyone.pipeline.translation`
+- `pipeline/derivedproperty`: `51degrees/fiftyone.pipeline.derivedproperty`.
+  Its `scripts` folder is a copy of the `scripts` folder of the
+  `derived-properties` submodule at the root, and its tests run the
+  submodule's case files, so never edit a script there. Change the script in
+  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`.
 - `device-detection/cloud`: `51degrees/fiftyone.devicedetection`
 - `device-detection/onpremise`: `51degrees/fiftyone.devicedetection` (same name, path repository only)
 - `location`: `51degrees/fiftyone.geolocation`
@@ -298,6 +352,7 @@ core -> engines -> cloudrequestengine -> device-detection/cloud, location, ip-in
 ip-intelligence also requires translation.
 translation and device-detection/onpremise require core and engines.
 did requires no other 51Degrees package.
+derivedproperty requires core.
 The `require` section of each package `composer.json` is the source of truth.
 
 ## Rules

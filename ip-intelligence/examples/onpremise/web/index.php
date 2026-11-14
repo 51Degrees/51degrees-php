@@ -283,6 +283,8 @@ function renderRows(array $rows): string
             </div>
         </div>
         <?php endif; ?>
+
+        <?= ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

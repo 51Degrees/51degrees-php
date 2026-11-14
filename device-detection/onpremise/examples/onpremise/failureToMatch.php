@@ -54,6 +54,10 @@
  * We don't know for sure. The reason given is:
  * The results contained a null profile for the component which the required property belongs to.
  * ```
+ *
+ * Each lookup also shows the Hardware Vendor, which only the Enterprise data
+ * file has. With the free Lite data file the example says it needs the
+ * Enterprise data file and gives a link to ask for a copy.
  */
 
 // First we include the deviceDetectionPipelineBuilder
@@ -62,6 +66,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
+use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 
 // The example uses the engine the extension builds once, when PHP starts,
 // from the FiftyOneDegreesHashEngine.data_file php.ini setting. Without it,
@@ -112,6 +117,15 @@ function failuretomatch_checkifmobile($pipeline, $userAgent = '')
             echo "</br>\n";
         }
 
+        // HardwareVendor is only in the Enterprise data file. The value is
+        // read only when the data file in use has the property.
+        echo "</br>\n";
+        echo 'Hardware Vendor: ' . ExampleUtils::getEnterpriseValue(
+            $pipeline->getElement('device'),
+            $result->device,
+            'hardwarevendor'
+        );
+
         echo "</br>\n";
         echo "</br>\n";
     } finally {
@@ -128,6 +142,17 @@ try {
 
     $badUserAgent = 'nonsense ua...';
     failuretomatch_checkifmobile($pipeline, $badUserAgent);
+
+    if (!ExampleUtils::hasProperty($device, 'hardwarevendor')) {
+        echo ExampleUtils::getEnterpriseNote(ExampleUtils::getTaggedLink(
+            'contact-us',
+            __FILE__,
+            'enterprise-data-file'
+        ));
+        echo "</br>\n";
+    }
 } finally {
     $pipeline->close();
 }
+
+ExampleUtils::printFindOutMore(__FILE__);

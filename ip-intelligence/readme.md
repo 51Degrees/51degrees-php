@@ -104,6 +104,13 @@ IP intelligence can be combined with
 [device detection](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud) in a single
 pipeline. See `examples/cloud/mixed/` and `examples/onpremise/mixed/`.
 
+The on-premise mixed examples load both extensions in one PHP, the Device
+Detection one with its own data file setting, and take the Device Detection
+on-premise classes from `device-detection/onpremise` beside this package. The
+IP Intelligence extension's classes start with `FiftyOneDegreesIpi` so that
+the two extensions' classes never share a name, as
+[OnPremise.md](OnPremise.md) explains.
+
 ## Examples
 
 In-repo under `examples/`:
@@ -171,7 +178,7 @@ vendor/bin/phpunit
 ```
 
 Cloud tests run offline against a mocked HTTP client. A live cloud test runs when
-the `resource_key` environment variable is set. On-premise tests run when the
+the `_51DEGREES_RESOURCE_KEY` environment variable is set. On-premise tests run when the
 native extension is built and an `.ipi` data file is available, and are
 skipped otherwise. Set `_51DEGREES_IPI_PATH`, place a file under `assets/`,
 or download the Lite file into `cxx/data/ip-intelligence` at the root of the

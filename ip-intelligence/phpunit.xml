@@ -16,14 +16,17 @@
       <file>tests/ResourceCleanupTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/ExamplesUseStartupEngineTests.php</file>
+      <file>tests/ExamplesWithoutKeyTests.php</file>
     </testsuite>
     <testsuite name="Integration">
+      <file>tests/WebExamplesWithoutSettingsTests.php</file>
       <file>tests/IpIntelligenceCloudTests.php</file>
       <file>tests/IpIntelligenceOnPremiseTests.php</file>
       <file>tests/ServeWebExamplesTests.php</file>
       <file>tests/IpIntelligenceTranslationTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>
+      <file>tests/MixedExamplesTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

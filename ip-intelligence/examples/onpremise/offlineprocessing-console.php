@@ -41,3 +41,5 @@ foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
 }
 
 (new OfflineProcessingConsoleOnPremise())->run($ipAddresses, STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

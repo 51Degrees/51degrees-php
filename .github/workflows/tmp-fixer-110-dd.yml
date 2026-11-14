@@ -1,0 +1,83 @@
+name: tmp fixer 110 dd
+# Throwaway. Builds both on-premise extensions as CI does, runs the dl()
+# class name test several times, and runs the test's own PHP command under
+# valgrind with PHP's allocator off.
+on:
+  push:
+    branches:
+      - 'tmp/fixer-110-*'
+permissions:
+  contents: read
+jobs:
+  test:
+    name: dl (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.3' }
+          - { os: ubuntu-26.04, php: '8.3' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Show the runner image and PHP
+        run: |
+          if [ -f /etc/os-release ]; then head -3 /etc/os-release; else sw_vers; fi
+          php -v
+          (ldd --version 2>/dev/null | head -1) || true
+          git -C common-ci/51degrees-php log --oneline -3
+      - name: Device Detection loaded with dl(), twenty times and under valgrind
+        working-directory: common-ci/51degrees-php/device-detection/onpremise
+        run: |
+          sudo apt-get update -q > /dev/null && sudo apt-get install -y -q valgrind > /dev/null
+          ext="$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so"
+          ls -la "$ext"
+          code="dl('FiftyOneDegreesHashEngine.so'); echo extension_loaded('FiftyOneDegreesHashEngine') ? 'loaded' : 'missing';"
+          bad=0
+          for i in $(seq 1 20); do
+            set +e
+            LIBC_FATAL_STDERR_=1 php -n -d enable_dl=1 -d extension_dir="$(dirname "$ext")" -r "$code" > out.txt 2>&1
+            s=$?
+            set -e
+            if [ $s -ne 0 ]; then bad=$((bad+1)); echo "run $i exit $s"; cat out.txt; echo; fi
+          done
+          echo "last output: $(cat out.txt)"
+          echo "the Device Detection dl command exited non-zero $bad of 20"
+          set +e
+          USE_ZEND_ALLOC=0 valgrind --num-callers=30 --log-file="$RUNNER_TEMP/dd-dl.txt" \
+            php -n -d enable_dl=1 -d extension_dir="$(dirname "$ext")" -r "$code"
+          echo
+          USE_ZEND_ALLOC=0 valgrind --num-callers=30 --log-file="$RUNNER_TEMP/dd-startup.txt" \
+            php -n -d extension="$ext" -r "echo extension_loaded('FiftyOneDegreesHashEngine') ? 'loaded' : 'missing';"
+          echo
+          set -e
+          for f in dd-dl dd-startup; do
+            echo "===== $f ====="
+            grep "ERROR SUMMARY" "$RUNNER_TEMP/$f.txt" || true
+            grep -E "^==[0-9]+== (Invalid|Conditional|Use of|Mismatched)" "$RUNNER_TEMP/$f.txt" | sed -E 's/^==[0-9]+== //' | sort | uniq -c || true
+            sed -n '/^==[0-9]*== \(Invalid\|Mismatched\)/,+26p' "$RUNNER_TEMP/$f.txt" | head -n 60
+          done

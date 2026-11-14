@@ -91,9 +91,9 @@ class CloudEngine extends CloudEngineBase
     {
         $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
 
-        return $flowData
-            ->get($cloudRequestEngine->dataKey ?? Constants::DATA_KEY)
-            ->get('cloud');
+        return CloudRequestData::jsonResponseOf($flowData->get(
+            $cloudRequestEngine->dataKey ?? Constants::DATA_KEY
+        ));
     }
 
     /**

@@ -70,13 +70,13 @@ class CloudResponseStandInElement extends FlowElement
     public string $dataKey = 'cloud-response';
 
     public array $properties = [
-        'cloud' => ['type' => 'string']
+        'json-response' => ['type' => 'string']
     ];
 
     public function processInternal($flowData): void
     {
         $flowData->setElementData(new ElementDataDictionary($this, [
-            'cloud' => '{"device":{"ismobile":true}}',
+            'json-response' => '{"device":{"ismobile":true}}',
         ]));
     }
 }

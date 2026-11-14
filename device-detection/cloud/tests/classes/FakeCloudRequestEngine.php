@@ -32,9 +32,10 @@ use fiftyone\pipeline\core\FlowElement;
 /**
  * Stands in for the cloud request engine so that the engines which parse a
  * cloud response can be tested without a network connection, a resource key
- * or a licence key. It publishes a fixed JSON document under the
- * 'cloud-response' data key, and answers to 'cloud', the deprecated key,
- * which is exactly what the real cloud request engine does.
+ * or a licence key. It publishes a fixed JSON document as the Property
+ * 'json-response' under the 'cloud-response' data key, and answers to
+ * 'cloud', the deprecated key, which is exactly what the real cloud request
+ * engine does.
  */
 class FakeCloudRequestEngine extends FlowElement
 {
@@ -68,7 +69,7 @@ class FakeCloudRequestEngine extends FlowElement
     {
         $flowData->setElementData(new ElementDataDictionary(
             $this,
-            ['cloud' => $this->response]
+            ['json-response' => $this->response]
         ));
     }
 }

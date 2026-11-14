@@ -211,6 +211,8 @@
     <?php $output('  <p class="c-eg-message__text">Want to try on-premise? <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-static-page.php&utm_term=try-on-premise">Contact us</a> to discuss requirements.</p>'); ?>
     <?php $output('  <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-static-page.php&utm_term=try-on-premise">Contact us</a>'); ?>
     <?php $output('</div>'); ?>
+
+    <?php $output(ExampleUtils::getFindOutMoreHtml(__FILE__)); ?>
 </div>
 
 <!--

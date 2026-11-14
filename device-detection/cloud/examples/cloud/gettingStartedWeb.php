@@ -107,7 +107,7 @@ function main()
             "Once complete, populate the environment variable " .
             "mentioned at the start of this message with the key.";
 
-        ExampleUtils::logErrorAndExit($logger, $message);
+        ExampleUtils::logErrorAndExit($logger, $message, __FILE__);
     }
 
     (new GettingStartedWeb())->run($resourceKey, $logger, function($message) { echo $message; });

@@ -66,6 +66,7 @@
 require(__DIR__ . "/../../vendor/autoload.php");
 
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
 
 $builder = new PipelineBuilder();
 
@@ -74,6 +75,7 @@ $configFile = __DIR__ . "/pipeline.json";
 // Check if config file exists
 if (!file_exists($configFile)) {
     echo "Config file not found at " . $configFile;
+    Constants::printFindOutMore(__FILE__);
     return;
 }
 
@@ -85,6 +87,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
     echo "You need to create a resource key at " .
     "https://51degrees.com/configure/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-configurefromfile.php&utm_term=resource-key-required and paste it into " . 
     "your config file, replacing !!YOUR_RESOURCE_KEY!!.";
+    Constants::printFindOutMore(__FILE__);
     return;
 }
 
@@ -113,3 +116,5 @@ if ($country->hasValue) {
     // Echo out why the value isn't meaningful
     echo $country->noValueMessage;
 }
+
+Constants::printFindOutMore(__FILE__);

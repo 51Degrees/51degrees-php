@@ -31,8 +31,11 @@ use fiftyone\pipeline\ipintelligence\examples\classes\GetAllPropertiesConsoleClo
 $resourceKey = ExampleUtils::getResourceKey(array_slice($argv, 1));
 
 if (!$resourceKey) {
-    fwrite(STDERR, "A resource key is required. Supply it as the first argument or via the resource_key environment variable. Obtain one from https://51degrees.com/configure/?utm_source=github&utm_medium=example&utm_campaign=51degrees-php&utm_content=getallproperties-console.php&utm_term=resource-key\n");
+    fwrite(STDERR, "A resource key is required. Supply it as the first argument or via the _51DEGREES_RESOURCE_KEY environment variable. Obtain one from https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-getallproperties-console.php&utm_term=resource-key-required\n");
+    ExampleUtils::printFindOutMore(__FILE__);
     exit(1);
 }
 
 (new GetAllPropertiesConsoleCloud())->run(['resourceKey' => $resourceKey], STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

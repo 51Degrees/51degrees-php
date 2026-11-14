@@ -33,6 +33,10 @@ class ExampleTests extends TestCase
         include __DIR__ . '/../examples/index.php';
         ob_end_clean(); // discard output
 
-        $this->assertNotEmpty($javascript);
+        // The page sets $javascript only when a resource key is set.
+        $this->assertNotEmpty(
+            $javascript ?? null,
+            'The page gave no JavaScript. Is _51DEGREES_RESOURCE_KEY set?'
+        );
     }
 }

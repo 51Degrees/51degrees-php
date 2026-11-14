@@ -21,7 +21,7 @@ but additional caution should be applied.
 
 ## Examples
 
-To run the examples, you first need to install dependencies. Navigate to the repository root and execute:
+To run the examples, you first need to install dependencies. Navigate to this package's folder, which is `pipeline/core` in the monorepo, and execute:
 
 ```
 composer install
@@ -31,10 +31,12 @@ This will create the vendor directory containing autoload.php. Now navigate to t
 directory and start a PHP server with the relevant file. For example:
 
 ```
-PHP -S localhost:3000 CustomFlowElement.php
+php -S localhost:3000 CustomFlowElement.php
 ```
 
 This will start a local web server listening on port 3000. Open your web browser and browse to http://localhost:3000/ to see the example in action.
+
+`Pipeline.php` writes to the console, so run it with `php Pipeline.php` from the same directory.
 
 There are several examples available that demonstrate how to make use of the Pipeline API in 
 isolation. These are described in the table below.

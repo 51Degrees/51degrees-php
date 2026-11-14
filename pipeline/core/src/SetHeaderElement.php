@@ -35,6 +35,18 @@ class SetHeaderElement extends FlowElement
     public string $dataKey = 'set-headers';
 
     /**
+     * The headers to set, by header name.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'responseheaderdictionary' => [
+            'name' => 'responseheaderdictionary',
+            'type' => 'array'
+        ],
+    ];
+
+    /**
      * @var array<string, array<int, mixed>>
      */
     private array $setHeaderProperties = [];

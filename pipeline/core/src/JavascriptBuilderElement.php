@@ -109,6 +109,15 @@ class JavascriptBuilderElement extends FlowElement
     public string $dataKey = 'javascriptbuilder';
 
     /**
+     * The JavaScript the element writes.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'javascript' => ['name' => 'javascript', 'type' => 'string'],
+    ];
+
+    /**
      * Set once a callback URL that is not valid has been logged, because a
      * misconfigured element would otherwise log on every request.
      */

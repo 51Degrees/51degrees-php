@@ -254,6 +254,37 @@ class TranslationEngineBuilderTests extends TestCase
             ->build();
     }
 
+    public function testBuildNeedsATranslation(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('addTranslation');
+        (new TranslationEngineBuilder())
+            ->setSourceElementDataKey('ip')
+            ->addSource('countries.fr_FR.yml', 'England: Angleterre')
+            ->build();
+    }
+
+    public function testBuildNeedsASource(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('addSource');
+        self::builder()->build();
+    }
+
+    /**
+     * A fixed language with no source would leave every value
+     * untranslated, so it is refused, naming the languages there are.
+     */
+    public function testAFixedLanguageWithNoSourceIsRefused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('fr_FR');
+        self::builder()
+            ->addSource('countries.fr_FR.yml', 'England: Angleterre')
+            ->setFixedLanguage('fr-FR')
+            ->build();
+    }
+
     /**
      * A source whose name gives no language would never be used, so it is
      * refused.

@@ -62,6 +62,8 @@ if (basename(__FILE__) == basename($_SERVER['SCRIPT_FILENAME'])) {
         $logger = new Logger('info');
 
         (new MetaDataConsole())->run($logger, [ExampleUtils::class, 'output']);
+
+        ExampleUtils::printFindOutMore(__FILE__);
     }
 
     main(isset($argv) ? array_slice($argv, 1) : null);

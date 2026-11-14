@@ -514,6 +514,101 @@ class ExampleUtils
         }
     }
 
+    // The repositories every example lists under "Find out more".
+    private const FIND_OUT_MORE_REPOSITORIES = [
+        'This example' =>
+            'https://github.com/51Degrees/51degrees-php/tree/main/ip-intelligence',
+        'The IP intelligence engine' => 'https://github.com/51Degrees/51degrees-cxx',
+        'The free data files' => 'https://github.com/51Degrees/data'
+    ];
+
+    // The 51degrees.com pages every example lists under "Find out more",
+    // each with the utm_term its link carries.
+    private const FIND_OUT_MORE_PAGES = [
+        'IP intelligence' => ['ip-intelligence', 'find-out-more-ip-intelligence'],
+        'Device detection' => ['device-detection', 'find-out-more-device-detection'],
+        'Resource keys for the cloud service' => [
+            'documentation/_services__cloud__resource_keys.html',
+            'find-out-more-resource-keys'
+        ],
+        'Data files and pricing' => ['pricing', 'find-out-more-pricing'],
+        'Contact us' => ['contact-us', 'find-out-more-contact']
+    ];
+
+    /**
+     * A link to a page on 51degrees.com, tagged as printed by an example so
+     * that a visit can be traced to the example that prompted it.
+     *
+     * @param string $page The page's path, such as contact-us
+     * @param string $exampleFile The example's file, __FILE__
+     * @param string $term Where in the example the link is
+     */
+    public static function getTaggedLink(
+        string $page,
+        string $exampleFile,
+        string $term
+    ): string {
+        return 'https://51degrees.com/' .
+            "{$page}?utm_source=code&utm_medium=example" .
+            '&utm_campaign=51degrees-php&utm_content=' .
+            self::getContentSlug($exampleFile) . "&utm_term={$term}";
+    }
+
+    /**
+     * The "Find out more" section every example ends with, as text, giving
+     * the person running it the links to follow up.
+     *
+     * @param string $exampleFile The example's file, __FILE__
+     */
+    public static function getFindOutMore(string $exampleFile): string
+    {
+        $lines = ['', 'Find out more', '-------------'];
+        foreach (self::FIND_OUT_MORE_REPOSITORIES as $label => $url) {
+            $lines[] = "{$label}: {$url}";
+        }
+        foreach (self::FIND_OUT_MORE_PAGES as $label => [$page, $term]) {
+            $lines[] = "{$label}: " .
+                self::getTaggedLink($page, $exampleFile, $term);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * The "Find out more" section for the end of a web page.
+     *
+     * @param string $exampleFile The page's file, __FILE__
+     */
+    public static function getFindOutMoreHtml(string $exampleFile): string
+    {
+        $items = '';
+        foreach (self::FIND_OUT_MORE_REPOSITORIES as $label => $url) {
+            $url = htmlspecialchars($url);
+            $items .= "        <li>{$label}: <a href=\"{$url}\">{$url}</a></li>\n";
+        }
+        foreach (self::FIND_OUT_MORE_PAGES as $label => [$page, $term]) {
+            $url = htmlspecialchars(
+                self::getTaggedLink($page, $exampleFile, $term)
+            );
+            $items .= "        <li><a href=\"{$url}\">{$label}</a></li>\n";
+        }
+
+        return "<div id=\"find-out-more\">\n" .
+            "    <h3 class=\"c-eg-page__heading\">Find out more</h3>\n" .
+            "    <ul>\n{$items}    </ul>\n</div>\n";
+    }
+
+    /**
+     * Writes the "Find out more" section to standard output, which a
+     * console example ends with.
+     *
+     * @param string $exampleFile The example's file, __FILE__
+     */
+    public static function printFindOutMore(string $exampleFile): void
+    {
+        fwrite(STDOUT, self::getFindOutMore($exampleFile) . "\n");
+    }
+
     /**
      * Write a message to standard error. A web example's server shows it in
      * its console, and it never reaches the page.
@@ -521,5 +616,21 @@ class ExampleUtils
     private static function writeError(string $message): void
     {
         file_put_contents('php://stderr', $message . "\n");
+    }
+
+    /**
+     * The example's path from the package's folder, in lower case with a
+     * hyphen for each folder separator, such as
+     * examples-onpremise-gettingstarted-console.php.
+     *
+     * @param string $exampleFile The example's file
+     */
+    private static function getContentSlug(string $exampleFile): string
+    {
+        $path = str_replace('\\', '/', $exampleFile);
+        $at = strrpos($path, '/examples/');
+        $path = $at === false ? basename($path) : substr($path, $at + 1);
+
+        return strtolower(str_replace('/', '-', $path));
     }
 }

@@ -61,12 +61,18 @@
  * Is User-Agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36' a mobile?
  * false
  * ```
+ *
+ * Each lookup also shows the Hardware Vendor, which only the Enterprise data
+ * file has. With the free Lite data file the example says it needs the
+ * Enterprise data file, which also brings daily automatic updates, and gives
+ * a link to ask for a copy.
  */
 
 require __DIR__ . '/../../vendor/autoload.php';
 
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
+use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 
 $deviceEngine = new DeviceDetectionOnPremise();
 
@@ -107,6 +113,15 @@ function manualDataUpdate_checkifmobile($pipeline, $userAgent = '')
             echo $result->device->ismobile->noValueMessage;
         }
 
+        // HardwareVendor is only in the Enterprise data file. The value is
+        // read only when the data file in use has the property.
+        echo "</br>\n";
+        echo 'Hardware Vendor: ' . ExampleUtils::getEnterpriseValue(
+            $pipeline->getElement('device'),
+            $result->device,
+            'hardwarevendor'
+        );
+
         echo "</br>\n";
         echo "</br>\n";
     } finally {
@@ -135,6 +150,20 @@ try {
     $deviceEngine->refreshData();
     manualDataUpdate_checkifmobile($pipeline, $desktopUA);
     manualDataUpdate_checkifmobile($pipeline, $iPhoneUA);
+
+    // Daily automatic updates come with the Enterprise data file.
+    if (!ExampleUtils::hasProperty($deviceEngine, 'hardwarevendor')) {
+        echo 'This example reloaded the free Lite data file. The Enterprise ' .
+            'data file adds daily automatic updates. ';
+        echo ExampleUtils::getEnterpriseNote(ExampleUtils::getTaggedLink(
+            'contact-us',
+            __FILE__,
+            'enterprise-data-file'
+        ));
+        echo "</br>\n";
+    }
 } finally {
     $pipeline->close();
 }
+
+ExampleUtils::printFindOutMore(__FILE__);

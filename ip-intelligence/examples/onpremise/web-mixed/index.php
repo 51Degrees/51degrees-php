@@ -272,6 +272,8 @@ foreach ($evidence as $k => $v) {
             </details>
         </div>
         <?php endif; ?>
+
+        <?= \fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

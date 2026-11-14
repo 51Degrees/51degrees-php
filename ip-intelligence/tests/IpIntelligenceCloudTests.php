@@ -172,7 +172,7 @@ class IpIntelligenceCloudTests extends TestCase
 
     /**
      * Live integration test - only runs when a real resource key has been
-     * supplied via the resource_key environment variable.
+     * supplied via the _51DEGREES_RESOURCE_KEY environment variable.
      */
     public function testLiveCloud(): void
     {
@@ -182,7 +182,7 @@ class IpIntelligenceCloudTests extends TestCase
             '!!YOUR_RESOURCE_KEY!!'
         );
         if ($resourceKey === '') {
-            $this->markTestSkipped('No resource_key environment variable set - skipping live cloud test.');
+            $this->markTestSkipped('No _51DEGREES_RESOURCE_KEY environment variable set - skipping live cloud test.');
         }
 
         $settings = ['resourceKey' => $resourceKey];

@@ -167,22 +167,27 @@ free file in `cxx/data` that has not been downloaded yet, the example runs the
 download script for it first.
 
 To run the examples, you will need PHP and composer installed.
-Once these are available, install the dependencies required by the examples. 
-Navigate to the repository root and execute:
+Once these are available, install the dependencies required by the examples.
+The examples load the `vendor/autoload.php` of this package, which the
+`composer install` at the repository root does not create, so navigate to
+`device-detection/onpremise` and execute:
 
 ```
 composer install
 ```
 
-This will create the vendor directory containing autoload.php. 
-Now navigate to the examples directory and start a PHP server with the relevant file. For example:
+This will create the vendor directory containing autoload.php.
+Now, still in `device-detection/onpremise`, start a PHP server with the relevant file. For example:
 
 ```
-php -S localhost:3000 gettingStartedWeb.php
+php -S localhost:3000 examples/onpremise/gettingStartedWeb.php
 ```
 
 This will start a local web server listening on port 3000. 
 Open your web browser and browse to http://localhost:3000/ to see the example in action.
+Run a console example from the same folder, for example
+`php examples/onpremise/gettingStartedConsole.php`. Every example ends with a
+"Find out more" section that lists where to go next.
 
 The table below describes the examples that are available.
 

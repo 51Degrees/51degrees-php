@@ -58,6 +58,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
     $message .= "Make sure to include the Country, State, County, Town and ";
     $message .= "JavaScript properties as they are used by this example.<br />";
     echo $message;
+    Constants::printFindOutMore(__FILE__);
 
     return;
 }
@@ -120,6 +121,7 @@ if (!isset($properties["country"]) || !isset($properties["state"]) ||
   !isset($properties["javascript"])) {
     echo "Make sure to include the Country, State, County, Town and " .
         "JavaScript properties as they are used by this example.\n<br />";
+    Constants::printFindOutMore(__FILE__);
     return;
 }
 
@@ -262,3 +264,4 @@ in the JSON endpoint provided data
        }, 'location');
     }
  </script>
+<?php Constants::printFindOutMore(__FILE__); ?>

@@ -22,6 +22,12 @@
  * ********************************************************************* */
 
 
+// The examples' helper, loaded by itself so that this example needs no
+// composer install.
+require_once __DIR__ . '/../cloud/classes/ExampleUtils.php';
+
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
+
 function qq(string $s): string {
     $s = trim($s);
     if (strlen($s) == 0) {
@@ -77,3 +83,5 @@ $ghev = json_decode('{"architecture":"x86","bitness":"64","brands":[{"brand":"Ch
 $headers = ghevToHTTPHeaders($ghev);
 
 echo json_encode($headers, JSON_PRETTY_PRINT) . "\n";
+
+ExampleUtils::printFindOutMore(__FILE__);

@@ -87,3 +87,20 @@ $flowData->getWhere('type', 'int');
 
 // Get from an element by its object
 $flowData->getFromElement($fe1)->exampleProperty1;
+
+// Find out more, the links for the person running this example to follow
+// up.
+$findOutMore = [
+    'This example' =>
+        'https://github.com/51Degrees/51degrees-php/tree/main/pipeline/core',
+    'The Pipeline API specification' =>
+        'https://github.com/51Degrees/specifications/tree/main/pipeline-specification',
+    'The Pipeline API' =>
+        'https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-pipeline.php&utm_term=find-out-more-pipeline-api',
+    'Contact us' =>
+        'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-pipeline.php&utm_term=find-out-more-contact'
+];
+echo "\nFind out more\n-------------\n";
+foreach ($findOutMore as $label => $url) {
+    echo "{$label}: {$url}\n";
+}

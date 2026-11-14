@@ -27,8 +27,8 @@
  * process, for example, the degree of certainty about the result. Running the example outputs
  * those properties and values.
  *
- * There is a [discussion](/documentation/4.5/_device_detection__hash.html#DeviceDetection_Hash_DataSetProduction)
- * of metrics and data set production on our website. See also the [performance options](/documentation/4.5/_device_detection__features__performance_options.html)
+ * There is a [discussion](https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-matchmetrics.php&utm_term=header#DeviceDetection_Hash_DataSetProduction)
+ * of metrics and data set production on our website. See also the [performance options](https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-matchmetrics.php&utm_term=header)
  * page.
  * # Location
  * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-php/blob/main/device-detection/onpremise/examples/onpremise/matchMetrics.php).
@@ -50,6 +50,8 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
         $logger = new Logger('info');
 
         (new MatchMetrics())->run(false, $logger, [ExampleUtils::class, 'output']);
+
+        ExampleUtils::printFindOutMore(__FILE__);
     }
 
     main(isset($argv) ? array_slice($argv, 1) : null);

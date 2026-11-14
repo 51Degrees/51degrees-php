@@ -80,6 +80,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
     $message .= 'Once complete, populate the environment variable ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
     echo $message;
+    Constants::printFindOutMore(__FILE__);
 
     return;
 }
@@ -101,6 +102,7 @@ $builder = new GeoLocationPipelineBuilder($settings);
 // First check if it exists
 if (!class_exists("fiftyone\pipeline\devicedetection\DeviceDetectionCloud")) {
     echo "You will need to include the 51degrees/fiftyone.devicedetection package for this example to run.";
+    Constants::printFindOutMore(__FILE__);
     return;
 };
 
@@ -154,3 +156,5 @@ if ($flowData->device->ismobile->hasValue) {
     // it wasn't meaningful
     print($flowData->device->ismobile->noValueMessage);
 }
+
+Constants::printFindOutMore(__FILE__);

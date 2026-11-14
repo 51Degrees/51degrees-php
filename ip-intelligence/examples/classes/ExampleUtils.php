@@ -49,6 +49,15 @@ class ExampleUtils
     private const DEVICE_DETECTION_ONPREMISE_SOURCE =
         __DIR__ . '/../../../device-detection/onpremise/src';
 
+    // The Device Detection extension, which the mixed examples load with
+    // this package's, and the php.ini setting naming the data file it builds
+    // its engine from when PHP starts.
+    public const DD_EXTENSION = 'FiftyOneDegreesHashEngine';
+    public const DD_DATA_FILE_SETTING = 'FiftyOneDegreesHashEngine.data_file';
+
+    // Where the data repository keeps the free Device Detection data files.
+    private const DD_DATA = __DIR__ . '/../../../cxx/data/device-detection';
+
     /**
      * True when the Device Detection on-premise package's classes can be
      * loaded. This package does not depend on that package, so when it is
@@ -103,6 +112,40 @@ class ExampleUtils
         array $argv,
         string $freeFile = ExampleConstants::LITE_DATA_FILE_NAME
     ): void {
+        self::start($argv, $freeFile, false);
+    }
+
+    /**
+     * As startWithEngine, for an example that uses the Device Detection
+     * engine as well. Each engine PHP built when it started is used. When
+     * either is missing, the example runs again in a new PHP started with a
+     * data file for each missing engine, the Device Detection one being the
+     * file getDeviceDetectionDataFile finds, so that the example runs with
+     * nothing set.
+     *
+     * @param array<string> $argv The script's arguments, its own name first
+     */
+    public static function startWithBothEngines(array $argv): void
+    {
+        self::start($argv, ExampleConstants::LITE_DATA_FILE_NAME, true);
+    }
+
+    /**
+     * Returns when PHP built every engine the example uses when it started.
+     * Otherwise runs the example again in a new PHP started with a data file
+     * for each engine that is missing, and exits with that PHP's status.
+     *
+     * @param array<string> $argv The script's arguments, its own name first
+     * @param string $freeFile The free IP Intelligence file to download when
+     * none is found
+     * @param bool $deviceDetection Whether the example uses the Device
+     * Detection engine as well
+     */
+    private static function start(
+        array $argv,
+        string $freeFile,
+        bool $deviceDetection
+    ): void {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             self::writeError(
                 'The FiftyOneDegreesIpIntelligenceEngine extension is not ' .
@@ -111,6 +154,10 @@ class ExampleUtils
             exit(1);
         }
 
+        // The engines PHP did not build, and the data file to build each
+        // from, by the php.ini setting that names it.
+        $engines = [];
+        $settings = [];
         $args = array_slice($argv, 1);
         $configured = (string) ini_get(self::DATA_FILE_SETTING);
         if (function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
@@ -120,49 +167,111 @@ class ExampleUtils
                     "This example uses the engine PHP built when it started " .
                     "from {$configured}, which php.ini names. To use " .
                     "{$named} instead, run\n" .
-                    self::startCommand($named, $argv)
+                    self::startCommand([self::DATA_FILE_SETTING => $named], $argv)
                 );
             }
-
+        } else {
+            $path = self::getDataFile($args, $freeFile);
+            if ($path === null) {
+                self::writeError(
+                    'No IP intelligence engine was built when PHP started and ' .
+                    'no data file was found. Set ' . self::DATA_FILE_SETTING .
+                    ' in php.ini to the path of an .ipi data file.'
+                );
+                exit(1);
+            }
+            if ($configured !== '' && realpath($configured) === realpath($path)) {
+                // This PHP was started with the data file and built no engine
+                // from it, so a new one would do the same.
+                self::writeError(
+                    "No IP intelligence engine was built from {$path}, which " .
+                    self::DATA_FILE_SETTING . ' names.'
+                );
+                exit(1);
+            }
+            $engines[] = 'IP intelligence';
+            $settings[self::DATA_FILE_SETTING] = $path;
+        }
+        if ($deviceDetection) {
+            $path = self::getDeviceDetectionDataFile();
+            if ($path !== null) {
+                $engines[] = 'device detection';
+                $settings[self::DD_DATA_FILE_SETTING] = $path;
+            }
+        }
+        if ($settings === []) {
             return;
         }
 
-        $path = self::getDataFile($args, $freeFile);
-        if ($path === null) {
+        $missing = implode(' or ', $engines);
+        $command = self::startCommand($settings, $argv);
+        if (!function_exists('passthru')) {
+            $set = [];
+            foreach ($settings as $setting => $path) {
+                $set[] = "{$setting} in php.ini to {$path}";
+            }
             self::writeError(
-                'No IP intelligence engine was built when PHP started and ' .
-                'no data file was found. Set ' . self::DATA_FILE_SETTING .
-                ' in php.ini to the path of an .ipi data file.'
+                "No {$missing} engine was built when PHP started. Set " .
+                implode(' and ', $set) . ", or run\n{$command}"
             );
             exit(1);
         }
-        if ($configured !== '' && realpath($configured) === realpath($path)) {
-            // This PHP was started with the data file and built no engine
-            // from it, so a new one would do the same.
+        $one = count($settings) === 1;
+        self::writeError(
+            "No {$missing} engine was built when PHP started, so the " .
+            'example runs again in a PHP that builds ' .
+            ($one ? 'one' : 'them') . ' from ' . implode(' and ', $settings) .
+            '. Set ' . implode(' and ', array_keys($settings)) . ' in ' .
+            'php.ini, so that PHP builds the ' . ($one ? 'engine' : 'engines') .
+            " once when it starts.\n{$command}"
+        );
+        passthru($command, $status);
+        exit($status);
+    }
+
+    /**
+     * The Device Detection data file to start a new PHP with, so that its
+     * Device Detection extension builds the engine the mixed examples use,
+     * or null when this PHP built that engine when it started. The file is
+     * the one the _51DEGREES_DD_PATH environment variable names, or else the
+     * free Lite file in cxx/data/device-detection, downloaded when it is
+     * missing. Exits with 1 and a message on standard error when the
+     * extension is not loaded, when there is no data file, or when this PHP
+     * was started with that file and built no engine from it, as a new PHP
+     * would do the same.
+     */
+    public static function getDeviceDetectionDataFile(): ?string
+    {
+        if (!extension_loaded(self::DD_EXTENSION)) {
             self::writeError(
-                "No IP intelligence engine was built from {$path}, which " .
-                self::DATA_FILE_SETTING . ' names.'
+                'The ' . self::DD_EXTENSION . ' extension is not loaded. The ' .
+                'Device Detection on-premise readme says how to build it.'
+            );
+            exit(1);
+        }
+        if (\FiftyOneDegreesHashEngine::engine_get() !== null) {
+            return null;
+        }
+
+        $named = (string) getenv(ExampleConstants::DD_PATH_VARIABLE);
+        $path = $named !== ''
+            ? $named
+            : self::DD_DATA . '/' . ExampleConstants::DD_LITE_DATA_FILE_NAME;
+        if (!self::downloadMissingDataFile($path)) {
+            self::writeError("There is no Device Detection data file at {$path}.");
+            exit(1);
+        }
+        $path = (string) realpath($path);
+        $configured = (string) ini_get(self::DD_DATA_FILE_SETTING);
+        if ($configured !== '' && realpath($configured) === $path) {
+            self::writeError(
+                "No device detection engine was built from {$path}, which " .
+                self::DD_DATA_FILE_SETTING . ' names.'
             );
             exit(1);
         }
 
-        $command = self::startCommand($path, $argv);
-        if (!function_exists('passthru')) {
-            self::writeError(
-                'No IP intelligence engine was built when PHP started. Set ' .
-                self::DATA_FILE_SETTING . " in php.ini to {$path}, or run\n" .
-                $command
-            );
-            exit(1);
-        }
-        self::writeError(
-            'No IP intelligence engine was built when PHP started, so the ' .
-            "example runs again in a PHP that builds one from {$path}. Set " .
-            self::DATA_FILE_SETTING . ' in php.ini, so that PHP builds the ' .
-            "engine once when it starts.\n{$command}"
-        );
-        passthru($command, $status);
-        exit($status);
+        return $path;
     }
 
     /**
@@ -185,15 +294,17 @@ class ExampleUtils
     }
 
     /**
-     * The command that runs the script again with PHP building its engine
-     * from the data file when it starts. Where the system gives PHP's own
-     * command line, its options, such as one loading the extension, are
-     * kept, and the data file setting goes after them, just before the
-     * script, so that it replaces any setting of the same name.
+     * The command that runs the script again with PHP building its engines
+     * from the data files when it starts. Where the system gives PHP's own
+     * command line, its options, such as one loading an extension, are kept,
+     * and the data file settings go after them, just before the script, so
+     * that each replaces any setting of the same name.
      *
+     * @param array<string, string> $settings Each data file, by the php.ini
+     * setting that names it
      * @param array<string> $argv The script's arguments, its own name first
      */
-    private static function startCommand(string $path, array $argv): string
+    private static function startCommand(array $settings, array $argv): string
     {
         $parts = array_merge([PHP_BINARY], $argv);
         $script = 1;
@@ -210,10 +321,12 @@ class ExampleUtils
         }
 
         $quoted = array_map('escapeshellarg', $parts);
-        array_splice($quoted, $script, 0, [
-            '-d',
-            escapeshellarg(self::DATA_FILE_SETTING . '=' . $path)
-        ]);
+        $options = [];
+        foreach ($settings as $setting => $path) {
+            $options[] = '-d';
+            $options[] = escapeshellarg("{$setting}={$path}");
+        }
+        array_splice($quoted, $script, 0, $options);
 
         return implode(' ', $quoted);
     }

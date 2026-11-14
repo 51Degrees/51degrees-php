@@ -1,0 +1,64 @@
+name: tmp ubuntu 26.04 green
+# Throwaway. Builds both on-premise extensions as CI does on Ubuntu 26.04
+# and runs the IP Intelligence unit tests and the class name tests.
+on:
+  push:
+    branches:
+      - tmp/php-ubuntu-2604-green
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Build and test (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.3' }
+          - { os: ubuntu-26.04, php: '8.0' }
+          - { os: ubuntu-26.04, php: '8.3' }
+          - { os: ubuntu-26.04, php: '8.5' }
+          - { os: macos-latest, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Show the runner image
+        run: cat /etc/os-release | head -3; gcc --version | head -1
+      - name: Show the IP Intelligence extension is built and loads
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          ls -la on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
+          PHP_INI_SCAN_DIR=":$PWD" php -m | grep -i FiftyOneDegreesIpIntelligenceEngine
+      - name: Run the IP Intelligence unit tests as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ip-intelligence/ci/run-unit-tests.ps1 -RepoName 51degrees-php/ip-intelligence
+      - name: Run the class name tests with both extensions, with PHPUnit 9.6 as CI does
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          phpunit --testsuite Integration --filter 'testEachExtensionKeepsItsOwnClasses|testEarlierClassNamesAreKept'

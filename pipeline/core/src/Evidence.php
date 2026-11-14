@@ -263,6 +263,8 @@ class Evidence
      * PHP's built-in server, Apache and nginx with php-fpm fill with the
      * method and the request target as sent. The target is split at its
      * first ? with no decoding, and the query is empty when there is none.
+     * A target in absolute form, such as http://example.com/page, gives the
+     * path after its authority, which is empty when it has none.
      * All three keys are given together, and only when an element in the
      * Pipeline accepts one of them, so a Pipeline that does not read the
      * request line carries none of it.
@@ -298,12 +300,18 @@ class Evidence
 
         $target = (string) $server['REQUEST_URI'];
         $queryStart = strpos($target, '?');
+        $path = $queryStart === false
+            ? $target
+            : substr($target, 0, $queryStart);
+
+        // The scheme and authority of a target in absolute form.
+        if (preg_match('#^[A-Za-z][A-Za-z0-9+.-]*://[^/]*#', $path, $match) === 1) {
+            $path = substr($path, strlen($match[0]));
+        }
 
         return [
             self::REQUEST_METHOD_KEY => (string) $server['REQUEST_METHOD'],
-            self::REQUEST_PATH_KEY => $queryStart === false
-                ? $target
-                : substr($target, 0, $queryStart),
+            self::REQUEST_PATH_KEY => $path,
             self::REQUEST_QUERY_KEY => $queryStart === false
                 ? ''
                 : substr($target, $queryStart + 1),

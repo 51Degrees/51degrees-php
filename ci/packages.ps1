@@ -86,6 +86,18 @@
 $Packages = @(Get-Content -Raw (Join-Path $PSScriptRoot 'packages.json') |
     ConvertFrom-Json)
 
+# TEMPORARY, on this tmp branch only, for the dry run. Each published package
+# last released 4.5.207, from 59bb0081. Those "<package>/4.5.207" tags are not
+# pushed yet, so they are made here, in this checkout only, before any plan is
+# read. Nothing pushes them.
+foreach ($tmpPackage in $Packages | Where-Object Publish) {
+    $tmpTag = "$($tmpPackage.Name)/4.5.207"
+    if (-not (& git -C (Join-Path $PSScriptRoot '..') tag --list $tmpTag)) {
+        & git -C (Join-Path $PSScriptRoot '..') tag $tmpTag 59bb0081cff9c9c83b44e87aa1dd36e9b39b136d
+        Write-Host "Temporary: made $tmpTag on 59bb0081 in this checkout only"
+    }
+}
+
 # Where common-ci's steps/release-plan.ps1 is looked for. common-ci runs these
 # scripts from its own root, with this repository checked out inside it. A
 # checkout of common-ci beside this repository, or one named by COMMON_CI, is

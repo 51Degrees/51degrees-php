@@ -320,9 +320,14 @@ or empty, and write to the PHP error log that the old name is deprecated.
   launchers, with nothing set at all, so the data file is found or downloaded.
   The cloud examples' classes also run with a key, or
   against a mocked cloud service for IP Intelligence, in each package's
-  `tests/ExampleTests.php`. The Device Detection on-premise suite runs only
-  when the TAC data file is there (`ci/run-unit-tests.ps1` returns early
-  without it), the location suite only with a resource key, and neither
+  `tests/ExampleTests.php`. Without the TAC data file, as in a build with no
+  secrets, the Device Detection on-premise `ci/run-unit-tests.ps1` runs its
+  `WithoutTacFile` suite, the unit tests that need no TAC data file, which
+  include every test of its examples with no settings. `location` runs its
+  examples with no resource key in its `Unit` suite, which needs no key.
+  `device-detection/onpremise/tests/WebExampleReloadTests.php` serves the web
+  example with `_51DEGREES_DD_PATH` naming another file than the one php.ini
+  names, so the first request reloads the engine. Neither
   on-premise package is built on Windows or on PHP 7.4. IP Intelligence uses
   the Lite file that `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
 
@@ -396,8 +401,10 @@ cd pipeline/core
 `location` and `ip-intelligence` sit one level higher, so there the root
 `vendor` is `../vendor`.
 
-Check the suite names in the package's `phpunit.xml`. `location` has
-only `Integration`.
+Check the suite names in the package's `phpunit.xml`. In `location`, `Unit`
+holds the examples run with no resource key and `Integration` the tests that
+need one. `device-detection/onpremise` also has `WithoutTacFile`, the unit
+tests that need no TAC data file.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 

@@ -434,6 +434,23 @@ tests against the root `vendor`. A package `vendor` folder from a
 `composer install` run inside the package stops it, as the tests would then
 use that copy.
 
+No job of the build matrix downloads a free data file. common-ci's Configure
+job fetches every asset the packages' `ci/fetch-assets.ps1` scripts list into
+the run's asset cache, and each job's Fetch Assets step links the cached copies
+into `cxx/data`, beside the data repository's links, where the examples and
+tests look. After the tests, `ci/check-no-data-file-downloads.ps1` fails the
+job when a file beside a link is not itself a link, which means a test or an
+example downloaded it, and names the file to add to a package's list. The cache
+key covers only the root `ci/fetch-assets.ps1`
+([common-ci#329](https://github.com/51Degrees/common-ci/issues/329)), so a
+file added to a package's list is fetched in each job's Fetch Assets step
+until a cache filled from the new list is restored. The test of the download
+itself is the `Download` suite in `ip-intelligence/phpunit.xml`, which runs
+once, in `.github/workflows/data-file-download.yml`, and in no matrix job. To
+run the tests on your own machine without downloading, link or copy the free
+files you already have into `cxx/data/device-detection` and
+`cxx/data/ip-intelligence` under the data repository's names.
+
 ## Versions
 
 The repository has one version, tagged as a plain version such as `4.5.203`,

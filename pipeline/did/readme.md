@@ -102,8 +102,9 @@ answers with no address.
 
 Bits 4 and 5 of the flags byte say which payload layout the identifier
 follows, and this package reads version 0. A payload naming version 1, 2 or
-3 is refused with `FodIdParseStatus::UnsupportedPayloadVersion`, and the
-raising readers name the version they found in the message.
+3 is refused with `FodIdParseStatus::UnsupportedPayloadVersion`, however
+short it is after the flags byte, and the raising readers name the version
+they found in the message.
 
 No field is read under the layout this package knows once the version says
 otherwise. A later version exists precisely because a field moved, so
@@ -270,9 +271,9 @@ things the payload can get wrong are this package's own
 | `InvalidDomainEncoding` | OWID | The creator domain has no terminator within the length a domain name can hold |
 | `ByteCountMismatch` | OWID | The declared payload length disagrees with the bytes present, whichever way they fall short |
 | `AbsentNode` | OWID | The marker for an absent OWID, a single zero byte, which is well formed and is not an identifier |
-| `PayloadTooShort` | this package | The payload holds fewer than the 5 header bytes, so the type cannot be read |
+| `PayloadTooShort` | this package | The payload is empty, or names payload version 0 and holds fewer than the 5 header bytes, so the type cannot be read |
 | `InvalidTypePayloadLength` | this package | The header names a type whose match key the payload is too short to hold, being 16 bytes after the header for Random and 32 for Probabilistic or HashedEmail |
-| `UnsupportedPayloadVersion` | this package | Bits 4 and 5 of the flags byte name a payload layout version other than 0, so no field is read |
+| `UnsupportedPayloadVersion` | this package | Bits 4 and 5 of the flags byte name a payload layout version other than 0, so no field is read, however short the payload is |
 | `NoUsage` | this package | Bits 0 to 2 of the flags byte are all clear, so the identifier states no usage. The cloud never writes that, so the identifier is damaged or forged |
 
 Both enums are string backed with the cross language name of the status,
@@ -459,6 +460,10 @@ the creating service recorded no value for it, so the identifier says
 nothing about it. A `NotRecorded` factor is left out of the overall result,
 so `ContextOutcome::Verified` can arrive beside factors that are
 `NotRecorded`, and the factors then say how many the verdict rests on.
+A factor word is read without regard to case, so `Verified` reads as
+`FactorOutcome::Verified`, and a word the package does not know reads as
+`FactorOutcome::Mismatch`. `toArray()` gives each factor back as the
+package's lower case word.
 
 `verify()` and `redeem()` also take the identifier as a string, in either
 alphabet. The client reads the string with `FodId::tryFromBase64()` first

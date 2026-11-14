@@ -383,12 +383,14 @@ final class FodId
      * payload does not fit a 51Did. This is the one place the payload rules
      * live, so the raising and the answering surfaces cannot drift apart.
      *
-     * The header must be present before the type can be read, and the type
-     * then says how many match key bytes must follow. A Reserved identifier
-     * takes whatever follows the header, which is the existing best-effort
-     * reading of a type not yet assigned. One byte after the match key is
-     * the terms index, and anything after that is a creator context section
-     * and is left in the payload unread.
+     * The version in the first byte is checked first, so a payload whose
+     * first byte names another version is refused for that version however
+     * short it is. The header must then be present before the type can be
+     * read, and the type says how many match key bytes must follow. A
+     * Reserved identifier takes whatever follows the header, which is the
+     * existing best-effort reading of a type not yet assigned. One byte
+     * after the match key is the terms index, and anything after that is a
+     * creator context section and is left in the payload unread.
      *
      * The terms index is the only field that may be absent, because a
      * payload may end at the match key. A payload with no byte there reads
@@ -402,18 +404,22 @@ final class FodId
     private static function readPayload(string $payload): array|FodIdParseStatus
     {
         $length = strlen($payload);
-        if ($length < FodIdLayout::HEADER_LENGTH) {
+        if ($length <= FodIdLayout::FLAGS_OFFSET) {
             return FodIdParseStatus::PayloadTooShort;
         }
         $flags = ord($payload[FodIdLayout::FLAGS_OFFSET]);
-        // The version is read before any field, because a later version
-        // exists precisely because a field moved. Reading a payload of a
-        // version this package does not know under the layout it does know
-        // would answer with values that are wrong rather than absent,
-        // which is worse than refusing, and a version that nothing checks
-        // protects nothing.
+        // The version is read before any field, and before the header
+        // length is checked, because a later version exists precisely
+        // because a field moved, so the header length of version 0 says
+        // nothing about it. Reading a payload of a version this package
+        // does not know under the layout it does know would answer with
+        // values that are wrong rather than absent, which is worse than
+        // refusing, and a version that nothing checks protects nothing.
         if (self::payloadVersion($flags) !== self::SUPPORTED_PAYLOAD_VERSION) {
             return FodIdParseStatus::UnsupportedPayloadVersion;
+        }
+        if ($length < FodIdLayout::HEADER_LENGTH) {
+            return FodIdParseStatus::PayloadTooShort;
         }
         // A payload with no usage bit set states no usage at all. The cloud
         // never writes one, so it is damaged or forged, and it is refused

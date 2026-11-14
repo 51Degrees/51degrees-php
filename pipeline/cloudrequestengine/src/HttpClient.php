@@ -29,6 +29,34 @@ use fiftyone\pipeline\core\LicenseKey;
 
 class HttpClient
 {
+    private float $timeoutSeconds = Constants::TIMEOUT_SECONDS_DEFAULT;
+
+    /**
+     * Sets the timeout of each request, in seconds. A request the cloud
+     * service has not answered by then fails as one that could not be made.
+     *
+     * @throws \InvalidArgumentException when the timeout is not greater
+     *   than 0, which curl would read as no timeout at all
+     */
+    public function setTimeoutSeconds(float $timeoutSeconds): void
+    {
+        if (!($timeoutSeconds > 0)) {
+            throw new \InvalidArgumentException(sprintf(
+                Constants::MESSAGE_TIMEOUT_NOT_POSITIVE,
+                var_export($timeoutSeconds, true)
+            ));
+        }
+        $this->timeoutSeconds = $timeoutSeconds;
+    }
+
+    /**
+     * The timeout of each request, in seconds.
+     */
+    public function getTimeoutSeconds(): float
+    {
+        return $this->timeoutSeconds;
+    }
+
     /**
      * Internal helper method to make a cloud request
      * uses CURL if available, falls back to file_get_contents.
@@ -52,7 +80,8 @@ class HttpClient
                     'method' => $type,
                     'ignore_errors' => true,
                     'header' => $headerText,
-                    'content' => $content
+                    'content' => $content,
+                    'timeout' => $this->timeoutSeconds
                 ]
             ]);
 
@@ -84,6 +113,10 @@ class HttpClient
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_HEADER, true);
+        // The whole request, connecting included, stops at the timeout.
+        // Without signals, a timeout below one second works too.
+        curl_setopt($ch, CURLOPT_NOSIGNAL, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT_MS, (int) ceil($this->timeoutSeconds * 1000));
         if (!empty($originHeader)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 $headerText

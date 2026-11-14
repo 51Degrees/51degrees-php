@@ -166,4 +166,16 @@ class Constants
 
     public const CLOUDREQUESTENGINE_EXCEPTION_MESSAGE =
         'CloudRequestEngine needs to be placed before cloud elements in Pipeline';
+
+    // The timeout of a request to the cloud service unless the
+    // timeoutSeconds setting gives one.
+    public const TIMEOUT_SECONDS_DEFAULT = 2.0;
+
+    // Refused as a timeout, with the value given, by the engine when it is
+    // built and by HttpClient::setTimeoutSeconds.
+    public const MESSAGE_TIMEOUT_NOT_POSITIVE =
+        'The timeout of requests to the cloud service is %s, and it must ' .
+        'be a number of seconds greater than 0, because a request with no ' .
+        "timeout can wait forever. Leave CloudRequestEngine's " .
+        'timeoutSeconds setting out for the default of 2 seconds.';
 }

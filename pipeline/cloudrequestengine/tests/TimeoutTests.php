@@ -192,6 +192,20 @@ class TimeoutTests extends CloudRequestEngineTestsBase
         }
     }
 
+    public function testSetTimeoutSecondsRefusesZeroOrLess(): void
+    {
+        $client = new HttpClient();
+        foreach ([0.0, -1.0] as $value) {
+            try {
+                $client->setTimeoutSeconds($value);
+                $this->fail(sprintf('A timeout of %s was not refused.', $value));
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString('timeoutSeconds', $e->getMessage());
+            }
+        }
+        $this->assertSame(2.0, $client->getTimeoutSeconds());
+    }
+
     /**
      * Asserts that the request fails with the cloud request error for a
      * request that could not be made, close to the timeout given.

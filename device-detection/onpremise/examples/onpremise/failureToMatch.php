@@ -68,6 +68,12 @@ use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesHashEngine.data_file php.ini setting. Without it,
+// the example runs again in a PHP started with a data file, the free Lite
+// file unless another is named, downloaded when it is missing.
+ExampleUtils::startWithEngine($argv ?? []);
+
 $device = new DeviceDetectionOnPremise();
 
 $pipeline = new PipelineBuilder();

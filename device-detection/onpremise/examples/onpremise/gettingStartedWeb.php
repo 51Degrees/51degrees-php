@@ -78,6 +78,7 @@
 require __DIR__ . '/../../vendor/autoload.php';
 
 use fiftyone\pipeline\core\Logger;
+use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\GettingStartedWeb;
 
 function main($argv)
@@ -91,5 +92,11 @@ function main($argv)
 }
 
 if (basename(__FILE__) == basename($_SERVER['SCRIPT_FILENAME'])) {
+    // The example uses the engine the extension builds once, when PHP
+    // starts, from the FiftyOneDegreesHashEngine.data_file php.ini setting.
+    // Without it, the page says what to set, as the server cannot be
+    // started again from a request.
+    ExampleUtils::startWithEngine();
+
     main(isset($argv) ? array_slice($argv, 1) : null);
 }

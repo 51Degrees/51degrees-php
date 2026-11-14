@@ -113,8 +113,11 @@ class DeviceDetectionTests extends TestCase
         }
     }
 
-    // TODO: fix the test
-    public function __SKIP__testValueTypes()
+    /**
+     * Each Property's value, a match metric's included, has the type the
+     * Property's metadata gives.
+     */
+    public function testValueTypes()
     {
         $deviceDetection = new DeviceDetectionOnPremise();
 
@@ -133,10 +136,9 @@ class DeviceDetectionTests extends TestCase
             foreach ($properties as &$property) {
                 $key = strtolower($property['name']);
 
-                // TODO: Skip 'useragents' and 'method' property. These are returned
-                // as an int() by the SWIG interface but should be an Array and a
-                // String respectively.
-                if ($key == 'useragents' || $key == 'method') {
+                // Method is left out while it reads the difference, an
+                // integer, rather than the match method's name.
+                if ($key == 'method') {
                     continue;
                 }
 
@@ -145,6 +147,11 @@ class DeviceDetectionTests extends TestCase
                 $expectedType = $property['type'];
 
                 $this->assertNotNull($apv, $key);
+
+                // A Property with no value has no type to check.
+                if (!$apv->hasValue) {
+                    continue;
+                }
 
                 $value = $apv->value;
 

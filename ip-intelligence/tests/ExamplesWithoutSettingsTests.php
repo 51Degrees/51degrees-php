@@ -108,6 +108,31 @@ class ExamplesWithoutSettingsTests extends TestCase
         $this->assertStringContainsString(self::CONTACT_US, $text);
     }
 
+    /**
+     * The data update example looks up an address, reloads the data file
+     * and looks the address up again, with the free ASN data file, which
+     * any data file will do for.
+     */
+    public function testDataUpdate(): void
+    {
+        $text = $this->runExample(
+            'dataupdate-console.php',
+            $this->freeDataFile(ExampleConstants::ASN_DATA_FILE_NAME)
+        );
+        $this->assertSame(2, substr_count($text, 'The data file in use, '));
+        $this->assertStringContainsString('Reloading the data file', $text);
+        $this->assertSame(2, substr_count(
+            $text,
+            "\tLatitude: " . ExampleUtils::NEEDS_ENTERPRISE
+        ));
+        $this->assertStringContainsString(
+            'Updating means replacing the data file with a newer Enterprise ' .
+            'data file',
+            $text
+        );
+        $this->assertStringContainsString(self::CONTACT_US, $text);
+    }
+
     public function testSuspicious(): void
     {
         $text = $this->runExample('suspicious-console.php');

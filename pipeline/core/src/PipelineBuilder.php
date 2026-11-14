@@ -103,15 +103,22 @@ class PipelineBuilder
     }
 
     /**
-     * Build Pipeline once done.
+     * Build the Pipeline from the added elements and the web integration
+     * elements the switches ask for. Each of those is added only when no
+     * added element has its data key, so it runs once.
      */
     public function build(): Pipeline
     {
+        $present = [];
+        foreach ($this->flowElements as $flowElement) {
+            $present[$flowElement->dataKey] = true;
+        }
+
         $flowElements = array_merge(
-            $this->getSequenceElements(),
-            $this->flowElements,
-            $this->getJavaScriptElements(),
-            $this->getSetHeaderElements()
+            $this->getSequenceElements($present),
+            $this->withJsonBundler($present),
+            $this->getJavaScriptElements($present),
+            $this->getSetHeaderElements($present)
         );
 
         return new Pipeline($flowElements, $this->settings);
@@ -211,13 +218,18 @@ class PipelineBuilder
 
     /**
      * The Sequence element goes first, so every later element reads the
-     * session id and sequence it writes.
+     * session id and sequence it writes. It is not added when the
+     * application added one, because a second one would count each request
+     * twice.
      *
+     * @param array<string, bool> $present The data keys of the
+     * application's elements
      * @return array<\fiftyone\pipeline\core\FlowElement>
      */
-    private function getSequenceElements(): array
+    private function getSequenceElements(array $present): array
     {
-        if ($this->addJavaScriptBuilder && $this->addSequenceElement) {
+        if ($this->addJavaScriptBuilder && $this->addSequenceElement &&
+            !isset($present['sequence'])) {
             return [new SequenceElement()];
         }
 
@@ -225,19 +237,67 @@ class PipelineBuilder
     }
 
     /**
-     * The JSON Bundler goes before the JavaScript Builder, which reads it.
+     * Whether a JSON Bundler is added, which is only when the application
+     * did not add one.
      *
+     * @param array<string, bool> $present The data keys of the
+     * application's elements
+     */
+    private function addsJsonBundler(array $present): bool
+    {
+        return $this->addJavaScriptBuilder && $this->addJsonBundlerElement &&
+            !isset($present['jsonbundler']);
+    }
+
+    /**
+     * The application's elements, with an added JSON Bundler immediately
+     * before a JavaScript Builder the application added, which reads it.
+     *
+     * @param array<string, bool> $present The data keys of the
+     * application's elements
      * @return array<\fiftyone\pipeline\core\FlowElement>
      */
-    private function getJavaScriptElements(): array
+    private function withJsonBundler(array $present): array
+    {
+        if (!$this->addsJsonBundler($present) ||
+            !isset($present['javascriptbuilder'])) {
+            return $this->flowElements;
+        }
+
+        $flowElements = [];
+        $added = false;
+        foreach ($this->flowElements as $flowElement) {
+            if (!$added && $flowElement->dataKey === 'javascriptbuilder') {
+                $flowElements[] = new JsonBundlerElement();
+                $added = true;
+            }
+            $flowElements[] = $flowElement;
+        }
+
+        return $flowElements;
+    }
+
+    /**
+     * The JSON Bundler goes before the JavaScript Builder, which reads it.
+     * Neither is added when the application added one, so each runs once.
+     *
+     * @param array<string, bool> $present The data keys of the
+     * application's elements
+     * @return array<\fiftyone\pipeline\core\FlowElement>
+     */
+    private function getJavaScriptElements(array $present): array
     {
         $flowElements = [];
 
-        if ($this->addJavaScriptBuilder && $this->addJsonBundlerElement) {
+        // withJsonBundler places the JSON Bundler when the application
+        // added the JavaScript Builder.
+        if ($this->addsJsonBundler($present) &&
+            !isset($present['javascriptbuilder'])) {
             $flowElements[] = new JsonBundlerElement();
         }
 
-        if ($this->addJavaScriptBuilder && $this->addJavaScriptBuilderElement) {
+        if ($this->addJavaScriptBuilder && $this->addJavaScriptBuilderElement &&
+            !isset($present['javascriptbuilder'])) {
             $flowElements[] = new JavascriptBuilderElement($this->javascriptBuilderSettings);
         }
 
@@ -245,13 +305,18 @@ class PipelineBuilder
     }
 
     /**
+     * The Set Header element, unless the application added one.
+     *
+     * @param array<string, bool> $present The data keys of the
+     * application's elements
      * @return array<\fiftyone\pipeline\core\FlowElement>
      */
-    private function getSetHeaderElements(): array
+    private function getSetHeaderElements(array $present): array
     {
         $flowElements = [];
 
-        if ($this->useSetHeaderProperties && $this->addSetHeaderElement) {
+        if ($this->useSetHeaderProperties && $this->addSetHeaderElement &&
+            !isset($present[Constants::SETHEADER_ELEMENT_KEY])) {
             // Add SetHeader elements
             $flowElements[] = new SetHeaderElement();
         }

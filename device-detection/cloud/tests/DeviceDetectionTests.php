@@ -31,6 +31,7 @@ use fiftyone\pipeline\devicedetection\DeviceDetectionPipelineBuilder;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class DeviceDetectionTests extends TestCase
@@ -245,6 +246,7 @@ class DeviceDetectionTests extends TestCase
      * @param mixed $origin
      * @param mixed $expectException
      */
+    #[DataProvider('providerCloudRequestOriginTestData')]
     public function testCloudRequestOrigin($origin, $expectException)
     {
         $exception = false;

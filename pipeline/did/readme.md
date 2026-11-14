@@ -511,7 +511,7 @@ The demo under `examples/creator-context-web/` shows the flow against the
 cloud from a real browser, which is the only place the check makes sense,
 since a program verifying its own connection checks itself against
 itself. The demo's server uses `DidClient` from this package, so run
-`composer install` at the repository root first.
+`composer install` in this package's folder first.
 
 ### What the demo shows
 
@@ -624,7 +624,7 @@ carrying any other.
 
 ### How to run
 
-Run `composer install` at the repository root once, then from the
+Run `composer install` in this package's folder once, then from its
 `examples/creator-context-web` folder start the built-in server and open
 `http://localhost:5100/` in a browser. The port is the `php -S` argument.
 

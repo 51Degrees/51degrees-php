@@ -197,4 +197,12 @@ EngineIpi *ipi_engine;
     if (ipi_engine != NULL) { delete ipi_engine; ipi_engine = NULL; }
     if (ipi_engine_properties != NULL) { delete ipi_engine_properties; ipi_engine_properties = NULL; }
     if (ipi_engine_config != NULL) { delete ipi_engine_config; ipi_engine_config = NULL; }
+
+    /*
+     * The settings leave with the extension. PHP removes them itself only for
+     * an extension with no shutdown function, and when a request that loaded
+     * this one with dl() ends, PHP frees their names, so settings left behind
+     * are read after they are freed when PHP stops.
+     */
+    UNREGISTER_INI_ENTRIES();
 }

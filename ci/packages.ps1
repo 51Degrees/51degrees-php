@@ -68,6 +68,8 @@
 #     tree has the OWID source copied in.
 #   pipeline/translation: Unit suite. No mirror, and its code is also
 #     tested through ip-intelligence, which requires it.
+#   pipeline/derivedproperty: Unit suite, which runs the shared cases from
+#     the derived-properties submodule at the root. No mirror.
 #   device-detection/cloud: Unit suite without keys, Integration suite and the
 #     Selenium contract tests against the cloud example when TestResourceKey
 #     and the CSV file are present.

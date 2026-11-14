@@ -25,8 +25,10 @@ namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\Messages;
+use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\SetHeaderElement;
 use fiftyone\pipeline\core\tests\classes\Constants;
+use fiftyone\pipeline\core\tests\classes\SetHeaderNamesElement;
 use fiftyone\pipeline\core\tests\classes\TestDataDictionary;
 use fiftyone\pipeline\core\tests\classes\TestPipeline;
 use fiftyone\pipeline\core\Utils;
@@ -223,5 +225,30 @@ class SetHeaderTests extends TestCase
 
         $this->expectExceptionMessage(sprintf($expectedValue, $data));
         $setHeaderElement->getResponseHeaderName($data);
+    }
+
+    /**
+     * Only a property whose name starts with SetHeader sets a response
+     * header. A name with SetHeader later in it is an ordinary property.
+     */
+    public function testOnlyANameStartingWithSetHeaderSetsAHeader()
+    {
+        $pipeline = (new PipelineBuilder(['addJavaScriptBuilder' => false]))
+            ->add(new SetHeaderNamesElement())
+            ->build();
+
+        $this->assertSame(
+            ['headernames' => ['SetHeaderBrowserAccept-CH']],
+            (new SetHeaderElement())->getSetHeaderPropertiesPipeline($pipeline)
+        );
+
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame([], $flowData->errors);
+        $this->assertSame(
+            ['Accept-CH' => 'Sec-CH-UA'],
+            $flowData->get('set-headers')->get('responseheaderdictionary')
+        );
     }
 }

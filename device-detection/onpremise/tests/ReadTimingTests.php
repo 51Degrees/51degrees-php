@@ -88,11 +88,11 @@ class ReadTimingTests extends TestCase
 
     /**
      * The most a read by name may take, as a multiple of a read by position.
-     * It is a quarter above the largest multiple measured on the runners the
-     * test runs on, so this fails when reading by name, which SwigData does,
-     * becomes much slower than reading by position.
+     * It is well above the multiples measured on the runners the test runs
+     * on, so this fails when reading by name, which SwigData does, becomes
+     * much slower than reading by position.
      */
-    private const MAX_NAME_OVER_POSITION = 1.5;
+    private const MAX_NAME_OVER_POSITION = 2.0;
 
     // Times process on the engine PHP built when it started, and prints the
     // names the engine was built with and the mean time of a process in

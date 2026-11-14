@@ -30,7 +30,7 @@ namespace fiftyone\pipeline\devicedetection\tests\classes;
  * a test can see what crosses into native code. Its results record each
  * value read from them. It extends the SWIG class because the engine class
  * holds an \EngineHashSwig, and it overrides every method the engine class
- * calls once it is built, because a method it does not override has no
+ * calls in a request, because a method it does not override has no
  * native object to work on.
  */
 class RecordingEngine extends \EngineHashSwig

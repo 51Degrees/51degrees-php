@@ -429,12 +429,6 @@ for the whole repository. Those run each package's own `ci/` scripts with
 mirrors, and which packages test against the root `vendor` and which install
 their own. Add a package there, not in the workflows.
 
-common-ci keys each day's asset cache on the text of the root
-`ci/fetch-assets.ps1` alone, not on the package scripts it runs, so that
-script lists every asset the package scripts fetch. Change the list whenever a
-package's list changes, or the cache restored for the rest of that day lacks
-the new asset.
-
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a
 `composer install` run inside the package stops it, as the tests would then

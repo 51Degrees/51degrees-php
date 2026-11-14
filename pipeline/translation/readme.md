@@ -49,8 +49,9 @@ Translation Engine specification.
 - `setMissingTranslationBehavior`, being `Original` (the default),
   `EmptyString` or `FlowError`, in any case.
 - `setElementDataKey`, the engine's own element data key, `translation`
-  unless set. An engine's element data replaces any other under the same
-  key, so two engines in one pipeline each need their own.
+  unless set. Translation engines with the same key add their properties to
+  one element data, as the specification says, so engines whose properties
+  are to be read apart each need their own.
 
 Each source is named `[name].[locale].yml` or `[name].[locale].yaml`, such as
 `countries.fr_FR.yml`, and holds one `source: translation` line for each

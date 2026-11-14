@@ -69,9 +69,10 @@ class TranslationEngineBuilder
     }
 
     /**
-     * Sets the engine's own Data Key, which is translation unless set. An
-     * engine's Element Data replaces any other under the same key, so two
-     * engines in one pipeline each need their own.
+     * Sets the engine's own Data Key, which is translation unless set.
+     * Translation Engines with the same key add their Properties to one
+     * Element Data, so engines whose Properties are to be read apart each
+     * need their own.
      */
     public function setElementDataKey(string $elementDataKey): self
     {

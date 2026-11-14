@@ -172,7 +172,9 @@ class JsonBundlerElement extends FlowElement
             // Create empty area for FlowElement properties to go. Every key in
             // the JSON is lower case.
             $dataKey = strtolower($flowElement->dataKey);
-            $output[$dataKey] = [];
+            // Elements that share a Data Key, as Translation Engines can,
+            // populate one Element Data, which has one entry.
+            $output[$dataKey] = $output[$dataKey] ?? [];
 
             foreach ($properties as $propertyKey => $property) {
                 $value = null;

@@ -16,6 +16,9 @@ on:
       - 'ci/read-pointer-classes.php'
       - '.github/workflows/extensions-valgrind.yml'
   workflow_dispatch:
+  push:
+    branches:
+      - 'tmp/ipnp-94v-**'
 
 permissions:
   contents: read
@@ -23,7 +26,7 @@ permissions:
 jobs:
   valgrind:
     name: Both extensions in each order
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

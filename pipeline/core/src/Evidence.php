@@ -81,6 +81,14 @@ class Evidence
     public const HTTP_REQUEST_KEY = 'server.http-request';
 
     /**
+     * The keys the request line is held under, being the method, the path
+     * and the query string without its ?, each exactly as it was sent.
+     */
+    public const REQUEST_METHOD_KEY = 'server.request-method';
+    public const REQUEST_PATH_KEY = 'server.request-path';
+    public const REQUEST_QUERY_KEY = 'server.request-query';
+
+    /**
      * The web request, kept apart from the values above so that it never
      * reaches an element's filter, a cache key or a request to the cloud.
      */
@@ -234,6 +242,8 @@ class Evidence
 
         $evidence['header.protocol'] = $protocol;
 
+        $evidence += $this->requestLine($server);
+
         $this->setArray($evidence);
 
         $this->httpRequest = new HttpRequest(
@@ -246,6 +256,58 @@ class Evidence
             (string) ($server['REQUEST_METHOD'] ?? ''),
             self::pathOf((string) ($server['REQUEST_URI'] ?? ''))
         );
+    }
+
+    /**
+     * The request line Evidence, from REQUEST_METHOD and REQUEST_URI, which
+     * PHP's built-in server, Apache and nginx with php-fpm fill with the
+     * method and the request target as sent. The target is split at its
+     * first ? with no decoding, and the query is empty when there is none.
+     * All three keys are given together, and only when an element in the
+     * Pipeline accepts one of them, so a Pipeline that does not read the
+     * request line carries none of it.
+     *
+     * @param array<string, mixed> $server The request's server values
+     * @return array<string, string>
+     */
+    private function requestLine(array $server): array
+    {
+        if (!isset($server['REQUEST_METHOD'], $server['REQUEST_URI'])) {
+            return [];
+        }
+
+        $keys = [
+            self::REQUEST_METHOD_KEY,
+            self::REQUEST_PATH_KEY,
+            self::REQUEST_QUERY_KEY,
+        ];
+        $accepted = false;
+        foreach ($this->flowData->pipeline->flowElements as $flowElement) {
+            foreach ($keys as $key) {
+                if ($flowElement->filterEvidenceKey($key)) {
+                    $accepted = true;
+
+                    break 2;
+                }
+            }
+        }
+
+        if (!$accepted) {
+            return [];
+        }
+
+        $target = (string) $server['REQUEST_URI'];
+        $queryStart = strpos($target, '?');
+
+        return [
+            self::REQUEST_METHOD_KEY => (string) $server['REQUEST_METHOD'],
+            self::REQUEST_PATH_KEY => $queryStart === false
+                ? $target
+                : substr($target, 0, $queryStart),
+            self::REQUEST_QUERY_KEY => $queryStart === false
+                ? ''
+                : substr($target, $queryStart + 1),
+        ];
     }
 
     /**

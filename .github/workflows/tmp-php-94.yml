@@ -1,0 +1,104 @@
+name: Pointer classes under Valgrind (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-94-**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Both extensions under Valgrind (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.3' }
+          - { os: ubuntu-24.04, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q valgrind
+          valgrind --version
+      - name: Fetch the free data files
+        working-directory: common-ci/51degrees-php
+        run: |
+          sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
+          ls -laL cxx/data/device-detection/51Degrees-LiteV4.1.hash cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
+      - name: Write the script that reads component ids from both engines
+        run: |
+          cat > "$RUNNER_TEMP/pointers.php" <<'PHP'
+          <?php
+          // getComponentId returns a SWIG\_p_byte, one of the pointer classes
+          // both extensions register under the same name. Each id is read,
+          // its class named, and the object dropped, from both engines.
+          function readIds(string $label, $engine): void
+          {
+              $components = $engine->getMetaData()->getComponents();
+              for ($i = 0; $i < $components->getSize(); $i++) {
+                  $component = $components->getByIndex($i);
+                  $id = $component->getComponentId();
+                  printf("%s %s %s %d\n", $label, $component->getName(),
+                      get_class($id), $component->getComponentIdAsInt());
+                  unset($id, $component);
+              }
+          }
+          for ($round = 0; $round < 3; $round++) {
+              readIds('dd', FiftyOneDegreesHashEngine::engine_get());
+              readIds('ipi', FiftyOneDegreesIpi::ipi_engine_get());
+          }
+          gc_collect_cycles();
+          echo "done\n";
+          PHP
+          cat "$RUNNER_TEMP/pointers.php"
+      - name: Run both extensions in each order under Valgrind
+        working-directory: common-ci/51degrees-php
+        run: |
+          dd="-d extension=$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so -d FiftyOneDegreesHashEngine.data_file=$PWD/cxx/data/device-detection/51Degrees-LiteV4.1.hash"
+          ipi="-d extension=$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
+          # PCRE's compiled patterns run code Valgrind cannot see into, so the
+          # JIT is off and every report is about code it can follow.
+          export USE_ZEND_ALLOC=0 ZEND_DONT_UNLOAD_MODULES=1 PHP_INI_SCAN_DIR=
+          for order in dd-first ipi-first; do
+            if [ $order = dd-first ]; then settings="$dd $ipi"; else settings="$ipi $dd"; fi
+            for run in pointers mixed-console; do
+              if [ $run = pointers ]; then script="$RUNNER_TEMP/pointers.php"; else script=ip-intelligence/examples/onpremise/mixed/gettingstarted-console.php; fi
+              log="$RUNNER_TEMP/vg-$order-$run"
+              echo "::group::$order $run"
+              valgrind --trace-children=yes --num-callers=30 --log-file="$log.%p.log" php -n -d pcre.jit=0 $settings "$script" > "$RUNNER_TEMP/out-$order-$run.txt" 2>&1
+              echo "PHP exit status $?"
+              tail -n 25 "$RUNNER_TEMP/out-$order-$run.txt"
+              cat "$log".*.log
+              echo "::endgroup::"
+              echo "$order $run: $(cat "$log".*.log | grep -c 'Invalid read') invalid reads, $(cat "$log".*.log | grep -c 'Invalid write') invalid writes, $(cat "$log".*.log | grep -c "free'd") blocks freed before use, $(cat "$log".*.log | grep -h 'ERROR SUMMARY' | paste -sd ' ')"
+            done
+          done

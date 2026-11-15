@@ -33,15 +33,15 @@ namespace fiftyone\pipeline\core;
 class Messages
 {
     /**
-     * Error message thrown when there is no matching element in the FlowData.
-     */
-    /**
      * Written to PHP's error log, with the entry, when the Logger cannot
      * write to its file. The placeholder is the file.
      */
     public const LOG_FILE_NOT_WRITTEN = "The pipeline log entry could not be written to '%s', so it is written here:";
 
-    public const NO_ELEMENT_DATA ="There is no element data for '%s' against this flow data. Available element data keys are: '%s'";
+    /**
+     * Error message thrown when there is no matching element in the FlowData.
+     */
+    public const NO_ELEMENT_DATA = "There is no element data for '%s' against this flow data. Available element data keys are: '%s'";
     public const NO_ELEMENT_DATA_NULL = "There is no element data for '%s' against this flow data.'";
 
     /**

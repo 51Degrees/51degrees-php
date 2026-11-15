@@ -44,6 +44,7 @@
       <file>tests/AspectPropertyValueTests.php</file>
       <file>tests/LoggerTargetTests.php</file>
       <file>tests/ElementDataTypedGetterTests.php</file>
+      <file>tests/SettingDefaultsTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
       <file>tests/ThrowsDocumentedTests.php</file>
     </testsuite>

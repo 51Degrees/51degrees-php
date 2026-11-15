@@ -1,0 +1,13 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index 6516a0c2..2df4294f 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -87,7 +87,7 @@ class CloudEngine extends CloudEngineBase
+ 
+     public function processInternal(FlowData $flowData): void
+     {
+-        if (isset($flowData->pipeline->flowElementsList['cloud']->flowElementProperties[$this->dataKey])) {
++        if (false) {
+             // set up properties list for the element from data in the CloudRequestEngine
+             $this->properties = $flowData->pipeline->flowElementsList['cloud']->flowElementProperties[$this->dataKey];
+         }

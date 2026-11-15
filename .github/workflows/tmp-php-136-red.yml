@@ -1,0 +1,93 @@
+name: tmp php 136 red
+# Throwaway. Installs the root composer.json. The timing job runs the Cloud
+# Request Engine's TimeoutTests on Ubuntu, Windows and macOS, which print
+# the time each timed-out request and the local server took. The red job
+# runs AspectEnginePropertiesTests on the draft's head unchanged, then with
+# each patch in tmp-breaks, each of which breaks one thing a test pins.
+on:
+  push:
+    branches:
+      - tmp/php-136-red
+permissions:
+  contents: read
+jobs:
+  timing:
+    name: TimeoutTests (${{ matrix.os }}, PHP ${{ matrix.php }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, php: '8.5' }
+          - { os: windows-latest, php: '8.3' }
+          - { os: macos-latest, php: '8.5' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: TimeoutTests
+        working-directory: pipeline/cloudrequestengine
+        run: php ../../vendor/bin/phpunit --colors=never --testdox --bootstrap ../../vendor/autoload.php tests/TimeoutTests.php
+
+  red:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Run the tests unchanged and under each change
+        run: |
+          set +e
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          run() {
+            local change=$1
+            local junit="$GITHUB_WORKSPACE/junit-$change.xml"
+            echo "::group::[$change]"
+            (cd pipeline/cloudrequestengine && php ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --log-junit "$junit" tests/AspectEnginePropertiesTests.php)
+            echo "phpunit exit $?"
+            echo "::endgroup::"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : "passed";
+                echo "RESULT [", $argv[2], "] ", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" | tee -a "$summary"
+          }
+          run unchanged
+          for change in no-later-take missing-product-throws; do
+            patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$change.patch" || { echo "RESULT [$change] PATCH DID NOT APPLY"; exit 1; }
+            run "$change"
+            patch -p1 -R --no-backup-if-mismatch < "tmp-breaks/$change.patch" || exit 1
+          done
+          bad=0
+          if grep -q '^RESULT \[unchanged\] .* FAILED' "$summary"; then echo "UNEXPECTED a test failed unchanged"; bad=1; fi
+          expect() {
+            if grep -q "^RESULT \[$1\] $2 FAILED" "$summary"; then echo "EXPECTED [$1] $2 failed"; else echo "UNEXPECTED [$1] $2 did not fail"; bad=1; fi
+          }
+          expect no-later-take testACloudEngineTakesItsPropertiesLaterWhenThereAreNoneYet
+          expect missing-product-throws testAMissingProductDoesNotFailTheBuild
+          echo "Failed under each change:"
+          grep ' FAILED' "$summary" | grep -v '^RESULT \[unchanged\]'
+          exit $bad

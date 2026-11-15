@@ -20,6 +20,7 @@
       <file>tests/JsonBundlerWktTests.php</file>
       <file>tests/EnableCookiesTests.php</file>
       <file>tests/FlowDataTests.php</file>
+      <file>tests/FlowDataErrorsTests.php</file>
       <file>tests/DeprecatedDataKeyTests.php</file>
       <file>tests/CloseTests.php</file>
       <file>tests/PropertyDatabaseTests.php</file>

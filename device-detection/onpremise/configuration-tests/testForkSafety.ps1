@@ -23,9 +23,9 @@ $code = $LASTEXITCODE
 if ($code -eq 0) {
     Write-Output "PASS: streaming profiles fail across a fork, in-memory MaxPerformance is safe."
 } elseif ($code -eq 2) {
-    # Missing pcntl, extension, or data file. Skip rather than fail, since this
-    # is an environment limitation rather than a defect.
-    Write-Output "::warning::Skipping fork-safety test (pcntl, extension, or data file unavailable)."
+    # Missing pcntl, extension, data file or User-Agents file. Skip rather
+    # than fail, since this is an environment limitation rather than a defect.
+    Write-Output "::warning::Skipping fork-safety test (pcntl, extension, data file or User-Agents file unavailable)."
 } else {
     throw "fork-safety test failed (exit $code)"
 }

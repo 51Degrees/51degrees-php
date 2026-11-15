@@ -31,9 +31,9 @@ use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleCloud;
 $resourceKey = ExampleUtils::getResourceKey(array_slice($argv, 1));
 
 if (!$resourceKey) {
-    fwrite(STDERR, "A resource key is required, and it must be authorised for both device detection and IP intelligence. Supply it as the first argument or via the _51DEGREES_RESOURCE_KEY environment variable. Obtain one from https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-mixed-gettingstarted-console.php&utm_term=resource-key-required\n");
+    echo "A resource key is required, and it must be authorised for both device detection and IP intelligence. Supply it as the first argument or via the _51DEGREES_RESOURCE_KEY environment variable. Obtain one from https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-mixed-gettingstarted-console.php&utm_term=resource-key-required\n";
     ExampleUtils::printFindOutMore(__FILE__);
-    exit(1);
+    return;
 }
 
 (new MixedConsoleCloud())->run(['resourceKey' => $resourceKey], STDOUT);

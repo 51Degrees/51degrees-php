@@ -19,7 +19,7 @@ if (!(Test-Path $dataFile)) {
 # data file from _51DEGREES_DD_PATH, and that is set to the same file here so
 # the two agree. Because they name the same file, useDataFileFromEnv finds
 # the engine already loaded from it and returns without reloading, so this
-# run does not cover the reload itself.
+# run does not cover the reload itself. tests/WebExampleReloadTests.php does.
 $sep = [IO.Path]::PathSeparator
 $env:PHP_INI_SCAN_DIR = "$sep$PWD/$RepoName"
 [Environment]::SetEnvironmentVariable('_51DEGREES_DD_PATH', $dataFile)

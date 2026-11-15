@@ -28,6 +28,11 @@ use PHPUnit\Framework\TestCase;
 
 class ExampleTests extends TestCase
 {
+    // How long to wait for the built-in web server to answer once started,
+    // and how long to wait between tries.
+    private const SERVER_START_SECONDS = 30;
+    private const SERVER_TRY_MICROSECONDS = 250000;
+
     public function testCustomFlowElementExample()
     {
         ob_start(); // hide output
@@ -66,21 +71,94 @@ class ExampleTests extends TestCase
     }
 
     /**
-     * Runs an example with the package's autoloader, which the examples
-     * expect to be loaded already.
+     * The page, served from the examples folder by PHP's built-in web
+     * server as the readme says, answers the home page and ends with the
+     * links to find out more.
+     */
+    public function testCustomFlowElementServedAsTheReadmeSays()
+    {
+        $port = $this->freePort();
+        $log = (string) tempnam(sys_get_temp_dir(), 'example');
+        $server = proc_open(
+            [PHP_BINARY, '-S', "127.0.0.1:{$port}", 'CustomFlowElement.php'],
+            [0 => ['pipe', 'r'], 1 => ['file', $log, 'w'], 2 => ['file', $log, 'a']],
+            $pipes,
+            __DIR__ . '/../examples'
+        );
+        $this->assertIsResource($server);
+        fclose($pipes[0]);
+        try {
+            [$status, $page] = $this->getPage($server, $port);
+        } finally {
+            proc_terminate($server);
+            proc_close($server);
+            $printed = (string) file_get_contents($log);
+            unlink($log);
+        }
+
+        $run = new ExampleRun();
+        $run->status = 0;
+        $run->output = str_replace("\r\n", "\n", (string) $page);
+        $run->errors = $printed;
+        $this->assertStringContainsString(' 200 ', $status, $run->printed());
+        $this->assertStringContainsString('<h1>Starsign</h1>', $run->output, $run->printed());
+        $run->assertPageEndsWithFindOutMore();
+    }
+
+    /**
+     * Runs an example in its own PHP from the examples folder with nothing
+     * loaded first, as a person runs it.
      *
      * @param array<string, string> $set Environment variables to add
      */
     private function runExample(string $script, array $set): ExampleRun
     {
-        $run = ExampleRun::run(
-            __DIR__ . "/../examples/{$script}",
-            ['-d', 'auto_prepend_file=' . realpath(__DIR__ . '/../vendor/autoload.php')],
-            [],
-            $set
-        );
+        $run = ExampleRun::run(__DIR__ . "/../examples/{$script}", [], [], $set);
         $this->assertSame(0, $run->status, $run->printed());
 
         return $run;
+    }
+
+    /**
+     * A port nothing is listening on.
+     */
+    private function freePort(): int
+    {
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertIsResource($socket);
+        $name = (string) stream_socket_get_name($socket, false);
+        fclose($socket);
+
+        return (int) substr($name, strrpos($name, ':') + 1);
+    }
+
+    /**
+     * The status line and page the server answers the home page with,
+     * waiting for it to start, or an empty status and null where it stops
+     * or does not answer in time.
+     *
+     * @param resource $server
+     * @return array{0: string, 1: ?string}
+     */
+    private function getPage($server, int $port): array
+    {
+        $context = stream_context_create(['http' => [
+            'ignore_errors' => true,
+            'timeout' => self::SERVER_START_SECONDS
+        ]]);
+        $deadline = microtime(true) + self::SERVER_START_SECONDS;
+        while (microtime(true) < $deadline && proc_get_status($server)['running']) {
+            $stream = @fopen("http://127.0.0.1:{$port}/", 'r', false, $context);
+            if ($stream !== false) {
+                $headers = stream_get_meta_data($stream)['wrapper_data'];
+                $page = (string) stream_get_contents($stream);
+                fclose($stream);
+
+                return [(string) ($headers[0] ?? ''), $page];
+            }
+            usleep(self::SERVER_TRY_MICROSECONDS);
+        }
+
+        return ['', null];
     }
 }

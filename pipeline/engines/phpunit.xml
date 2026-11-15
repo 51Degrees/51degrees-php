@@ -3,6 +3,7 @@
     <testsuite name="Unit">
       <file>tests/MissingPropertyTests.php</file>
       <file>tests/EngineTests.php</file>
+      <file>tests/ExampleTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

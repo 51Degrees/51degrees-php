@@ -63,9 +63,11 @@
 #     and the CSV file are present.
 #   device-detection/onpremise: Own. Not in the root composer.json, as it
 #     has the same package name as device-detection/cloud. Builds the native
-#     extension, needs the TAC data file for its tests, and has the
-#     performance tests of detection. No mirror.
-#   location: Integration suite only, which needs TestResourceKey.
+#     extension, needs the TAC data file for most of its tests, running only
+#     its WithoutTacFile suite without it, and has the performance tests of
+#     detection. No mirror.
+#   location: Unit suite without keys, and Integration suite, which needs
+#     TestResourceKey.
 #   ip-intelligence: Own, because its build-project.ps1 compiles the
 #     native extension and then runs composer install. No mirror yet.
 #

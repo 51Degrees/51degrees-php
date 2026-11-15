@@ -34,8 +34,8 @@
  *
  */
 
-// Uncomment the line below when running the example as a standalone script
-// require_once __DIR__ . '/../vendor/autoload.php';
+// The package's autoloader, which composer install writes.
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\ElementDataDictionary;

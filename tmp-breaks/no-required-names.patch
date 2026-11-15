@@ -1,0 +1,14 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index bf548375..ab36da61 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -544,9 +544,6 @@ class IpIntelligenceOnPremise extends Engine
+     private function buildProperties(): array
+     {
+         $this->assertOpen();
+-        // The positions are taken with the table, so that a read the table
+-        // answers needs no engine, as the read goes to the results.
+-        $this->requiredNames();
+         $propertiesInternal = $this->engine->getMetaData()->getProperties();
+         $properties = [];
+         for ($i = 0; $i < $propertiesInternal->getSize(); ++$i) {

@@ -1,0 +1,78 @@
+name: tmp php 135 red
+# Throwaway. Builds the extensions as CI does, takes the free Lite IP
+# Intelligence data file from the day's asset cache, and runs
+# testATableReadAfterTheEngineClosesReadsTheResults twice, first on the
+# draft's head unchanged and then with tmp-breaks/no-required-names.patch,
+# which takes the requiredNames() call out of buildProperties().
+on:
+  push:
+    branches:
+      - tmp/php-135-red
+permissions:
+  contents: read
+jobs:
+  test:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion 8.5
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Restore Asset Cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261115-D08993235BC59D4245755D798844D1F982A792C9
+          restore-keys: |
+            20261115-
+            20261114-
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Link the Lite data file where the package's php.ini names it
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          ls -la "$GITHUB_WORKSPACE/assets/51Degrees-LiteIpiV41.ipi"
+          mkdir -p assets
+          ln -sf "$GITHUB_WORKSPACE/assets/51Degrees-LiteIpiV41.ipi" assets/51Degrees-LiteIpiV41.ipi
+      - name: Run the test unchanged, then without the requiredNames() call
+        working-directory: common-ci/51degrees-php
+        run: |
+          set +e
+          export PHP_INI_SCAN_DIR=":$PWD/ip-intelligence"
+          export _51DEGREES_IPI_PATH="$PWD/ip-intelligence/assets/51Degrees-LiteIpiV41.ipi"
+          test=testATableReadAfterTheEngineClosesReadsTheResults
+          run() {
+            (cd ip-intelligence && php vendor/bin/phpunit --colors=never --filter "$test" tests/IpIntelligenceOnPremiseTests.php)
+          }
+          echo "::group::Unchanged"
+          run; unchanged=$?
+          echo "::endgroup::"
+          patch -p1 --forward --no-backup-if-mismatch < tmp-breaks/no-required-names.patch || exit 1
+          echo "::group::Without the requiredNames() call in buildProperties()"
+          run; broken=$?
+          echo "::endgroup::"
+          echo "RESULT unchanged exit $unchanged, without the call exit $broken"
+          [ "$unchanged" = "0" ] && [ "$broken" != "0" ]

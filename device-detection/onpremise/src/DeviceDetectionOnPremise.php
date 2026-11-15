@@ -192,23 +192,14 @@ class DeviceDetectionOnPremise extends Engine
         // looks up only its own property (see findProperty).
         unset($this->properties);
 
-        // Make evidence list
-        $evidences = $this->engine->getKeys();
-        $evidenceKeysList = [];
-        for ($i = 0; $i < $evidences->size(); ++$i) {
-            $evidence = strtolower($evidences->get($i));
-            $evidence = str_replace('http_', '', $evidence);
-            $evidence = str_replace('http_x-', '', $evidence);
-            $evidenceKeysList[] = $evidence;
-        }
-        $this->evidenceKeys = $evidenceKeysList;
+        $this->readEvidenceKeys();
 
         parent::__construct(...func_get_args());
     }
 
     /**
-     * Instance of EvidenceKeyFilter based on the evidence keys fetched
-     * from the cloud service by the private getEvidenceKeys() method.
+     * The Evidence keys the data file in use accepts, as the engine gives
+     * them, in lower case.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
@@ -224,7 +215,10 @@ class DeviceDetectionOnPremise extends Engine
 
         foreach ($evidence as $key => $value) {
             if ($this->filterEvidenceKey($key) && is_string($value)) {
-                $evidenceInternal->set($key, $value);
+                // Evidence keys ignore letter case, and the native code
+                // finds the prefix in lower case only, so the key is
+                // lowered. It matches the field in any case.
+                $evidenceInternal->set(strtolower($key), $value);
             }
         }
 
@@ -247,36 +241,54 @@ class DeviceDetectionOnPremise extends Engine
     }
 
     /**
-     * Ask the engine to start using the specified data file
-     * for detections.
-     * This can be used in 3 different scenarios:
-     * 1. The data file that was originally used to create the engine has
-     * been updated on disk. In this case, no parameters are needed.
-     * 2. A new data file is available, but it is in a different location
-     * to the original. In this case, the parameter should be the new data
-     * file location.
-     * 3. A new data file is available in memory. The first parameter will
-     * be the variable holding the in-memory data file. The second will
-     * be the size of the data file in bytes.
+     * Makes the engine use a new data file, in one of two ways.
+     * 1. refreshData() reloads the data file the engine was built from,
+     * once that file has been replaced on disk.
+     * 2. refreshData($fileName) loads the data file at that path.
      *
-     * @param null|string $fileName_or_data Data file path or the variable holding the in-memory data file
-     * @param null|int $length Length of the in-memory data file in bytes
+     * A data file held in memory cannot be passed to the engine from PHP,
+     * so giving a length throws an exception that says to use one of the
+     * two forms above. A data file the engine cannot use throws an
+     * exception, and the engine goes on with the data it had.
+     *
+     * @param null|string $fileName_or_data Path of the new data file, or
+     *   null to reload the file the engine was built from
+     * @param null|int $length Not supported, and throws when given
+     * @throws \Exception
      */
     public function refreshData(?string $fileName_or_data = null, ?int $length = null): void
     {
-        switch (func_num_args()) {
-            case 0: $this->engine->refreshData();
-                break;
-            case 1: $this->engine->refreshData($fileName_or_data);
-                break;
-            default: 
-                $this->engine->refreshData($fileName_or_data, $length);
+        if ($length !== null) {
+            throw new \Exception(Messages::REFRESH_FROM_MEMORY);
         }
 
-        // The metadata follows the new data set.
+        if ($fileName_or_data === null) {
+            $this->engine->refreshData();
+        } else {
+            $this->engine->refreshData($fileName_or_data);
+        }
+
+        // The metadata and the accepted Evidence follow the new data set.
         unset($this->properties);
         $this->requiredNames = null;
         $this->readProperties = [];
+        $this->readEvidenceKeys();
+    }
+
+    /**
+     * Reads the Evidence keys the data set in use accepts from the engine.
+     */
+    private function readEvidenceKeys(): void
+    {
+        $evidences = $this->engine->getKeys();
+        $evidenceKeysList = [];
+        for ($i = 0; $i < $evidences->size(); ++$i) {
+            $evidence = strtolower($evidences->get($i));
+            $evidence = str_replace('http_', '', $evidence);
+            $evidence = str_replace('http_x-', '', $evidence);
+            $evidenceKeysList[] = $evidence;
+        }
+        $this->evidenceKeys = $evidenceKeysList;
     }
 
     /**

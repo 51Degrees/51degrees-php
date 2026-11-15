@@ -171,6 +171,28 @@ class Pipeline
     }
 
     /**
+     * The Evidence the Pipeline accepts, being every key that at least one
+     * of its FlowElements accepts, in any letter case. Each element is asked
+     * when a key is checked, so the filter follows an element whose accepted
+     * Evidence changes, as it does when an engine's data is refreshed.
+     */
+    public function getEvidenceKeyFilter(): EvidenceKeyFilter
+    {
+        $filter = new EvidenceKeyFilter();
+        $filter->filterEvidenceKey = function (string $key): bool {
+            foreach ($this->flowElements as $flowElement) {
+                if ($flowElement->filterEvidenceKey($key)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        return $filter;
+    }
+
+    /**
      * Get a FlowElement by its name.
      */
     public function getElement(string $key): FlowElement

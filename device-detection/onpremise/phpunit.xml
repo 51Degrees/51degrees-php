@@ -20,6 +20,8 @@
       <file>tests/RequestTests.php</file>
       <file>tests/ExampleWebTests.php</file>
       <file>tests/UACHHashTests.php</file>
+      <file>tests/EvidenceKeyCaseTests.php</file>
+      <file>tests/RefreshDataTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/WebExampleReloadTests.php</file>
     </testsuite>

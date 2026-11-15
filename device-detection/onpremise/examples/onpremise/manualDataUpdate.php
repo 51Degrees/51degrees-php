@@ -151,8 +151,8 @@ try {
     // so this will have no effect.
     // In practice, this function should be called after the data file
     // on disk has been overwritten with a newer one.
-    // There are variations, which allow refreshing from a different
-    // file path or from an in-memory representation of the data file.
+    // refreshData($fileName) loads a data file from a different path
+    // instead.
     $deviceEngine->refreshData();
     manualDataUpdate_checkifmobile($pipeline, $desktopUA);
     manualDataUpdate_checkifmobile($pipeline, $iPhoneUA);

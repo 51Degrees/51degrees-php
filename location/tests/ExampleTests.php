@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\geolocation\tests;
 
+use fiftyone\pipeline\geolocation\tests\classes\ExampleRun;
 use PHPUnit\Framework\TestCase;
 
 class ExampleTests extends TestCase
@@ -38,5 +39,41 @@ class ExampleTests extends TestCase
             $javascript ?? null,
             'The page gave no JavaScript. Is _51DEGREES_RESOURCE_KEY set?'
         );
+    }
+
+    /**
+     * The web integration page builds its pipeline for each request and
+     * keeps no copy of it in a file, because a pipeline read back from a
+     * file keeps the resource key it was built with.
+     */
+    public function testWebIntegrationLeavesNoPipelineBehind()
+    {
+        foreach (self::pipelineFiles() as $stale) {
+            unlink($stale);
+        }
+
+        $run = ExampleRun::serve(__DIR__ . '/../examples/cloud/webIntegration.php');
+
+        $this->assertSame(200, $run->httpStatus, $run->printed());
+        $this->assertSame([], self::pipelineFiles());
+    }
+
+    /**
+     * Every serialized pipeline file in the examples folder, in the folders
+     * below it, and beside it, as a name built without a separator lands
+     * beside its folder rather than in it.
+     *
+     * @return string[]
+     */
+    private static function pipelineFiles(): array
+    {
+        $examples = __DIR__ . '/../examples';
+        $found = array_merge(
+            (array) glob($examples . '/*.pipeline'),
+            (array) glob($examples . '/*/*.pipeline'),
+            (array) glob(dirname($examples) . '/*.pipeline')
+        );
+
+        return array_values(array_filter($found, 'is_file'));
     }
 }

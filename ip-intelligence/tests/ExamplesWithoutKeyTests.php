@@ -30,11 +30,12 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Runs the cloud examples as someone runs them from a fresh clone, with no
- * resource key set, each in its own PHP. Each must say where to create a
- * resource key, with a tagged link to the configuration page, and end with
- * the Find out more section, with every 51degrees.com link it prints
- * tagged. What status an example exits with when no key is set is not
- * checked here.
+ * resource key set, the console examples each in its own PHP and the pages
+ * with PHP's built-in server. Each must name the environment variable to
+ * set, say where to create a resource key, with a tagged link to the
+ * configuration page, end with the Find out more section, with every
+ * 51degrees.com link it prints tagged, and end successfully, a console
+ * example with exit status 0 and a page with HTTP status 200.
  */
 class ExamplesWithoutKeyTests extends TestCase
 {
@@ -43,6 +44,10 @@ class ExamplesWithoutKeyTests extends TestCase
 
     // The environment variable the examples are told to set.
     private const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
+
+    // The client-side script the mixed page asks its own server for when
+    // there are results to refine.
+    private const CLIENT_SCRIPT = '/51Degrees.core.js';
 
     public function testGettingStarted(): void
     {
@@ -66,41 +71,44 @@ class ExamplesWithoutKeyTests extends TestCase
 
     public function testWeb(): void
     {
-        $this->runPageWithoutKey('cloud/web/index.php');
+        $this->servePageWithoutKey('cloud/web/index.php');
     }
 
+    /**
+     * The page has no results for the client-side script to refine, so it
+     * does not ask for the script, which would answer with an error.
+     */
     public function testWebMixed(): void
     {
-        $this->runPageWithoutKey('cloud/web-mixed/index.php');
+        $run = $this->servePageWithoutKey('cloud/web-mixed/index.php');
+        $this->assertStringNotContainsString(self::CLIENT_SCRIPT, $run->output, $run->printed());
     }
 
     private function runConsoleWithoutKey(string $script): void
     {
-        $run = $this->runWithoutKey($script, []);
-        $this->assertStringContainsString(self::CONFIGURE, $run->errors, $run->printed());
-        $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $run->errors, $run->printed());
+        $run = ExampleRun::run(
+            __DIR__ . "/../examples/{$script}",
+            [],
+            ExampleRun::RESOURCE_KEY_VARIABLES
+        );
+        $this->assertSame(0, $run->status, $run->printed());
+        $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $run->output, $run->printed());
+        $this->assertStringContainsString(self::CONFIGURE, $run->output, $run->printed());
         $run->assertEndsWithFindOutMore();
     }
 
-    private function runPageWithoutKey(string $script): void
+    private function servePageWithoutKey(string $script): ExampleRun
     {
-        $run = $this->runWithoutKey($script, ExampleRun::WEB_REQUEST);
-        $this->assertSame(0, $run->status, $run->printed());
-        $this->assertStringContainsString(self::CONFIGURE, $run->output, $run->printed());
-        $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $run->output, $run->printed());
-        $run->assertPageEndsWithFindOutMore();
-    }
-
-    /**
-     * @param array<string, string> $set Environment variables to add
-     */
-    private function runWithoutKey(string $script, array $set): ExampleRun
-    {
-        return ExampleRun::run(
+        $run = ExampleRun::serve(
             __DIR__ . "/../examples/{$script}",
-            [],
-            ExampleRun::RESOURCE_KEY_VARIABLES,
-            $set
+            ExampleRun::RESOURCE_KEY_VARIABLES
         );
+        $this->assertSame(200, $run->httpStatus, $run->printed());
+        $page = html_entity_decode($run->output);
+        $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $page, $run->printed());
+        $this->assertStringContainsString(self::CONFIGURE, $page, $run->printed());
+        $run->assertPageEndsWithFindOutMore();
+
+        return $run;
     }
 }

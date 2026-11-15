@@ -10,6 +10,7 @@
       <file>tests/ElementTests.php</file>
       <file>tests/PipelineCheckTests.php</file>
       <file>tests/ScriptTests.php</file>
+      <file>tests/ExampleTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

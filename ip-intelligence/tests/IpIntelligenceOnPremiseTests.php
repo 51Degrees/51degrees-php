@@ -32,8 +32,11 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
+use fiftyone\pipeline\ipintelligence\SwigData;
 use fiftyone\pipeline\ipintelligence\SwigHelpers;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
+use fiftyone\pipeline\ipintelligence\tests\classes\RecordingResults;
+use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\TestCase;
 
@@ -804,6 +807,114 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             $named->close();
         }
+    }
+
+    /**
+     * Every value is read at the position of its property, and is the value
+     * a read by name gives, for an engine created with no names and for one
+     * created with every name in reverse order.
+     */
+    public function testEveryValueIsReadByPositionAndIsTheValueByName(): void
+    {
+        $none = $this->buildEngine();
+        try {
+            $names = [];
+            foreach ($none->getProperties() as $key => $property) {
+                if ($key !== 'ip' && $key !== 'ipv6') {
+                    $names[] = $property['name'];
+                }
+            }
+            $this->assertNotEmpty($names);
+            $this->assertReadByPosition($none, $names);
+        } finally {
+            $none->close();
+        }
+
+        $named = $this->buildEngineWith(array_reverse($names));
+        try {
+            $this->assertReadByPosition($named, $names);
+        } finally {
+            $named->close();
+        }
+    }
+
+    /**
+     * A read that the table of every property answers needs no engine, so
+     * once the table is built, a read after the engine is closed reads the
+     * results, which are still open, rather than failing for want of the
+     * engine.
+     */
+    public function testATableReadAfterTheEngineClosesReadsTheResults(): void
+    {
+        $engine = $this->buildEngine();
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false
+        ]))->add($engine)->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $names = array_values(array_diff(
+                array_keys($engine->getProperties()),
+                ['ip', 'ipv6']
+            ));
+            $this->assertNotEmpty($names);
+
+            $engine->close();
+            $this->assertNull($engine->engine);
+
+            $value = $flowData->ip->get($names[0]);
+            $this->assertInstanceOf(AspectPropertyValue::class, $value);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
+     * Reads each name once at its position and once by name, from the same
+     * native results, and checks that both give the same, and that each
+     * position is the one at which the native results hold that name.
+     *
+     * @param array<string> $names
+     */
+    private function assertReadByPosition(IpIntelligenceOnPremise $engine, array $names): void
+    {
+        $native = $engine->engine->process(Constants::IPV4_ADDRESS);
+        $atPosition = new RecordingResults($native);
+        $byName = new RecordingResults($native);
+        $positionData = new SwigData($engine, $atPosition, Constants::IPV4_ADDRESS);
+        $nameData = new SwigData($engine, $byName, Constants::IPV4_ADDRESS);
+
+        foreach ($names as $name) {
+            $byName->name = $name;
+            $this->assertEquals(
+                self::shown($nameData->get($name)),
+                self::shown($positionData->get($name)),
+                $name
+            );
+        }
+
+        $this->assertCount(count($names), $atPosition->keys);
+        foreach ($atPosition->keys as $read => $position) {
+            $this->assertIsInt($position, $names[$read]);
+            $this->assertSame(
+                strtolower($names[$read]),
+                strtolower($native->getPropertyName($position)),
+                $names[$read]
+            );
+        }
+    }
+
+    /**
+     * A value, or its no value message.
+     *
+     * @return mixed
+     */
+    private static function shown(AspectPropertyValue $value)
+    {
+        return $value->hasValue ? $value->value : $value->noValueMessage;
     }
 
     /**

@@ -28,28 +28,33 @@ namespace fiftyone\pipeline\devicedetection;
  */
 class Constants
 {
-    // Match metrics descriptions
+    // Match metrics descriptions, as the specification's table of match
+    // metric properties gives them.
     public const MATCHED_NODES_DESCRIPTION =
-        'Indicates the number of hash nodes matched within the evidence.';
+        'Indicates the number of hash nodes matched within the Evidence.';
     public const DIFFERENCE_DESCRIPTION =
-        'Used when detection method is not Exact or None. This is an integer ' .
-        'value and the larger the value the less confident the detector is ' .
-        'in this result.';
+        'Used when detection method is not Exact or None. The larger the ' .
+        'value the less confident the detector is in this result.';
     public const DRIFT_DESCRIPTION =
-        'Total difference in character positions where the substrings hashes ' .
-        'were found away from where they were expected.';
+        "The drift of every component's result added together, each " .
+        "result's drift being how far, in character positions, the " .
+        "substring's hashes were found from where they were expected. " .
+        'Never the largest or smallest result alone.';
     public const DEVICE_ID_DESCRIPTION =
-        'Consists of four components separated by a hyphen symbol: ' .
-        'Hardware-Platform-Browser-IsCrawler where each Component represents ' .
-        'an ID of the corresponding Profile.';
+        'Contains the profile ids of the matching profiles, separated by a ' .
+        'hyphen symbol. For example ' .
+        '[HardwareId]-[PlatformId]-[BrowserId]-[CrawlerId]. By convention, ' .
+        'these will be in component Id order. There will often be 4 ids ' .
+        'present, but this is not guaranteed.';
     public const USER_AGENTS_DESCRIPTION =
-        'The matched User-Agents.';
+        'The User-Agent values that were matched, each listed once across ' .
+        'every result. Populated when the Update Matched User Agent ' .
+        'configuration option is on, which it is by default.';
     public const ITERATIONS_DESCRIPTION =
         'The number of iterations carried out in order to find a match. This ' .
         'is the number of nodes in the graph which have been visited.';
     public const METHOD_DESCRIPTION =
-        'Provides information about the algorithm that was used to perform ' .
-        'detection for a particular User-Agent.';
+        'The method used to determine the match result.';
 
     // The php.ini setting naming the data file the extension builds its
     // engine from when PHP starts.

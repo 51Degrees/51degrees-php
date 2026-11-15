@@ -108,4 +108,16 @@ class EngineTests extends TestCase
 
         $this->assertTrue($restrictedProperties);
     }
+
+    /**
+     * Element data keys and property names are compared ignoring case. See
+     * https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/access-to-results.md#general-guidance
+     */
+    public function testKeysAndNamesAreReadInAnyCase()
+    {
+        $flowData = $this->createAndProcess();
+
+        $this->assertSame(5, $flowData->get('EXAMPLE')->get('INTEGER'));
+        $this->assertSame(5, $flowData->Example->Integer);
+    }
 }

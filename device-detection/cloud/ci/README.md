@@ -8,3 +8,4 @@ The following secrets are required:
     * Example: `R4nd0m-S7r1ng`
 * `DEVICE_DETECTION_KEY` - [license key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for downloading assets (TAC hashes file and TAC CSV data file)
     * Example: `V3RYL0NGR4ND0M57R1NG`
+    * Without it, and without `CSV_URL`, the TAC CSV data file is not fetched and the integration tests are skipped.

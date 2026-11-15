@@ -107,22 +107,25 @@ class CredentialsTests extends TestCase
     }
 
     /**
-     * Builds the engine in a pipeline and processes one request through it,
-     * which fetches the evidence keys and accessible properties first.
+     * Builds the engine, which asks for the evidence keys and accessible
+     * properties, in a pipeline and processes one request through it. The
+     * engine is null when the build failed.
      *
      * @param array<string, mixed> $settings
-     * @return array{requests: array<array{string, string, array<string, string>}>, logged: array<string>, thrown: array<\Throwable>, engine: CloudRequestEngine}
+     * @return array{requests: array<array{string, string, array<string, string>}>, logged: array<string>, thrown: array<\Throwable>, engine: null|CloudRequestEngine}
      */
     private function process(array $settings, ?string $failing = null): array
     {
-        $engine = new CloudRequestEngine(array_merge(
-            ['httpClient' => $this->recordingClient($failing)],
-            $settings
-        ));
         $logger = self::memoryLogger();
-        $pipeline = (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
+        $engine = null;
         $thrown = [];
         try {
+            // A refused discovery request fails the build.
+            $engine = new CloudRequestEngine(array_merge(
+                ['httpClient' => $this->recordingClient($failing)],
+                $settings
+            ));
+            $pipeline = (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
             $data = $pipeline->createFlowData();
             $data->evidence->set('query.User-Agent', 'iPhone');
             $data->process();

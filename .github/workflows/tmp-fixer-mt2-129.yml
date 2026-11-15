@@ -1,0 +1,119 @@
+name: tmp fixer mt2 129
+# Throwaway. Shows that the tests of 51degrees-php#129 which pass on rc can
+# fail. Installs the root Composer packages as CI does, runs
+# PipelineImmutableTests and CacheKeyTests unchanged, then applies each
+# throwaway change in tmp-breaks on its own, runs the test file it should
+# break and takes the change out again. The job passes only when every test
+# passes unchanged and every expected failure happens.
+on:
+  push:
+    branches:
+      - tmp/fixer-mt2-129
+permissions:
+  contents: read
+jobs:
+  test:
+    name: pipeline core and engines (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: git submodule update --init --depth 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Install the root Composer packages as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion 8.5
+          . ./51degrees-php/ci/packages.ps1
+          Install-RootComposer -RepoName 51degrees-php
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Set-RootAutoload -RepoName 51degrees-php
+      - name: Run the tests unchanged and under each change
+        working-directory: common-ci/51degrees-php
+        run: |
+          set +e
+          repo=$PWD
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          bad=0
+          phpunit --version
+          # change, package, test file
+          run() {
+            local change=$1 package=$2 file=$3
+            local junit="$GITHUB_WORKSPACE/junit-$change-$file.xml"
+            rm -f "$junit"
+            echo "::group::[$change] $package $file"
+            (cd "$repo/$package" && phpunit --colors=never --fail-on-warning --log-junit "$junit" "tests/$file.php") > "$GITHUB_WORKSPACE/out.txt" 2>&1
+            echo "phpunit exit $?"
+            cat "$GITHUB_WORKSPACE/out.txt"
+            echo "::endgroup::"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] ", $argv[3], " NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : (count($t->skipped) > 0 ? "SKIPPED" : "passed");
+                echo "RESULT [", $argv[2], "] ", $argv[3], "::", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" "$file" | tee -a "$summary"
+          }
+          # change, package, test file
+          broken() {
+            local change=$1
+            if ! patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$change.patch"; then
+              echo "RESULT [$change] PATCH DID NOT APPLY" | tee -a "$summary"
+              bad=1
+              return
+            fi
+            run "$@"
+            patch -p1 -R --no-backup-if-mismatch < "tmp-breaks/$change.patch" || bad=1
+          }
+          # change, test file, then each test method expected to fail
+          expect() {
+            local change=$1 file=$2
+            shift 2
+            for method in "$@"; do
+              if grep -q "^RESULT \[$change\] $file::$method FAILED" "$summary"; then
+                echo "EXPECTED [$change] $file::$method failed"
+              else
+                echo "UNEXPECTED [$change] $file::$method did not fail"
+                bad=1
+              fi
+            done
+          }
+          run none pipeline/core PipelineImmutableTests
+          run none pipeline/engines CacheKeyTests
+          if [ "$(grep -c '^RESULT \[none\] .* passed$' "$summary")" != 9 ] ||
+            grep -q '^RESULT \[none\] .*\(FAILED\|SKIPPED\|NO JUNIT\)' "$summary"; then
+            echo "UNEXPECTED [none] the nine tests did not all pass unchanged"
+            bad=1
+          fi
+          # __get gives an empty flowElementsList.
+          broken get-gives-no-element-list pipeline/core PipelineImmutableTests
+          expect get-gives-no-element-list PipelineImmutableTests testTheElementsCanBeRead
+          # __isset answers false for flowElements and flowElementsList.
+          broken isset-false-for-lists pipeline/core PipelineImmutableTests
+          expect isset-false-for-lists PipelineImmutableTests testTheElementsCanBeRead
+          # The cache key lowers the values as well as the keys.
+          broken cache-key-lowers-values pipeline/engines CacheKeyTests
+          expect cache-key-lowers-values CacheKeyTests testValuesInOtherLettersGiveAnotherCacheKey
+          # The Engine never stores a result in its cache.
+          broken result-not-cached pipeline/engines CacheKeyTests
+          expect result-not-cached CacheKeyTests testTheSameEvidenceIsServedFromTheCache
+          echo "::group::Summary"
+          cat "$summary"
+          echo "::endgroup::"
+          git status --short
+          exit $bad

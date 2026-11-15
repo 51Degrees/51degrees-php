@@ -1,0 +1,13 @@
+diff --git a/pipeline/engines/src/Engine.php b/pipeline/engines/src/Engine.php
+index 5d0b83e6..98842636 100644
+--- a/pipeline/engines/src/Engine.php
++++ b/pipeline/engines/src/Engine.php
+@@ -113,7 +113,7 @@ class Engine extends FlowElement
+             $data = $flowData->get($this->dataKey);
+ 
+             if (!$this->holdsValueForOneRequest($data)) {
+-                $this->cache->set($keys, $data);
++                // The result is not stored in the cache.
+             }
+         }
+     }

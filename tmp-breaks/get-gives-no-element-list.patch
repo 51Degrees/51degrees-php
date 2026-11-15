@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/Pipeline.php b/pipeline/core/src/Pipeline.php
+index fc1ff3a4..cc6b17d3 100644
+--- a/pipeline/core/src/Pipeline.php
++++ b/pipeline/core/src/Pipeline.php
+@@ -121,7 +121,7 @@ class Pipeline
+     public function &__get(string $name)
+     {
+         if (in_array($name, self::ELEMENT_LISTS, true)) {
+-            $copy = $this->{$name};
++            $copy = $name === 'flowElementsList' ? [] : $this->{$name};
+ 
+             return $copy;
+         }

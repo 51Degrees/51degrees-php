@@ -1,0 +1,14 @@
+diff --git a/pipeline/core/src/Pipeline.php b/pipeline/core/src/Pipeline.php
+index fc1ff3a4..9b8dbca2 100644
+--- a/pipeline/core/src/Pipeline.php
++++ b/pipeline/core/src/Pipeline.php
+@@ -151,8 +151,7 @@ class Pipeline
+      */
+     public function __isset(string $name): bool
+     {
+-        return in_array($name, self::ELEMENT_LISTS, true) ||
+-            $name === 'propertyDatabase';
++        return $name === 'propertyDatabase';
+     }
+ 
+     /**

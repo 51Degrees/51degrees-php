@@ -1,0 +1,13 @@
+diff --git a/pipeline/engines/src/Engine.php b/pipeline/engines/src/Engine.php
+index 5d0b83e6..cdb2a9d8 100644
+--- a/pipeline/engines/src/Engine.php
++++ b/pipeline/engines/src/Engine.php
+@@ -131,7 +131,7 @@ class Engine extends FlowElement
+     {
+         $key = [];
+         foreach ($evidence as $name => $value) {
+-            $key[strtolower((string) $name)] = $value;
++            $key[strtolower((string) $name)] = strtolower((string) $value);
+         }
+         ksort($key, SORT_STRING);
+ 

@@ -89,11 +89,18 @@ class TimeoutTests extends CloudRequestEngineTestsBase
         );
         self::$baseUrl = 'http://127.0.0.1:' . $port . '/';
 
-        $deadline = microtime(true) + self::SERVER_START_SECONDS;
+        $started = microtime(true);
+        $deadline = $started + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline) {
             $connection = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.2);
             if ($connection !== false) {
                 fclose($connection);
+                fwrite(STDERR, sprintf(
+                    "The local server answered after %.3f seconds, where " .
+                    "the limit is %d seconds.\n",
+                    microtime(true) - $started,
+                    self::SERVER_START_SECONDS
+                ));
 
                 return;
             }
@@ -223,6 +230,14 @@ class TimeoutTests extends CloudRequestEngineTestsBase
             $request();
         } catch (CloudRequestException $e) {
             $elapsed = microtime(true) - $start;
+            fwrite(STDERR, sprintf(
+                "A request with a %.1f second timeout stopped after %.3f " .
+                "seconds, where the limits are %.2f to %.2f seconds.\n",
+                $timeoutSeconds,
+                $elapsed,
+                $timeoutSeconds - self::EARLY_SECONDS,
+                $timeoutSeconds + self::LATE_SECONDS
+            ));
             $this->assertStringContainsString('could not be made', $e->getMessage());
             $this->assertGreaterThanOrEqual(
                 $timeoutSeconds - self::EARLY_SECONDS,

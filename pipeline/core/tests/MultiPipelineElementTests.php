@@ -32,6 +32,7 @@ use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\SequenceElement;
+use fiftyone\pipeline\core\SetHeaderElement;
 use PHPUnit\Framework\TestCase;
 
 class SharedBundlerFirstElement extends FlowElement
@@ -73,9 +74,40 @@ class SharedBundlerSecondElement extends FlowElement
 }
 
 /**
- * One JSON Bundler added to two Pipelines keeps what it learns about the
- * elements of each Pipeline apart, as multi-pipeline-elements.md in the
- * Pipeline specification asks.
+ * An element with a SetHeader Property asking for one client hint, under
+ * the Data Key and with the hint it is given.
+ */
+class SharedHeaderElement extends FlowElement
+{
+    private string $hint;
+
+    public function __construct(string $dataKey, string $hint)
+    {
+        parent::__construct();
+        $this->dataKey = $dataKey;
+        $this->hint = $hint;
+        $this->properties = [
+            'setheaderbrowseraccept-ch' => [
+                'name' => 'SetHeaderBrowserAccept-CH',
+                'type' => 'string'
+            ],
+        ];
+    }
+
+    public function processInternal(FlowData $flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'setheaderbrowseraccept-ch' => new AspectPropertyValue(null, $this->hint),
+        ]));
+    }
+}
+
+/**
+ * One JSON Bundler, or one Set Headers Element, added to two Pipelines
+ * keeps what it learns about the elements of each Pipeline apart, as
+ * multi-pipeline-elements.md in the Pipeline specification asks.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/advanced-features/multi-pipeline-elements.md
  */
 class MultiPipelineElementTests extends TestCase
 {
@@ -92,6 +124,61 @@ class MultiPipelineElementTests extends TestCase
         } finally {
             $flowData->close();
         }
+    }
+
+    /**
+     * The response headers the Set Headers Element gives for the Pipeline.
+     *
+     * @return array<string, string>
+     */
+    private static function headers(Pipeline $pipeline): array
+    {
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->process();
+
+            return $flowData->get('set-headers')->get('responseheaderdictionary');
+        } finally {
+            $flowData->close();
+        }
+    }
+
+    public function testTheSecondPipelineGetsTheHeadersOfItsOwnElements()
+    {
+        $setHeaders = new SetHeaderElement();
+        $first = new Pipeline([
+            new SharedHeaderElement('browser', 'Sec-CH-UA'),
+            $setHeaders
+        ], []);
+        $second = new Pipeline([
+            new SharedHeaderElement('browser', 'Sec-CH-UA'),
+            new SharedHeaderElement('platform', 'Sec-CH-UA-Platform'),
+            $setHeaders
+        ], []);
+
+        self::headers($first);
+
+        $this->assertSame(
+            ['Accept-CH' => 'Sec-CH-UA,Sec-CH-UA-Platform'],
+            self::headers($second)
+        );
+    }
+
+    public function testEachPipelineGetsOnlyTheHeadersOfItsOwnElements()
+    {
+        $setHeaders = new SetHeaderElement();
+        $first = new Pipeline([
+            new SharedHeaderElement('browser', 'Sec-CH-UA'),
+            $setHeaders
+        ], []);
+        $second = new Pipeline([
+            new SharedHeaderElement('platform', 'Sec-CH-UA-Platform'),
+            $setHeaders
+        ], []);
+
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA-Platform'], self::headers($second));
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], self::headers($first));
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA-Platform'], self::headers($second));
     }
 
     public function testTheSecondPipelineGetsTheJsonOfItsOwnElements()

@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/FlowData.php b/pipeline/core/src/FlowData.php
+index 90f3e40f..434e97cb 100644
+--- a/pipeline/core/src/FlowData.php
++++ b/pipeline/core/src/FlowData.php
+@@ -184,7 +184,7 @@ class FlowData
+     {
+         $existing = $this->errors[$key] ?? null;
+         if ($existing === null) {
+-            $this->errors[$key] = $error;
++            $this->errors[$key] = new AggregateException([$error]);
+         } else {
+             $this->errors[$key] = new AggregateException(array_merge(
+                 $existing instanceof AggregateException

@@ -1,0 +1,12 @@
+diff --git a/pipeline/core/src/FlowData.php b/pipeline/core/src/FlowData.php
+index 90f3e40f..fa7ebfe9 100644
+--- a/pipeline/core/src/FlowData.php
++++ b/pipeline/core/src/FlowData.php
+@@ -182,6 +182,7 @@ class FlowData
+      */
+     public function setError(string $key, \Throwable $error): void
+     {
++        $key = 'errors';
+         $existing = $this->errors[$key] ?? null;
+         if ($existing === null) {
+             $this->errors[$key] = $error;

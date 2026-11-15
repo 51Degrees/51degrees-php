@@ -21,6 +21,11 @@
       <file>tests/FlowDataTests.php</file>
       <file>tests/CloseTests.php</file>
       <file>tests/PropertyDatabaseTests.php</file>
+      <file>tests/ConfigurationFileTests.php</file>
+      <file>tests/ElementContractTests.php</file>
+      <file>tests/FileSystemPathTests.php</file>
+      <file>tests/FlowDataAccessorTests.php</file>
+      <file>tests/WebIntegrationFailureTests.php</file>
 	    <file>tests/SetHeaderTests.php</file>
       <file>tests/EvidenceFromWebRequestTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>

@@ -35,6 +35,18 @@ class SetHeaderElement extends FlowElement
     public string $dataKey = 'set-headers';
 
     /**
+     * The headers to set, by header name.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'responseheaderdictionary' => [
+            'name' => 'responseheaderdictionary',
+            'type' => 'array'
+        ],
+    ];
+
+    /**
      * @var array<string, array<int, mixed>>
      */
     private array $setHeaderProperties = [];
@@ -158,12 +170,12 @@ class SetHeaderElement extends FlowElement
      */
     public function getPropertyValue(FlowData $flowData, string $elementKey, string $propertyKey): string
     {
-        if ($flowData->{$elementKey}) {
-            // Get the elementData from flowData that contains required property.
-            $elementData = $flowData->{$elementKey};
-        } else {
-            echo sprintf(Messages::ELEMENT_NOT_FOUND, $elementKey);
-
+        try {
+            $elementData = $flowData->get($elementKey);
+        } catch (\Exception $e) {
+            // An element that failed, or that processing stopped before,
+            // has no data. Its headers are left out, so the response is
+            // still sent.
             return '';
         }
 

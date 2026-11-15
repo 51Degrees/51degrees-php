@@ -12,6 +12,7 @@
     <!-- Runs everywhere: no native extension, data file or network needed. -->
     <testsuite name="Unit">
       <file>tests/SwigDataTests.php</file>
+      <file>tests/WeightedValuesJsonTests.php</file>
       <file>tests/NativeCallTests.php</file>
       <file>tests/CloudPipelineOrderTests.php</file>
       <file>tests/ExampleWeightingTests.php</file>
@@ -23,6 +24,7 @@
     </testsuite>
     <testsuite name="Integration">
       <file>tests/WebExamplesWithoutSettingsTests.php</file>
+      <file>tests/RelativeDataFileTests.php</file>
       <file>tests/DataModelTests.php</file>
       <file>tests/EngineCreationTests.php</file>
       <file>tests/ReadTimingTests.php</file>

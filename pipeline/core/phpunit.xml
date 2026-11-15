@@ -6,6 +6,8 @@
     </testsuite>
     <testsuite name="Unit">
       <file>tests/CoreTests.php</file>
+      <file>tests/MultiPipelineElementTests.php</file>
+      <file>tests/PipelineImmutableTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/JavaScriptBundlerTests.php</file>
       <file>tests/JavaScriptBuilderMinifyTests.php</file>

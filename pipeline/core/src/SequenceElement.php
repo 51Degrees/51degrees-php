@@ -32,6 +32,8 @@ namespace fiftyone\pipeline\core;
  * If a Pipeline is constructed with the JavaScript elements
  * enabled this is added automatically along with the JavaScriptBuilder
  * and JSONBundler.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/sequence-element.md
  */
 class SequenceElement extends FlowElement
 {

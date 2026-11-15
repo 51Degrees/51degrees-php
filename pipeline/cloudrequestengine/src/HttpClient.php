@@ -27,6 +27,13 @@ namespace fiftyone\pipeline\cloudrequestengine;
 
 use fiftyone\pipeline\core\LicenseKey;
 
+/**
+ * Makes the HTTP requests the Cloud Request Engine sends to the cloud
+ * service, each with a timeout. A test can give the engine a subclass that
+ * answers without a network.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#http-requests
+ */
 class HttpClient
 {
     private float $timeoutSeconds = Constants::TIMEOUT_SECONDS_DEFAULT;

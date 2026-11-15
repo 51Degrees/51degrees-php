@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\engines;
 /**
  * AspectData class extension that stores content as an array
  * Similar to ElementDataDictionary in the Pipeline core library.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#aspect-data
  */
 class AspectDataDictionary extends AspectData
 {

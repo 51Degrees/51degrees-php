@@ -27,6 +27,8 @@ namespace fiftyone\pipeline\engines;
 
 /**
  * Messages which may be reused for various missing property exceptions.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/properties.md#missing-properties
  */
 class MissingPropertyMessages
 {

@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\engines;
  * A missing property service runs when a property is not available in the
  * aspectData. It can be extended to provide a specific message for why the property
  * is not available.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/properties.md#missing-properties
  */
 class MissingPropertyService
 {

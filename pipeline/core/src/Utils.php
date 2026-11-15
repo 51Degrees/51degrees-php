@@ -25,6 +25,13 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core;
 
+/**
+ * The web integration of a Pipeline, which sets the response headers the
+ * Pipeline's elements ask for and builds the responses to requests for
+ * the client-side JavaScript and JSON.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/web-integration.md
+ */
 class Utils
 {
     /**

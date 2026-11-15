@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\core;
  * The response to a request for the client-side JavaScript or JSON, as
  * Utils::javascriptResponse() and Utils::jsonResponse() build it. Building
  * it sends nothing, so send() writes it once it is complete.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/web-integration.md#client-side-features
  */
 class ClientSideResponse
 {

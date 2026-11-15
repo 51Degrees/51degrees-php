@@ -44,6 +44,8 @@ namespace fiftyone\pipeline\core;
  * @property-read bool $autoCloseElements The autoCloseElements setting
  * @property-read array<string, array<string, array<string, array<string, string>>>> $propertyDatabase
  *   The metadata of every element's properties
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#pipeline
  */
 class Pipeline
 {

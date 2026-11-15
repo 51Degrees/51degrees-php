@@ -32,6 +32,8 @@ namespace fiftyone\pipeline\core;
  * JavaScriptBuilder itself to pass properties to the client side.
  * Both this and the JavaScriptBuilder element are automatically
  * added to a Pipeline unless specifically omitted in the PipelineBuilder.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/json-builder.md
  */
 class JsonBundlerElement extends FlowElement
 {

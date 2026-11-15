@@ -32,6 +32,8 @@ namespace fiftyone\pipeline\core;
  * These elements can return ElementData or populate an errors object.
  *
  * @property \fiftyone\pipeline\core\JsonBundlerElement $jsonbundler
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#flow-data
  */
 class FlowData
 {

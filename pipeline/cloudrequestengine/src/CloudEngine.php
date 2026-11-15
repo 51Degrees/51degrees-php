@@ -41,6 +41,8 @@ use fiftyone\pipeline\engines\CloudEngineBase;
  * parses it to extract the device part.
  * It also uses this data to generate a list of properties. It reads no
  * Evidence, so it accepts none.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-aspect-engine.md
  */
 class CloudEngine extends CloudEngineBase
 {

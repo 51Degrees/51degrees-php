@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\core;
  * A PipelineBuilder generates a Pipeline object
  * Before construction of the Pipeline, FlowElements are added to it
  * There are also options for how JavaScript is output from the Pipeline.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#pipeline-builder
  */
 class PipelineBuilder
 {

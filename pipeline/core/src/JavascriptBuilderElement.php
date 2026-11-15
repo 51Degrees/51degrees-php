@@ -37,6 +37,8 @@ use JShrink\Minifier;
  * The results of the JSON Bundler should also be used in a user-specified
  * endpoint which retrieves the JSON from the client side.
  * The JavaScriptBuilder is constructed with a url for this endpoint.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/javascript-builder.md
  */
 class JavascriptBuilderElement extends FlowElement
 {

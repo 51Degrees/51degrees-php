@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\core;
  * Set response headers element class. This is used to get response
  * headers based on what the browser supports. For example, newer
  * Chrome browsers support the Accept-CH header.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/set-headers-element.md
  */
 class SetHeaderElement extends FlowElement
 {

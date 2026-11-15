@@ -42,6 +42,8 @@ use fiftyone\pipeline\engines\Engine;
  * query.translation, query.accept-language, header.accept-language, unless a
  * fixed language is configured. See Languages::tryResolveLocale for the
  * resolution rules, including the English short-circuit.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/translation-engine.md
  */
 class TranslationEngine extends Engine
 {

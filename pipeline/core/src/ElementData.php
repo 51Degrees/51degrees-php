@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\core;
 /**
  * Stores information created by a FlowElement based on FlowData.
  * Stored in FlowData.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#element-data
  */
 class ElementData
 {

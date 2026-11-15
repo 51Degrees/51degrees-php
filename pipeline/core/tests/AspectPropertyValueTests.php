@@ -69,6 +69,18 @@ class AspectPropertyValueTests extends TestCase
         }
     }
 
+    /**
+     * The text noValue is a value like any other.
+     */
+    public function testTheTextNoValueIsAValue(): void
+    {
+        $apv = new AspectPropertyValue(null, 'noValue');
+
+        $this->assertTrue($apv->hasValue);
+        $this->assertSame('noValue', $apv->value);
+        $this->assertNull($apv->noValueMessage);
+    }
+
     public function testNoReasonLeavesTheMessageUnset(): void
     {
         $this->assertNull((new AspectPropertyValue())->noValueMessage);

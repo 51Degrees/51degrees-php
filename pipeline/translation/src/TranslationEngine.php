@@ -35,7 +35,8 @@ use fiftyone\pipeline\engines\Engine;
  * Generic translation engine. Reads one or more properties from an upstream
  * element, translates each value (string, list of strings, or weighted list
  * of strings) into the language resolved from request evidence, and writes
- * the translated values under this engine's element data key.
+ * the translated values under this engine's element data key. Engines with
+ * the same element data key add their values to one element data.
  *
  * The locale is resolved from the evidence keys (in precedence order)
  * query.translation, query.accept-language, header.accept-language, unless a
@@ -196,6 +197,15 @@ class TranslationEngine extends Engine
     {
         $resolved = $this->resolveTranslator($flowData);
         $result = $this->buildTranslatedProperties($flowData, $resolved['translator']);
+
+        // Translation Engines with the same Data Key share one Element Data,
+        // so the values of one earlier in the Pipeline are kept, and a value
+        // of the same name is replaced. The data is set again rather than
+        // changed, so a result an engine put in its cache stays as it was.
+        $shared = $flowData->data[$this->dataKey] ?? null;
+        if ($shared instanceof AspectDataDictionary && $shared->flowElement instanceof self) {
+            $result = array_replace($shared->asDictionary(), $result);
+        }
 
         $flowData->setElementData(new AspectDataDictionary($this, $result));
     }

@@ -31,17 +31,35 @@ use fiftyone\pipeline\core\Evidence;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\LicenseKey;
 use fiftyone\pipeline\core\Pipeline;
-use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\engines\Engine;
 
 // Engine that makes a call to the 51Degrees cloud service
-// Returns raw JSON as a "cloud" property under "cloud" dataKey
+// Returns raw JSON as a "json-response" property under the "cloud-response"
+// dataKey
 class CloudRequestEngine extends Engine
 {
     // Joins license keys in one license key setting.
     private const LICENSE_KEY_SEPARATOR = '|';
 
-    public string $dataKey = 'cloud';
+    public string $dataKey = Constants::DATA_KEY;
+
+    /**
+     * @var array<string>
+     */
+    public array $deprecatedDataKeys = [Constants::DEPRECATED_DATA_KEY];
+
+    /**
+     * The metadata of the Element Data's one Property.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        Constants::JSON_RESPONSE_PROPERTY => [
+            'name' => Constants::JSON_RESPONSE_PROPERTY,
+            'type' => 'string',
+            'description' => 'The raw JSON response body from the HTTP request.',
+        ],
+    ];
 
     // Default base url
     public string $baseURL;
@@ -63,6 +81,9 @@ class CloudRequestEngine extends Engine
 
     // Set once the requested properties have been compared with an answer.
     private bool $notCoveredReported = false;
+
+    // Set once a read by the Property's deprecated name has been logged.
+    private bool $deprecatedPropertyReported = false;
 
     // Set while the base URL came from the deprecated environment
     // variable and that has yet to be logged.
@@ -289,7 +310,7 @@ class CloudRequestEngine extends Engine
 
         $result = $this->request('POST', $url, $content);
 
-        $data = new AspectDataDictionary($this, ['cloud' => $result]);
+        $data = new CloudRequestData($this, $result);
 
         $flowData->setElementData($data);
 
@@ -302,7 +323,7 @@ class CloudRequestEngine extends Engine
      */
     protected function holdsValueForOneRequest(ElementData $data): bool
     {
-        $json = json_decode((string) $data->get('cloud'), true);
+        $json = json_decode((string) CloudRequestData::jsonResponseOf($data), true);
 
         if (!is_array($json)) {
             return false;
@@ -315,6 +336,25 @@ class CloudRequestEngine extends Engine
         }
 
         return false;
+    }
+
+    /**
+     * Logs, as a warning through the logger of the first pipeline the
+     * engine is added to, that its Element Data was read by the Property's
+     * deprecated name. Each engine logs it once. CloudRequestData calls it.
+     */
+    public function reportDeprecatedProperty(): void
+    {
+        if ($this->deprecatedPropertyReported || count($this->pipelines) === 0) {
+            return;
+        }
+
+        $this->deprecatedPropertyReported = true;
+        $this->pipelines[0]->log('warning', sprintf(
+            Constants::MESSAGE_PROPERTY_DEPRECATED,
+            Constants::DEPRECATED_JSON_RESPONSE_PROPERTY,
+            Constants::JSON_RESPONSE_PROPERTY
+        ));
     }
 
     /**

@@ -39,10 +39,10 @@ class JsonBundlerElement extends FlowElement
      * The Data Keys of the elements whose data is left out of the JSON,
      * being this element, the JavaScript builder, the Set Headers Element
      * and the Cloud Request Engine, whose data is the cloud service's raw
-     * response.
+     * response, under its Data Key and cloud, the key it had before.
      */
     private const EXCLUDED_DATA_KEYS = [
-        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud'
+        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud-response', 'cloud'
     ];
 
     /**
@@ -202,7 +202,9 @@ class JsonBundlerElement extends FlowElement
             // Create empty area for FlowElement properties to go. Every key in
             // the JSON is lower case.
             $dataKey = strtolower($flowElement->dataKey);
-            $output[$dataKey] = [];
+            // Elements that share a Data Key, as Translation Engines can,
+            // populate one Element Data, which has one entry.
+            $output[$dataKey] = $output[$dataKey] ?? [];
 
             foreach ($properties as $propertyKey => $property) {
                 $value = null;

@@ -169,6 +169,8 @@ class PipelineBuilder
      * configuration are closed and the error is thrown.
      *
      * @param array<string, mixed>|string $fileOrConfig Filename of the config file to load config or associative array of config values
+     * @throws \Throwable the error of an element that could not be built,
+     *   once the elements already built are closed
      */
     public function buildFromConfig($fileOrConfig): Pipeline
     {

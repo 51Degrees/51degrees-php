@@ -73,6 +73,9 @@ class HttpClient
      * @param null|string $content Data to be sent in the post body
      * @param null|string $originHeader The value to use for the Origin header
      * @return string Associative array with data and error properties error contains any errors from the request, data contains the response
+     * @throws \fiftyone\pipeline\cloudrequestengine\CloudRequestException
+     *   when the request cannot be made or the cloud service answers with
+     *   an error
      */
     public function makeCloudRequest(string $type, string $url, ?string $content, ?string $originHeader): string
     {

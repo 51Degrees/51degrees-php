@@ -136,6 +136,8 @@ class JavascriptBuilderElement extends FlowElement
      * must be http or https in any case of its ASCII letters, or the
      * constructor throws an \InvalidArgumentException. Left out, the
      * 'header.protocol' evidence is used, or https when there is none.
+     * @throws \InvalidArgumentException when 'objName' is not a valid name
+     *   or 'protocol' is not http or https
      */
     public function __construct(array $settings = [])
     {

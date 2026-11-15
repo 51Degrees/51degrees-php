@@ -282,6 +282,10 @@ class CloudRequestEngine extends Engine
      * Makes a request to the cloud service with the supplied resource key
      * and evidence and returns a JSON object that is then parsed by cloud engines
      * placed later in the pipeline.
+     *
+     * @throws \Exception when the request to the cloud service, or the
+     *   request for the Evidence keys it accepts, fails, with the keys
+     *   masked
      */
     public function processInternal(FlowData $flowData): void
     {

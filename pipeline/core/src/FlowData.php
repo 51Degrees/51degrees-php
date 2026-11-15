@@ -80,6 +80,9 @@ class FlowData
      * This can only be run once per FlowData instance.
      *
      * @return static
+     * @throws \Throwable the first error recorded in errors, which is the
+     *   first error a FlowElement threw or the error for a second call,
+     *   unless the Pipeline's suppressProcessExceptions setting is true
      */
     public function process(): FlowData
     {

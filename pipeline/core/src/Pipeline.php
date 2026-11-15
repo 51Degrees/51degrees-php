@@ -255,6 +255,9 @@ class Pipeline
      * FlowData created by the Pipeline are not closed by it. Close each one
      * as well, because the results it holds keep the engine's data in memory
      * until they are released.
+     *
+     * @throws \Throwable the first error a FlowElement's close threw, once
+     *   every FlowElement has been closed
      */
     public function close(): void
     {

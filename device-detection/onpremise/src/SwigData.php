@@ -106,10 +106,15 @@ class SwigData extends AspectData
                         );
                         break;
                     case 'UserAgents':
+                        // Each matched User-Agent once, as more than one
+                        // result can give the same one.
                         $useragents = [];
                         $count = $this->result->getUserAgents();
                         for ($i = 0; $i < $count; ++$i) {
-                            $useragents[] = $this->result->getUserAgent($i);
+                            $useragent = $this->result->getUserAgent($i);
+                            if (!in_array($useragent, $useragents, true)) {
+                                $useragents[] = $useragent;
+                            }
                         }
                         $result = new AspectPropertyValue(
                             null,

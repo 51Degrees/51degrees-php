@@ -13,6 +13,7 @@
     <testsuite name="Unit">
       <file>tests/SwigDataTests.php</file>
       <file>tests/WeightedValuesJsonTests.php</file>
+      <file>tests/CloudOnPremiseValuesTests.php</file>
       <file>tests/NativeCallTests.php</file>
       <file>tests/CloudPipelineOrderTests.php</file>
       <file>tests/ExampleWeightingTests.php</file>

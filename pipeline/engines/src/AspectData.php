@@ -60,8 +60,10 @@ class AspectData extends ElementData
     {
         try {
             $result = $this->getInternal($key);
-            
-            if (empty($result)) {
+
+            // Only a name the data does not hold is missing. An empty list,
+            // false, 0 and an empty string are values.
+            if ($result === null) {
                 return $this->missingPropertyService->check($key, $this->flowElement);
             }
 

@@ -184,6 +184,20 @@ class HardwareProfileCloudTest extends TestCase
         $this->assertCount(0, ExampleUtils::getProfiles($hardware));
     }
 
+    /**
+     * A lookup that matches nothing gives an empty list of profiles, which
+     * the JSON holds, so a page can tell it from a lookup that did not run.
+     */
+    public function testALookupThatMatchesNothingGivesAnEmptyListOfProfiles()
+    {
+        $response = '{"hardware": {"profiles": []}}';
+
+        $this->assertSame([], $this->process($response)->get('profiles'));
+        $json = $this->json($response);
+        $this->assertArrayHasKey('profiles', $json);
+        $this->assertSame([], $json['profiles']);
+    }
+
     public function testMissingPropertyIsNamedInTheMessage()
     {
         $hardware = $this->process(self::ENTITLED_RESPONSE);

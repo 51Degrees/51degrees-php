@@ -1,0 +1,12 @@
+diff --git a/device-detection/onpremise/src/DeviceDetectionOnPremise.php b/device-detection/onpremise/src/DeviceDetectionOnPremise.php
+index f17a582b..76a7158a 100644
+--- a/device-detection/onpremise/src/DeviceDetectionOnPremise.php
++++ b/device-detection/onpremise/src/DeviceDetectionOnPremise.php
+@@ -238,6 +238,7 @@ class DeviceDetectionOnPremise extends Engine
+      */
+     public function refreshData(?string $fileName_or_data = null, ?int $length = null): void
+     {
++        return;
+         if ($length !== null) {
+             throw new \Exception(Messages::REFRESH_FROM_MEMORY);
+         }

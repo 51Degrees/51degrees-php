@@ -1,0 +1,13 @@
+diff --git a/device-detection/onpremise/src/DeviceDetectionOnPremise.php b/device-detection/onpremise/src/DeviceDetectionOnPremise.php
+index f17a582b..2e11a4cd 100644
+--- a/device-detection/onpremise/src/DeviceDetectionOnPremise.php
++++ b/device-detection/onpremise/src/DeviceDetectionOnPremise.php
+@@ -245,7 +245,7 @@ class DeviceDetectionOnPremise extends Engine
+         if ($fileName_or_data === null) {
+             $this->engine->refreshData();
+         } else {
+-            $this->engine->refreshData($fileName_or_data);
++            $this->engine->refreshData();
+         }
+ 
+         // The metadata and the accepted Evidence follow the new data set.

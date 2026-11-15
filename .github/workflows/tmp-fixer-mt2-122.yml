@@ -1,0 +1,169 @@
+name: tmp fixer mt2 122
+# Throwaway. Shows that the refresh tests of 51degrees-php#122 which pass on
+# rc can fail. Builds both on-premise extensions as CI does, takes the free
+# Lite data files from the day's asset cache, runs both RefreshDataTests files
+# unchanged, then applies each throwaway change in tmp-breaks on its own, runs
+# the test file it should break and takes the change out again. The job
+# passes only when every test passes unchanged and every expected failure
+# happens.
+on:
+  push:
+    branches:
+      - tmp/fixer-mt2-122
+permissions:
+  contents: read
+jobs:
+  test:
+    name: refresh tests (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion 8.5
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Restore Asset Cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261115-D08993235BC59D4245755D798844D1F982A792C9
+          restore-keys: |
+            20261115-
+            20261114-
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Link the Lite data files where the tests look
+        working-directory: common-ci/51degrees-php
+        run: |
+          ls -la "$GITHUB_WORKSPACE/assets"
+          mkdir -p cxx/data/device-detection ip-intelligence/assets
+          ln -sf "$GITHUB_WORKSPACE/assets/51Degrees-LiteV4.1.hash" cxx/data/device-detection/51Degrees-LiteV4.1.hash
+          ln -sf "$GITHUB_WORKSPACE/assets/51Degrees-LiteIpiV41.ipi" ip-intelligence/assets/51Degrees-LiteIpiV41.ipi
+          test -s cxx/data/device-detection/51Degrees-LiteV4.1.hash
+          test -s ip-intelligence/assets/51Degrees-LiteIpiV41.ipi
+      - name: Run the tests unchanged and under each change
+        working-directory: common-ci/51degrees-php
+        run: |
+          set +e
+          repo=$PWD
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          bad=0
+          phpunit --version
+          # change, label, package, test file. Each package loads only its
+          # own extension, as PHP crashes with both loaded.
+          run() {
+            local change=$1 label=$2 package=$3 file=$4
+            local junit="$GITHUB_WORKSPACE/junit-$change-$label.xml"
+            rm -f "$junit"
+            echo "::group::[$change] $package $file"
+            (cd "$repo/$package" && PHP_INI_SCAN_DIR=":$repo/$package" phpunit --colors=never --log-junit "$junit" "tests/$file.php") > "$GITHUB_WORKSPACE/out.txt" 2>&1
+            echo "phpunit exit $?"
+            cat "$GITHUB_WORKSPACE/out.txt"
+            echo "::endgroup::"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] ", $argv[3], " NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : (count($t->skipped) > 0 ? "SKIPPED" : "passed");
+                $class = substr(strrchr("\\" . $t["class"], "\\"), 1);
+                echo "RESULT [", $argv[2], "] ", $argv[3], " ", $class, "::", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" "$label" | tee -a "$summary"
+          }
+          # change, label, package, test file
+          broken() {
+            local change=$1
+            if ! patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$change.patch"; then
+              echo "RESULT [$change] PATCH DID NOT APPLY" | tee -a "$summary"
+              bad=1
+              return
+            fi
+            run "$@"
+            patch -p1 -R --no-backup-if-mismatch < "tmp-breaks/$change.patch" || bad=1
+          }
+          # change, label, then each test method expected to fail under it
+          expect() {
+            local change=$1 label=$2
+            shift 2
+            for method in "$@"; do
+              if grep -q "^RESULT \[$change\] $label .*::$method FAILED" "$summary"; then
+                echo "EXPECTED [$change] $label $method failed"
+              else
+                echo "UNEXPECTED [$change] $label $method did not fail"
+                bad=1
+              fi
+            done
+          }
+          dd=device-detection/onpremise
+          ipi=ip-intelligence
+          run none dd $dd RefreshDataTests
+          run none ipi $ipi RefreshDataTests
+          if ! grep -q '^RESULT \[none\] dd ' "$summary" || ! grep -q '^RESULT \[none\] ipi ' "$summary" ||
+            grep -q '^RESULT \[none\] .*\(FAILED\|SKIPPED\|NO JUNIT\)' "$summary"; then
+            echo "UNEXPECTED [none] a test did not pass unchanged"
+            bad=1
+          fi
+          # refreshData returns at once, so it neither loads the new data nor
+          # throws for data it cannot use.
+          broken dd-refresh-does-nothing dd $dd RefreshDataTests
+          expect dd-refresh-does-nothing dd \
+            testARefreshFromAnotherFileUsesThatFile \
+            testARefreshReloadsTheUpdatedOriginalFile \
+            testARefreshFromAFileThatIsNotDataFailsAndKeepsTheData \
+            testARefreshFromAMissingFileFailsAndKeepsTheData \
+            testARefreshFromAnOriginalFileThatIsNoLongerDataFailsAndKeepsTheData
+          # refreshData catches the native exception and carries on.
+          broken dd-refresh-swallows-error dd $dd RefreshDataTests
+          expect dd-refresh-swallows-error dd \
+            testARefreshFromAFileThatIsNotDataFailsAndKeepsTheData \
+            testARefreshFromAMissingFileFailsAndKeepsTheData \
+            testARefreshFromAnOriginalFileThatIsNoLongerDataFailsAndKeepsTheData
+          # refreshData($fileName) reloads the original file and ignores
+          # the name.
+          broken dd-refresh-ignores-file-name dd $dd RefreshDataTests
+          expect dd-refresh-ignores-file-name dd \
+            testARefreshFromAnotherFileUsesThatFile \
+            testARefreshFromAFileThatIsNotDataFailsAndKeepsTheData \
+            testARefreshFromAMissingFileFailsAndKeepsTheData
+          broken ipi-refresh-does-nothing ipi $ipi RefreshDataTests
+          expect ipi-refresh-does-nothing ipi \
+            testARefreshFromAnotherFileUsesThatFile \
+            testARefreshReloadsTheUpdatedOriginalFile \
+            testARefreshFromAFileThatIsNotDataFailsAndKeepsTheData \
+            testARefreshFromAMissingFileFailsAndKeepsTheData \
+            testARefreshFromAnOriginalFileThatIsNoLongerDataFailsAndKeepsTheData
+          broken ipi-refresh-swallows-error ipi $ipi RefreshDataTests
+          expect ipi-refresh-swallows-error ipi \
+            testARefreshFromAFileThatIsNotDataFailsAndKeepsTheData \
+            testARefreshFromAMissingFileFailsAndKeepsTheData \
+            testARefreshFromAnOriginalFileThatIsNoLongerDataFailsAndKeepsTheData
+          broken ipi-refresh-ignores-file-name ipi $ipi RefreshDataTests
+          expect ipi-refresh-ignores-file-name ipi \
+            testARefreshFromAnotherFileUsesThatFile \
+            testARefreshFromAFileThatIsNotDataFailsAndKeepsTheData \
+            testARefreshFromAMissingFileFailsAndKeepsTheData
+          echo "::group::Summary"
+          cat "$summary"
+          echo "::endgroup::"
+          git status --short
+          exit $bad

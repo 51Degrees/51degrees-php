@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
@@ -106,13 +107,18 @@ class JsonBundlerSequenceTests extends TestCase
         );
     }
 
+    /**
+     * The JSON Bundler failed, so it set no JSON. Its data is given with no
+     * value for json, as for any element that failed.
+     */
     public function testSetsNoJsonWithoutASequenceElement()
     {
         $flowData = $this->withoutSequenceElement();
         $flowData->process();
 
-        $this->expectException(\Exception::class);
-        $flowData->get('jsonbundler');
+        $json = $flowData->get('jsonbundler')->get('json');
+        $this->assertInstanceOf(AspectPropertyValue::class, $json);
+        $this->assertFalse($json->hasValue);
     }
 
     public function testAQueryStringSequenceIsNotASequenceNumber()

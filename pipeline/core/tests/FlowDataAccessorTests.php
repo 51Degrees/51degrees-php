@@ -25,10 +25,13 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\tests\classes\ErrorFlowData;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
+use fiftyone\pipeline\core\tests\classes\UnreachableElement;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -99,5 +102,57 @@ class FlowDataAccessorTests extends TestCase
             'agent',
             $flowData->getEvidenceDataKey()['header.user-agent']
         );
+    }
+
+    /**
+     * Nor does asking for the failed element's own data throw. The data is
+     * given with no values, found by the Data Key in any letter case or by
+     * the element, and each Property the element lists reads as an
+     * AspectPropertyValue with no value whose reason names the element.
+     */
+    public function testTheDataOfAFailedElementIsGivenWithNoValues(): void
+    {
+        $element = new UnreachableElement();
+        $flowData = (new PipelineBuilder(['suppressProcessExceptions' => true]))
+            ->add(new ExampleFlowElement1())
+            ->add($element)
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+        $this->assertArrayHasKey('unreachable', $flowData->errors);
+
+        $data = $flowData->get('unreachable');
+
+        $this->assertInstanceOf(ElementData::class, $data);
+        $this->assertSame($element, $data->flowElement);
+        $this->assertSame($data, $flowData->get('Unreachable'));
+        $this->assertSame($data, $flowData->getFromElement($element));
+        $this->assertSame($data, $flowData->unreachable);
+
+        foreach (['SetHeaderBrowserAccept-CH', 'setheaderbrowseraccept-ch'] as $name) {
+            $value = $data->get($name);
+            $this->assertInstanceOf(AspectPropertyValue::class, $value, $name);
+            $this->assertFalse($value->hasValue, $name);
+            $this->assertStringContainsString("'unreachable'", (string) $value->noValueMessage);
+        }
+        $this->assertSame(
+            ['setheaderbrowseraccept-ch'],
+            array_keys($data->asDictionary())
+        );
+        $this->assertSame(5, $flowData->get('example1')->get('integer'));
+    }
+
+    /**
+     * A key no element has is still the caller's mistake once the Flow Data
+     * is processed, failed elements or not.
+     */
+    public function testAKeyNoElementHasStillThrows(): void
+    {
+        $flowData = self::flowData(true);
+        $flowData->process();
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("'nothing'");
+        $flowData->get('nothing');
     }
 }

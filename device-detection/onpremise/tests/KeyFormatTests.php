@@ -61,4 +61,12 @@ class KeyFormatTests extends TestCase
             fn (string $key) => preg_match(self::KEY_CHARACTERS, $key) !== 1
         )));
     }
+
+    public function testEveryKeyIsLowerCase(): void
+    {
+        $this->assertSame([], array_values(array_filter(
+            self::keys(),
+            fn (string $key) => $key !== strtolower($key)
+        )));
+    }
 }

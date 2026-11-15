@@ -1,0 +1,155 @@
+name: tmp fixer mt 137
+# Throwaway. Shows each new test of 51degrees-php#137 that checks behaviour
+# rc already had can fail. Builds both extensions as CI does, takes the free
+# Lite IP Intelligence data file from the day's asset cache, runs every new
+# test unchanged, then applies each throwaway change in tmp-breaks on its
+# own, runs the tests it should break and takes the change out again. The
+# job passes only when the unchanged tests pass and every expected failure
+# happens.
+on:
+  push:
+    branches:
+      - tmp/fixer-mt-137-1
+permissions:
+  contents: read
+jobs:
+  test:
+    name: php (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion 8.5
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Restore Asset Cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261115-D08993235BC59D4245755D798844D1F982A792C9
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Link the Lite data file where the package's php.ini names it
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          ls -la "$GITHUB_WORKSPACE/assets/51Degrees-LiteIpiV41.ipi"
+          mkdir -p assets
+          ln -sf "$GITHUB_WORKSPACE/assets/51Degrees-LiteIpiV41.ipi" assets/51Degrees-LiteIpiV41.ipi
+          cat php.ini
+      - name: Run the tests unchanged and under each change
+        working-directory: common-ci/51degrees-php
+        run: |
+          set +e
+          export PHP_INI_SCAN_DIR=":$PWD/ip-intelligence"
+          export _51DEGREES_IPI_PATH="$PWD/ip-intelligence/assets/51Degrees-LiteIpiV41.ipi"
+          repo=$PWD
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          bad=0
+          php -r 'echo PHP_VERSION, " ", extension_loaded("FiftyOneDegreesIpIntelligenceEngine") ? "loaded" : "not loaded", PHP_EOL;'
+          # change, package, test file
+          run() {
+            local change=$1 package=$2 file=$3
+            local junit="$GITHUB_WORKSPACE/junit-$change-$file.xml"
+            rm -f "$junit"
+            echo "::group::[$change] $package $file"
+            (cd "$repo/$package" && php vendor/bin/phpunit --colors=never --log-junit "$junit" "tests/$file.php") > "$GITHUB_WORKSPACE/out.txt" 2>&1
+            echo "phpunit exit $?"
+            cat "$GITHUB_WORKSPACE/out.txt"
+            echo "::endgroup::"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] ", $argv[3], " NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : (count($t->skipped) > 0 ? "SKIPPED" : "passed");
+                echo "RESULT [", $argv[2], "] ", $t["class"], "::", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" "$file" | tee -a "$summary"
+          }
+          # change, package, then each test file
+          broken() {
+            local change=$1 package=$2
+            shift 2
+            if ! patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$change.patch"; then
+              echo "RESULT [$change] PATCH DID NOT APPLY" | tee -a "$summary"
+              bad=1
+              return
+            fi
+            for file in "$@"; do
+              run "$change" "$package" "$file"
+            done
+            patch -p1 -R --no-backup-if-mismatch < "tmp-breaks/$change.patch" || bad=1
+          }
+          # change, then each test method expected to fail under it
+          expect() {
+            local change=$1
+            shift
+            for method in "$@"; do
+              if grep -q "^RESULT \[$change\] .*::$method FAILED" "$summary"; then
+                echo "EXPECTED [$change] $method failed"
+              else
+                echo "UNEXPECTED [$change] $method did not fail"
+                bad=1
+              fi
+            done
+          }
+          for file in ConfigurationFileTests ElementContractTests FileSystemPathTests FlowDataAccessorTests WebIntegrationFailureTests; do
+            run none pipeline/core $file
+          done
+          run none pipeline/derivedproperty ScriptFilePathTests
+          run none ip-intelligence RelativeDataFileTests
+          run none ip-intelligence WeightedValuesJsonTests
+          if grep -q '^RESULT \[none\] .*\(FAILED\|SKIPPED\|NO JUNIT\)' "$summary"; then
+            echo "UNEXPECTED [none] a test did not pass unchanged"
+            bad=1
+          fi
+          broken config-path-read-from-the-package-folder pipeline/core FileSystemPathTests
+          expect config-path-read-from-the-package-folder \
+            testAPathBelowTheWorkingDirectoryIsRead \
+            testAPathThroughTheParentFolderIsRead \
+            testAFileNameAloneIsReadFromTheWorkingDirectory
+          broken settings-read-under-another-name pipeline/core ConfigurationFileTests
+          expect settings-read-under-another-name testTheSharedLayoutBuildsEachElementInOrder
+          broken sequence-element-without-a-data-key pipeline/core ElementContractTests
+          expect sequence-element-without-a-data-key testEachElementExposesADataKeyAndAnEvidenceFilter
+          broken javascript-reads-evidence-it-does-not-accept pipeline/core ElementContractTests
+          expect javascript-reads-evidence-it-does-not-accept testEvidenceAnElementDoesNotAcceptLeavesItsResultAlone
+          broken flow-data-accessors pipeline/core FlowDataAccessorTests
+          expect flow-data-accessors \
+            testReadingResultsBeforeProcessingThrows \
+            testAMissingDataKeyIsRefused \
+            testAFailedElementLeavesTheOtherAccessorsWorking
+          broken no-content-after-an-element-failed pipeline/core WebIntegrationFailureTests
+          expect no-content-after-an-element-failed testTheClientSideContentIsServedWhenAnElementFailed
+          broken script-path-read-from-the-package-folder pipeline/derivedproperty ScriptFilePathTests
+          expect script-path-read-from-the-package-folder \
+            testAPathBelowTheWorkingDirectoryIsRead \
+            testAPathThroughTheParentFolderIsRead
+          broken data-file-read-from-the-package-folder ip-intelligence RelativeDataFileTests
+          expect data-file-read-from-the-package-folder testARelativeDataFilePathIsReadFromTheWorkingDirectory
+          broken weighting-key-in-another-case ip-intelligence WeightedValuesJsonTests
+          expect weighting-key-in-another-case testWeightedValuesAreWrittenWithLowerCaseKeys
+          echo "::group::Summary"
+          cat "$summary"
+          echo "::endgroup::"
+          git status --short
+          exit $bad

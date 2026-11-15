@@ -1,0 +1,103 @@
+name: tmp fixer mt2 123
+# Throwaway. Shows that the three serialization tests of 51degrees-php#123
+# which pass on rc can fail. Installs pipeline/did with its own Composer
+# install, runs the serialization and cloning tests unchanged, then applies
+# each throwaway change in tmp-breaks on its own, runs those tests again and
+# takes the change out again. The job passes only when every test passes
+# unchanged and every expected failure happens.
+on:
+  push:
+    branches:
+      - tmp/fixer-mt2-123
+permissions:
+  contents: read
+env:
+  SERIALIZATION_TESTS: 'testASerializedIdentifierReadsBackTheSame|testAnIdentifierSerializedByAnEarlierReleaseReadsBack|testChangedFieldsInASerializedIdentifierAreNotRead|testAChangedMatchKeyInASerializedIdentifierDoesNotVerify|testASerializedIdentifierWhosePayloadDoesNotFitIsRefused|testASerializedIdentifierWhoseEnvelopeIsDamagedIsRefused|testACloneIsTheSameIdentifier'
+jobs:
+  test:
+    name: pipeline/did (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout the OWID submodule
+        run: git submodule update --init --depth 1 pipeline/did/owid-php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Composer install in pipeline/did
+        working-directory: pipeline/did
+        run: composer install --no-interaction --no-progress
+      - name: Run the tests unchanged and under each change
+        run: |
+          set +e
+          repo=$PWD
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          bad=0
+          (cd pipeline/did && php vendor/bin/phpunit --version)
+          # change
+          run() {
+            local change=$1
+            local junit="$RUNNER_TEMP/junit-$change.xml"
+            rm -f "$junit"
+            echo "::group::[$change] FodIdTest"
+            (cd "$repo/pipeline/did" && php vendor/bin/phpunit --colors=never --log-junit "$junit" --filter "$SERIALIZATION_TESTS" tests/FodIdTest.php) > "$RUNNER_TEMP/out.txt" 2>&1
+            echo "phpunit exit $?"
+            cat "$RUNNER_TEMP/out.txt"
+            echo "::endgroup::"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : (count($t->skipped) > 0 ? "SKIPPED" : "passed");
+                echo "RESULT [", $argv[2], "] FodIdTest::", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" | tee -a "$summary"
+          }
+          # change
+          broken() {
+            local change=$1
+            if ! patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$change.patch"; then
+              echo "RESULT [$change] PATCH DID NOT APPLY" | tee -a "$summary"
+              bad=1
+              return
+            fi
+            run "$change"
+            patch -p1 -R --no-backup-if-mismatch < "tmp-breaks/$change.patch" || bad=1
+          }
+          # change, then each test method expected to fail under it
+          expect() {
+            local change=$1
+            shift
+            for method in "$@"; do
+              if grep -q "^RESULT \[$change\] .*::$method FAILED" "$summary"; then
+                echo "EXPECTED [$change] $method failed"
+              else
+                echo "UNEXPECTED [$change] $method did not fail"
+                bad=1
+              fi
+            done
+          }
+          run none
+          if [ "$(grep -c '^RESULT \[none\] .* passed$' "$summary")" != 7 ]; then
+            echo "UNEXPECTED [none] the seven tests did not all pass unchanged"
+            bad=1
+          fi
+          # __serialize() writes nothing, so nothing is read back.
+          broken serialize-writes-nothing
+          expect serialize-writes-nothing testASerializedIdentifierReadsBackTheSame
+          # __unserialize() ignores the OWID of the form an earlier release
+          # wrote.
+          broken earlier-form-owid-ignored
+          expect earlier-form-owid-ignored testAnIdentifierSerializedByAnEarlierReleaseReadsBack
+          # A clone drops its match key.
+          broken clone-drops-match-key
+          expect clone-drops-match-key testACloneIsTheSameIdentifier
+          echo "::group::Summary"
+          cat "$summary"
+          echo "::endgroup::"
+          git status --short
+          exit $bad

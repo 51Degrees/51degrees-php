@@ -1,0 +1,13 @@
+diff --git a/pipeline/did/src/FodId.php b/pipeline/did/src/FodId.php
+index 50ad9bf0..974aec2f 100644
+--- a/pipeline/did/src/FodId.php
++++ b/pipeline/did/src/FodId.php
+@@ -183,7 +183,7 @@ final class FodId
+      */
+     public function __serialize(): array
+     {
+-        return [self::SERIALIZED_ENVELOPE => $this->owid->asByteArray()];
++        return [];
+     }
+ 
+     /**

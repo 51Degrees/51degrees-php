@@ -1,0 +1,13 @@
+diff --git a/pipeline/did/src/FodId.php b/pipeline/did/src/FodId.php
+index 50ad9bf0..777a1162 100644
+--- a/pipeline/did/src/FodId.php
++++ b/pipeline/did/src/FodId.php
+@@ -221,7 +221,7 @@ final class FodId
+             return $envelope;
+         }
+         $owid = $data[self::SERIALIZED_OWID] ?? null;
+-        if ($owid instanceof Owid) {
++        if (false && $owid instanceof Owid) {
+             try {
+                 return $owid->asByteArray();
+             } catch (Error $missing) {

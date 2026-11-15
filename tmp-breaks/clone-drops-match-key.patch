@@ -1,0 +1,16 @@
+diff --git a/pipeline/did/src/FodId.php b/pipeline/did/src/FodId.php
+index 50ad9bf0..e3ff4515 100644
+--- a/pipeline/did/src/FodId.php
++++ b/pipeline/did/src/FodId.php
+@@ -174,6 +174,11 @@ final class FodId
+         $this->readFrom($owid);
+     }
+ 
++    public function __clone()
++    {
++        $this->matchKey = '';
++    }
++
+     /**
+      * Keeps only the envelope's bytes, so that
+      * {@see FodId::__unserialize()} reads them again rather than taking

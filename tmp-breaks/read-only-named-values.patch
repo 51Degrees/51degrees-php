@@ -1,0 +1,14 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index f821de11..67d406fa 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -116,6 +116,9 @@ class CloudEngine extends CloudEngineBase
+             }
+ 
+             foreach ($cloudData[$this->dataKey] as $key => $value) {
++                if (!isset($this->properties[strtolower((string) $key)])) {
++                    continue;
++                }
+                 if (isset($cloudData[$this->dataKey][$key . 'nullreason'])) {
+                     $result[$key] = new AspectPropertyValue($cloudData[$this->dataKey][$key . 'nullreason']);
+                 } else {

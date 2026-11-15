@@ -1,0 +1,12 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudRequestEngine.php b/pipeline/cloudrequestengine/src/CloudRequestEngine.php
+index 380928f1..48506be3 100644
+--- a/pipeline/cloudrequestengine/src/CloudRequestEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudRequestEngine.php
+@@ -556,6 +556,7 @@ class CloudRequestEngine extends Engine
+         try {
+             $this->loadEvidenceKeys();
+         } catch (\Throwable $e) {
++            $this->evidenceKeysLoaded = true;
+             $this->deferDiscovery('accepted Evidence keys', $e);
+         }
+     }

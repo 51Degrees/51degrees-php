@@ -1,0 +1,17 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index 848bb727..1b49e875 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -121,12 +121,6 @@ class CloudEngine extends CloudEngineBase
+ 
+     public function processInternal(FlowData $flowData): void
+     {
+-        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+-        if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
+-            // set up properties list for the element from data in the CloudRequestEngine
+-            $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
+-        }
+-
+         $cloudData = self::cloudResponse($flowData);
+ 
+         $this->logMissingProduct($flowData);

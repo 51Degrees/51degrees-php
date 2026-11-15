@@ -1,0 +1,101 @@
+name: tmp php cl red3
+# Throwaway. Runs the Unit suite of pipeline/cloudrequestengine on the
+# draft's head unchanged, then under each patch in tmp-breaks the tests that
+# patch should fail, and rc's CloudResponse.php (rc 83684180) under
+# swallow-first-use.patch.
+on:
+  push:
+    branches:
+      - tmp/php-cl-red3
+permissions:
+  contents: read
+jobs:
+  red:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Unchanged, then under each patch
+        run: |
+          set +e
+          package=pipeline/cloudrequestengine
+          mkdir -p "$package/vendor" junit
+          printf '%s\n' '<?php' "return require __DIR__ . '/../../../vendor/autoload.php';" > "$package/vendor/autoload.php"
+          run() {
+            name=$1; shift
+            echo "::group::$name"
+            (cd "$package" && ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --testsuite Unit --log-junit "$GITHUB_WORKSPACE/junit/$name.xml" "$@")
+            echo "exit $? for $name"
+            echo "::endgroup::"
+          }
+          run unchanged
+          broken() {
+            patch=$1; shift
+            patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$patch.patch" || exit 1
+            run "$patch" "$@"
+            git checkout -- pipeline
+          }
+          broken read-only-named-values --filter 'testReadsEveryValueWithEmptyPropertyMetadata|testTheDefaultElementsTolerateEmptyPropertyMetadata'
+          broken bundler-refuses-empty-metadata --filter 'testTheDefaultElementsTolerateEmptyPropertyMetadata'
+          broken metadata-from-requested-list --filter 'testPropertyMetadataComesOnlyFromTheAccessiblePropertiesAnswer'
+          broken only-errors-entries-thrown --filter 'testAnEmptyBodyIsThrownNamingTheUrl|testAStatusOtherThan200IsThrownWithTheUrlStatusAndBody|testAnErrorsEntryIsThrownWithStatus200|testAGoodAnswerIsNotThrown'
+          broken swallow-first-use --filter 'testValidateErrorHandlingInvalidResourceKey|testValidateErrorHandlingNoData'
+          broken keeps-empty-metadata --filter 'testAnEmptyResultFromATransientFailureIsNotKept'
+          broken keeps-empty-keys --filter 'testAnEmptyResultFromATransientFailureIsNotKept'
+          git fetch -q --depth 1 origin 83684180d253fa0df1378acb81e2d835517e7596
+          git show FETCH_HEAD:pipeline/cloudrequestengine/tests/CloudResponse.php > "$package/tests/CloudResponse.php"
+          patch -p1 --forward --no-backup-if-mismatch < tmp-breaks/swallow-first-use.patch || exit 1
+          run rc-tests-swallow-first-use --filter 'testValidateErrorHandlingInvalidResourceKey|testValidateErrorHandlingNoData'
+          git checkout -- pipeline
+          exit 0
+      - name: Each test's result
+        shell: python
+        run: |
+          import glob, os, xml.etree.ElementTree as ET
+          expect = {
+              'read-only-named-values': ['testReadsEveryValueWithEmptyPropertyMetadata', 'testTheDefaultElementsTolerateEmptyPropertyMetadata'],
+              'bundler-refuses-empty-metadata': ['testTheDefaultElementsTolerateEmptyPropertyMetadata'],
+              'metadata-from-requested-list': ['testPropertyMetadataComesOnlyFromTheAccessiblePropertiesAnswer'],
+              'only-errors-entries-thrown': ['testAnEmptyBodyIsThrownNamingTheUrl', 'testAStatusOtherThan200IsThrownWithTheUrlStatusAndBody'],
+              'swallow-first-use': ['testValidateErrorHandlingInvalidResourceKey', 'testValidateErrorHandlingNoData'],
+              'keeps-empty-metadata': ['testAnEmptyResultFromATransientFailureIsNotKept'],
+              'keeps-empty-keys': ['testAnEmptyResultFromATransientFailureIsNotKept'],
+          }
+          def results(name):
+              out = {}
+              for case in ET.parse(f'junit/{name}.xml').getroot().iter('testcase'):
+                  failed = case.find('failure') is not None or case.find('error') is not None
+                  skipped = case.find('skipped') is not None
+                  out[case.get('name')] = 'fail' if failed else ('skip' if skipped else 'pass')
+              return out
+          ok = True
+          base = results('unchanged')
+          bad = {k: v for k, v in base.items() if v != 'pass'}
+          print(f'unchanged: {len(base)} tests, {sum(v == "pass" for v in base.values())} passed, not passed: {bad}')
+          ok = ok and not bad
+          for patch, tests in expect.items():
+              r = results(patch)
+              for t in tests:
+                  print(f'{patch}: {t} unchanged {base.get(t)}, patched {r.get(t)}')
+                  ok = ok and base.get(t) == 'pass' and r.get(t) == 'fail'
+              others = {k: v for k, v in r.items() if k not in tests}
+              if others:
+                  print(f'{patch}: also ran {others}')
+          r = results('rc-tests-swallow-first-use')
+          for t in expect['swallow-first-use']:
+              print(f"rc's CloudResponse.php under swallow-first-use: {t} {r.get(t)}")
+              ok = ok and r.get(t) == 'pass'
+          print('RESULT', 'as expected' if ok else 'NOT as expected')
+          raise SystemExit(0 if ok else 1)

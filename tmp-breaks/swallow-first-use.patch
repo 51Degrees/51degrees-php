@@ -1,0 +1,17 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudRequestEngine.php b/pipeline/cloudrequestengine/src/CloudRequestEngine.php
+index 380928f1..13500755 100644
+--- a/pipeline/cloudrequestengine/src/CloudRequestEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudRequestEngine.php
+@@ -253,7 +253,11 @@ class CloudRequestEngine extends Engine
+     public function processInternal(FlowData $flowData): void
+     {
+         if (!$this->propertiesLoaded) {
+-            $this->flowElementProperties = $this->getEngineProperties();
++            try {
++                $this->flowElementProperties = $this->getEngineProperties();
++            } catch (\Throwable $e) {
++                return;
++            }
+         }
+ 
+         if (!$this->evidenceKeysLoaded) {

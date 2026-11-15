@@ -1,0 +1,14 @@
+diff --git a/pipeline/core/src/JsonBundlerElement.php b/pipeline/core/src/JsonBundlerElement.php
+index ff4ccdac..087b2cee 100644
+--- a/pipeline/core/src/JsonBundlerElement.php
++++ b/pipeline/core/src/JsonBundlerElement.php
+@@ -155,6 +155,9 @@ class JsonBundlerElement extends FlowElement
+             }
+ 
+             $properties = $flowElement->getProperties();
++            if ($properties === []) {
++                throw new \RuntimeException('No Property metadata for ' . $flowElement->dataKey);
++            }
+ 
+             if (!$propertyCacheSet) {
+                 $delayExecutionList = [];

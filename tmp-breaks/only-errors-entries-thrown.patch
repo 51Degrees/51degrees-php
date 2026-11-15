@@ -1,0 +1,22 @@
+diff --git a/pipeline/cloudrequestengine/src/HttpClient.php b/pipeline/cloudrequestengine/src/HttpClient.php
+index 63f6180d..4d5e8478 100644
+--- a/pipeline/cloudrequestengine/src/HttpClient.php
++++ b/pipeline/cloudrequestengine/src/HttpClient.php
+@@ -219,7 +219,7 @@ class HttpClient
+ 
+             if (count($errors) > 0) {
+                 $message = implode(',', $errors);
+-            } elseif ($httpStatusCode !== 200) {
++            } elseif (false) {
+                 // If there were no errors returned but the response code was non
+                 // success then throw an exception.
+                 $message = sprintf(Constants::MESSAGE_ERROR_CODE_RETURNED, $url, $httpStatusCode, $cloudResponse);
+@@ -228,7 +228,7 @@ class HttpClient
+             // If there were no errors but there was also no other data
+             // in the response then add an explanation to the list of
+             // messages.
+-            $message = sprintf(Constants::MESSAGE_NO_DATA_IN_RESPONSE, $url);
++            $message = null;
+         }
+ 
+         if (isset($message)) {

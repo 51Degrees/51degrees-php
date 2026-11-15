@@ -1,0 +1,18 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudRequestEngine.php b/pipeline/cloudrequestengine/src/CloudRequestEngine.php
+index 380928f1..d9d33f37 100644
+--- a/pipeline/cloudrequestengine/src/CloudRequestEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudRequestEngine.php
+@@ -529,6 +529,13 @@ class CloudRequestEngine extends Engine
+             }
+         }
+ 
++        foreach ($this->requestedProperties as $requested) {
++            $parts = explode('.', strtolower($requested), 2);
++            if (count($parts) === 2 && !isset($flowElementProperties[$parts[0]][$parts[1]])) {
++                $flowElementProperties[$parts[0]][$parts[1]] = ['name' => $parts[1], 'type' => 'String'];
++            }
++        }
++
+         $this->flowElementProperties = $flowElementProperties;
+         $this->propertiesLoaded = true;
+ 

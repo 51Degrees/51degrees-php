@@ -1,0 +1,54 @@
+name: tmp php location web
+# Throwaway. Builds the repository as CI does and runs location's test of
+# examples/cloud/webIntegration.php, served by PHP's built-in server with
+# the test resource key.
+on:
+  push:
+    branches:
+      - tmp/php-locweb-red2
+      - tmp/php-locweb-green2
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Location web (ubuntu-24.04, PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: git submodule update --init --depth 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer
+      - name: Build as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion ${{ matrix.php }}
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: The location web example test with the test resource key
+        working-directory: common-ci/51degrees-php/location
+        env:
+          _51DEGREES_RESOURCE_KEY: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+        run: |
+          php ../vendor/bin/phpunit --colors=never --testdox --filter testWebIntegrationLeavesNoPipelineBehind tests/ExampleTests.php
+      - name: Pipeline files left in the examples
+        if: always()
+        working-directory: common-ci/51degrees-php/location
+        run: find examples . -maxdepth 3 -name '*.pipeline' -print

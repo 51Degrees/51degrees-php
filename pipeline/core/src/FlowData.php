@@ -136,17 +136,24 @@ class FlowData
     }
 
     /**
-     * Retrieve data by FlowElement key.
+     * Retrieve data by FlowElement key, compared ignoring case as every
+     * string key is.
      *
      * @throws \Exception
      */
     public function get(string $flowElementKey): ElementData
     {
-        if (!isset($this->data[$flowElementKey])) {
-            throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
+        if (isset($this->data[$flowElementKey])) {
+            return $this->data[$flowElementKey];
         }
 
-        return $this->data[$flowElementKey];
+        foreach ($this->data as $key => $data) {
+            if (strcasecmp((string) $key, $flowElementKey) === 0) {
+                return $data;
+            }
+        }
+
+        throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
     }
 
     /**

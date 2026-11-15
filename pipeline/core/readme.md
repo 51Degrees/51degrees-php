@@ -52,6 +52,29 @@ and on our [website](https://51degrees.com/documentation/_device_detection__exam
 | CloudEngine                            | In [pipeline/cloudrequestengine](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/cloudrequestengine). Demonstrates a cloud engine, which gives the star sign for a date of birth from a remote service. |
 | DerivedProperty                        | In [pipeline/derivedproperty](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/derivedproperty). Demonstrates the derived property element, which computes properties from properties other elements have produced. |
 
+## Web applications
+
+`Utils::processWebRequest($pipeline)` handles a page request in one call. It creates a Flow Data,
+adds the request's headers, cookies, query and form parameters as Evidence, and processes it.
+The processed Flow Data is kept for the rest of the request, so any other part of the application
+reads the results with `Utils::getFlowData()` without being handed it, and it is closed when PHP
+finishes the request.
+
+```php
+use fiftyone\pipeline\core\Utils;
+
+// Where the request is handled.
+$flowData = Utils::processWebRequest($pipeline);
+Utils::setResponseHeader($flowData);
+
+// Anywhere else while the same request is handled.
+$device = Utils::getFlowData()->device;
+```
+
+Requests for the client-side JavaScript and JSON need a Flow Data that has not been processed, so
+answer those with `Utils::javascriptResponse()` and `Utils::jsonResponse()`, as the device
+detection Getting Started web examples do.
+
 ## Tests
 To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:
 ```

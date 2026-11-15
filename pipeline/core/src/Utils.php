@@ -78,6 +78,74 @@ class Utils
     private const OWS = " \t";
 
     /**
+     * The Flow Data of the web request being handled, kept by
+     * processWebRequest(). PHP builds its state afresh for every request, so
+     * this lasts as long as the request does.
+     */
+    private static ?FlowData $requestFlowData = null;
+
+    /**
+     * Whether the Flow Data of the request is closed when PHP finishes the
+     * request.
+     */
+    private static bool $closeAtShutdown = false;
+
+    /**
+     * Handle a web request with the Pipeline. A Flow Data is created, the
+     * request's Evidence is added to it with
+     * Evidence::setFromWebRequest(), and it is processed. The processed
+     * Flow Data is then kept for the rest of the request, where any other
+     * part of the application reads it with getFlowData() without being
+     * handed it, and it is closed when PHP finishes the request.
+     *
+     * Requests for the client-side JavaScript and JSON need a Flow Data
+     * that has not been processed, so answer those with
+     * javascriptResponse() and jsonResponse() instead.
+     *
+     * @param \fiftyone\pipeline\core\Pipeline $pipeline The Pipeline, built
+     * once for the request
+     * @param null|array<string, string> $server The request's server values,
+     * $_SERVER when not given
+     * @param null|array<string, string> $cookies The request's cookies,
+     * $_COOKIE when not given
+     * @param null|array<string, string> $query The request's form
+     * parameters, read from the request when not given
+     * @return \fiftyone\pipeline\core\FlowData The processed Flow Data
+     */
+    public static function processWebRequest(
+        Pipeline $pipeline,
+        ?array $server = null,
+        ?array $cookies = null,
+        ?array $query = null
+    ): FlowData {
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->setFromWebRequest($server, $cookies, $query);
+
+        // Kept before processing, so that a Pipeline that throws still
+        // leaves the request's Flow Data, with its errors, to be read.
+        self::$requestFlowData = $flowData;
+        if (!self::$closeAtShutdown) {
+            self::$closeAtShutdown = true;
+            register_shutdown_function(static function (): void {
+                if (self::$requestFlowData !== null) {
+                    self::$requestFlowData->close();
+                }
+            });
+        }
+
+        return $flowData->process();
+    }
+
+    /**
+     * The Flow Data processWebRequest() processed for the web request being
+     * handled, or null when it has not been called in this request.
+     */
+    public static function getFlowData(): ?FlowData
+    {
+        return self::$requestFlowData;
+    }
+
+    /**
      * Answer a request for the client-side JavaScript with the JavaScript
      * the Pipeline's JavaScript Builder Element writes, and the cache
      * headers of the web integration specification.

@@ -39,8 +39,16 @@ class EnvironmentVariableTests extends TestCase
     /** @var array<string, array{0: string|false, 1: mixed}> */
     private $previous = [];
 
+    /** @var array<string> Files a test wrote, removed after it */
+    private $written = [];
+
     protected function tearDown(): void
     {
+        foreach ($this->written as $file) {
+            @unlink($file);
+        }
+        $this->written = [];
+
         foreach ($this->previous as $name => $was) {
             putenv($was[0] === false ? $name : $name . '=' . $was[0]);
             if ($was[1] === null) {
@@ -203,7 +211,7 @@ class EnvironmentVariableTests extends TestCase
             [__DIR__ . '/../configuration-tests/testForkSafety.php'],
             [
                 'FIFTYONE_DATA_FILE' => $missing,
-                'FIFTYONE_UA_CSV' => 'agents.csv',
+                'FIFTYONE_UA_CSV' => $this->userAgentsFile(),
                 'FIFTYONE_WRAPPER' => 'wrapper.php',
             ],
             ['_51DEGREES_DD_PATH', '_51DEGREES_UA_CSV']
@@ -238,13 +246,30 @@ class EnvironmentVariableTests extends TestCase
             [
                 '_51DEGREES_DD_PATH' => $missing,
                 'FIFTYONE_DATA_FILE' => 'missing-under-the-old-name.hash',
+                '_51DEGREES_UA_CSV' => $this->userAgentsFile(),
             ],
-            ['_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV', 'FIFTYONE_WRAPPER']
+            ['FIFTYONE_UA_CSV', 'FIFTYONE_WRAPPER']
         );
         $written = $output . $errors;
 
         $this->assertStringContainsString("'{$missing}'", $written);
         $this->assertStringNotContainsString('deprecated', $written);
+    }
+
+    /**
+     * A file of one User-Agent, which the fork-safety script needs before
+     * it looks for the data file.
+     */
+    private function userAgentsFile(): string
+    {
+        $file = (string) tempnam(sys_get_temp_dir(), 'user-agents');
+        file_put_contents(
+            $file,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\n"
+        );
+        $this->written[] = $file;
+
+        return $file;
     }
 
     /**

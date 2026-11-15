@@ -75,10 +75,10 @@ if (strtolower(basename(__FILE__)) == strtolower(basename($_SERVER["SCRIPT_FILEN
                 "A resource key with the properties required by this " .
                 "example can be created for free at " .
                 "https://51degrees.com/configure/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedconsole.php&utm_term=resource-key-required. " .
-                "Once complete, populated the environment variable " .
+                "Once complete, populate the environment variable " .
                 "mentioned at the start of this message with the key.";
             
-            ExampleUtils::logErrorAndExit($logger, $message, __FILE__);
+            ExampleUtils::endWithoutResourceKey($message, __FILE__);
         }
         
         ExampleUtils::setResourceKeyInConfig($config, $resourceKey);

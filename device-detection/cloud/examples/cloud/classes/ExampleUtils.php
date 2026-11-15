@@ -197,24 +197,24 @@ class ExampleUtils
     }
 
     /**
-     * Log and print the message, then the "Find out more" section when the
-     * example's file is given, and exit with status 1.
+     * Prints the message saying how to give the example a resource key, as
+     * text from the command line and as a paragraph from a web server, then
+     * the "Find out more" section, and ends the example successfully. Having
+     * no key is how a person running the example from a fresh clone starts,
+     * so it is not an error.
      *
-     * @param mixed $logger
      * @param string $message
-     * @param null|string $exampleFile The example's file, __FILE__
+     * @param string $exampleFile The example's file, __FILE__
      */
-    public static function logErrorAndExit($logger, $message, $exampleFile = null)
+    public static function endWithoutResourceKey($message, $exampleFile)
     {
-        $logger->log('error', $message);
+        echo php_sapi_name() === 'cli'
+            ? $message . PHP_EOL
+            : '<p>' . nl2br(htmlspecialchars($message)) . "</p>\n";
 
-        echo $message . PHP_EOL;
+        self::printFindOutMore($exampleFile);
 
-        if ($exampleFile !== null) {
-            self::printFindOutMore($exampleFile);
-        }
-
-        exit(1);
+        exit(0);
     }
 
     /**

@@ -136,25 +136,32 @@ class FlowData
     }
 
     /**
-     * Retrieve data by FlowElement key, or by a deprecated Data Key the
-     * element had before, which is logged once.
+     * Retrieve data by FlowElement key, compared ignoring case as every
+     * string key is, or by a deprecated Data Key the element had before,
+     * which is logged once.
      *
      * @throws \Exception
      */
     public function get(string $flowElementKey): ElementData
     {
-        if (!isset($this->data[$flowElementKey])) {
-            // A deprecated Data Key gives the data under the key that
-            // replaced it.
-            $currentKey = $this->pipeline->currentDataKey($flowElementKey);
-            if (isset($this->data[$currentKey])) {
-                return $this->data[$currentKey];
-            }
-
-            throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
+        if (isset($this->data[$flowElementKey])) {
+            return $this->data[$flowElementKey];
         }
 
-        return $this->data[$flowElementKey];
+        foreach ($this->data as $key => $data) {
+            if (strcasecmp((string) $key, $flowElementKey) === 0) {
+                return $data;
+            }
+        }
+
+        // A deprecated Data Key gives the data under the key that replaced
+        // it.
+        $currentKey = $this->pipeline->currentDataKey($flowElementKey);
+        if (isset($this->data[$currentKey])) {
+            return $this->data[$currentKey];
+        }
+
+        throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
     }
 
     /**

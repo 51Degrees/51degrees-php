@@ -264,6 +264,10 @@ foreach ($evidence as $k => $v) {
         <?= ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
+    <?php
+    // With no results the script has nothing to refine and answers with an
+    // error status, so the page only asks for it when there are results.
+    if (!$error): ?>
     <!--
         51Degrees.core.js carries the results as JSON, gathers evidence in the
         browser, posts it to /json and raises the 'complete' event with the
@@ -277,5 +281,6 @@ foreach ($evidence as $k => $v) {
             fodExamples.bindDeviceCallback({ targetId: "content" });
         };
     </script>
+    <?php endif; ?>
 </body>
 </html>

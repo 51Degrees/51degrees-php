@@ -14917,9 +14917,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_std__string_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< std::string >(*result), SWIGTYPE_p_WeightedValueT_std__string_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -15699,9 +15699,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_std__vectorT_uint8_t_t_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< std::vector< uint8_t > >(*result), SWIGTYPE_p_WeightedValueT_std__vectorT_uint8_t_t_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -16481,9 +16481,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_bool_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< bool >(*result), SWIGTYPE_p_WeightedValueT_bool_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -17263,9 +17263,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_int_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< int >(*result), SWIGTYPE_p_WeightedValueT_int_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -18045,9 +18045,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_double_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< double >(*result), SWIGTYPE_p_WeightedValueT_double_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -27577,6 +27577,14 @@ PHP_MSHUTDOWN_FUNCTION(FiftyOneDegreesIpIntelligenceEngine)
     if (ipi_engine != NULL) { delete ipi_engine; ipi_engine = NULL; }
     if (ipi_engine_properties != NULL) { delete ipi_engine_properties; ipi_engine_properties = NULL; }
     if (ipi_engine_config != NULL) { delete ipi_engine_config; ipi_engine_config = NULL; }
+
+    /*
+     * The settings leave with the extension. PHP removes them itself only for
+     * an extension with no shutdown function, and when a request that loaded
+     * this one with dl() ends, PHP frees their names, so settings left behind
+     * are read after they are freed when PHP stops.
+     */
+    UNREGISTER_INI_ENTRIES();
 
   return SUCCESS;
 }

@@ -82,6 +82,34 @@ class Constants
     public const EXCEPTION_CLOUD_ERROR =
             "Error returned from 51Degrees cloud service: '%s'";
 
+    // Logged for each entry of the warnings array in a response.
+    public const MESSAGE_CLOUD_WARNING =
+            "Warning returned from 51Degrees cloud service: '%s'";
+
+    // Logged when a discovery request made as the engine is built fails
+    // with anything but a 4xx answer. The first placeholder is what was
+    // asked for, and the second the failure.
+    public const MESSAGE_DISCOVERY_DEFERRED =
+        'CloudRequestEngine could not get the %s from the cloud service ' .
+        'when it was built, and will ask again when it is first used. %s';
+
+    // Refused when the discoveryResults setting is not what
+    // CloudRequestEngine::getDiscoveryResults() gives.
+    public const MESSAGE_DISCOVERY_RESULTS_NOT_A_COPY =
+        'The discoveryResults setting is not a copy of the discovery ' .
+        'results that CloudRequestEngine::getDiscoveryResults() gives. ' .
+        'Leave the setting out so that the engine asks the cloud service, ' .
+        'then keep what getDiscoveryResults() gives once it is built.';
+
+    // Refused when the discoveryResults setting was made for other keys or
+    // another cloud endpoint.
+    public const MESSAGE_DISCOVERY_RESULTS_OTHER_CREDENTIALS =
+        'The discoveryResults setting holds the discovery results for other ' .
+        'keys or another cloud endpoint, and the results depend on both. ' .
+        'Leave the setting out so that the engine asks the cloud service ' .
+        'for these keys, then keep what getDiscoveryResults() gives once ' .
+        'it is built.';
+
     // Error message when non-success status is returned.
     public const MESSAGE_ERROR_CODE_RETURNED = "Cloud service at '%s' returned status code '%s' with content %s";
 
@@ -188,4 +216,16 @@ class Constants
 
     public const CLOUDREQUESTENGINE_EXCEPTION_MESSAGE =
         'CloudRequestEngine needs to be placed before cloud elements in Pipeline';
+
+    // The timeout of a request to the cloud service unless the
+    // timeoutSeconds setting gives one.
+    public const TIMEOUT_SECONDS_DEFAULT = 2.0;
+
+    // Refused as a timeout, with the value given, by the engine when it is
+    // built and by HttpClient::setTimeoutSeconds.
+    public const MESSAGE_TIMEOUT_NOT_POSITIVE =
+        'The timeout of requests to the cloud service is %s, and it must ' .
+        'be a number of seconds greater than 0, because a request with no ' .
+        "timeout can wait forever. Leave CloudRequestEngine's " .
+        'timeoutSeconds setting out for the default of 2 seconds.';
 }

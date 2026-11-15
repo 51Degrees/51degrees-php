@@ -1,0 +1,30 @@
+name: Test attributes
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - rc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-attributes:
+    name: Every PHPUnit annotation in a test has its attribute
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Test the check
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/check-test-attributes.Tests.ps1 -CI
+
+      - name: Check the tests
+        shell: pwsh
+        run: ./ci/check-test-attributes.ps1

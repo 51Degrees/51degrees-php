@@ -27,10 +27,19 @@ use PHPUnit\Framework\Assert;
 
 /**
  * An example run in its own PHP, as a person runs it, with what it printed
- * and its exit status, and the checks every example's output must pass.
+ * and its exit status, or a page served by PHP's built-in server with what
+ * it answered, and the checks every example's output must pass.
  */
 class ExampleRun
 {
+    // How long a served page has to answer, counted from when the server
+    // is started.
+    private const SERVE_SECONDS = 60;
+
+    // How long to wait before asking a server that is not yet listening
+    // again.
+    private const SERVE_RETRY_MICROSECONDS = 100000;
+
     // The heading of the section a console example ends with.
     public const HEADING = "Find out more\n-------------\n";
 
@@ -75,6 +84,9 @@ class ExampleRun
     /** @var int The example's exit status */
     public $status = -1;
 
+    /** @var int The HTTP status a served page answered with */
+    public $httpStatus = -1;
+
     /**
      * Runs the script in a new PHP from the script's folder, with the
      * environment of the tests less the variables named in $unset and with
@@ -93,18 +105,13 @@ class ExampleRun
         array $set = [],
         array $args = []
     ): self {
-        $environment = getenv();
-        foreach ($unset as $name) {
-            unset($environment[$name]);
-        }
-        $environment = array_merge($environment, $set);
         $errors = tempnam(sys_get_temp_dir(), 'example');
         $process = proc_open(
             array_merge([PHP_BINARY], $php, [$script], $args),
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['file', $errors, 'w']],
             $pipes,
             dirname($script),
-            $environment
+            self::environment($unset, $set)
         );
         Assert::assertIsResource($process, "{$script} could not be started.");
         fclose($pipes[0]);
@@ -112,6 +119,58 @@ class ExampleRun
         $run->output = str_replace("\r\n", "\n", (string) stream_get_contents($pipes[1]));
         fclose($pipes[1]);
         $run->status = proc_close($process);
+        $run->errors = str_replace("\r\n", "\n", (string) file_get_contents($errors));
+        unlink($errors);
+
+        return $run;
+    }
+
+    /**
+     * Serves the page with PHP's built-in server from the page's folder, as
+     * a person runs it, and asks it for its home page, with the environment
+     * of the tests less the variables named in $unset. The output is the
+     * page, the errors what the server printed.
+     *
+     * @param string $script The page's file, which answers every request
+     * @param array<string> $unset Environment variables to leave out
+     */
+    public static function serve(string $script, array $unset = []): self
+    {
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        Assert::assertIsResource($socket, 'No free port was found.');
+        $address = (string) stream_socket_get_name($socket, false);
+        fclose($socket);
+        $errors = tempnam(sys_get_temp_dir(), 'example');
+        $process = proc_open(
+            [PHP_BINARY, '-S', $address, basename($script)],
+            [0 => ['pipe', 'r'], 1 => ['file', $errors, 'w'], 2 => ['file', $errors, 'a']],
+            $pipes,
+            dirname($script),
+            self::environment($unset, [])
+        );
+        Assert::assertIsResource($process, "{$script} could not be served.");
+        fclose($pipes[0]);
+        $context = stream_context_create(
+            ['http' => ['ignore_errors' => true, 'timeout' => self::SERVE_SECONDS]]
+        );
+        $deadline = microtime(true) + self::SERVE_SECONDS;
+        $run = new self();
+        do {
+            $stream = @fopen("http://{$address}/", 'r', false, $context);
+            if ($stream !== false) {
+                $status = stream_get_meta_data($stream)['wrapper_data'][0] ?? '';
+                $page = (string) stream_get_contents($stream);
+                fclose($stream);
+                $run->output = str_replace("\r\n", "\n", $page);
+                if (preg_match('~^HTTP/\S+ (\d{3})~', (string) $status, $code) === 1) {
+                    $run->httpStatus = (int) $code[1];
+                }
+                break;
+            }
+            usleep(self::SERVE_RETRY_MICROSECONDS);
+        } while (microtime(true) < $deadline && proc_get_status($process)['running']);
+        proc_terminate($process);
+        proc_close($process);
         $run->errors = str_replace("\r\n", "\n", (string) file_get_contents($errors));
         unlink($errors);
 
@@ -198,7 +257,25 @@ class ExampleRun
      */
     public function printed(): string
     {
-        return "Exit status {$this->status}.\nStandard output:\n{$this->output}\n" .
-            "Standard error:\n{$this->errors}";
+        return "Exit status {$this->status}. HTTP status {$this->httpStatus}.\n" .
+            "Standard output:\n{$this->output}\nStandard error:\n{$this->errors}";
+    }
+
+    /**
+     * The environment of the tests less the variables named in $unset and
+     * with those in $set added.
+     *
+     * @param array<string> $unset
+     * @param array<string, string> $set
+     * @return array<string, string>
+     */
+    private static function environment(array $unset, array $set): array
+    {
+        $environment = getenv();
+        foreach ($unset as $name) {
+            unset($environment[$name]);
+        }
+
+        return array_merge($environment, $set);
     }
 }

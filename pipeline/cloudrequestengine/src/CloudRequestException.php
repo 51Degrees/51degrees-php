@@ -39,15 +39,40 @@ class CloudRequestException extends \Exception
     public array $responseHeaders;
 
     /**
+     * Each entry of the errors array in the response, kept apart. The
+     * message joins them. Empty when the response had none.
+     *
+     * @var array<string>
+     */
+    public array $errors;
+
+    /**
+     * Each entry of the warnings array in the response, which the Cloud
+     * Request Engine logs as warnings.
+     *
+     * @var array<string>
+     */
+    public array $warnings;
+
+    /**
      * Constructor for CloudRequestException.
      * @param string $message Exception message
      * @param int $httpStatusCode The status code returned in the HTTP response
-     * @param array<int|string, string|array<string, mixed>> $responseHeaders The HTTP headers returned in the response 
+     * @param array<int|string, string|array<string, mixed>> $responseHeaders The HTTP headers returned in the response
+     * @param array<string> $errors Each entry of the errors array in the response
+     * @param array<string> $warnings Each entry of the warnings array in the response
      */
-    public function __construct(string $message, int $httpStatusCode = 0, array $responseHeaders = [])
-    {
+    public function __construct(
+        string $message,
+        int $httpStatusCode = 0,
+        array $responseHeaders = [],
+        array $errors = [],
+        array $warnings = []
+    ) {
         parent::__construct($message);
         $this->httpStatusCode = $httpStatusCode;
         $this->responseHeaders = $responseHeaders;
+        $this->errors = $errors;
+        $this->warnings = $warnings;
     }
 }

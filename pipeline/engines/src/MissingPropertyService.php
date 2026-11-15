@@ -42,14 +42,18 @@ class MissingPropertyService
     }
 
     /**
-     * Get the message to go with the exception.
+     * Get the message to go with the exception, deciding the reason in the
+     * order the pipeline specification gives, at
+     * https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/properties.md#deciding-the-reason
      */
     private function getMessage(string $propertyName, Engine $flowElement): string
     {
         $reason = MissingPropertyReason::Unknown;
+        $properties = $flowElement->getProperties();
         $property = null;
+        $isCloud = $flowElement instanceof CloudEngineBase;
 
-        foreach ($flowElement->getProperties() as $currentProperty) {
+        foreach ($properties as $currentProperty) {
             if (isset($currentProperty['name'])) {
                 if (strcasecmp($currentProperty['name'], $propertyName) == 0) {
                     $property = $currentProperty;
@@ -58,46 +62,33 @@ class MissingPropertyService
             }
         }
 
-        if ($property !== null) {
-            // Check if the property is available in the data file that is
-            // being used by the engine.
-            $containsDataTier = false;
-            if (isset($property['datatierswherepresent'])) {
-                foreach ($property['datatierswherepresent'] as $tier) {
-                    if ($tier === $flowElement->getDataSourceTier()) {
-                        $containsDataTier = true;
-                        break;
-                    }
-                }
-
-                if ($containsDataTier === false) {
-                    $reason = MissingPropertyReason::DataFileUpgradeRequired;
-                }
-                // Check if the property is excluded from the results.
-                elseif ($property['available'] === false) {
-                    $reason = MissingPropertyReason::PropertyExcludedFromEngineConfiguration;
-                }
-            }
-        } else {
-            if ($flowElement instanceof CloudEngineBase) {
-                if (count($flowElement->getProperties()) === 0) {
-                    $reason = MissingPropertyReason::ProductNotAccessibleWithResourceKey;
-                } else {
-                    $reason = MissingPropertyReason::PropertyNotAccessibleWithResourceKey;
-                }
-            }
+        // A cloud engine has no data file, so only an on-premise engine
+        // compares its data tier, and only where the metadata gives the
+        // tiers the property is present in.
+        $tiers = $property['datatierswherepresent'] ?? null;
+        if ($property !== null && !$isCloud && is_array($tiers) &&
+            !in_array($flowElement->getDataSourceTier(), $tiers, true)) {
+            $reason = MissingPropertyReason::DataFileUpgradeRequired;
+        } elseif ($property !== null && ($property['available'] ?? true) === false) {
+            $reason = MissingPropertyReason::PropertyExcludedFromEngineConfiguration;
+        } elseif ($isCloud) {
+            $reason = count($properties) === 0
+                ? MissingPropertyReason::ProductNotAccessibleWithResourceKey
+                : MissingPropertyReason::PropertyNotAccessibleWithResourceKey;
         }
 
         // Build the message string to return to the caller.
         $message = sprintf(MissingPropertyMessages::PREFIX, $propertyName, $flowElement->dataKey);
-        
+
         switch ($reason) {
             case MissingPropertyReason::DataFileUpgradeRequired:
-                $message .= sprintf(
-                    MissingPropertyMessages::DATA_UPGRADE_REQUIRED,
-                    join(',', $property['datatierswherepresent']),
-                    get_class($flowElement)
-                );
+                $message .= count($tiers) === 0
+                    ? MissingPropertyMessages::DATA_UPGRADE_REQUIRED_TIERS_NOT_KNOWN
+                    : sprintf(
+                        MissingPropertyMessages::DATA_UPGRADE_REQUIRED,
+                        join(',', $tiers),
+                        get_class($flowElement)
+                    );
                 break;
             case MissingPropertyReason::PropertyExcludedFromEngineConfiguration:
                 $message .= MissingPropertyMessages::PROPERTY_EXCLUDED;
@@ -105,15 +96,14 @@ class MissingPropertyService
             case MissingPropertyReason::ProductNotAccessibleWithResourceKey:
                 $message .= sprintf(
                     MissingPropertyMessages::PRODUCT_NOT_IN_CLOUD_RESOURCE,
-                    get_class($flowElement)
+                    $flowElement->dataKey
                 );
                 break;
             case MissingPropertyReason::PropertyNotAccessibleWithResourceKey:
-                $available = $this->getPropertyNames($flowElement->getProperties());
                 $message .= sprintf(
                     MissingPropertyMessages::PROPERTY_NOT_IN_CLOUD_RESOURCE,
                     $flowElement->dataKey,
-                    join(', ', $available)
+                    join(',', $this->getPropertyNames($properties))
                 );
                 break;
             case MissingPropertyReason::Unknown:

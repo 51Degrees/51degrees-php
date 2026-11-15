@@ -82,7 +82,8 @@ function Find-EnvironmentNameProblem([string]$Line) {
 
 # The files that may name an old variable, which are the code that reads one
 # as a deprecated name when the variable is not set, the constants that hold
-# one, and the tests of both. Paths are relative to the repository root.
+# one, and the tests of both, a test that clears one so that an example runs
+# without it included. Paths are relative to the repository root.
 $script:DeprecatedNameFiles = @(
     'device-detection/cloud/examples/cloud/classes/ExampleUtils.php'
     'device-detection/cloud/tests/EnvironmentVariableTests.php'
@@ -103,6 +104,7 @@ $script:DeprecatedNameFiles = @(
     'pipeline/cloudrequestengine/tests/CloudRequestEngineTests.php'
     'pipeline/cloudrequestengine/tests/CloudRequestEngineTestsBase.php'
     'pipeline/cloudrequestengine/tests/EnvironmentVariableTests.php'
+    'pipeline/cloudrequestengine/tests/ExampleTests.php'
     'pipeline/did/examples/creator-context-web/server.php'
     'pipeline/did/src/DidClient.php'
     'pipeline/did/tests/DidClientLiveTest.php'

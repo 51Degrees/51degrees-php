@@ -27,6 +27,8 @@ to use the Cloud API. You can create resource keys using our
 
 **Note: Examples run on Linux and macOS. We don't test on Windows environments as it is a rare choice for PHP.**
 
+The examples and tests are in the [51degrees-php repository](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud), not in the package Composer installs, so clone the repository to run them.
+
 To run the examples, you will need PHP and composer installed.
 Once these are available, install (or update) the dependencies required by the examples. 
 Navigate to the repository root and execute:

@@ -23,7 +23,7 @@ dnl PHP 8.5 on Linux does, would otherwise bind this extension's calls to the
 dnl other extension's copy.
 VISIBILITY="-fvisibility=hidden"
 CFLAGS="$CFLAGS $COMMON_DEFINES $VISIBILITY -std=gnu11 -Wall -Wno-strict-prototypes -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
-CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES $VISIBILITY -std=gnu++17 -fpermissive -Wall -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
+CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES $VISIBILITY -std=gnu++17 -Wall -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

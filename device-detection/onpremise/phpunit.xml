@@ -2,17 +2,45 @@
   <testsuites>
     <testsuite name="Unit">
       <file>tests/DeviceDetectionTests.php</file>
+      <file>tests/MetaDataTests.php</file>
+      <file>tests/ExampleSettingsTests.php</file>
       <file>tests/SwigDataReadTests.php</file>
       <file>tests/EvidenceMapTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
+      <file>tests/DataModelTests.php</file>
+      <file>tests/NativeCallTests.php</file>
+      <file>tests/ProfileIdsTests.php</file>
+      <file>tests/PackagingTests.php</file>
+      <file>tests/ReadTimingTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>
       <file>tests/IniSettingsTests.php</file>
+      <file>tests/LoadWithDlTests.php</file>
       <file>tests/StartWithoutDataFileTests.php</file>
       <file>tests/RequestTests.php</file>
       <file>tests/ExampleWebTests.php</file>
       <file>tests/UACHHashTests.php</file>
+      <file>tests/EvidenceKeyCaseTests.php</file>
+      <file>tests/RefreshDataTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/WebExampleReloadTests.php</file>
+    </testsuite>
+    <!-- The tests of the Unit suite that need no TAC data file, which
+         ci/run-unit-tests.ps1 runs when the file is missing. They hold
+         every test of the examples with no settings. -->
+    <testsuite name="WithoutTacFile">
+      <file>tests/MetaDataTests.php</file>
+      <file>tests/ExampleSettingsTests.php</file>
+      <file>tests/SwigDataReadTests.php</file>
+      <file>tests/EvidenceMapTests.php</file>
+      <file>tests/ResourceCleanupTests.php</file>
+      <file>tests/ExamplesWithoutSettingsTests.php</file>
+      <file>tests/IniSettingsTests.php</file>
+      <file>tests/LoadWithDlTests.php</file>
+      <file>tests/StartWithoutDataFileTests.php</file>
+      <file>tests/RequestTests.php</file>
+      <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/WebExampleReloadTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

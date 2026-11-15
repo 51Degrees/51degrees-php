@@ -106,7 +106,10 @@ pipeline. See `examples/cloud/mixed/` and `examples/onpremise/mixed/`.
 
 The on-premise mixed examples load both extensions in one PHP, the Device
 Detection one with its own data file setting, and take the Device Detection
-on-premise classes from `device-detection/onpremise` beside this package. The
+on-premise classes from `device-detection/onpremise` beside this package.
+When PHP built no Device Detection engine, the mixed console example and
+the launcher below give it the data file that `_51DEGREES_DD_PATH` names, or
+else the free Lite file, downloaded when it is missing. The
 IP Intelligence extension's classes start with `FiftyOneDegreesIpi` so that
 the two extensions' classes never share a name, as
 [OnPremise.md](OnPremise.md) explains.
@@ -127,6 +130,7 @@ In-repo under `examples/`:
 | `onpremise/performance-console.php` | On-premise | Measure lookups per second. |
 | `onpremise/suspicious-console.php` | On-premise | Flag IP addresses that look suspicious. |
 | `onpremise/translation-console.php` | On-premise | List the countries an IP address is most likely in. |
+| `onpremise/dataupdate-console.php` | On-premise | Reload the data file after it is replaced with a newer one. |
 | `onpremise/mixed/gettingstarted-console.php` | On-premise | Device detection + IP intelligence. |
 | `onpremise/web/index.php` | On-premise | Web page with the country list. |
 | `onpremise/web-mixed/index.php` | On-premise | Web page with device detection + IP intelligence. |

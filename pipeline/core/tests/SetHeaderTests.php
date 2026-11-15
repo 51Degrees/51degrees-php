@@ -25,8 +25,10 @@ namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\Messages;
+use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\SetHeaderElement;
 use fiftyone\pipeline\core\tests\classes\Constants;
+use fiftyone\pipeline\core\tests\classes\SetHeaderNamesElement;
 use fiftyone\pipeline\core\tests\classes\TestDataDictionary;
 use fiftyone\pipeline\core\tests\classes\TestPipeline;
 use fiftyone\pipeline\core\Utils;
@@ -177,7 +179,15 @@ class SetHeaderTests extends TestCase
         return [
             ['SetHeaderBrowserAccept-CH', 'Accept-CH'],
             ['SetHeaderBrowserCritical-CH', 'Critical-CH'],
-            ['SetHeaderUnknownAccept-CH', 'Accept-CH']
+            ['SetHeaderUnknownAccept-CH', 'Accept-CH'],
+            // The identifier may start with any character, and the header
+            // name starts at the next upper-case letter after it.
+            ['SetHeaderbrowserAccept-CH', 'Accept-CH'],
+            ['SetHeaderbrowserAccept-ch', 'Accept-ch'],
+            ['SetHeader9Accept-CH', 'Accept-CH'],
+            // Only the identifier is taken off, not every copy of it.
+            ['SetHeaderAcceptAccept-CH', 'Accept-CH'],
+            ['SetHeaderAAccept-CH', 'Accept-CH']
         ];
     }
 
@@ -198,8 +208,9 @@ class SetHeaderTests extends TestCase
     {
         return [
             ['TestBrowserAccept-CH', Messages::PROPERTY_NOT_SET_HEADER],
-            ['SetHeaderbrowserAccept-ch', Messages::WRONG_PROPERTY_FORMAT],
-            ['SetHeaderBrowseraccept-ch', Messages::WRONG_PROPERTY_FORMAT]
+            ['SetHeaderBrowseraccept-ch', Messages::WRONG_PROPERTY_FORMAT],
+            ['SetHeaderbrowseraccept-ch', Messages::WRONG_PROPERTY_FORMAT],
+            ['SetHeader', Messages::WRONG_PROPERTY_FORMAT]
         ];
     }
 
@@ -214,5 +225,30 @@ class SetHeaderTests extends TestCase
 
         $this->expectExceptionMessage(sprintf($expectedValue, $data));
         $setHeaderElement->getResponseHeaderName($data);
+    }
+
+    /**
+     * Only a property whose name starts with SetHeader sets a response
+     * header. A name with SetHeader later in it is an ordinary property.
+     */
+    public function testOnlyANameStartingWithSetHeaderSetsAHeader()
+    {
+        $pipeline = (new PipelineBuilder(['addJavaScriptBuilder' => false]))
+            ->add(new SetHeaderNamesElement())
+            ->build();
+
+        $this->assertSame(
+            ['headernames' => ['SetHeaderBrowserAccept-CH']],
+            (new SetHeaderElement())->getSetHeaderPropertiesPipeline($pipeline)
+        );
+
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame([], $flowData->errors);
+        $this->assertSame(
+            ['Accept-CH' => 'Sec-CH-UA'],
+            $flowData->get('set-headers')->get('responseheaderdictionary')
+        );
     }
 }

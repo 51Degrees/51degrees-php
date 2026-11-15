@@ -109,6 +109,37 @@ class DeprecatedDataKeyTests extends TestCase
         $this->assertStringContainsString("'new-key'", $warnings[0]);
     }
 
+    /**
+     * A deprecated key is found in any letter case, as every string key is
+     * compared.
+     */
+    public function testADeprecatedKeyInOtherLettersFindsTheElementAndData(): void
+    {
+        $element = new RenamedKeyElement();
+        $pipeline = self::pipeline([$element]);
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame($element, $pipeline->getElement('OLD-KEY'));
+        $this->assertSame($flowData->get('new-key'), $flowData->get('Old-Key'));
+    }
+
+    public function testADeprecatedKeyIsLoggedOnceWhateverItsLetters(): void
+    {
+        $logger = self::logger();
+        $pipeline = self::pipeline([new RenamedKeyElement()], $logger);
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $flowData->get('OLD-KEY');
+        $flowData->get('old-key');
+        $pipeline->getElement('Old-Key');
+
+        $warnings = self::warnings($logger);
+        $this->assertCount(1, $warnings);
+        $this->assertStringContainsString("'old-key'", $warnings[0]);
+    }
+
     public function testTheCurrentKeyLogsNothing(): void
     {
         $logger = self::logger();

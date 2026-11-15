@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/Evidence.php b/pipeline/core/src/Evidence.php
+index 207d884d..c082d9b4 100644
+--- a/pipeline/core/src/Evidence.php
++++ b/pipeline/core/src/Evidence.php
+@@ -294,7 +294,7 @@ class Evidence
+             }
+         }
+ 
+-        if (!$accepted) {
++        if (false) {
+             return [];
+         }
+ 

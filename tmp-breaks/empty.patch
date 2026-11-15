@@ -1,0 +1,31 @@
+diff --git a/pipeline/core/src/Evidence.php b/pipeline/core/src/Evidence.php
+index 207d884d..1670ca34 100644
+--- a/pipeline/core/src/Evidence.php
++++ b/pipeline/core/src/Evidence.php
+@@ -274,7 +274,7 @@ class Evidence
+      */
+     private function requestLine(array $server): array
+     {
+-        if (!isset($server['REQUEST_METHOD'], $server['REQUEST_URI'])) {
++        if (false) {
+             return [];
+         }
+ 
+@@ -298,7 +298,7 @@ class Evidence
+             return [];
+         }
+ 
+-        $target = (string) $server['REQUEST_URI'];
++        $target = (string) ($server['REQUEST_URI'] ?? '');
+         $queryStart = strpos($target, '?');
+         $path = $queryStart === false
+             ? $target
+@@ -310,7 +310,7 @@ class Evidence
+         }
+ 
+         return [
+-            self::REQUEST_METHOD_KEY => (string) $server['REQUEST_METHOD'],
++            self::REQUEST_METHOD_KEY => (string) ($server['REQUEST_METHOD'] ?? ''),
+             self::REQUEST_PATH_KEY => $path,
+             self::REQUEST_QUERY_KEY => $queryStart === false
+                 ? ''

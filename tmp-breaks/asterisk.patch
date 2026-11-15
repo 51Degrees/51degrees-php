@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/Evidence.php b/pipeline/core/src/Evidence.php
+index 207d884d..1ed1c1e2 100644
+--- a/pipeline/core/src/Evidence.php
++++ b/pipeline/core/src/Evidence.php
+@@ -311,7 +311,7 @@ class Evidence
+ 
+         return [
+             self::REQUEST_METHOD_KEY => (string) $server['REQUEST_METHOD'],
+-            self::REQUEST_PATH_KEY => $path,
++            self::REQUEST_PATH_KEY => $path === '*' ? '/' : $path,
+             self::REQUEST_QUERY_KEY => $queryStart === false
+                 ? ''
+                 : substr($target, $queryStart + 1),

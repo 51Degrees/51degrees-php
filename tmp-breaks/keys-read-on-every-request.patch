@@ -1,0 +1,12 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..59c4cae 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -259,6 +259,7 @@ class IpIntelligenceOnPremise extends Engine
+             throw new \Exception(Messages::ENGINE_CLOSED);
+         }
+ 
++        $this->engine->getKeys(); // Throwaway: the keys are read on every request.
+         [$ipv4, $ipv6] = $this->getClientIps($flowData);
+ 
+         // Look up the supplied client IP directly via the engine's string

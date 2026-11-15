@@ -1,0 +1,13 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..b4f9386 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -316,7 +316,7 @@ class IpIntelligenceOnPremise extends Engine
+         }
+ 
+         // The metadata follows the new data file.
+-        $this->initEngineMetaData();
++        // Throwaway: a refresh does not read the keys again.
+     }
+ 
+     /**

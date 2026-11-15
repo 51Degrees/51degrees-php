@@ -1,0 +1,52 @@
+diff --git a/ip-intelligence/src/SwigData.php b/ip-intelligence/src/SwigData.php
+index 782bf78..09e3c0e 100644
+--- a/ip-intelligence/src/SwigData.php
++++ b/ip-intelligence/src/SwigData.php
+@@ -26,7 +26,7 @@ declare(strict_types=1);
+ namespace fiftyone\pipeline\ipintelligence;
+ 
+ use fiftyone\pipeline\core\AspectPropertyValue;
+-use fiftyone\pipeline\engines\AspectData;
++use fiftyone\pipeline\core\ElementData;
+ 
+ /**
+  * Extension of AspectData for retrieving results created by the SWIG
+@@ -37,7 +37,7 @@ use fiftyone\pipeline\engines\AspectData;
+  * as a list of ['value' => ..., 'rawweighting' => ...] arrays, matching the
+  * shape returned by the cloud engine.
+  */
+-class SwigData extends AspectData
++class SwigData extends ElementData // Throwaway: element data that is not Aspect Data.
+ {
+     /**
+      * The properties the data file stores as an Azimuth or a Declination.
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index ac7cfe2..72c8516 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -29,6 +29,7 @@ use fiftyone\pipeline\core\AspectPropertyValue;
+ use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
+ use fiftyone\pipeline\core\FlowData;
+ use fiftyone\pipeline\core\Pipeline;
++use fiftyone\pipeline\core\ElementDataDictionary; // Throwaway: element data that is not Aspect Data.
+ use fiftyone\pipeline\engines\AspectDataDictionary;
+ use fiftyone\pipeline\engines\CloudEngineBase;
+ 
+@@ -96,7 +97,7 @@ class CloudEngine extends CloudEngineBase
+             // A response with no portion for this engine gives empty data,
+             // and is not an error.
+             if (!isset($cloudData[$this->dataKey]) || !is_array($cloudData[$this->dataKey])) {
+-                $flowData->setElementData(new AspectDataDictionary($this, $result));
++                $flowData->setElementData(new ElementDataDictionary($this, $result));
+ 
+                 return;
+             }
+@@ -109,7 +110,7 @@ class CloudEngine extends CloudEngineBase
+                 }
+             }
+ 
+-            $data = new AspectDataDictionary($this, $result);
++            $data = new ElementDataDictionary($this, $result);
+ 
+             $flowData->setElementData($data);
+         }

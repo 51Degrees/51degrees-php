@@ -1,0 +1,25 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..99397bc 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -236,6 +236,20 @@ class IpIntelligenceOnPremise extends Engine
+             $this->config,
+             $propertiesConfig
+         );
++        // Throwaway: when no names are configured, the data set's names are
++        // passed, by building the engine again with every name.
++        if (empty($restrictedProperties)) {
++            $every = $this->engine->getRequiredProperties();
++            $everyVector = new \FiftyOneDegreesIpiVectorStringSwig();
++            for ($i = 0; $i < $every->size(); ++$i) {
++                $everyVector->push($every->get($i));
++            }
++            $this->engine = new \FiftyOneDegreesIpiEngineIpiSwig(
++                $dataFile,
++                $this->config,
++                new \FiftyOneDegreesIpiRequiredPropertiesConfigSwig($everyVector)
++            );
++        }
+ 
+         $this->initEngineMetaData();
+ 

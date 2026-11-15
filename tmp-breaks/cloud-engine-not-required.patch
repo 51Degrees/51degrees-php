@@ -1,0 +1,13 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index ac7cfe2..2ea5bcc 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -65,6 +65,8 @@ class CloudEngine extends CloudEngineBase
+             return;
+         }
+ 
++        // Throwaway: no Cloud Request Engine is required.
++        return;
+         throw new \Exception(Constants::CLOUDREQUESTENGINE_EXCEPTION_MESSAGE);
+     }
+ 

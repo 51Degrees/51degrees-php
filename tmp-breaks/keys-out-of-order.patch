@@ -1,0 +1,13 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..e41a8c5 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -480,7 +480,7 @@ class IpIntelligenceOnPremise extends Engine
+         for ($i = 0; $i < $evidences->size(); ++$i) {
+             $evidenceKeysList[] = strtolower($evidences->get($i));
+         }
+-        $this->evidenceKeys = $evidenceKeysList;
++        $this->evidenceKeys = array_reverse($evidenceKeysList); // Throwaway: the keys out of the native order.
+ 
+         // PHP constructs this class on every request, so the table of every
+         // property is built when it is first read (see __get), and a read

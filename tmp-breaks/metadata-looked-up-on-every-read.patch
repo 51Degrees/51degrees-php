@@ -1,0 +1,13 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..39ea17a 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -371,7 +371,7 @@ class IpIntelligenceOnPremise extends Engine
+         if (isset(self::METRIC_PROPERTIES[$key])) {
+             return self::METRIC_PROPERTIES[$key];
+         }
+-        if (!isset($this->readProperties[$key])) {
++        if (true) { // Throwaway: the metadata is looked up on every read.
+             $property = $this->lookUpProperty($key);
+             if ($property === null) {
+                 // Not a property the engine was built with, so the table

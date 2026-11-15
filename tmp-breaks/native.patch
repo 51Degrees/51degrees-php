@@ -1,0 +1,20 @@
+diff --git a/cxx/src/common/ResultsBase.cpp b/cxx/src/common/ResultsBase.cpp
+index b2a8e84..11ac6d9 100644
+--- a/cxx/src/common/ResultsBase.cpp
++++ b/cxx/src/common/ResultsBase.cpp
+@@ -473,7 +473,12 @@ FiftyoneDegrees::Common::Value<vector<string>> ResultsBase::getValues(
+ 
+ int ResultsBase::getRequiredPropertyIndex(
+ 	const char *propertyName) {
+-	return PropertiesGetRequiredPropertyIndexFromName(
+-		available,
+-		propertyName);
++	// Throwaway: each read by name looks the name up 50 times.
++	int index = -1;
++	for (int i = 0; i < 50; i++) {
++		index = PropertiesGetRequiredPropertyIndexFromName(
++			available,
++			propertyName);
++	}
++	return index;
+ }

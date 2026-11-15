@@ -1,0 +1,13 @@
+diff --git a/ip-intelligence/examples/classes/ExampleUtils.php b/ip-intelligence/examples/classes/ExampleUtils.php
+index eacb63f..5adb157 100644
+--- a/ip-intelligence/examples/classes/ExampleUtils.php
++++ b/ip-intelligence/examples/classes/ExampleUtils.php
+@@ -503,7 +503,7 @@ class ExampleUtils
+             foreach ($value as $item) {
+                 if (is_array($item) && array_key_exists('value', $item)) {
+                     $weight = $item['rawweighting'] ?? '';
+-                    $parts[] = $item['value'] . ' (' . $weight . ')';
++                    $parts[] = (string) $item['value']; // Throwaway: the weighting is left out.
+                 } else {
+                     $parts[] = (string) $item;
+                 }

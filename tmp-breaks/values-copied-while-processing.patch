@@ -1,0 +1,15 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..49ada75 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -274,6 +274,10 @@ class IpIntelligenceOnPremise extends Engine
+         $result = $this->engine->process($lookupIp);
+ 
+         $data = new SwigData($this, $result, $ipv4, $ipv6);
++        // Throwaway: every value is copied out of the native results while processing.
++        foreach (array_keys($this->requiredNames()) as $copied) {
++            $data->getInternal($copied);
++        }
+ 
+         $flowData->setElementData($data);
+     }

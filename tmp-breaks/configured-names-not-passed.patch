@@ -1,0 +1,13 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..38a81c5 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -212,7 +212,7 @@ class IpIntelligenceOnPremise extends Engine
+ 
+         // Build the required properties configuration.
+         $propertiesVector = new \FiftyOneDegreesIpiVectorStringSwig();
+-        foreach ($restrictedProperties as $property) {
++        foreach ([] as $property) { // Throwaway: the configured names are not passed.
+             $propertiesVector->push($property);
+         }
+         if (!empty($restrictedProperties)) {

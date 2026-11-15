@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/Pipeline.php b/pipeline/core/src/Pipeline.php
+index 932c7da..5336966 100644
+--- a/pipeline/core/src/Pipeline.php
++++ b/pipeline/core/src/Pipeline.php
+@@ -90,7 +90,7 @@ class Pipeline
+         // Unset, so that the first read of it builds it (see __get).
+         unset($this->propertyDatabase);
+ 
+-        foreach ($flowElements as $flowElement) {
++        foreach (array_reverse($flowElements) as $flowElement) { // Throwaway: the last element added is registered first.
+             $this->flowElementsList[$flowElement->dataKey] = $flowElement;
+ 
+             $flowElement->pipelines[] = $this;

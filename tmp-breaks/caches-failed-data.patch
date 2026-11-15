@@ -1,0 +1,12 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index d0ea81ad..8aaa4ff7 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -247,6 +247,6 @@ class CloudEngine extends CloudEngineBase
+      */
+     protected function holdsValueForOneRequest(ElementData $data): bool
+     {
+-        return $data instanceof CloudRequestFailedData;
++        return false;
+     }
+ }

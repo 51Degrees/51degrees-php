@@ -1,0 +1,16 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index d0ea81ad..a818bbfc 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -76,10 +76,7 @@ class CloudEngine extends CloudEngineBase
+         if ($cloudRequestEngine !== null) {
+             if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
+                 $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
+-            } elseif (
+-                $cloudRequestEngine instanceof CloudRequestEngine &&
+-                $cloudRequestEngine->propertiesLoaded()
+-            ) {
++            } else {
+                 $this->logMissingProductIn($pipeline);
+             }
+ 

@@ -1,0 +1,101 @@
+name: tmp php cld red
+# Throwaway. Runs the Unit suites of pipeline/engines,
+# pipeline/cloudrequestengine and device-detection/cloud on the draft's head,
+# then the new tests with the source files as they are on rc 83684180, then
+# the two guard tests under the patches in tmp-breaks.
+on:
+  push:
+    branches:
+      - tmp/php-cld-red
+permissions:
+  contents: read
+jobs:
+  red:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Head, rc's sources, then each patch
+        run: |
+          set +e
+          mkdir -p junit
+          packages="pipeline/engines pipeline/cloudrequestengine device-detection/cloud"
+          for package in $packages; do
+            mkdir -p "$package/vendor"
+            printf '%s\n' '<?php' "return require __DIR__ . '/../../../vendor/autoload.php';" > "$package/vendor/autoload.php"
+          done
+          run() {
+            name=$1; shift
+            for package in $packages; do
+              out="$GITHUB_WORKSPACE/junit/$name-$(echo $package | tr / -).xml"
+              echo "::group::$name $package"
+              (cd "$package" && ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --testsuite Unit --log-junit "$out" "$@")
+              echo "exit $? for $name $package"
+              echo "::endgroup::"
+            done
+          }
+          NEW='testCloudRequestFailedIsTheSpecificationText|testAFailedRequestGivesCloudRequestFailed|testAFailedPropertyListRequestGivesCloudRequestFailed|testTheCloudRequestErrorIsStillThrown|testAFailedRequestIsNotCached|testAMissingProductIsLoggedWhenThePipelineIsBuilt|testAfterATransientFailureItIsLoggedOnFirstUse|testAFailedCloudRequestGivesCloudRequestFailed'
+          run head
+          git fetch -q --depth 1 origin 83684180d253fa0df1378acb81e2d835517e7596
+          git checkout FETCH_HEAD -- pipeline/engines/src pipeline/cloudrequestengine/src device-detection/cloud/src
+          git rm -q --cached pipeline/cloudrequestengine/src/CloudRequestFailedData.php 2>/dev/null
+          rm -f pipeline/cloudrequestengine/src/CloudRequestFailedData.php
+          git status --short pipeline device-detection
+          run rc-sources --filter "$NEW"
+          git checkout HEAD -- pipeline device-detection
+          for patch in caches-failed-data logs-before-discovery; do
+            patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$patch.patch" || exit 1
+            run "$patch" --filter "$NEW"
+            git checkout HEAD -- pipeline
+          done
+          exit 0
+      - name: Each test's result
+        shell: python
+        run: |
+          import glob, xml.etree.ElementTree as ET
+          def results(name):
+              out = {}
+              for f in glob.glob(f'junit/{name}-*.xml'):
+                  for case in ET.parse(f).getroot().iter('testcase'):
+                      failed = case.find('failure') is not None or case.find('error') is not None
+                      skipped = case.find('skipped') is not None
+                      out[case.get('name')] = 'fail' if failed else ('skip' if skipped else 'pass')
+              return out
+          head = results('head')
+          bad = {k: v for k, v in head.items() if v != 'pass'}
+          print(f'head: {len(head)} tests, {sum(v == "pass" for v in head.values())} passed, not passed: {bad}')
+          ok = not bad
+          expect = {
+              'rc-sources': {
+                  'fail': ['testCloudRequestFailedIsTheSpecificationText', 'testAFailedRequestGivesCloudRequestFailed',
+                           'testAFailedPropertyListRequestGivesCloudRequestFailed', 'testTheCloudRequestErrorIsStillThrown',
+                           'testAMissingProductIsLoggedWhenThePipelineIsBuilt', 'testAFailedCloudRequestGivesCloudRequestFailed'],
+                  'pass': ['testAFailedRequestIsNotCached', 'testAfterATransientFailureItIsLoggedOnFirstUse'],
+              },
+              'caches-failed-data': {'fail': ['testAFailedRequestIsNotCached']},
+              'logs-before-discovery': {'fail': ['testAfterATransientFailureItIsLoggedOnFirstUse']},
+          }
+          for name, want in expect.items():
+              r = results(name)
+              for outcome, tests in want.items():
+                  for t in tests:
+                      print(f'{name}: {t} head {head.get(t)}, here {r.get(t)} (expected {outcome})')
+                      ok = ok and head.get(t) == 'pass' and r.get(t) == outcome
+              named = set(sum(want.values(), []))
+              others = {k: v for k, v in r.items() if k not in named}
+              if others:
+                  print(f'{name}: also ran {others}')
+          print('RESULT', 'as expected' if ok else 'NOT as expected')
+          raise SystemExit(0 if ok else 1)

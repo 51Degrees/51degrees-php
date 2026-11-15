@@ -42,6 +42,7 @@
       <file>tests/JsonBundlerNullTests.php</file>
       <file>tests/RequestLineEvidenceTests.php</file>
       <file>tests/AspectPropertyValueTests.php</file>
+      <file>tests/LoggerTargetTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

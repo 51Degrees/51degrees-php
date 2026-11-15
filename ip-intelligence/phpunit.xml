@@ -21,6 +21,7 @@
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/ExamplesUseStartupEngineTests.php</file>
       <file>tests/ExamplesWithoutKeyTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/WebExamplesWithoutSettingsTests.php</file>

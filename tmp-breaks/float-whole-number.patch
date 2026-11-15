@@ -1,0 +1,15 @@
+diff --git a/pipeline/core/src/JavascriptBuilderElement.php b/pipeline/core/src/JavascriptBuilderElement.php
+index 381e072b..7bdd1afd 100644
+--- a/pipeline/core/src/JavascriptBuilderElement.php
++++ b/pipeline/core/src/JavascriptBuilderElement.php
+@@ -189,6 +189,10 @@ class JavascriptBuilderElement extends FlowElement
+      */
+     public static function parseSequence($value, int $max = self::MAX_SEQUENCE): ?int
+     {
++        if (is_float($value) && floor($value) === $value) {
++            $value = (int) $value;
++        }
++
+         if (is_int($value)) {
+             return $value >= 1 && $value <= $max ? $value : null;
+         }

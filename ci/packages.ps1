@@ -49,7 +49,7 @@
 # Per package:
 #   pipeline/core, engines and cloudrequestengine: Unit suite. Only
 #     cloudrequestengine has integration tests, which need TestResourceKey.
-#     No performance tests.
+#     Of these, pipeline/core has performance tests, which time minification.
 #   pipeline/did: Unit suite with its own vendor/bin/phpunit, which here
 #     is the root one. Its Live suite is not run by its CI, and its tags are
 #     published by .github/workflows/did-publish.yml, because the published
@@ -64,8 +64,8 @@
 #   device-detection/onpremise: Own. Not in the root composer.json, as it
 #     has the same package name as device-detection/cloud. Builds the native
 #     extension, needs the TAC data file for most of its tests, running only
-#     its WithoutTacFile suite without it, and is the only package with real
-#     performance tests. No mirror.
+#     its WithoutTacFile suite without it, and has the performance tests of
+#     detection. No mirror.
 #   location: Unit suite without keys, and Integration suite, which needs
 #     TestResourceKey.
 #   ip-intelligence: Own, because its build-project.ps1 compiles the

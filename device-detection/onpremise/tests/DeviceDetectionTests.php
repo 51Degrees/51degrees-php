@@ -77,8 +77,11 @@ class DeviceDetectionTests extends TestCase
         }
     }
 
-    // TODO: fix the test
-    public function __SKIP__testAvailableProperties()
+    /**
+     * Every property the engine lists, the match metrics included, gives
+     * either a value or the reason it has none.
+     */
+    public function testAvailableProperties()
     {
         $deviceDetection = new DeviceDetectionOnPremise();
 

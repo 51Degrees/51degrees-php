@@ -38,6 +38,10 @@ class ExampleWebTests extends TestCase
 
     public static function setUpBeforeClass(): void
     {
+        foreach (self::pipelineFiles() as $stale) {
+            unlink($stale);
+        }
+
         // start server
         self::$process = new Process('php -S localhost:3000 examples/cloud/gettingStartedWeb.php');
         self::$process->start();
@@ -154,6 +158,46 @@ class ExampleWebTests extends TestCase
         @file_get_contents($url, false, $context);
 
         return self::parseHeaders($http_response_header);
+    }
+
+    /**
+     * The page builds its pipeline for each request and keeps no copy of it
+     * in a file, because a pipeline read back from a file keeps the resource
+     * key it was built with.
+     */
+    public function testGettingStartedWebLeavesNoPipelineBehind()
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => Constants::UA_HEADER . Constants::CHROME_UA . "\r\n"
+            ]
+        ]);
+
+        $data = @file_get_contents(Constants::URL, false, $context);
+
+        $this->assertNotFalse($data, 'The page did not answer.');
+        $this->assertSame([], self::pipelineFiles());
+    }
+
+    /**
+     * Every serialized pipeline file in the examples folder, in the folders
+     * below it, and beside it, as a name built without a separator lands
+     * beside its folder rather than in it.
+     *
+     * @return string[]
+     */
+    private static function pipelineFiles(): array
+    {
+        $examples = __DIR__ . '/../examples';
+        $found = array_merge(
+            (array) glob($examples . '/*.pipeline'),
+            (array) glob($examples . '/*/*.pipeline'),
+            (array) glob($examples . '/*/*/*.pipeline'),
+            (array) glob(dirname($examples) . '/*.pipeline')
+        );
+
+        return array_values(array_filter($found, 'is_file'));
     }
 
     /**

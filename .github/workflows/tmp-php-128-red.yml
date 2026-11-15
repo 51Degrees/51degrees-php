@@ -1,0 +1,57 @@
+name: tmp php 128 red
+# Throwaway. Installs the root composer.json and runs the Cloud Request
+# Engine's DiscoveryTests on the draft's head unchanged, then with
+# tmp-breaks/swallow-first-use.patch, which makes processInternal drop a
+# failed first-use discovery rather than raise it.
+on:
+  push:
+    branches:
+      - tmp/php-128-red
+permissions:
+  contents: read
+jobs:
+  test:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Run the tests unchanged and with the change
+        run: |
+          set +e
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          run() {
+            local change=$1
+            local junit="$GITHUB_WORKSPACE/junit-$change.xml"
+            echo "::group::[$change]"
+            (cd pipeline/cloudrequestengine && php ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --log-junit "$junit" tests/DiscoveryTests.php)
+            echo "phpunit exit $?"
+            echo "::endgroup::"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : "passed";
+                echo "RESULT [", $argv[2], "] ", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" | tee -a "$summary"
+          }
+          run unchanged
+          patch -p1 --forward --no-backup-if-mismatch < tmp-breaks/swallow-first-use.patch || { echo "PATCH DID NOT APPLY"; exit 1; }
+          run swallow-first-use
+          bad=0
+          if grep -q '^RESULT \[unchanged\] .* FAILED' "$summary"; then echo "UNEXPECTED a test failed unchanged"; bad=1; fi
+          if grep -q '^RESULT \[swallow-first-use\] testAFailedFirstUseAttemptIsAProcessingError FAILED' "$summary"; then echo "EXPECTED testAFailedFirstUseAttemptIsAProcessingError failed"; else echo "UNEXPECTED it did not fail"; bad=1; fi
+          echo "Failed with the change:"
+          grep ' FAILED' "$summary" | grep -v '^RESULT \[unchanged\]'
+          exit $bad

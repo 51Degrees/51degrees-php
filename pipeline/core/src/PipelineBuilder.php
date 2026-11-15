@@ -84,9 +84,12 @@ class PipelineBuilder
         $this->addJavaScriptBuilderElement = (bool) ($settings['addJavaScriptBuilderElement'] ?? true);
         $this->addSetHeaderElement = (bool) ($settings['addSetHeaderElement'] ?? true);
 
-        // Passed on to the Pipeline, which reads it when it is closed.
-        if (array_key_exists('autoCloseElements', $settings)) {
-            $this->settings['autoCloseElements'] = $settings['autoCloseElements'];
+        // Passed on to the Pipeline, which reads suppressProcessExceptions
+        // when it processes and autoCloseElements when it is closed.
+        foreach (['suppressProcessExceptions', 'autoCloseElements'] as $name) {
+            if (array_key_exists($name, $settings)) {
+                $this->settings[$name] = $settings[$name];
+            }
         }
     }
 

@@ -73,7 +73,7 @@ class SwigData extends AspectData
         $property = $this->flowElement->findProperty($key);
 
         if ($property !== null) {
-            if ($property['category'] == 'DeviceMetrics') {
+            if ($property['category'] === DeviceDetectionOnPremise::METRICS_CATEGORY) {
                 switch ($property['name']) {
                     case 'MatchedNodes':
                         $result = new AspectPropertyValue(

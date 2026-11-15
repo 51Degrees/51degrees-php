@@ -97,7 +97,7 @@ class SwigDataReadTests extends TestCase
     {
         $properties = [
             'ismobile' => ['name' => 'IsMobile', 'type' => 'Boolean', 'category' => 'Device'],
-            'difference' => ['name' => 'Difference', 'type' => 'Integer', 'category' => 'DeviceMetrics'],
+            'difference' => ['name' => 'Difference', 'type' => 'Integer', 'category' => 'Device Metrics'],
         ];
         $result = new StubSwigResult(['IsMobile' => new StubSwigValue(true, true)]);
         $data = new SwigData(new StubSwigEngine($properties), $result);

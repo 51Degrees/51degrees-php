@@ -217,7 +217,7 @@ class RequestTests extends TestCase
             array_keys($metrics)
         );
         foreach ($metrics as $metric) {
-            $this->assertSame('DeviceMetrics', $metric['category']);
+            $this->assertSame('Device Metrics', $metric['category']);
         }
         $this->assertSame(
             $printed['expected'],

@@ -22,6 +22,8 @@
          ci/run-unit-tests.ps1 runs when the file is missing. They hold
          every test of the examples with no settings. -->
     <testsuite name="WithoutTacFile">
+      <file>tests/MetaDataTests.php</file>
+      <file>tests/ExampleSettingsTests.php</file>
       <file>tests/SwigDataReadTests.php</file>
       <file>tests/EvidenceMapTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>

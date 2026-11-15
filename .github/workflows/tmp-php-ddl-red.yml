@@ -1,0 +1,43 @@
+name: tmp php ddl red
+# Throwaway. Runs the Device Detection Download suite on the draft's head,
+# then with tmp-breaks/no-download.patch, which takes the download out of
+# ExampleUtils::downloadMissingDataFile.
+on:
+  push:
+    branches:
+      - tmp/php-ddl-red
+permissions:
+  contents: read
+jobs:
+  red:
+    name: red (ubuntu-latest, PHP 8.5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout the data repository
+        run: |
+          git submodule update --init --depth 1 cxx
+          git -C cxx submodule update --init --depth 1 data
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer, phpunit:9.6.34
+      - name: Head, then without the download
+        working-directory: device-detection/onpremise
+        run: |
+          set +e
+          composer dump-autoload --dev
+          echo "::group::head"
+          phpunit --fail-on-warning --testsuite Download
+          head=$?
+          echo "::endgroup::"
+          (cd ../.. && patch -p1 --forward --no-backup-if-mismatch < tmp-breaks/no-download.patch) || exit 1
+          echo "::group::without the download"
+          phpunit --fail-on-warning --testsuite Download
+          broken=$?
+          echo "::endgroup::"
+          echo "RESULT head exit $head, without the download exit $broken"
+          [ "$head" = "0" ] && [ "$broken" != "0" ]

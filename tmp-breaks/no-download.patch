@@ -1,0 +1,13 @@
+diff --git a/device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php b/device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php
+index 485350e4..fb3cc4c6 100644
+--- a/device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php
++++ b/device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php
+@@ -150,7 +150,7 @@ class ExampleUtils
+             "{$name} is missing, so it is being downloaded by running\n{$command}"
+         );
+         $status = 1;
+-        if (function_exists('exec')) {
++        if (false) {
+             $lines = [];
+             exec($command, $lines, $status);
+             if (count($lines) > 0) {

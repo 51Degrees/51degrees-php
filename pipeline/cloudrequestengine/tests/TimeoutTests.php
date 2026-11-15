@@ -52,6 +52,10 @@ class TimeoutTests extends CloudRequestEngineTestsBase
     // request that failed for any other reason would not meet.
     private const EARLY_SECONDS = 0.25;
 
+    // An address where nothing listens, so that a request an engine makes
+    // while it is built fails at once and the build goes on.
+    private const REFUSED_ENDPOINT = 'http://127.0.0.1:1/';
+
     /** @var null|resource */
     private static $server = null;
 
@@ -155,6 +159,7 @@ class TimeoutTests extends CloudRequestEngineTestsBase
         $client = new HttpClient();
         new CloudRequestEngine([
             'resourceKey' => self::resourceKey,
+            'cloudEndPoint' => self::REFUSED_ENDPOINT,
             'httpClient' => $client,
             'timeoutSeconds' => 5,
         ]);
@@ -163,6 +168,7 @@ class TimeoutTests extends CloudRequestEngineTestsBase
         $client->setTimeoutSeconds(3);
         new CloudRequestEngine([
             'resourceKey' => self::resourceKey,
+            'cloudEndPoint' => self::REFUSED_ENDPOINT,
             'httpClient' => $client,
         ]);
         $this->assertSame(3.0, $client->getTimeoutSeconds());

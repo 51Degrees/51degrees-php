@@ -24,6 +24,7 @@
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/CloudRequestTests.php</file>

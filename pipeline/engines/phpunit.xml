@@ -7,6 +7,7 @@
       <file>tests/EngineTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

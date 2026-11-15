@@ -45,6 +45,7 @@
       <file>tests/LoggerTargetTests.php</file>
       <file>tests/ElementDataTypedGetterTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

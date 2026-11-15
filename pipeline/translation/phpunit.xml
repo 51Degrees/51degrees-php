@@ -10,6 +10,7 @@
       <file>tests/MultipleEnginesTests.php</file>
       <file>tests/MissingTranslationErrorsTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

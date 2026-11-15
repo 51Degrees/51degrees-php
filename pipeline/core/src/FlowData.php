@@ -56,6 +56,14 @@ class FlowData
     public array $errors = [];
 
     /**
+     * The FailedElementData given for each element that failed during
+     * processing, by Data Key, made on the first request for it.
+     *
+     * @var array<string, \fiftyone\pipeline\core\FailedElementData>
+     */
+    private array $failedData = [];
+
+    /**
      * Constructor for FlowData.
      *
      * @param \fiftyone\pipeline\core\Pipeline $pipeline Parent Pipeline
@@ -146,9 +154,12 @@ class FlowData
     /**
      * Retrieve data by FlowElement key, compared ignoring case as every
      * string key is, or by a deprecated Data Key the element had before,
-     * which is logged once.
+     * which is logged once. An element that failed during processing and
+     * added no data gives FailedElementData, whose Properties have no value,
+     * because the failure is not the caller's.
      *
-     * @throws \Exception
+     * @throws \Exception when the FlowData has not been processed and holds
+     *   no data under the key, or when no element in the Pipeline has the key
      */
     public function get(string $flowElementKey): ElementData
     {
@@ -169,7 +180,41 @@ class FlowData
             return $this->data[$currentKey];
         }
 
+        $failed = $this->failedElementData($flowElementKey);
+        if ($failed !== null) {
+            return $failed;
+        }
+
         throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
+    }
+
+    /**
+     * The FailedElementData of the element the key names, in any letter case
+     * or by a deprecated Data Key, when the FlowData has been processed and
+     * the element recorded an error, or null otherwise. The same instance is
+     * given each time.
+     */
+    private function failedElementData(string $flowElementKey): ?ElementData
+    {
+        if (!$this->processed) {
+            return null;
+        }
+
+        try {
+            $element = $this->pipeline->getElement($flowElementKey);
+        } catch (\Exception $e) {
+            return null;
+        }
+
+        if (!isset($this->errors[$element->dataKey])) {
+            return null;
+        }
+
+        if (!isset($this->failedData[$element->dataKey])) {
+            $this->failedData[$element->dataKey] = new FailedElementData($element);
+        }
+
+        return $this->failedData[$element->dataKey];
     }
 
     /**

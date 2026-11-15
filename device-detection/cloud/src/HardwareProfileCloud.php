@@ -54,6 +54,10 @@ class HardwareProfileCloud extends CloudEngine
             $this->properties = $products[$this->dataKey];
         }
 
+        if ($this->setDataForFailedRequest($flowData)) {
+            return;
+        }
+
         $cloudData = self::cloudResponse($flowData);
 
         $this->logMissingProduct($flowData);

@@ -281,6 +281,30 @@ class MissingPropertyTests extends TestCase
         );
     }
 
+    /**
+     * A failed cloud request comes first, even for a property the engine's
+     * metadata lists.
+     */
+    public function testCloudRequestFailedIsTheSpecificationText()
+    {
+        $engine = $this->engine(CloudEngineBase::class, [
+            'testproperty' => ['name' => 'testProperty', 'type' => 'string'],
+        ]);
+
+        $message = null;
+        try {
+            (new MissingPropertyService(true))->check('testProperty', $engine);
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+        }
+
+        $this->assertSame(
+            self::PREFIX . 'This is because an upstream cloud request '
+            . 'failed, so no data was available to populate the property.',
+            $message
+        );
+    }
+
     public function testProductNotAccessibleIsTheSpecificationText()
     {
         $engine = $this->engine(CloudEngineBase::class, []);

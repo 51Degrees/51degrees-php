@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\cloudrequestengine;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Pipeline;
@@ -64,8 +65,8 @@ class CloudEngine extends CloudEngineBase
     /**
      * Callback called when an engine is added to a pipeline. The engine
      * takes its properties from the Cloud Request Engine, which normally
-     * has them once it is built. Where it has none yet, processInternal
-     * takes them on first use.
+     * has them once it is built, and logs a missing product then. Where it
+     * has none yet, processInternal does both on first use.
      *
      * @throws \Exception when the pipeline has no Cloud Request Engine
      */
@@ -75,6 +76,11 @@ class CloudEngine extends CloudEngineBase
         if ($cloudRequestEngine !== null) {
             if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
                 $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
+            } elseif (
+                $cloudRequestEngine instanceof CloudRequestEngine &&
+                $cloudRequestEngine->propertiesLoaded()
+            ) {
+                $this->logMissingProductIn($pipeline);
             }
 
             return;
@@ -125,6 +131,10 @@ class CloudEngine extends CloudEngineBase
         if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
             // set up properties list for the element from data in the CloudRequestEngine
             $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
+        }
+
+        if ($this->setDataForFailedRequest($flowData)) {
+            return;
         }
 
         $cloudData = self::cloudResponse($flowData);
@@ -191,15 +201,52 @@ class CloudEngine extends CloudEngineBase
      */
     protected function logMissingProduct(FlowData $flowData): void
     {
-        $products = self::cloudRequestEngine($flowData->pipeline)->flowElementProperties ?? [];
+        $this->logMissingProductIn($flowData->pipeline);
+    }
+
+    private function logMissingProductIn(Pipeline $pipeline): void
+    {
+        $products = self::cloudRequestEngine($pipeline)->flowElementProperties ?? [];
         if ($this->missingProductLogged || isset($products[$this->dataKey])) {
             return;
         }
 
         $this->missingProductLogged = true;
-        $flowData->pipeline->log('warning', sprintf(
+        $pipeline->log('warning', sprintf(
             "The Resource Key includes no product for '%s', so the engine gives no data.",
             $this->dataKey
         ));
+    }
+
+    /**
+     * Where the Cloud Request Engine's request for the FlowData failed, so
+     * that it has an error and no response, sets Element Data with no
+     * values whose every property gives the CloudRequestFailed reason, and
+     * returns true. The Cloud Request Engine's error stays the FlowData's
+     * error.
+     */
+    protected function setDataForFailedRequest(FlowData $flowData): bool
+    {
+        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+        if (
+            $cloudRequestEngine === null ||
+            isset($flowData->data[$cloudRequestEngine->dataKey]) ||
+            !isset($flowData->errors[$cloudRequestEngine->dataKey])
+        ) {
+            return false;
+        }
+
+        $flowData->setElementData(new CloudRequestFailedData($this));
+
+        return true;
+    }
+
+    /**
+     * Element Data set for a failed cloud request is not cached, so that
+     * the next request with the same Evidence asks the cloud service again.
+     */
+    protected function holdsValueForOneRequest(ElementData $data): bool
+    {
+        return $data instanceof CloudRequestFailedData;
     }
 }

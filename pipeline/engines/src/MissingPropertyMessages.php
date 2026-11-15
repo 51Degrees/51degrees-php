@@ -69,6 +69,13 @@ class MissingPropertyMessages
         'the properties you need in the configurator at ' .
         'https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=product_not_in_cloud_resource.';
     /**
+     * The cloud request for this FlowData failed, so the cloud engine had no
+     * response to read. This takes no format arguments.
+     */
+    public const CLOUD_REQUEST_FAILED =
+        'This is because an upstream cloud request failed, so no data was ' .
+        'available to populate the property.';
+    /**
      * The engine was a cloud engine, and the resource key does not contain the
      * required property (e.g. hardwarename). This takes the Data Key of the
      * engine and the properties the resource contains, joined with a comma,

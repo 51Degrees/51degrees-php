@@ -42,6 +42,13 @@ class Logger
     public const FILE_SETTING = 'file';
 
     /**
+     * The level used when none, or one the Logger does not know, is given.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/reference-implementation-notes.md#builders
+     */
+    public const DEFAULT_LEVEL = 'error';
+
+    /**
      * The PHP error_log message type that adds the message to a location.
      */
     private const ERROR_LOG_APPEND = 3;
@@ -62,7 +69,7 @@ class Logger
      * Create a logger.
      *
      * @param null|string $level Values: 'trace', 'debug', 'info', 'warning', 'error', 'critical'.
-     *   Defaults to 'error'.
+     *   Defaults to DEFAULT_LEVEL.
      * @param array<string, mixed> $settings Custom settings for a logger,
      *   including FILE_SETTING, the location entries are added to, which
      *   has no default
@@ -72,7 +79,7 @@ class Logger
         $level = strtolower((string) $level);
 
         if (!in_array($level, $this->levels)) {
-            $level = 'error';
+            $level = self::DEFAULT_LEVEL;
         }
 
         $this->settings = $settings;

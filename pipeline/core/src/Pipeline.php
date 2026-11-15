@@ -75,6 +75,20 @@ class Pipeline
     ];
 
     /**
+     * The default of each setting, used where the settings leave it out. A
+     * null logger gives a Logger at Logger::DEFAULT_LEVEL with no file
+     * setting, which writes nothing.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/reference-implementation-notes.md#builders
+     */
+    public const DEFAULTS = [
+        'logger' => null,
+        'metaDataStore' => null,
+        'suppressProcessExceptions' => false,
+        'autoCloseElements' => true,
+    ];
+
+    /**
      * @var array<\fiftyone\pipeline\core\FlowElement>
      */
     private array $flowElements;
@@ -140,14 +154,15 @@ class Pipeline
      *
      * @param array<\fiftyone\pipeline\core\FlowElement> $flowElements List of FlowElements
      * @param array<string, mixed> $settings The logger, metaDataStore,
-     *   suppressProcessExceptions and autoCloseElements settings
+     *   suppressProcessExceptions and autoCloseElements settings, whose
+     *   defaults are in DEFAULTS
      */
     public function __construct(array $flowElements, array $settings)
     {
         $this->logger = $settings['logger'] ?? new Logger(null);
-        $this->metaDataStore = $settings['metaDataStore'] ?? null;
-        $this->suppressProcessExceptions = (bool) ($settings['suppressProcessExceptions'] ?? false);
-        $this->autoCloseElements = (bool) ($settings['autoCloseElements'] ?? true);
+        $this->metaDataStore = $settings['metaDataStore'] ?? self::DEFAULTS['metaDataStore'];
+        $this->suppressProcessExceptions = (bool) ($settings['suppressProcessExceptions'] ?? self::DEFAULTS['suppressProcessExceptions']);
+        $this->autoCloseElements = (bool) ($settings['autoCloseElements'] ?? self::DEFAULTS['autoCloseElements']);
 
         $this->flowElements = $flowElements;
 

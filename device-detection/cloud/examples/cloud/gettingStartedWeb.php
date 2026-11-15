@@ -96,8 +96,9 @@ function main()
     }
     
     if (empty($resourceKey)) {
-        $message = "No resource key specified in CLI args or environment variable '" .
-            ExampleUtils::RESOURCE_KEY_ENV_VAR . "'." . PHP_EOL .
+        $message = "No resource key specified in the environment variable '" .
+            ExampleUtils::RESOURCE_KEY_ENV_VAR . "' or the query parameter '" .
+            ExampleUtils::RESOURCE_KEY_QUERY_PARAM . "'." . PHP_EOL .
             "The 51Degrees cloud service is accessed using a 'ResourceKey'. " .
             "For more detail see " .
             "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedweb.php&utm_term=resource-key-required. " .
@@ -107,7 +108,7 @@ function main()
             "Once complete, populate the environment variable " .
             "mentioned at the start of this message with the key.";
 
-        ExampleUtils::logErrorAndExit($logger, $message, __FILE__);
+        ExampleUtils::endWithoutResourceKey($message, __FILE__);
     }
 
     (new GettingStartedWeb())->run($resourceKey, $logger, function($message) { echo $message; });

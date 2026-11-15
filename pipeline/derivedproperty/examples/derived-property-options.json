@@ -1,0 +1,15 @@
+{
+  "PipelineOptions": {
+    "Elements": [
+      {
+        "BuilderName": "SessionElement"
+      },
+      {
+        "BuilderName": "fiftyone\\pipeline\\derivedproperty\\DerivedPropertyElement",
+        "BuildParameters": {
+          "ScriptFiles": "ReaderEngagement.yaml"
+        }
+      }
+    ]
+  }
+}

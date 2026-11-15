@@ -148,7 +148,7 @@ class MissingPropertyHandling extends TestCase
                     'property3',
                     'testElement',
                     'testElement',
-                    'property1, property2'
+                    'property1,property2'
                 ),
                 $ex->getMessage()
             );

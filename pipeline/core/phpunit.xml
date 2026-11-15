@@ -8,6 +8,7 @@
       <file>tests/JavaScriptBuilderObjectNameTests.php</file>
       <file>tests/JavaScriptBuilderSequenceTests.php</file>
       <file>tests/CallbackUrlTests.php</file>
+      <file>tests/JsonBundlerWktTests.php</file>
       <file>tests/EnableCookiesTests.php</file>
       <file>tests/FlowDataTests.php</file>
       <file>tests/CloseTests.php</file>
@@ -22,6 +23,8 @@
       <file>tests/JsonBundlerKeysTests.php</file>
       <file>tests/LicenseKeyTests.php</file>
       <file>tests/JsonBundlerNullTests.php</file>
+      <file>tests/RequestLineEvidenceTests.php</file>
+      <file>tests/AspectPropertyValueTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

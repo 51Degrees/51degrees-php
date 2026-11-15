@@ -77,7 +77,7 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"]))
                 "environment variable mentioned at the start of this message with the " .
                 "resource key or pass it as the first argument on the command line.";
 
-            ExampleUtils::logErrorAndExit($logger, $message, __FILE__);
+            ExampleUtils::endWithoutResourceKey($message, __FILE__);
         }
 
         (new NativeModelLookupConsole())->run($resourceKey, $logger, [ExampleUtils::class, 'output']);

@@ -126,9 +126,10 @@ function readVariable(string $name, string $deprecated): string
 // The resource key is public by nature and names the account.
 $resource = readVariable('_51DEGREES_RESOURCE_KEY', 'RESOURCE_KEY');
 if (!$resource) {
-    // The page cannot be served without the key, so it says where to
-    // create one, then gives the links to find out more.
-    http_response_code(500);
+    // The demo cannot run without the key, so the page says where to
+    // create one, then gives the links to find out more. Having no key is
+    // how a person running the demo from a fresh clone starts, so the page
+    // is answered with success rather than an error status.
     $configure = htmlspecialchars(
         'https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-creator-context-web-server.php&utm_term=resource-key-required'
     );

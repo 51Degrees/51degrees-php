@@ -10,10 +10,12 @@
       <file>tests/MissingPropertyHandling.php</file>
       <file>tests/RequestValueCacheTests.php</file>
       <file>tests/HttpClientFailureTests.php</file>
+      <file>tests/CloudEngineWktTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>
       <file>tests/CloudAllEvidenceTests.php</file>
       <file>tests/MissingProductTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/ExampleTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/CloudRequestTests.php</file>

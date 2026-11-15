@@ -41,6 +41,12 @@ class Messages
     public const FLOW_DATA_PROCESSED = 'FlowData already processed';
 
     /**
+     * Thrown when flowElements or flowElementsList is set on a Pipeline. This
+     * takes the name of the property as a format argument.
+     */
+    public const PIPELINE_IMMUTABLE = "A Pipeline cannot be changed once it is built, so '%s' cannot be set. Build a new Pipeline with the FlowElements it needs instead.";
+
+    /**
      * A client-side response was asked for with a FlowData that has been
      * processed, so the Evidence the request supplied cannot be told from
      * the Evidence processing added.

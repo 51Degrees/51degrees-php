@@ -74,9 +74,11 @@ class JsonBundlerElement extends FlowElement
     public array $json;
 
     /**
-     * @var array<string, mixed>
+     * What the JSON needs from the Property metadata of the elements of each
+     * Pipeline the bundler is in, worked out once for each Pipeline, because
+     * an element can be in Pipelines with different elements.
      */
-    private array $propertyCache = [];
+    private ?\SplObjectStorage $propertyCaches = null;
 
     /**
      * The JSONBundler accepts no Evidence. It reads the Element Data of the
@@ -142,12 +144,10 @@ class JsonBundlerElement extends FlowElement
             'javascriptProperties' => []
         ];
 
-        if (count($this->propertyCache)) {
-            $propertyCacheSet = true;
-        } else {
-            $propertyCacheSet = false;
-            $this->propertyCache = [];
-        }
+        $this->propertyCaches = $this->propertyCaches ?? new \SplObjectStorage();
+        $pipeline = $flowData->pipeline;
+        $propertyCacheSet = $this->propertyCaches->contains($pipeline);
+        $pipelineCache = $propertyCacheSet ? $this->propertyCaches[$pipeline] : [];
 
         foreach ($flowData->pipeline->flowElements as $flowElement) {
             if (in_array($flowElement->dataKey, self::EXCLUDED_DATA_KEYS, true)) {
@@ -191,13 +191,13 @@ class JsonBundlerElement extends FlowElement
                     }
                 }
 
-                $this->propertyCache[$flowElement->dataKey] = [
+                $pipelineCache[$flowElement->dataKey] = [
                     'delayExecutionList' => $delayExecutionList,
                     'evidenceProperties' => $delayedEvidenceProperties
                 ];
             }
 
-            $propertyCache = $this->propertyCache[$flowElement->dataKey];
+            $propertyCache = $pipelineCache[$flowElement->dataKey];
 
             // Create empty area for FlowElement properties to go. Every key in
             // the JSON is lower case.
@@ -270,6 +270,10 @@ class JsonBundlerElement extends FlowElement
                     }
                 }
             }
+        }
+
+        if (!$propertyCacheSet) {
+            $this->propertyCaches[$pipeline] = $pipelineCache;
         }
 
         $data = new ElementDataDictionary($this, ['json' => $output]);

@@ -29,19 +29,32 @@ namespace fiftyone\pipeline\core;
  * Pipeline holding a list of FlowElements for processing,
  * can create FlowData that will be passed through these,
  * collecting ElementData
- * Should be constructed through the PipelineBuilder class.
+ * Should be constructed through the PipelineBuilder class. A Pipeline
+ * cannot be changed once it is built, so its elements can be read but not
+ * changed.
+ *
+ * @property-read array<\fiftyone\pipeline\core\FlowElement> $flowElements
+ *   The FlowElements, in the order they run
+ * @property-read array<string, \fiftyone\pipeline\core\FlowElement> $flowElementsList
+ *   The FlowElements by Data Key
  */
 class Pipeline
 {
     /**
+     * The element lists, which __get gives as copies and __set refuses, so
+     * that the Pipeline cannot be changed once it is built.
+     */
+    private const ELEMENT_LISTS = ['flowElements', 'flowElementsList'];
+
+    /**
      * @var array<\fiftyone\pipeline\core\FlowElement>
      */
-    public array $flowElements;
+    private array $flowElements;
 
     /**
      * @var array<string, \fiftyone\pipeline\core\FlowElement>
      */
-    public array $flowElementsList = [];
+    private array $flowElementsList = [];
     public Logger $logger;
 
     /** @phpstan-ignore-next-line */
@@ -100,12 +113,19 @@ class Pipeline
     }
 
     /**
-     * Builds propertyDatabase from every element when it is first read.
+     * Gives a copy of flowElements or flowElementsList, and builds
+     * propertyDatabase from every element when it is first read.
      *
      * @return mixed
      */
     public function &__get(string $name)
     {
+        if (in_array($name, self::ELEMENT_LISTS, true)) {
+            $copy = $this->{$name};
+
+            return $copy;
+        }
+
         if ($name !== 'propertyDatabase') {
             trigger_error(
                 sprintf('Undefined property: %s::$%s', static::class, $name),
@@ -122,6 +142,33 @@ class Pipeline
         }
 
         return $this->propertyDatabase;
+    }
+
+    /**
+     * Whether a property read through __get is there, so that isset, ?? and
+     * empty read it. The element lists always are, and so is
+     * propertyDatabase, which __get builds when it is first read.
+     */
+    public function __isset(string $name): bool
+    {
+        return in_array($name, self::ELEMENT_LISTS, true) ||
+            $name === 'propertyDatabase';
+    }
+
+    /**
+     * Refuses to set flowElements or flowElementsList, because a Pipeline
+     * cannot be changed once it is built. Any other property is set.
+     *
+     * @param mixed $value
+     * @throws \Exception
+     */
+    public function __set(string $name, $value): void
+    {
+        if (in_array($name, self::ELEMENT_LISTS, true)) {
+            throw new \Exception(sprintf(Messages::PIPELINE_IMMUTABLE, $name));
+        }
+
+        $this->{$name} = $value;
     }
 
     /**
@@ -206,8 +253,9 @@ class Pipeline
     public function updatePropertyDatabaseForFlowElement(FlowElement $flowElement): void
     {
         // Before its first read there is no database, and the read builds
-        // it from the properties the elements have then.
-        if (!isset($this->propertyDatabase)) {
+        // it from the properties the elements have then. The check does not
+        // go through __isset, which would build it.
+        if (!array_key_exists('propertyDatabase', get_object_vars($this))) {
             return;
         }
 

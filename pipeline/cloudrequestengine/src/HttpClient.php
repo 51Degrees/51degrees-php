@@ -174,12 +174,18 @@ class HttpClient
     private function validateResponse(string $cloudResponse, int $httpStatusCode, array $httpResponseHeaders, string $url): void
     {
         $message = null;
+        $errors = [];
+        $warnings = [];
 
         if ($cloudResponse) {
             $json = json_decode($cloudResponse, true);
+            if (is_array($json)) {
+                $errors = self::entries($json, 'errors');
+                $warnings = self::entries($json, 'warnings');
+            }
 
-            if (isset($json['errors']) && count($json['errors'])) {
-                $message = implode(',', $json['errors']);
+            if (count($errors) > 0) {
+                $message = implode(',', $errors);
             } elseif ($httpStatusCode !== 200) {
                 // If there were no errors returned but the response code was non
                 // success then throw an exception.
@@ -199,7 +205,36 @@ class HttpClient
                 sprintf(Constants::EXCEPTION_CLOUD_ERROR, $message)
             );
 
-            throw new CloudRequestException($cloudError, $httpStatusCode, $responseHeaders);
+            throw new CloudRequestException(
+                $cloudError,
+                $httpStatusCode,
+                $responseHeaders,
+                array_map([LicenseKey::class, 'maskQuery'], $errors),
+                array_map([LicenseKey::class, 'maskQuery'], $warnings)
+            );
         }
+    }
+
+    /**
+     * The entries of an array in the response as text, or none where the
+     * response has no such array.
+     *
+     * @param array<mixed> $json The decoded response
+     * @return array<string>
+     */
+    private static function entries(array $json, string $name): array
+    {
+        if (!isset($json[$name]) || !is_array($json[$name])) {
+            return [];
+        }
+
+        $entries = [];
+        foreach ($json[$name] as $entry) {
+            $entries[] = is_scalar($entry)
+                ? (string) $entry
+                : (string) json_encode($entry);
+        }
+
+        return $entries;
     }
 }

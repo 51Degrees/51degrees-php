@@ -172,8 +172,8 @@ class DiscoveryTests extends TestCase
         $flowData->evidence->set('query.User-Agent', 'iPhone');
         $flowData->process();
 
-        $this->assertArrayHasKey('cloud', $flowData->errors);
-        $this->assertStringContainsString('down', $flowData->errors['cloud']->getMessage());
+        $this->assertArrayHasKey($engine->dataKey, $flowData->errors);
+        $this->assertStringContainsString('down', $flowData->errors[$engine->dataKey]->getMessage());
     }
 
     /**

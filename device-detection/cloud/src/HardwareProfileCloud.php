@@ -47,6 +47,9 @@ class HardwareProfileCloud extends CloudEngine
         // The properties are the hardware product's, as the Cloud Request
         // Engine found them, so that the JSON Bundler writes 'profiles'.
         $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+        if ($cloudRequestEngine !== null) {
+            $this->readMetadataState($cloudRequestEngine);
+        }
         $products = $cloudRequestEngine !== null
             ? $cloudRequestEngine->flowElementProperties
             : [];

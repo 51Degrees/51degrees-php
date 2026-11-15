@@ -353,6 +353,15 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
+     * The tier of the data file in use, which a missing property message
+     * compares with the data files the property is present in.
+     */
+    public function getDataSourceTier(): string
+    {
+        return $this->getProduct();
+    }
+
+    /**
      * Builds the table of every available property when it is first
      * read.
      *

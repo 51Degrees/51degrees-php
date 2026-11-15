@@ -1,0 +1,73 @@
+name: tmp php depkey red
+# Throwaway. Runs the Unit suite of pipeline/core on the draft's head, then
+# the new tests with Pipeline.php as it is on rc 12cba0f4.
+on:
+  push:
+    branches:
+      - tmp/php-depkey-red
+permissions:
+  contents: read
+jobs:
+  red:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Head, then rc's Pipeline.php
+        run: |
+          set +e
+          mkdir -p junit
+          packages="pipeline/core"
+          for package in $packages; do
+            mkdir -p "$package/vendor"
+            printf '%s\n' '<?php' "return require __DIR__ . '/../../../vendor/autoload.php';" > "$package/vendor/autoload.php"
+          done
+          run() {
+            name=$1; shift
+            for package in $packages; do
+              out="$GITHUB_WORKSPACE/junit/$name-$(echo $package | tr / -).xml"
+              echo "::group::$name $package"
+              (cd "$package" && ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --testsuite Unit --log-junit "$out" "$@")
+              echo "exit $? for $name $package"
+              echo "::endgroup::"
+            done
+          }
+          NEW='testADeprecatedKeyInOtherLettersFindsTheElementAndData|testADeprecatedKeyIsLoggedOnceWhateverItsLetters|testTheDeprecatedKeyIsLoggedOnceAsAWarning'
+          run head
+          git fetch -q --depth 1 origin 12cba0f4e2df0faddbb5f755db4a9650a653f812
+          git checkout FETCH_HEAD -- pipeline/core/src/Pipeline.php
+          run rc-source --filter "$NEW"
+          exit 0
+      - name: Each test's result
+        shell: python
+        run: |
+          import glob, xml.etree.ElementTree as ET
+          def results(name):
+              out = {}
+              for f in glob.glob(f'junit/{name}-*.xml'):
+                  for case in ET.parse(f).getroot().iter('testcase'):
+                      failed = case.find('failure') is not None or case.find('error') is not None
+                      out[case.get('name')] = 'fail' if failed else 'pass'
+              return out
+          head, rc = results('head'), results('rc-source')
+          bad = {k: v for k, v in head.items() if v != 'pass'}
+          print(f'head: {len(head)} tests, {sum(v == "pass" for v in head.values())} passed, not passed: {bad}')
+          want = {'testADeprecatedKeyInOtherLettersFindsTheElementAndData': 'fail', 'testADeprecatedKeyIsLoggedOnceWhateverItsLetters': 'fail', 'testTheDeprecatedKeyIsLoggedOnceAsAWarning': 'pass'}
+          ok = not bad
+          for t, outcome in want.items():
+              print(f'{t}: head {head.get(t)}, rc Pipeline.php {rc.get(t)} (expected {outcome})')
+              ok = ok and head.get(t) == 'pass' and rc.get(t) == outcome
+          print('RESULT', 'as expected' if ok else 'NOT as expected')
+          raise SystemExit(0 if ok else 1)

@@ -63,7 +63,8 @@ try {
     $env:PAID_RESOURCE_KEY = "not-used-by-the-on-premise-example"
     $env:EXAMPLE_URL = "http://localhost:$port"
     $env:EXAMPLE_LANG = 'php'
-    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract
+    # Normal verbosity prints each test's time, passed or failed.
+    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"
     if ($LASTEXITCODE -ne 0) {
         throw "The Selenium contract tests failed against the on-premise web example"
     }

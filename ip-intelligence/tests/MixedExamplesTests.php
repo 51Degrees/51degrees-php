@@ -65,6 +65,10 @@ class MixedExamplesTests extends TestCase
     // given to answer. Loading the free files takes seconds.
     private const SERVER_START_SECONDS = 600;
 
+    // How many times PHP loads the extension with dl(). The C library stops
+    // PHP for a damaged heap only some of the time.
+    private const DL_RUNS = 10;
+
     private const IPHONE =
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ' .
         'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 ' .
@@ -161,30 +165,34 @@ class MixedExamplesTests extends TestCase
      * An extension loaded with dl() starts after PHP has, and registers the
      * earlier class names when the request it is loaded in starts. dl() takes
      * a file name in extension_dir, and no ini file is read, so that no other
-     * extension is looked for there.
+     * extension is looked for there. PHP unloads the extension when the
+     * request ends, and must then stop cleanly every time.
      */
     public function testEarlierClassNamesAreKeptAfterDl(): void
     {
         $ipi = self::IP_INTELLIGENCE;
         $extension = (string) realpath(self::IP_INTELLIGENCE_EXTENSION);
-        $this->assertSame(
-            [
-                'EngineIpiSwig' => "FiftyOneDegreesIpiEngineIpiSwig {$ipi}",
-                'ConfigIpiSwig' => "FiftyOneDegreesIpiConfigIpiSwig {$ipi}",
-                'VectorStringSwig' => "FiftyOneDegreesIpiVectorStringSwig {$ipi}",
-                'RequiredPropertiesConfigSwig' =>
-                    "FiftyOneDegreesIpiRequiredPropertiesConfigSwig {$ipi}",
-                $ipi => "FiftyOneDegreesIpi {$ipi}",
-            ],
-            $this->earlierNames(
-                [
-                    '-n',
-                    '-d', 'enable_dl=1',
-                    '-d', 'extension_dir=' . dirname($extension),
-                ],
-                'dl(' . var_export(basename($extension), true) . ');'
-            )
-        );
+        $expected = [
+            'EngineIpiSwig' => "FiftyOneDegreesIpiEngineIpiSwig {$ipi}",
+            'ConfigIpiSwig' => "FiftyOneDegreesIpiConfigIpiSwig {$ipi}",
+            'VectorStringSwig' => "FiftyOneDegreesIpiVectorStringSwig {$ipi}",
+            'RequiredPropertiesConfigSwig' =>
+                "FiftyOneDegreesIpiRequiredPropertiesConfigSwig {$ipi}",
+            $ipi => "FiftyOneDegreesIpi {$ipi}",
+        ];
+        for ($run = 0; $run < self::DL_RUNS; $run++) {
+            $this->assertSame(
+                $expected,
+                $this->earlierNames(
+                    [
+                        '-n',
+                        '-d', 'enable_dl=1',
+                        '-d', 'extension_dir=' . dirname($extension),
+                    ],
+                    'dl(' . var_export(basename($extension), true) . ');'
+                )
+            );
+        }
     }
 
     /**

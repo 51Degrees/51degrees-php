@@ -24,6 +24,7 @@
 namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\tests\classes\ErrorFlowData;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement2;
 use fiftyone\pipeline\core\tests\classes\MemoryLogger;
@@ -158,5 +159,30 @@ class CoreTests extends TestCase
 
         $flowElement1->updatePropertyList();
         $this->assertCount(1, $flowData->getWhere('testing', 'true'));
+    }
+
+    /**
+     * suppressProcessExceptions given to the builder reaches the Pipeline
+     * it builds, from code and from a configuration, so an element that
+     * fails leaves its error in the Flow Data rather than throwing.
+     */
+    public function testSuppressProcessExceptionsReachesThePipeline()
+    {
+        $settings = ['suppressProcessExceptions' => true];
+        $built = (new PipelineBuilder($settings))
+            ->add(new ErrorFlowData())
+            ->build();
+        $configured = (new PipelineBuilder($settings))->buildFromConfig([
+            'PipelineOptions' => [
+                'Elements' => [['BuilderName' => ErrorFlowData::class]]
+            ]
+        ]);
+
+        foreach (['built' => $built, 'configured' => $configured] as $how => $pipeline) {
+            $this->assertTrue($pipeline->suppressProcessExceptions, $how);
+            $flowData = $pipeline->createFlowData();
+            $flowData->process();
+            $this->assertArrayHasKey('error', $flowData->errors, $how);
+        }
     }
 }

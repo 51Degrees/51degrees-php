@@ -39,6 +39,12 @@ class AspectPropertyValue
      */
     public const NO_VALUE_MESSAGE = 'This instance does not have a set value';
 
+    /**
+     * The constructor's value when none is given, which no caller can pass,
+     * so that any value given, the text noValue included, is kept.
+     */
+    private const NO_VALUE_GIVEN = "\0no value given";
+
     public ?string $noValueMessage = null;
     public bool $hasValue = false;
 
@@ -53,9 +59,11 @@ class AspectPropertyValue
      * @param null|string $noValueMessage Reason why the value is missing
      * @param mixed $value
      */
-    public function __construct(?string $noValueMessage = null, $value = 'noValue')
-    {
-        if ($value !== 'noValue') {
+    public function __construct(
+        ?string $noValueMessage = null,
+        $value = self::NO_VALUE_GIVEN
+    ) {
+        if ($value !== self::NO_VALUE_GIVEN) {
             $this->value = $value;
             $this->noValueMessage = null;
             $this->hasValue = true;

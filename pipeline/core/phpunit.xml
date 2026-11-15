@@ -1,9 +1,15 @@
 <phpunit bootstrap="vendor/autoload.php">
   <testsuites>
+    <!-- Timed, so run only by ci/run-performance-tests.ps1. -->
+    <testsuite name="Performance">
+      <file>tests/JavaScriptBuilderPerformanceTests.php</file>
+    </testsuite>
     <testsuite name="Unit">
       <file>tests/CoreTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/JavaScriptBundlerTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyTests.php</file>
+      <file>tests/JsonBundlerListTests.php</file>
       <file>tests/JavaScriptBuilderParametersTests.php</file>
       <file>tests/JavaScriptBuilderObjectNameTests.php</file>
       <file>tests/JavaScriptBuilderSequenceTests.php</file>

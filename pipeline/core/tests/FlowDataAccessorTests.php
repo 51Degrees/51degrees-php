@@ -40,13 +40,12 @@ class FlowDataAccessorTests extends TestCase
 {
     private static function flowData(bool $withFailingElement): FlowData
     {
-        $builder = (new PipelineBuilder())->add(new ExampleFlowElement1());
+        $builder = (new PipelineBuilder(['suppressProcessExceptions' => true]))
+            ->add(new ExampleFlowElement1());
         if ($withFailingElement) {
             $builder->add(new ErrorFlowData());
         }
-        $pipeline = $builder->build();
-        $pipeline->suppressProcessExceptions = true;
-        $flowData = $pipeline->createFlowData();
+        $flowData = $builder->build()->createFlowData();
         $flowData->evidence->set('header.user-agent', 'agent');
 
         return $flowData;

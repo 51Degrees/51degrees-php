@@ -201,8 +201,8 @@ class DiscoveryTests extends TestCase
         $pipeline = (new PipelineBuilder([
             'addJavaScriptBuilder' => false,
             'useSetHeaderProperties' => false,
+            'suppressProcessExceptions' => true,
         ]))->add($engine)->build();
-        $pipeline->suppressProcessExceptions = true;
 
         $flowData = $pipeline->createFlowData();
         $flowData->evidence->set('query.User-Agent', 'iPhone');

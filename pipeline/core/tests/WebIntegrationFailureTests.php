@@ -43,16 +43,13 @@ class WebIntegrationFailureTests extends TestCase
 {
     private static function pipeline(): Pipeline
     {
-        $pipeline = (new PipelineBuilder([
+        return (new PipelineBuilder([
             'javascriptBuilderSettings' => [
                 'endpoint' => '/json',
                 'minify' => false
             ],
+            'suppressProcessExceptions' => true,
         ]))->add(new UnreachableElement())->build();
-        // Set on the Pipeline, where FlowData::process reads it.
-        $pipeline->suppressProcessExceptions = true;
-
-        return $pipeline;
     }
 
     /**

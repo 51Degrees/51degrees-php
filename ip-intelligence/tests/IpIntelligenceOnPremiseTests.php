@@ -715,9 +715,13 @@ class IpIntelligenceOnPremiseTests extends TestCase
             $this->assertFalse(
                 (new \ReflectionProperty($engine, 'properties'))->isInitialized($engine)
             );
-            $this->assertFalse(
-                (new \ReflectionProperty($pipeline, 'propertyDatabase'))->isInitialized($pipeline)
-            );
+            $database = new \ReflectionProperty($pipeline, 'propertyDatabase');
+            // Reflection reads a private property before PHP 8.1 only once
+            // it is made accessible.
+            if (PHP_VERSION_ID < 80100) {
+                $database->setAccessible(true);
+            }
+            $this->assertFalse($database->isInitialized($pipeline));
             $this->assertSame(Constants::IPV4_ADDRESS, $values['ip']);
 
             // The table holds every available property in the data set as

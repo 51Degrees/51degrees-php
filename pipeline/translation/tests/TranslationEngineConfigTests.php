@@ -251,7 +251,8 @@ class TranslationEngineConfigTests extends TestCase
      */
     public function testFlowErrorRecordsAMissingTranslation(): void
     {
-        $pipeline = (new PipelineBuilder())
+        // Keep the error in the FlowData rather than throw it from process.
+        $pipeline = (new PipelineBuilder(['suppressProcessExceptions' => true]))
             ->add(new SourceElement())
             ->add(new TranslationEngine(
                 'translated',
@@ -262,8 +263,6 @@ class TranslationEngineConfigTests extends TestCase
                 MissingTranslationBehavior::FLOW_ERROR
             ))
             ->build();
-        // Keep the error in the FlowData rather than throw it from process.
-        $pipeline->suppressProcessExceptions = true;
         $flowData = $pipeline->createFlowData();
         try {
             $flowData->process();

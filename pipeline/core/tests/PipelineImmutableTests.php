@@ -28,7 +28,10 @@ namespace fiftyone\pipeline\core\tests;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\FlowElement;
+use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\Pipeline;
+use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\tests\classes\ErrorFlowData;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -143,5 +146,199 @@ class PipelineImmutableTests extends TestCase
             $this->assertStringContainsString($name, $refusal);
         }
         $this->assertSame(['first'], self::ran($pipeline));
+    }
+
+    /**
+     * Each setting is given when the Pipeline is built, to the
+     * PipelineBuilder or to the Pipeline, and is read from the Pipeline.
+     */
+    public function testTheSettingsAreGivenWhenThePipelineIsBuilt()
+    {
+        $logger = new Logger('info');
+        $store = new \stdClass();
+        $settings = [
+            'logger' => $logger,
+            'metaDataStore' => $store,
+            'suppressProcessExceptions' => true,
+            'autoCloseElements' => false,
+        ];
+        $pipelines = [
+            'builder' => (new PipelineBuilder($settings))
+                ->add(new RanElement('first'))
+                ->build(),
+            'pipeline' => new Pipeline([new RanElement('first')], $settings),
+        ];
+
+        foreach ($pipelines as $how => $pipeline) {
+            $this->assertSame($logger, $pipeline->logger, $how);
+            $this->assertSame($store, $pipeline->metaDataStore, $how);
+            $this->assertTrue($pipeline->suppressProcessExceptions, $how);
+            $this->assertFalse($pipeline->autoCloseElements, $how);
+            foreach (array_keys($settings) as $name) {
+                $this->assertTrue(isset($pipeline->{$name}), "{$how} {$name}");
+            }
+        }
+
+        $pipeline = self::pipeline();
+        $this->assertInstanceOf(Logger::class, $pipeline->logger);
+        $this->assertFalse(isset($pipeline->metaDataStore));
+        $this->assertFalse($pipeline->suppressProcessExceptions);
+        $this->assertTrue($pipeline->autoCloseElements);
+    }
+
+    public function testTheLoggerCannotBeSet()
+    {
+        $logger = self::keepingLogger();
+        $pipeline = new Pipeline(
+            [new RanElement('first')],
+            ['logger' => $logger]
+        );
+
+        $this->assertSettingRefused($pipeline, 'logger', self::keepingLogger());
+
+        $this->assertSame($logger, $pipeline->logger);
+        $pipeline->log('error', 'logged');
+        $this->assertSame(['logged'], $logger->messages);
+    }
+
+    public function testTheMetaDataStoreCannotBeSet()
+    {
+        $pipeline = new Pipeline(
+            [new RanElement('first')],
+            ['metaDataStore' => 'built']
+        );
+
+        $this->assertSettingRefused($pipeline, 'metaDataStore', 'other');
+
+        $this->assertSame('built', $pipeline->metaDataStore);
+    }
+
+    /**
+     * The Pipeline still throws the error of an element that fails.
+     */
+    public function testSuppressProcessExceptionsCannotBeSet()
+    {
+        $pipeline = new Pipeline([new ErrorFlowData()], []);
+
+        $this->assertSettingRefused(
+            $pipeline,
+            'suppressProcessExceptions',
+            true
+        );
+
+        $this->assertFalse($pipeline->suppressProcessExceptions);
+        $flowData = $pipeline->createFlowData();
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Something went wrong');
+        $flowData->process();
+    }
+
+    /**
+     * Closing the Pipeline still closes its elements.
+     */
+    public function testAutoCloseElementsCannotBeSet()
+    {
+        $element = new class() extends RanElement {
+            public int $closes = 0;
+
+            public function __construct()
+            {
+                parent::__construct('first');
+            }
+
+            public function close(): void
+            {
+                ++$this->closes;
+            }
+        };
+        $pipeline = new Pipeline([$element], []);
+
+        $this->assertSettingRefused($pipeline, 'autoCloseElements', false);
+
+        $this->assertTrue($pipeline->autoCloseElements);
+        $pipeline->close();
+        $this->assertSame(1, $element->closes);
+    }
+
+    /**
+     * The database the Pipeline builds from its elements' properties can be
+     * read, but neither replaced nor changed.
+     */
+    public function testThePropertyDatabaseCannotBeSet()
+    {
+        $pipeline = self::pipeline();
+        $built = $pipeline->propertyDatabase;
+
+        $refusal = null;
+        try {
+            $pipeline->propertyDatabase = [];
+        } catch (\Exception $e) {
+            $refusal = $e->getMessage();
+        }
+        $this->assertNotNull($refusal, 'propertyDatabase was replaced.');
+        $this->assertStringContainsString("'propertyDatabase'", $refusal);
+
+        $pipeline->propertyDatabase['type'] = [];
+
+        $this->assertArrayHasKey('bool', $built['type']);
+        $this->assertSame($built, $pipeline->propertyDatabase);
+    }
+
+    /**
+     * Nor can a property the Pipeline keeps to itself be set from outside.
+     */
+    public function testNoOtherPropertyItDeclaresCanBeSet()
+    {
+        $pipeline = self::pipeline();
+
+        foreach (['deprecatedDataKeys', 'deprecatedDataKeysLogged'] as $name) {
+            $refusal = null;
+            try {
+                $pipeline->{$name} = ['other' => 'first'];
+            } catch (\Exception $e) {
+                $refusal = $e->getMessage();
+            }
+            $this->assertNotNull($refusal, "{$name} was set.");
+            $this->assertStringContainsString("'{$name}'", $refusal);
+        }
+        $this->assertSame(['first'], self::ran($pipeline));
+    }
+
+    /**
+     * Sets the property, and checks that this is refused with a message
+     * that names it and says to give it in the settings.
+     *
+     * @param mixed $value
+     */
+    private function assertSettingRefused(
+        Pipeline $pipeline,
+        string $name,
+        $value
+    ): void {
+        $refusal = null;
+        try {
+            $pipeline->{$name} = $value;
+        } catch (\Exception $e) {
+            $refusal = $e->getMessage();
+        }
+        $this->assertNotNull($refusal, "{$name} was set.");
+        $this->assertStringContainsString("'{$name}'", $refusal);
+        $this->assertStringContainsString('settings', $refusal);
+    }
+
+    /**
+     * A logger that keeps the message of every entry.
+     */
+    private static function keepingLogger(): Logger
+    {
+        return new class ('trace') extends Logger {
+            /** @var array<string> */
+            public array $messages = [];
+
+            public function logInternal(array $log): void
+            {
+                $this->messages[] = $log['message'];
+            }
+        };
     }
 }

@@ -28,16 +28,20 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Runs the examples as someone runs them from a fresh clone, with no
- * resource key set, each in its own PHP. Each must say where to create a
- * resource key, with a tagged link to the configuration page, and end with
- * the Find out more section, with every 51degrees.com link it prints
- * tagged. What status an example exits with when no key is set is not
- * checked here.
+ * resource key set, the console examples each in its own PHP and the pages
+ * with PHP's built-in server. Each must name the environment variable to
+ * set, say where to create a resource key, with a tagged link to the
+ * configuration page, end with the Find out more section, with every
+ * 51degrees.com link it prints tagged, and end successfully, a console
+ * example with exit status 0 and a page with HTTP status 200.
  */
 class ExamplesWithoutKeyTests extends TestCase
 {
     // The start of the configuration page links the examples give.
     private const CONFIGURE = 'https://51degrees.com/configure';
+
+    // The environment variable the examples are told to set.
+    private const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
 
     public function testGettingStarted()
     {
@@ -45,8 +49,8 @@ class ExamplesWithoutKeyTests extends TestCase
     }
 
     /**
-     * The example reads the key from its configuration file, which holds a
-     * placeholder.
+     * The example reads the key from the environment variable, or else
+     * from its configuration file, which holds a placeholder.
      */
     public function testConfigureFromFile()
     {
@@ -60,7 +64,7 @@ class ExamplesWithoutKeyTests extends TestCase
 
     public function testWebIntegration()
     {
-        $this->runWithoutKey('cloud/webIntegration.php', ExampleRun::WEB_REQUEST);
+        $this->serveWithoutKey('cloud/webIntegration.php');
     }
 
     /**
@@ -69,24 +73,40 @@ class ExamplesWithoutKeyTests extends TestCase
      */
     public function testIndex()
     {
-        $run = $this->runWithoutKey('index.php', ExampleRun::WEB_REQUEST);
-        $this->assertStringContainsString('_51DEGREES_RESOURCE_KEY', $run->output);
+        $this->serveWithoutKey('index.php');
     }
 
     /**
-     * @param array<string, string> $set Environment variables to add
+     * Runs the console example with no resource key and checks what it
+     * printed and that it exited with status 0.
      */
-    private function runWithoutKey(string $script, array $set = []): ExampleRun
+    private function runWithoutKey(string $script): void
     {
         $run = ExampleRun::run(
             __DIR__ . "/../examples/{$script}",
             [],
-            ExampleRun::RESOURCE_KEY_VARIABLES,
-            $set
+            ExampleRun::RESOURCE_KEY_VARIABLES
         );
+        $this->assertSame(0, $run->status, $run->printed());
+        $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $run->output, $run->printed());
         $this->assertStringContainsString(self::CONFIGURE, $run->output, $run->printed());
         $run->assertEndsWithFindOutMore();
+    }
 
-        return $run;
+    /**
+     * Serves the page with no resource key and checks what it showed and
+     * that it answered with HTTP status 200.
+     */
+    private function serveWithoutKey(string $script): void
+    {
+        $run = ExampleRun::serve(
+            __DIR__ . "/../examples/{$script}",
+            ExampleRun::RESOURCE_KEY_VARIABLES
+        );
+        $this->assertSame(200, $run->httpStatus, $run->printed());
+        $page = html_entity_decode($run->output);
+        $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $page, $run->printed());
+        $this->assertStringContainsString(self::CONFIGURE, $page, $run->printed());
+        $run->assertPageEndsWithFindOutMore();
     }
 }

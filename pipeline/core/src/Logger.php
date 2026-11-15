@@ -113,10 +113,16 @@ class Logger
             return;
         }
 
-        @error_log(
-            sprintf("%s %s %s\n", $log['time'], $log['level'], $log['message']),
-            self::ERROR_LOG_APPEND,
-            $file
-        );
+        // An application's error handler can turn the warning of a failed
+        // write into an exception, which is dropped with the entry.
+        try {
+            @error_log(
+                sprintf("%s %s %s\n", $log['time'], $log['level'], $log['message']),
+                self::ERROR_LOG_APPEND,
+                $file
+            );
+        } catch (\Throwable $e) {
+            return;
+        }
     }
 }

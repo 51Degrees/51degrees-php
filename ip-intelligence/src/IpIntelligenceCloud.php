@@ -38,8 +38,8 @@ use fiftyone\pipeline\core\FlowData;
  *
  * Weighted properties (for example Mcc, CountryCodesGeographical and
  * CountryCodesPopulation) are returned as a list of
- * {"value": ..., "rawweighting": ...} objects, wrapped verbatim in an
- * AspectPropertyValue by the base CloudEngine.
+ * ['value' => ..., 'rawweighting' => ...] arrays in an AspectPropertyValue,
+ * the same arrays the on-premise engine gives.
  */
 class IpIntelligenceCloud extends CloudEngine
 {

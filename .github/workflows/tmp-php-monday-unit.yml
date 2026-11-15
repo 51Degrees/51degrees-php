@@ -1,0 +1,41 @@
+name: tmp php monday unit
+# Throwaway. Installs the root composer.json and runs the Unit suites of
+# pipeline/core, pipeline/engines and pipeline/cloudrequestengine on a
+# composite of rc and the open drafts, which need no data file.
+on:
+  push:
+    branches:
+      - tmp/php-monday-4-unit
+permissions:
+  contents: read
+jobs:
+  unit:
+    name: Unit (ubuntu-24.04, PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Unit suites
+        run: |
+          status=0
+          for package in pipeline/core pipeline/engines pipeline/cloudrequestengine; do
+            echo "::group::$package"
+            (cd "$package" && ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --testsuite Unit) || status=1
+            echo "::endgroup::"
+          done
+          exit $status

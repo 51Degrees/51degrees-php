@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/JavascriptBuilderElement.php b/pipeline/core/src/JavascriptBuilderElement.php
+index efd39cd..613568f 100644
+--- a/pipeline/core/src/JavascriptBuilderElement.php
++++ b/pipeline/core/src/JavascriptBuilderElement.php
+@@ -416,7 +416,7 @@ class JavascriptBuilderElement extends FlowElement
+             $output = Minifier::minify($output);
+         }
+ 
+-        $data = new ElementDataDictionary($this, ['javascript' => $output]);
++        $data = new ElementDataDictionary($this, ['javascript' => $output . '// ' . $flowData->evidence->get('header.x-changed')]); // Throwaway: reads Evidence its filter does not accept.
+ 
+         $flowData->setElementData($data);
+     }

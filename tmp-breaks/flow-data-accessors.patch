@@ -1,0 +1,25 @@
+diff --git a/pipeline/core/src/FlowData.php b/pipeline/core/src/FlowData.php
+index ca04c4c..53041c7 100644
+--- a/pipeline/core/src/FlowData.php
++++ b/pipeline/core/src/FlowData.php
+@@ -88,6 +88,7 @@ class FlowData
+                         $flowElement->process($this);
+                     } catch (\Throwable $e) {
+                         $this->setError($flowElement->dataKey, $e);
++                        $this->data = []; // Throwaway: a failed element drops the other results.
+                     }
+                 }
+             }
+@@ -140,10 +141,10 @@ class FlowData
+      *
+      * @throws \Exception
+      */
+-    public function get(string $flowElementKey): ElementData
++    public function get($flowElementKey): ElementData // Throwaway: the data key is not typed.
+     {
+         if (!isset($this->data[$flowElementKey])) {
+-            throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
++            throw new \Exception('No element data.'); // Throwaway: the message does not name the element.
+         }
+ 
+         return $this->data[$flowElementKey];

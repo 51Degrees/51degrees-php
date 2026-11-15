@@ -1,0 +1,14 @@
+diff --git a/ip-intelligence/src/IpIntelligenceOnPremise.php b/ip-intelligence/src/IpIntelligenceOnPremise.php
+index b48ae10..4897082 100644
+--- a/ip-intelligence/src/IpIntelligenceOnPremise.php
++++ b/ip-intelligence/src/IpIntelligenceOnPremise.php
+@@ -154,6 +154,9 @@ class IpIntelligenceOnPremise extends Engine
+         // Reusing the global engine lets a long-running SAPI avoid re-opening
+         // a multi-gigabyte data file on every request.
+         $dataFile = $settings['dataFile'] ?? null;
++        if (is_string($dataFile) && $dataFile !== '' && $dataFile[0] !== '/') { // Throwaway: a relative path is read against the package's folder.
++            $dataFile = __DIR__ . '/../' . $dataFile;
++        }
+         if ($dataFile === null && function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
+             // The global engine is always built with MaxPerformance (see
+             // on-premise/ipi-php.i), so another php.ini profile is a mistake

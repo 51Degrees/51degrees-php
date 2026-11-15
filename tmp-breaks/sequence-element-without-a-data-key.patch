@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/SequenceElement.php b/pipeline/core/src/SequenceElement.php
+index 79a50ef..0f0cfc9 100644
+--- a/pipeline/core/src/SequenceElement.php
++++ b/pipeline/core/src/SequenceElement.php
+@@ -35,7 +35,7 @@ namespace fiftyone\pipeline\core;
+  */
+ class SequenceElement extends FlowElement
+ {
+-    public string $dataKey = 'sequence';
++    public string $dataKey = ''; // Throwaway: no data key.
+ 
+     /**
+      * @var array<string, array<string, mixed>>

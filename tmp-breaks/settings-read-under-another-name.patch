@@ -1,0 +1,15 @@
+diff --git a/pipeline/core/src/PipelineBuilder.php b/pipeline/core/src/PipelineBuilder.php
+index 26adcf4..e11b3e9 100644
+--- a/pipeline/core/src/PipelineBuilder.php
++++ b/pipeline/core/src/PipelineBuilder.php
+@@ -163,8 +163,8 @@ class PipelineBuilder
+                 /** @phpstan-var \fiftyone\pipeline\core\FlowElement $builder */
+                 $builder = $element['BuilderName'];
+ 
+-                if (isset($element['BuildParameters'])) {
+-                    $flowElement = new $builder($element['BuildParameters']);
++                if (isset($element['Parameters'])) { // Throwaway: the settings are read under another name.
++                    $flowElement = new $builder($element['Parameters']);
+                 } else {
+                     $flowElement = new $builder();
+                 }

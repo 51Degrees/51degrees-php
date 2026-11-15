@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/Utils.php b/pipeline/core/src/Utils.php
+index 56ce745..3267ccb 100644
+--- a/pipeline/core/src/Utils.php
++++ b/pipeline/core/src/Utils.php
+@@ -240,7 +240,7 @@ class Utils
+         }
+ 
+         $flowData->process();
+-        $body = $content($flowData);
++        $body = count($flowData->errors) > 0 ? '' : $content($flowData); // Throwaway: no content after an element failed.
+         $failed = count($flowData->errors) > 0;
+ 
+         $headers['Cache-Control'] = $failed

@@ -1,0 +1,13 @@
+diff --git a/ip-intelligence/src/Constants.php b/ip-intelligence/src/Constants.php
+index 0007572..ada3f25 100644
+--- a/ip-intelligence/src/Constants.php
++++ b/ip-intelligence/src/Constants.php
+@@ -33,7 +33,7 @@ class Constants
+ 
+     // Keys of a weighted property entry, as produced by both engines.
+     public const WEIGHTED_VALUE_KEY = 'value';
+-    public const WEIGHTED_RAW_WEIGHTING_KEY = 'rawweighting';
++    public const WEIGHTED_RAW_WEIGHTING_KEY = 'rawWeighting'; // Throwaway: the key in another case.
+ 
+     public const IP_DESCRIPTION =
+         'The IPv4 address that was used to perform the lookup. This is the ' .

@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/PipelineBuilder.php b/pipeline/core/src/PipelineBuilder.php
+index 26adcf4..ecb67f1 100644
+--- a/pipeline/core/src/PipelineBuilder.php
++++ b/pipeline/core/src/PipelineBuilder.php
+@@ -151,7 +151,7 @@ class PipelineBuilder
+     public function buildFromConfig($fileOrConfig): Pipeline
+     {
+         if (is_string($fileOrConfig)) {
+-            $config = json_decode(file_get_contents($fileOrConfig), true);
++            $config = json_decode(file_get_contents($fileOrConfig[0] === '/' ? $fileOrConfig : __DIR__ . '/' . $fileOrConfig), true); // Throwaway: a relative path is read against the package's folder.
+         } else {
+             $config = $fileOrConfig;
+         }

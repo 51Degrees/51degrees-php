@@ -1,0 +1,14 @@
+diff --git a/pipeline/derivedproperty/src/ScriptSet.php b/pipeline/derivedproperty/src/ScriptSet.php
+index 5fca85a..a6cb02a 100644
+--- a/pipeline/derivedproperty/src/ScriptSet.php
++++ b/pipeline/derivedproperty/src/ScriptSet.php
+@@ -85,6 +85,9 @@ final class ScriptSet
+     public function addFile(string $path): void
+     {
+         $path = trim($path);
++        if ($path !== '' && $path[0] !== '/') { // Throwaway: a relative path is read against the package's folder.
++            $path = __DIR__ . '/' . $path;
++        }
+         if ($path === '') {
+             $this->fault(null, 'file', 'a script file path is empty');
+ 

@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\core\tests;
 use Composer\Autoload\ClassLoader;
 use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\core\tests\classes\ClientSideApp;
+use fiftyone\pipeline\core\tests\classes\CountingElement;
 use fiftyone\pipeline\core\tests\classes\ListedEvidenceElement;
 use fiftyone\pipeline\core\tests\classes\SwitchableElement;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -359,6 +360,42 @@ class ClientSideResponseTests extends TestCase
                 'ETag' => $good->headers['ETag'],
             ], $response->headers, $method);
         }
+    }
+
+    /**
+     * A request whose If-None-Match matches is answered without running the
+     * Pipeline, because RFC 9110 section 13.1.2 says the server "MUST NOT
+     * perform the requested method" and running the Pipeline is that method.
+     */
+    public function testAMatchingRequestIsAnsweredWithoutProcessing(): void
+    {
+        $counter = new CountingElement();
+        $app = new ClientSideApp([$counter]);
+        $etags = [
+            'GET' => $app->respond('GET')->headers['ETag'],
+            'POST' => $app->respond('POST')->headers['ETag'],
+        ];
+        $this->assertSame(2, $counter->processed);
+
+        $matching = [
+            ['GET', $etags['GET'], 304],
+            ['HEAD', $etags['GET'], 304],
+            ['GET', '*', 304],
+            ['POST', $etags['POST'], 412],
+        ];
+        foreach ($matching as [$method, $ifNoneMatch, $status]) {
+            $response = $app->respond(
+                $method,
+                ['HTTP_IF_NONE_MATCH' => $ifNoneMatch]
+            );
+
+            $this->assertSame($status, $response->status, $method);
+            $this->assertSame(2, $counter->processed, $method);
+        }
+
+        // A request that does not match is processed.
+        $app->respond('GET', ['HTTP_IF_NONE_MATCH' => 'W/"other"']);
+        $this->assertSame(3, $counter->processed);
     }
 
     public function testAHeadRequestGetsTheHeadersWithoutTheContent(): void

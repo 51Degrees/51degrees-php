@@ -222,10 +222,9 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
 
         $cloud->setRestrictedProperties(['cloud']);
 
-        $pipeline = new PipelineBuilder();
+        $pipeline = new PipelineBuilder(['suppressProcessExceptions' => true]);
 
         $pipeline = $pipeline->add($cloud)->add($engine)->build();
-        $pipeline->suppressProcessExceptions = true;
 
         $fd = $pipeline->createFlowData();
 

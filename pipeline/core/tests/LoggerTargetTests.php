@@ -120,7 +120,9 @@ class LoggerTargetTests extends TestCase
     }
 
     /**
-     * A location that cannot be written does not stop the caller.
+     * A location that cannot be written does not stop the caller, even
+     * where the application's error handler turns every PHP warning into
+     * an exception.
      */
     public function testALocationThatCannotBeWrittenIsIgnored(): void
     {
@@ -129,7 +131,14 @@ class LoggerTargetTests extends TestCase
                 bin2hex(random_bytes(8)) . '/pipeline.log'
         ]);
 
-        $logger->log('error', 'Not written.');
+        set_error_handler(function (int $level, string $message): bool {
+            throw new \ErrorException($message, 0, $level);
+        });
+        try {
+            $logger->log('error', 'Not written.');
+        } finally {
+            restore_error_handler();
+        }
 
         $this->addToAssertionCount(1);
     }

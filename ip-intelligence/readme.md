@@ -127,6 +127,7 @@ In-repo under `examples/`:
 | `onpremise/performance-console.php` | On-premise | Measure lookups per second. |
 | `onpremise/suspicious-console.php` | On-premise | Flag IP addresses that look suspicious. |
 | `onpremise/translation-console.php` | On-premise | List the countries an IP address is most likely in. |
+| `onpremise/dataupdate-console.php` | On-premise | Reload the data file after it is replaced with a newer one. |
 | `onpremise/mixed/gettingstarted-console.php` | On-premise | Device detection + IP intelligence. |
 | `onpremise/web/index.php` | On-premise | Web page with the country list. |
 | `onpremise/web-mixed/index.php` | On-premise | Web page with device detection + IP intelligence. |

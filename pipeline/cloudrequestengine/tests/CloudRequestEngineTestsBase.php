@@ -43,7 +43,7 @@ class CloudRequestEngineTestsBase extends TestCase
     public const noDataKey = 'nodatakey';
     public const noDataKeyResponse = '{}';
     public const noDataKeyMessageComplete = "Error returned from 51Degrees cloud service: 'No data in response " .
-        "from cloud service at https://cloud.51degrees.com/api/v4/accessibleProperties?resource=nodatakey'";
+        "from cloud service at 'https://cloud.51degrees.com/api/v4/accessibleProperties?resource=nodatakey''";
     public const accessibleSubPropertiesResponse =
         "{\n" .
         "    \"Products\": {\n" .

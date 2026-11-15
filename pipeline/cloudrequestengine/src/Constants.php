@@ -71,7 +71,7 @@ class Constants
 
     // No Data in response message to be set in exception when cloud neither
     // return any data nor any error messages
-    public const MESSAGE_NO_DATA_IN_RESPONSE = 'No data in response from cloud service at %s';
+    public const MESSAGE_NO_DATA_IN_RESPONSE = "No data in response from cloud service at '%s'";
 
     // Message when multiple errors are returned from cloud service
     public const EXCEPTION_CLOUD_ERRORS_MULTIPLE =

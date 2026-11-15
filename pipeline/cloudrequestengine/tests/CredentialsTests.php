@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\cloudrequestengine\tests;
 
+use fiftyone\pipeline\cloudrequestengine\CloudEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestException;
 use fiftyone\pipeline\cloudrequestengine\Constants;
@@ -474,6 +475,38 @@ class CredentialsTests extends TestCase
             $logger->messages[0]
         );
         $this->assertStringNotContainsString('keys in use', $logger->messages[0]);
+    }
+
+    /**
+     * The Property metadata comes from the accessible properties answer
+     * alone, under a resource key or a license key. A requested name the
+     * answer leaves out gets none, because its type would be unknown.
+     */
+    public function testPropertyMetadataComesOnlyFromTheAccessiblePropertiesAnswer(): void
+    {
+        foreach ([
+            ['resourceKey' => self::resourceKey],
+            ['licenseKey' => self::licenseKey]
+        ] as $settings) {
+            $engine = new CloudRequestEngine(array_merge($settings, [
+                'requestedProperties' => ['device.ismobile', 'device.istablet'],
+                'httpClient' => $this->recordingClient()
+            ]));
+            $device = new CloudEngine();
+            $device->dataKey = 'device';
+            (new PipelineBuilder())->add($engine)->add($device)->build();
+
+            $this->assertSame(['device'], array_keys($engine->flowElementProperties));
+            $this->assertSame(
+                ['ismobile'],
+                array_keys($engine->flowElementProperties['device'])
+            );
+            $this->assertSame(
+                'Boolean',
+                $engine->flowElementProperties['device']['ismobile']['type']
+            );
+            $this->assertSame(['ismobile'], array_keys($device->getProperties()));
+        }
     }
 
     public function testNothingIsLoggedWhenEveryPropertyCameBackOrNoneWasNamed(): void

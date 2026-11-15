@@ -62,6 +62,60 @@ class CloudWarningsAndErrorsTests extends TestCase
     }
 
     /**
+     * An entry in the errors array is thrown whatever the status code.
+     */
+    public function testAnErrorsEntryIsThrownWithStatus200(): void
+    {
+        $e = $this->validate('{"errors":["an error"],"device":{}}', 200);
+
+        $this->assertSame(['an error'], $e->errors);
+        $this->assertStringContainsString('an error', $e->getMessage());
+    }
+
+    /**
+     * An empty body is thrown with the message the specification gives,
+     * which names the URL.
+     */
+    public function testAnEmptyBodyIsThrownNamingTheUrl(): void
+    {
+        $e = $this->validate('', 200);
+
+        $this->assertStringContainsString(
+            "No data in response from cloud service at '" . self::URL . "'",
+            $e->getMessage()
+        );
+    }
+
+    /**
+     * A status other than 200 with no errors entry is thrown with the
+     * message the specification gives, which names the URL, the status code
+     * and the body.
+     */
+    public function testAStatusOtherThan200IsThrownWithTheUrlStatusAndBody(): void
+    {
+        $body = '<html>Service Unavailable</html>';
+
+        $e = $this->validate($body, 503);
+
+        $this->assertSame(503, $e->httpStatusCode);
+        $this->assertStringContainsString(
+            "Cloud service at '" . self::URL . "' returned status code " .
+                "'503' with content " . $body,
+            $e->getMessage()
+        );
+    }
+
+    /**
+     * An answer with status 200, a body and no errors entry is not thrown.
+     */
+    public function testAGoodAnswerIsNotThrown(): void
+    {
+        $this->assertNull(
+            $this->refusal('{"device":{"ismobile":true},"warnings":[]}', 200)
+        );
+    }
+
+    /**
      * A failure the errors array does not explain holds no errors.
      */
     public function testAFailureWithNoErrorsArrayHoldsNoErrors(): void
@@ -172,6 +226,20 @@ class CloudWarningsAndErrorsTests extends TestCase
      */
     private function validate(string $body, int $status): CloudRequestException
     {
+        $e = $this->refusal($body, $status);
+        if ($e === null) {
+            $this->fail('The answer was not refused.');
+        }
+
+        return $e;
+    }
+
+    /**
+     * Runs HttpClient's check of an answer and returns what it throws, or
+     * null when it throws nothing.
+     */
+    private function refusal(string $body, int $status): ?CloudRequestException
+    {
         $validate = new \ReflectionMethod(HttpClient::class, 'validateResponse');
         if (PHP_VERSION_ID < 80100) {
             $validate->setAccessible(true);
@@ -181,7 +249,8 @@ class CloudWarningsAndErrorsTests extends TestCase
         } catch (CloudRequestException $e) {
             return $e;
         }
-        $this->fail('The answer was not refused.');
+
+        return null;
     }
 
     /**

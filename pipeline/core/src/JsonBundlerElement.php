@@ -60,6 +60,15 @@ class JsonBundlerElement extends FlowElement
     private const MAX_SEQUENCE_WITH_JAVASCRIPT = 10;
 
     /**
+     * The JSON the element writes, as the array the JSON endpoint encodes.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'json' => ['name' => 'json', 'type' => 'array'],
+    ];
+
+    /**
      * @var array<string, mixed>
      */
     public array $json;

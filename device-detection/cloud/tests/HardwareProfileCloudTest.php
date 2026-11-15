@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
@@ -183,6 +184,20 @@ class HardwareProfileCloudTest extends TestCase
         $this->assertCount(0, ExampleUtils::getProfiles($hardware));
     }
 
+    /**
+     * A lookup that matches nothing gives an empty list of profiles, which
+     * the JSON holds, so a page can tell it from a lookup that did not run.
+     */
+    public function testALookupThatMatchesNothingGivesAnEmptyListOfProfiles()
+    {
+        $response = '{"hardware": {"profiles": []}}';
+
+        $this->assertSame([], $this->process($response)->get('profiles'));
+        $json = $this->json($response);
+        $this->assertArrayHasKey('profiles', $json);
+        $this->assertSame([], $json['profiles']);
+    }
+
     public function testMissingPropertyIsNamedInTheMessage()
     {
         $hardware = $this->process(self::ENTITLED_RESPONSE);
@@ -201,6 +216,44 @@ class HardwareProfileCloudTest extends TestCase
         $this->assertCount(1, $logged);
         $this->assertSame('warning', $logged[0]['level']);
         $this->assertStringContainsString('hardware', $logged[0]['message']);
+    }
+
+    /**
+     * When the cloud request fails, reading the profiles gives the
+     * CloudRequestFailed reason, and the error is the cloud request's.
+     */
+    public function testAFailedCloudRequestGivesCloudRequestFailed()
+    {
+        $cloud = new class ('') extends FakeCloudRequestEngine {
+            public function processInternal(FlowData $flowData): void
+            {
+                throw new \Exception('The cloud request failed.');
+            }
+        };
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+            'suppressProcessExceptions' => true,
+        ]))
+            ->add($cloud)
+            ->add(new HardwareProfileCloud())
+            ->build();
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(['cloud-response'], array_keys($flowData->errors));
+        $message = null;
+        try {
+            $flowData->get('hardware')->get('profiles');
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+        }
+        $this->assertSame(
+            "Property 'profiles' not found in data for element 'hardware'. "
+            . 'This is because an upstream cloud request failed, so no data '
+            . 'was available to populate the property.',
+            $message
+        );
     }
 
     public function testLogsNothingWhenTheHardwareProductIsPresent()

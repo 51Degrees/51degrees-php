@@ -8,6 +8,7 @@
       <file>tests/CoreTests.php</file>
       <file>tests/MultiPipelineElementTests.php</file>
       <file>tests/PipelineImmutableTests.php</file>
+      <file>tests/ElementKeyTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/JavaScriptBundlerTests.php</file>
       <file>tests/JavaScriptBuilderMinifyTests.php</file>
@@ -19,6 +20,7 @@
       <file>tests/JsonBundlerWktTests.php</file>
       <file>tests/EnableCookiesTests.php</file>
       <file>tests/FlowDataTests.php</file>
+      <file>tests/FlowDataErrorsTests.php</file>
       <file>tests/DeprecatedDataKeyTests.php</file>
       <file>tests/CloseTests.php</file>
       <file>tests/PropertyDatabaseTests.php</file>

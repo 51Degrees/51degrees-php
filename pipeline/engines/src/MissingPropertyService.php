@@ -32,6 +32,18 @@ namespace fiftyone\pipeline\engines;
  */
 class MissingPropertyService
 {
+    private bool $cloudRequestFailed;
+
+    /**
+     * @param bool $cloudRequestFailed true for the Element Data of a cloud
+     *   engine whose cloud request for the FlowData failed, so that every
+     *   property gives the CloudRequestFailed reason
+     */
+    public function __construct(bool $cloudRequestFailed = false)
+    {
+        $this->cloudRequestFailed = $cloudRequestFailed;
+    }
+
     /**
      * @throws \Exception
      * @return mixed
@@ -66,7 +78,9 @@ class MissingPropertyService
         // compares its data tier, and only where the metadata gives the
         // tiers the property is present in.
         $tiers = $property['datatierswherepresent'] ?? null;
-        if ($property !== null && !$isCloud && is_array($tiers) &&
+        if ($this->cloudRequestFailed) {
+            $reason = MissingPropertyReason::CloudRequestFailed;
+        } elseif ($property !== null && !$isCloud && is_array($tiers) &&
             !in_array($flowElement->getDataSourceTier(), $tiers, true)) {
             $reason = MissingPropertyReason::DataFileUpgradeRequired;
         } elseif ($property !== null && ($property['available'] ?? true) === false) {
@@ -105,6 +119,9 @@ class MissingPropertyService
                     $flowElement->dataKey,
                     join(',', $this->getPropertyNames($properties))
                 );
+                break;
+            case MissingPropertyReason::CloudRequestFailed:
+                $message .= MissingPropertyMessages::CLOUD_REQUEST_FAILED;
                 break;
             case MissingPropertyReason::Unknown:
                 $message .= MissingPropertyMessages::UNKNOWN;

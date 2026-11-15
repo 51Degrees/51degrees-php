@@ -215,11 +215,10 @@ class TranslationEngineBuilderTests extends TestCase
         $engine = self::scotlandOnly()
             ->setMissingTranslationBehavior('flowerror')
             ->build();
-        $pipeline = (new PipelineBuilder())
+        $pipeline = (new PipelineBuilder(['suppressProcessExceptions' => true]))
             ->add(new SourceElement())
             ->add($engine)
             ->build();
-        $pipeline->suppressProcessExceptions = true;
         $flowData = $pipeline->createFlowData();
         $flowData->process();
 

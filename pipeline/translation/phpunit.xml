@@ -8,6 +8,7 @@
       <file>tests/TranslationEvidenceCaseTests.php</file>
       <file>tests/TranslationEngineBuilderTests.php</file>
       <file>tests/MultipleEnginesTests.php</file>
+      <file>tests/MissingTranslationErrorsTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

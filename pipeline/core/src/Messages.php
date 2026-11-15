@@ -47,10 +47,23 @@ class Messages
     public const FLOW_DATA_PROCESSED = 'FlowData already processed';
 
     /**
-     * Thrown when flowElements or flowElementsList is set on a Pipeline. This
-     * takes the name of the property as a format argument.
+     * Thrown when a property of a Pipeline other than a setting, such as
+     * flowElements, is set. This takes the name of the property as a format
+     * argument.
      */
     public const PIPELINE_IMMUTABLE = "A Pipeline cannot be changed once it is built, so '%s' cannot be set. Build a new Pipeline with the FlowElements it needs instead.";
+
+    /**
+     * Thrown when a setting of a Pipeline, such as logger, is set. This
+     * takes the name of the setting as a format argument.
+     */
+    public const PIPELINE_SETTING_IMMUTABLE = "A Pipeline cannot be changed once it is built, so '%s' cannot be set. Give it in the settings when the Pipeline is built instead.";
+
+    /**
+     * Thrown when a Pipeline has no element with the key asked for. This
+     * takes the key, then the Data Keys of the Pipeline's elements.
+     */
+    public const NO_ELEMENT = "There is no element for '%s' in this Pipeline. Available element keys are: '%s'";
 
     /**
      * A client-side response was asked for with a FlowData that has been

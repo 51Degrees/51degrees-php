@@ -46,6 +46,9 @@ class FlowData
     public bool $processed = false;
 
     /**
+     * The errors of processing by key, each the one error under its key or
+     * an AggregateException holding every error under it.
+     *
      * @var array<string, \Throwable>
      */
     public array $errors = [];
@@ -173,11 +176,23 @@ class FlowData
     }
 
     /**
-     * Set error (should be keyed by FlowElement dataKey).
+     * Set error (should be keyed by FlowElement dataKey). Every error is
+     * kept. A second error under a key makes the entry an
+     * AggregateException that holds each error under the key in order.
      */
     public function setError(string $key, \Throwable $error): void
     {
-        $this->errors[$key] = $error;
+        $existing = $this->errors[$key] ?? null;
+        if ($existing === null) {
+            $this->errors[$key] = $error;
+        } else {
+            $this->errors[$key] = new AggregateException(array_merge(
+                $existing instanceof AggregateException
+                    ? $existing->errors
+                    : [$existing],
+                [$error]
+            ));
+        }
 
         $logMessage = 'Error occurred during processing';
 

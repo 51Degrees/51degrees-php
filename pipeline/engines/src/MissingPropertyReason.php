@@ -36,4 +36,5 @@ class MissingPropertyReason
     public const PropertyNotAccessibleWithResourceKey = 2;
     public const ProductNotAccessibleWithResourceKey = 3;
     public const Unknown = 4;
+    public const CloudRequestFailed = 5;
 }

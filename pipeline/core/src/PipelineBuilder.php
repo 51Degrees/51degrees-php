@@ -84,9 +84,15 @@ class PipelineBuilder
         $this->addJavaScriptBuilderElement = (bool) ($settings['addJavaScriptBuilderElement'] ?? true);
         $this->addSetHeaderElement = (bool) ($settings['addSetHeaderElement'] ?? true);
 
-        // Passed on to the Pipeline, which reads suppressProcessExceptions
-        // when it processes and autoCloseElements when it is closed.
-        foreach (['suppressProcessExceptions', 'autoCloseElements'] as $name) {
+        // The Pipeline's own settings, passed on to it because a built
+        // Pipeline's settings cannot be set. addLogger also sets the logger.
+        $pipelineSettings = [
+            'logger',
+            'metaDataStore',
+            'suppressProcessExceptions',
+            'autoCloseElements',
+        ];
+        foreach ($pipelineSettings as $name) {
             if (array_key_exists($name, $settings)) {
                 $this->settings[$name] = $settings[$name];
             }

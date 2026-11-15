@@ -245,6 +245,15 @@ class CloudRequestEngine extends Engine
     }
 
     /**
+     * Whether the accessible properties have been obtained, so that
+     * flowElementProperties lists every product the keys give.
+     */
+    public function propertiesLoaded(): bool
+    {
+        return $this->propertiesLoaded;
+    }
+
+    /**
      * Instance of EvidenceKeyFilter of the evidence keys the cloud service
      * lists. The keys are asked for when the engine is built. Where that
      * failed, they are asked for again the first time they are needed,

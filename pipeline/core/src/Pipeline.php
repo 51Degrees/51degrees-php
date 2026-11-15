@@ -30,21 +30,47 @@ namespace fiftyone\pipeline\core;
  * can create FlowData that will be passed through these,
  * collecting ElementData
  * Should be constructed through the PipelineBuilder class. A Pipeline
- * cannot be changed once it is built, so its elements can be read but not
- * changed.
+ * cannot be changed once it is built, so its elements and settings can be
+ * read but not changed.
  *
  * @property-read array<\fiftyone\pipeline\core\FlowElement> $flowElements
  *   The FlowElements, in the order they run
  * @property-read array<string, \fiftyone\pipeline\core\FlowElement> $flowElementsList
  *   The FlowElements by Data Key
+ * @property-read Logger $logger The logger setting
+ * @property-read mixed $metaDataStore The metaDataStore setting
+ * @property-read bool $suppressProcessExceptions The
+ *   suppressProcessExceptions setting
+ * @property-read bool $autoCloseElements The autoCloseElements setting
+ * @property-read array<string, array<string, array<string, array<string, string>>>> $propertyDatabase
+ *   The metadata of every element's properties
  */
 class Pipeline
 {
     /**
-     * The element lists, which __get gives as copies and __set refuses, so
-     * that the Pipeline cannot be changed once it is built.
+     * The properties that __get gives as copies, so that the Pipeline
+     * cannot be changed once it is built. __set refuses every property the
+     * Pipeline declares.
      */
-    private const ELEMENT_LISTS = ['flowElements', 'flowElementsList'];
+    private const READABLE = [
+        'flowElements',
+        'flowElementsList',
+        'propertyDatabase',
+        'logger',
+        'metaDataStore',
+        'suppressProcessExceptions',
+        'autoCloseElements',
+    ];
+
+    /**
+     * The properties given in the settings when the Pipeline is built.
+     */
+    private const SETTINGS = [
+        'logger',
+        'metaDataStore',
+        'suppressProcessExceptions',
+        'autoCloseElements',
+    ];
 
     /**
      * @var array<\fiftyone\pipeline\core\FlowElement>
@@ -73,11 +99,21 @@ class Pipeline
      */
     private array $deprecatedDataKeysLogged = [];
 
-    public Logger $logger;
+    private Logger $logger;
 
-    /** @phpstan-ignore-next-line */
-    public $metaDataStore;
-    public bool $suppressProcessExceptions;
+    /**
+     * Whatever the metaDataStore setting gives, which the Pipeline keeps
+     * for the caller.
+     *
+     * @var mixed
+     */
+    private $metaDataStore;
+
+    /**
+     * If true, an error from a FlowElement is kept in the FlowData's errors,
+     * otherwise processing throws the first one.
+     */
+    private bool $suppressProcessExceptions;
 
     /**
      * If true, the default, closing the Pipeline closes its FlowElements.
@@ -85,41 +121,33 @@ class Pipeline
      * shared with another Pipeline, and close each element once every
      * Pipeline using it is finished with.
      */
-    public bool $autoCloseElements;
+    private bool $autoCloseElements;
 
     /**
      * The metadata of every element's properties, keyed by metadata name and
      * then by value, which FlowData::getWhere searches. PHP builds the
      * pipeline on every request and most requests never search, so it is
-     * built when it is first read.
+     * left uninitialized until __get builds it when it is first read.
      *
      * @var array<string, array<string, array<string, array<string, string>>>>
      */
-    public array $propertyDatabase;
+    private array $propertyDatabase;
 
     /**
      * Pipeline constructor.
      *
      * @param array<\fiftyone\pipeline\core\FlowElement> $flowElements List of FlowElements
-     * @param array<string, mixed> $settings
+     * @param array<string, mixed> $settings The logger, metaDataStore,
+     *   suppressProcessExceptions and autoCloseElements settings
      */
     public function __construct(array $flowElements, array $settings)
     {
         $this->logger = $settings['logger'] ?? new Logger(null);
-
-        /*
-         * If true then pipeline will suppress exceptions added to FlowData errors,
-         * otherwise will throw the exception occurred during the processing of the
-         * first element.
-         */
+        $this->metaDataStore = $settings['metaDataStore'] ?? null;
         $this->suppressProcessExceptions = (bool) ($settings['suppressProcessExceptions'] ?? false);
-
         $this->autoCloseElements = (bool) ($settings['autoCloseElements'] ?? true);
 
         $this->flowElements = $flowElements;
-
-        // Unset, so that the first read of it builds it (see __get).
-        unset($this->propertyDatabase);
 
         foreach ($flowElements as $flowElement) {
             // An element's own Data Key takes the place of another
@@ -140,20 +168,14 @@ class Pipeline
     }
 
     /**
-     * Gives a copy of flowElements or flowElementsList, and builds
-     * propertyDatabase from every element when it is first read.
+     * Gives a copy of an element list, a setting or propertyDatabase, which
+     * it builds from every element when it is first read.
      *
      * @return mixed
      */
     public function &__get(string $name)
     {
-        if (in_array($name, self::ELEMENT_LISTS, true)) {
-            $copy = $this->{$name};
-
-            return $copy;
-        }
-
-        if ($name !== 'propertyDatabase') {
+        if (!in_array($name, self::READABLE, true)) {
             trigger_error(
                 sprintf('Undefined property: %s::$%s', static::class, $name),
                 E_USER_WARNING
@@ -163,35 +185,52 @@ class Pipeline
             return $none;
         }
 
-        $this->propertyDatabase = [];
-        foreach ($this->flowElements as $flowElement) {
-            $this->addToPropertyDatabase($flowElement);
+        // A write to the uninitialized property goes straight to it, not
+        // through __set, which refuses it.
+        if ($name === 'propertyDatabase' && !$this->hasPropertyDatabase()) {
+            $this->propertyDatabase = [];
+            foreach ($this->flowElements as $flowElement) {
+                $this->addToPropertyDatabase($flowElement);
+            }
         }
 
-        return $this->propertyDatabase;
+        $copy = $this->{$name};
+
+        return $copy;
     }
 
     /**
      * Whether a property read through __get is there, so that isset, ?? and
      * empty read it. The element lists always are, and so is
-     * propertyDatabase, which __get builds when it is first read.
+     * propertyDatabase, which __get builds when it is first read. A setting
+     * is there unless it is null.
      */
     public function __isset(string $name): bool
     {
-        return in_array($name, self::ELEMENT_LISTS, true) ||
-            $name === 'propertyDatabase';
+        if (in_array($name, self::SETTINGS, true)) {
+            return isset($this->{$name});
+        }
+
+        return in_array($name, self::READABLE, true);
     }
 
     /**
-     * Refuses to set flowElements or flowElementsList, because a Pipeline
-     * cannot be changed once it is built. Any other property is set.
+     * Refuses to set any property the Pipeline declares, because a Pipeline
+     * cannot be changed once it is built. A setting is given when the
+     * Pipeline is built instead. Any other property is set.
      *
      * @param mixed $value
      * @throws \Exception
      */
     public function __set(string $name, $value): void
     {
-        if (in_array($name, self::ELEMENT_LISTS, true)) {
+        if (in_array($name, self::SETTINGS, true)) {
+            throw new \Exception(
+                sprintf(Messages::PIPELINE_SETTING_IMMUTABLE, $name)
+            );
+        }
+
+        if (property_exists(self::class, $name)) {
             throw new \Exception(sprintf(Messages::PIPELINE_IMMUTABLE, $name));
         }
 
@@ -267,11 +306,39 @@ class Pipeline
     }
 
     /**
-     * Get a FlowElement by its name.
+     * Get a FlowElement by its Data Key, compared ignoring case as every
+     * string key is, after the exact key. As in FlowData::get, an element's
+     * own Data Key comes before a deprecated Data Key, which is logged once.
+     *
+     * @throws \Exception if no FlowElement has the key
      */
     public function getElement(string $key): FlowElement
     {
-        return $this->flowElementsList[$this->currentDataKey($key)];
+        if (isset($this->flowElementsList[$key]) &&
+            !isset($this->deprecatedDataKeys[$key])) {
+            return $this->flowElementsList[$key];
+        }
+
+        foreach ($this->flowElementsList as $dataKey => $flowElement) {
+            if (!isset($this->deprecatedDataKeys[$dataKey]) &&
+                strcasecmp((string) $dataKey, $key) === 0) {
+                return $flowElement;
+            }
+        }
+
+        $currentKey = $this->currentDataKey($key);
+        if (isset($this->flowElementsList[$currentKey])) {
+            return $this->flowElementsList[$currentKey];
+        }
+
+        throw new \Exception(sprintf(
+            Messages::NO_ELEMENT,
+            $key,
+            implode(',', array_keys(array_diff_key(
+                $this->flowElementsList,
+                $this->deprecatedDataKeys
+            )))
+        ));
     }
 
     /**
@@ -305,13 +372,21 @@ class Pipeline
     public function updatePropertyDatabaseForFlowElement(FlowElement $flowElement): void
     {
         // Before its first read there is no database, and the read builds
-        // it from the properties the elements have then. The check does not
-        // go through __isset, which would build it.
-        if (!array_key_exists('propertyDatabase', get_object_vars($this))) {
+        // it from the properties the elements have then.
+        if (!$this->hasPropertyDatabase()) {
             return;
         }
 
         $this->addToPropertyDatabase($flowElement);
+    }
+
+    /**
+     * Whether propertyDatabase has been built. get_object_vars leaves out
+     * an uninitialized property and does not call __isset.
+     */
+    private function hasPropertyDatabase(): bool
+    {
+        return array_key_exists('propertyDatabase', get_object_vars($this));
     }
 
     private function addToPropertyDatabase(FlowElement $flowElement): void

@@ -11,6 +11,7 @@
       <file>tests/PipelineCheckTests.php</file>
       <file>tests/ScriptTests.php</file>
       <file>tests/ExampleTests.php</file>
+      <file>tests/SpecificationLinksTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

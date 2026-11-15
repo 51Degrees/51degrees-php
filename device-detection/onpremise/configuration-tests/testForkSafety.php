@@ -52,7 +52,11 @@
  *
  * Inputs (env vars, with argv fallbacks):
  *   _51DEGREES_DD_PATH  path to a .hash data file   (argv[1], or the module's configured data_file)
- *   _51DEGREES_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
+ *   _51DEGREES_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3])
+ *
+ * Without the User-Agents file the test refuses to run, with exit code 2, as
+ * for a missing data file, because a few User-Agents do not always show the
+ * streaming profile's wrong results, so the outcome would come and go.
  *
  * The names these replaced are still read, as deprecated names, when the
  * variable is not set.
@@ -95,6 +99,9 @@ function readVariable(string $name, string $deprecated): string
 
 $dataFile = readVariable('_51DEGREES_DD_PATH', 'FIFTYONE_DATA_FILE') ?: ($argv[1] ?? '');
 $uaCsv = readVariable('_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV') ?: ($argv[3] ?? '');
+if ($uaCsv === '' || !is_file($uaCsv)) {
+    fail("User-Agents file not found (set _51DEGREES_UA_CSV or pass it as the third argument): '{$uaCsv}'");
+}
 
 // The extension defines the engine classes itself, so no wrapper file is
 // loaded for this variable.
@@ -120,23 +127,16 @@ if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
 // Load a set of User-Agents to detect. The exact values do not matter, only
 // that there are enough distinct ones to exercise the data file.
 $userAgents = [];
-if ($uaCsv !== '' && is_file($uaCsv)) {
-    $handle = fopen($uaCsv, 'r');
-    while (($line = fgets($handle)) !== false && count($userAgents) < 200) {
-        $line = trim($line, " \t\r\n\"");
-        if ($line !== '' && stripos($line, 'user-agent') !== 0) {
-            $userAgents[] = $line;
-        }
+$handle = fopen($uaCsv, 'r');
+while (($line = fgets($handle)) !== false && count($userAgents) < 200) {
+    $line = trim($line, " \t\r\n\"");
+    if ($line !== '' && stripos($line, 'user-agent') !== 0) {
+        $userAgents[] = $line;
     }
-    fclose($handle);
 }
+fclose($handle);
 if (count($userAgents) === 0) {
-    $userAgents = [
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114',
-        'Mozilla/5.0 (Linux; Android 10; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0 Mobile Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15',
-    ];
+    fail("the User-Agents file holds no User-Agents: '{$uaCsv}'");
 }
 
 /**

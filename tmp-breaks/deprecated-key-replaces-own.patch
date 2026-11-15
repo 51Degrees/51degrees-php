@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/Pipeline.php b/pipeline/core/src/Pipeline.php
+index 85f0d5bd..3b4155ed 100644
+--- a/pipeline/core/src/Pipeline.php
++++ b/pipeline/core/src/Pipeline.php
+@@ -114,7 +114,7 @@ class Pipeline
+             $this->flowElementsList[$flowElement->dataKey] = $flowElement;
+             unset($this->deprecatedDataKeys[$flowElement->dataKey]);
+             foreach ($flowElement->deprecatedDataKeys as $deprecatedKey) {
+-                if (!isset($this->flowElementsList[$deprecatedKey])) {
++                if (true) {
+                     $this->flowElementsList[$deprecatedKey] = $flowElement;
+                     $this->deprecatedDataKeys[$deprecatedKey] = $flowElement->dataKey;
+                 }

@@ -1,0 +1,12 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index 705ee07c..2bb0a467 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -77,7 +77,6 @@ class CloudEngine extends CloudEngineBase
+     protected static function cloudRequestEngine(Pipeline $pipeline): ?FlowElement
+     {
+         return $pipeline->flowElementsList[Constants::DATA_KEY]
+-            ?? $pipeline->flowElementsList[Constants::DEPRECATED_DATA_KEY]
+             ?? null;
+     }
+ 

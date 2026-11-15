@@ -1,0 +1,12 @@
+diff --git a/pipeline/core/src/Pipeline.php b/pipeline/core/src/Pipeline.php
+index 85f0d5bd..9b385e62 100644
+--- a/pipeline/core/src/Pipeline.php
++++ b/pipeline/core/src/Pipeline.php
+@@ -213,6 +213,7 @@ class Pipeline
+      */
+     public function currentDataKey(string $key): string
+     {
++        return $key;
+         if (!isset($this->deprecatedDataKeys[$key])) {
+             return $key;
+         }

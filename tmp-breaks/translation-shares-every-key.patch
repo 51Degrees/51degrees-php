@@ -1,0 +1,18 @@
+diff --git a/pipeline/translation/src/TranslationEngine.php b/pipeline/translation/src/TranslationEngine.php
+index 3a6b1b7d..1f1ba374 100644
+--- a/pipeline/translation/src/TranslationEngine.php
++++ b/pipeline/translation/src/TranslationEngine.php
+@@ -202,7 +202,12 @@ class TranslationEngine extends Engine
+         // so the values of one earlier in the Pipeline are kept, and a value
+         // of the same name is replaced. The data is set again rather than
+         // changed, so a result an engine put in its cache stays as it was.
+-        $shared = $flowData->data[$this->dataKey] ?? null;
++        $shared = null;
++        foreach ($flowData->data as $data) {
++            if ($data instanceof AspectDataDictionary && $data->flowElement instanceof self) {
++                $shared = $data;
++            }
++        }
+         if ($shared instanceof AspectDataDictionary && $shared->flowElement instanceof self) {
+             $result = array_replace($shared->asDictionary(), $result);
+         }

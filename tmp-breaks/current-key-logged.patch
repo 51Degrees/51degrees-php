@@ -1,0 +1,14 @@
+diff --git a/pipeline/core/src/Pipeline.php b/pipeline/core/src/Pipeline.php
+index 85f0d5bd..6eade87f 100644
+--- a/pipeline/core/src/Pipeline.php
++++ b/pipeline/core/src/Pipeline.php
+@@ -214,6 +214,9 @@ class Pipeline
+     public function currentDataKey(string $key): string
+     {
+         if (!isset($this->deprecatedDataKeys[$key])) {
++            if (!empty($this->flowElementsList[$key]->deprecatedDataKeys ?? [])) {
++                $this->log('warning', sprintf(Messages::DATA_KEY_DEPRECATED, $key, $key));
++            }
+             return $key;
+         }
+ 

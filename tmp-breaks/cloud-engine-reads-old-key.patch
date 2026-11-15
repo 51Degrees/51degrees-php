@@ -1,0 +1,13 @@
+diff --git a/pipeline/cloudrequestengine/src/CloudEngine.php b/pipeline/cloudrequestengine/src/CloudEngine.php
+index 705ee07c..80d8bbf1 100644
+--- a/pipeline/cloudrequestengine/src/CloudEngine.php
++++ b/pipeline/cloudrequestengine/src/CloudEngine.php
+@@ -92,7 +92,7 @@ class CloudEngine extends CloudEngineBase
+         $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+ 
+         return CloudRequestData::jsonResponseOf($flowData->get(
+-            $cloudRequestEngine->dataKey ?? Constants::DATA_KEY
++            Constants::DEPRECATED_DATA_KEY
+         ));
+     }
+ 

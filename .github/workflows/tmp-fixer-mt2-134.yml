@@ -1,0 +1,146 @@
+name: tmp fixer mt2 134
+# Throwaway. Shows that the tests of 51degrees-php#134 which pass on rc can
+# fail, and that the old Data Key is still tested. Installs the root Composer
+# packages as CI does, runs DeprecatedDataKeyTests, DataKeyTests,
+# RequestValueCacheTests and MultipleEnginesTests unchanged, then applies
+# each throwaway change in tmp-breaks on its own, runs the test files it
+# should break and takes the change out again. The job passes only when
+# every test passes unchanged and every expected failure happens.
+on:
+  push:
+    branches:
+      - tmp/fixer-mt2-134
+permissions:
+  contents: read
+jobs:
+  test:
+    name: pipeline core, cloud request engine and translation (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: git submodule update --init --depth 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: phpunit:9.6.34, composer
+      - name: Install the root Composer packages as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion 8.5
+          . ./51degrees-php/ci/packages.ps1
+          Install-RootComposer -RepoName 51degrees-php
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Set-RootAutoload -RepoName 51degrees-php
+      - name: Run the tests unchanged and under each change
+        working-directory: common-ci/51degrees-php
+        run: |
+          set +e
+          repo=$PWD
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          bad=0
+          phpunit --version
+          # change, package, test file
+          run() {
+            local change=$1 package=$2 file=$3
+            local junit="$GITHUB_WORKSPACE/junit-$change-$file.xml"
+            rm -f "$junit"
+            echo "::group::[$change] $package $file"
+            (cd "$repo/$package" && phpunit --colors=never --fail-on-warning --log-junit "$junit" "tests/$file.php") > "$GITHUB_WORKSPACE/out.txt" 2>&1
+            echo "phpunit exit $?"
+            cat "$GITHUB_WORKSPACE/out.txt"
+            echo "::endgroup::"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] ", $argv[3], " NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : (count($t->skipped) > 0 ? "SKIPPED" : "passed");
+                echo "RESULT [", $argv[2], "] ", $argv[3], "::", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" "$file" | tee -a "$summary"
+          }
+          # change, package, then each test file
+          broken() {
+            local change=$1 package=$2
+            shift 2
+            if ! patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$change.patch"; then
+              echo "RESULT [$change] PATCH DID NOT APPLY" | tee -a "$summary"
+              bad=1
+              return
+            fi
+            for file in "$@"; do
+              run "$change" "$package" "$file"
+            done
+            patch -p1 -R --no-backup-if-mismatch < "tmp-breaks/$change.patch" || bad=1
+          }
+          # change, test file, then each test method expected to fail
+          expect() {
+            local change=$1 file=$2
+            shift 2
+            for method in "$@"; do
+              if grep -q "^RESULT \[$change\] $file::$method FAILED" "$summary"; then
+                echo "EXPECTED [$change] $file::$method failed"
+              else
+                echo "UNEXPECTED [$change] $file::$method did not fail"
+                bad=1
+              fi
+            done
+          }
+          core=pipeline/core
+          cre=pipeline/cloudrequestengine
+          run none $core DeprecatedDataKeyTests
+          run none $cre DataKeyTests
+          run none $cre RequestValueCacheTests
+          run none pipeline/translation MultipleEnginesTests
+          for file in DeprecatedDataKeyTests DataKeyTests RequestValueCacheTests MultipleEnginesTests; do
+            grep -q "^RESULT \[none\] $file::" "$summary" || bad=1
+          done
+          if grep -q '^RESULT \[none\] .*\(FAILED\|SKIPPED\|NO JUNIT\)' "$summary"; then
+            bad=1
+          fi
+          [ "$bad" = 0 ] || echo "UNEXPECTED [none] a test did not pass unchanged"
+          # currentDataKey gives every key back unchanged, so cloud no longer
+          # gives the Cloud Request Engine or its data.
+          broken deprecated-key-not-mapped $cre DataKeyTests RequestValueCacheTests
+          expect deprecated-key-not-mapped DataKeyTests testTheOldKeyStillWorksAndIsLoggedOnce
+          expect deprecated-key-not-mapped RequestValueCacheTests testAnEntryHoldingAFodidIsNotServed
+          # Asking for an element that has deprecated keys by its own key
+          # logs a warning.
+          broken current-key-logged $core DeprecatedDataKeyTests
+          expect current-key-logged DeprecatedDataKeyTests testTheCurrentKeyLogsNothing
+          # A deprecated key takes the place of another element's own key.
+          broken deprecated-key-replaces-own $core DeprecatedDataKeyTests
+          expect deprecated-key-replaces-own DeprecatedDataKeyTests testAnElementWithTheKeyAsItsOwnKeepsIt
+          # FlowData::get gives the first Element Data for a key no element
+          # has, rather than throwing.
+          broken unknown-key-gives-data $core DeprecatedDataKeyTests
+          expect unknown-key-gives-data DeprecatedDataKeyTests testAKeyNoElementHasStillThrows
+          # The cloud engines read the response under cloud.
+          broken cloud-engine-reads-old-key $cre DataKeyTests
+          expect cloud-engine-reads-old-key DataKeyTests testACloudEngineReadsTheResponseWithoutTheOldKey
+          # cloudRequestEngine() finds the engine only by cloud-response.
+          broken cloud-engine-finds-new-key-only $cre DataKeyTests
+          expect cloud-engine-finds-new-key-only DataKeyTests testACloudEngineStillReadsAnElementUnderTheOldKey
+          # The JSON Bundler no longer leaves out data under cloud-response.
+          broken json-keeps-cloud-response $cre DataKeyTests
+          expect json-keeps-cloud-response DataKeyTests testTheJsonLeavesOutTheResponse
+          # Every Translation Engine adds to the Element Data of any Translation
+          # Engine before it, whatever its key.
+          broken translation-shares-every-key pipeline/translation MultipleEnginesTests
+          expect translation-shares-every-key MultipleEnginesTests testEnginesWithDifferentKeysKeepTheirOwnData
+          echo "::group::Summary"
+          cat "$summary"
+          echo "::endgroup::"
+          git status --short
+          exit $bad

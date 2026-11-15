@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/JsonBundlerElement.php b/pipeline/core/src/JsonBundlerElement.php
+index 446a4a66..3ff70aa8 100644
+--- a/pipeline/core/src/JsonBundlerElement.php
++++ b/pipeline/core/src/JsonBundlerElement.php
+@@ -47,7 +47,7 @@ class JsonBundlerElement extends FlowElement
+      * response, under its Data Key and cloud, the key it had before.
+      */
+     private const EXCLUDED_DATA_KEYS = [
+-        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud-response', 'cloud'
++        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud'
+     ];
+ 
+     public string $dataKey = 'jsonbundler';

@@ -1,0 +1,12 @@
+diff --git a/pipeline/core/src/FlowData.php b/pipeline/core/src/FlowData.php
+index c6f62cbc..297660bc 100644
+--- a/pipeline/core/src/FlowData.php
++++ b/pipeline/core/src/FlowData.php
+@@ -150,6 +150,7 @@ class FlowData
+             if (isset($this->data[$currentKey])) {
+                 return $this->data[$currentKey];
+             }
++            return reset($this->data);
+ 
+             throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
+         }

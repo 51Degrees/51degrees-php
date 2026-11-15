@@ -1,0 +1,13 @@
+diff --git a/pipeline/engines/src/AspectData.php b/pipeline/engines/src/AspectData.php
+index 13bb7f4d..19726ca2 100644
+--- a/pipeline/engines/src/AspectData.php
++++ b/pipeline/engines/src/AspectData.php
+@@ -63,7 +63,7 @@ class AspectData extends ElementData
+ 
+             // Only a name the data does not hold is missing. An empty list,
+             // false, 0 and an empty string are values.
+-            if ($result === null) {
++            if (false) {
+                 return $this->missingPropertyService->check($key, $this->flowElement);
+             }
+ 

@@ -1,0 +1,80 @@
+name: tmp php guard
+# Throwaway. Runs the Unit suites on the draft's head, then each patch in
+# tmp-breaks with the new tests, which the patch should make fail.
+on:
+  push:
+    branches:
+      - tmp/php-empty-guard
+permissions:
+  contents: read
+jobs:
+  red:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Head, then each patch
+        run: |
+          set +e
+          mkdir -p junit
+          packages="pipeline/engines"
+          for package in $packages; do
+            mkdir -p "$package/vendor"
+            printf '%s\n' '<?php' "return require __DIR__ . '/../../../vendor/autoload.php';" > "$package/vendor/autoload.php"
+          done
+          run() {
+            name=$1; shift
+            for package in $packages; do
+              out="$GITHUB_WORKSPACE/junit/$name-$(echo $package | tr / -).xml"
+              echo "::group::$name $package"
+              (cd "$package" && ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --testsuite Unit --log-junit "$out" "$@")
+              echo "exit $? for $name $package"
+              echo "::endgroup::"
+            done
+          }
+          broken() {
+            patch=$1; shift
+            patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$patch.patch" || exit 1
+            run "$patch" "$@"
+            git checkout -- pipeline device-detection
+          }
+          run head
+          broken no-null-check --filter 'testANameTheDataDoesNotHoldIsMissing'
+          exit 0
+      - name: Each test's result
+        shell: python
+        run: |
+          import glob, xml.etree.ElementTree as ET
+          def results(name):
+              out = {}
+              for f in glob.glob(f'junit/{name}-*.xml'):
+                  for case in ET.parse(f).getroot().iter('testcase'):
+                      failed = case.find('failure') is not None or case.find('error') is not None
+                      out[case.get('name')] = 'fail' if failed else 'pass'
+              return out
+          head = results('head')
+          bad = {k: v for k, v in head.items() if v != 'pass'}
+          print(f'head: {len(head)} tests, {sum(v == "pass" for v in head.values())} passed, not passed: {bad}')
+          ok = not bad
+          for patch, tests in {'no-null-check': ['testANameTheDataDoesNotHoldIsMissing']}.items():
+              r = results(patch)
+              for t in tests:
+                  print(f'{patch}: {t} head {head.get(t)}, patched {r.get(t)} (expected fail)')
+                  ok = ok and head.get(t) == 'pass' and r.get(t) == 'fail'
+              others = {k: v for k, v in r.items() if k not in tests}
+              if others:
+                  print(f'{patch}: also ran {others}')
+          print('RESULT', 'as expected' if ok else 'NOT as expected')
+          raise SystemExit(0 if ok else 1)

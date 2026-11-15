@@ -1,0 +1,104 @@
+name: tmp php core
+# Throwaway. Runs the Unit suites of pipeline/core, pipeline/engines,
+# pipeline/cloudrequestengine and pipeline/translation on PHP 8.5, then prints
+# the result of each new test and every other test that did not pass. On
+# tmp/php-core-red2 the code is rc's and the new tests should fail. On
+# tmp/php-core-green2 the fix is in and every test should pass.
+on:
+  push:
+    branches:
+      - tmp/php-core-red2
+      - tmp/php-core-green2
+permissions:
+  contents: read
+jobs:
+  unit:
+    name: Unit (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 pipeline/did/owid-php derived-properties javascript-templates
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the root composer.json
+        run: composer install --no-interaction --no-progress
+      - name: Unit suites
+        run: |
+          set +e
+          mkdir -p junit
+          for package in pipeline/core pipeline/engines pipeline/cloudrequestengine pipeline/translation; do
+            # The package autoloader the examples load, as ci/build-project.ps1 writes it.
+            mkdir -p "$package/vendor"
+            printf '%s\n' '<?php' "return require __DIR__ . '/../../../vendor/autoload.php';" > "$package/vendor/autoload.php"
+            echo "::group::$package"
+            (cd "$package" && ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --testsuite Unit --log-junit "$GITHUB_WORKSPACE/junit/$(basename "$package").xml")
+            echo "exit $? for $package"
+            echo "::endgroup::"
+          done
+          exit 0
+      - name: Each test's result
+        shell: python
+        run: |
+          import glob, os, xml.etree.ElementTree as ET
+          red = '-red' in os.environ['GITHUB_REF_NAME']
+          new = {
+              'ElementKeyTests': [
+                  'testAnElementIsFoundUnderItsKeyInAnyCase',
+                  'testTheExactKeyIsTriedFirst',
+                  'testAnOwnKeyInAnyCaseComesBeforeADeprecatedKey',
+                  'testAKeyNoElementHasThrows',
+              ],
+              'PipelineImmutableTests': [
+                  'testTheSettingsAreGivenWhenThePipelineIsBuilt',
+                  'testTheLoggerCannotBeSet',
+                  'testTheMetaDataStoreCannotBeSet',
+                  'testSuppressProcessExceptionsCannotBeSet',
+                  'testAutoCloseElementsCannotBeSet',
+                  'testThePropertyDatabaseCannotBeSet',
+                  'testNoOtherPropertyItDeclaresCanBeSet',
+              ],
+          }
+          results = {}
+          reasons = {}
+          for path in sorted(glob.glob('junit/*.xml')):
+              counts = {'pass': 0, 'fail': 0, 'skip': 0}
+              for case in ET.parse(path).getroot().iter('testcase'):
+                  cls = (case.get('class') or case.get('classname') or '').replace('.', '\\').split('\\')[-1]
+                  key = (cls, case.get('name'))
+                  bad = case.find('failure')
+                  if bad is None:
+                      bad = case.find('error')
+                  if bad is not None:
+                      state = 'fail'
+                      reasons[key] = ((bad.text or bad.get('message') or '').strip().splitlines() or [''])[0][:200]
+                  elif case.find('skipped') is not None:
+                      state = 'skip'
+                  else:
+                      state = 'pass'
+                  results[key] = state
+                  counts[state] += 1
+              print(f'{os.path.basename(path)}: {counts}')
+          ok = True
+          want = 'fail' if red else 'pass'
+          for cls, names in new.items():
+              for name in names:
+                  got = results.get((cls, name), 'missing')
+                  extra = f'  ({reasons[(cls, name)]})' if (cls, name) in reasons else ''
+                  print(f'new {cls}::{name}: {got}{extra}')
+                  ok = ok and got == want
+          others = {k: v for k, v in results.items()
+                    if k[1] not in new.get(k[0], []) and v != 'pass'}
+          for (cls, name), state in sorted(others.items()):
+              print(f'other {cls}::{name}: {state}  {reasons.get((cls, name), "")}')
+          ok = ok and not any(v == 'fail' for v in others.values())
+          print(f'{len(results)} tests, {len(others)} others not passed')
+          print('RESULT', 'as expected' if ok else 'NOT as expected',
+                f'(new tests should {want}, every other test should pass)')
+          raise SystemExit(0 if ok else 1)

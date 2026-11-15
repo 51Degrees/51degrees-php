@@ -25,6 +25,7 @@ namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\SequenceElement;
 use fiftyone\pipeline\core\SetHeaderElement;
 use fiftyone\pipeline\core\tests\classes\DeclaresNothingElement;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
@@ -58,6 +59,24 @@ class AcceptedEvidenceTests extends TestCase
             $this->assertFalse(
                 $element->filterEvidenceKey($key),
                 "The Set Header element accepts {$key}"
+            );
+        }
+    }
+
+    /**
+     * The Sequence Element accepts the session id and the sequence the
+     * client-side script sends back, and nothing else.
+     */
+    public function testSequenceElementAcceptsOnlyItsOwnEvidence()
+    {
+        $element = new SequenceElement();
+
+        $this->assertTrue($element->filterEvidenceKey('query.session-id'));
+        $this->assertTrue($element->filterEvidenceKey('query.sequence'));
+        foreach (self::UNUSED_KEYS as $key) {
+            $this->assertFalse(
+                $element->filterEvidenceKey($key),
+                "The Sequence Element accepts {$key}"
             );
         }
     }

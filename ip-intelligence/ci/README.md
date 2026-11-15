@@ -14,7 +14,7 @@ scripts below are therefore deliberate no-ops.
 | Script | Called by | Purpose |
 |---|---|---|
 | `setup-environment.ps1` | build-and-test, publish prebuild/test | Set up the PHP version for the build. |
-| `fetch-assets.ps1` | Configure (prefetch), build-and-test, publish test | Download the `.ipi` data files. Must declare **only** parameters named after workflow secrets - the `prefetch_assets` action passes nothing else. |
+| `fetch-assets.ps1` | Configure (prefetch), build-and-test, publish test | Download the `.ipi` data files, and link the free ones into `cxx/data/ip-intelligence`, where the examples look for them with nothing set. Must declare **only** parameters named after workflow secrets - the `prefetch_assets` action passes nothing else. |
 | `build-project.ps1` | build-and-test | Build the native on-premise extension from the committed SWIG wrapper, clone the translation package, then run the standard PHP build. |
 | `run-unit-tests.ps1` | build-and-test | Run the PHPUnit `Unit` suite. |
 | `run-integration-tests.ps1` | build-and-test, publish test | Run the PHPUnit `Integration` suite with a resource key. |

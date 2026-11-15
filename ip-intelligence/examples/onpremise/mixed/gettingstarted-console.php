@@ -28,11 +28,13 @@ require_once __DIR__ . '/../../../vendor/autoload.php';
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\examples\classes\MixedConsoleOnPremise;
 
-// The example uses the engine the extension builds once, when PHP starts,
-// from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
-// Without it, the example runs again in a PHP started with a data file, the
-// free Lite file unless another is named, downloaded when it is missing.
-ExampleUtils::startWithEngine($argv);
+// The example uses the engines the two extensions build once, when PHP
+// starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file and
+// FiftyOneDegreesHashEngine.data_file php.ini settings. Without one or both,
+// the example runs again in a PHP started with a data file for each engine
+// PHP did not build, the free Lite file unless another is named, downloaded
+// when it is not there.
+ExampleUtils::startWithBothEngines($argv);
 
 (new MixedConsoleOnPremise())->run(STDOUT);
 

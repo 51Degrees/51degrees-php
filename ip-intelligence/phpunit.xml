@@ -30,5 +30,11 @@
       <file>tests/MixedExamplesTests.php</file>
       <file>tests/ChainedCallTests.php</file>
     </testsuite>
+    <!-- Downloads a free data file from the distributor. Runs once, in
+         .github/workflows/data-file-download.yml, and not in the build
+         matrix, whose jobs take every free file from the asset cache. -->
+    <testsuite name="Download">
+      <file>tests/DownloadDataFileTests.php</file>
+    </testsuite>
   </testsuites>
 </phpunit>

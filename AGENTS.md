@@ -191,6 +191,17 @@ php $BOTH examples/onpremise/mixed/gettingstarted-console.php
 cd ..
 ```
 
+With the two extensions loaded and no data file setting for one engine or
+both, the console example finds a data file for each engine PHP did not
+build, as the launcher below does, and runs again in a PHP started with
+them. Before its own output it writes to standard error
+`No IP intelligence or device detection engine was built when PHP started, so the example runs again in a PHP that builds them from`
+followed by the two files and the settings to put in php.ini, then the
+command, after the download's own lines when it downloads a file. Where the
+system does not give
+PHP's own command line, as on macOS, the new PHP is started without the
+`-d extension=...` options, so load the extensions from php.ini there.
+
 Start the mixed web page from the repository root with the launcher, loading
 only the two extensions. The launcher finds both data files, downloading the
 free Lite files when they are missing, and starts the PHP built-in server on
@@ -201,9 +212,9 @@ php -d extension="$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDeg
 ```
 
 `tests/MixedExamplesTests.php` runs the mixed console example and the mixed
-web page with both extensions in each order, and
-`tests/ServeWebExamplesTests.php` starts both web pages with the launcher, in
-CI.
+web page with both extensions in each order, and the console example with no
+data file set for one engine or both, and `tests/ServeWebExamplesTests.php`
+starts both web pages with the launcher, in CI.
 
 ### Correct output
 
@@ -343,7 +354,9 @@ cd ../..
   it prints is tagged. `device-detection/onpremise/tests/StartWithoutDataFileTests.php`
   and `ip-intelligence/tests/ServeWebExamplesTests.php` also run the Device
   Detection console examples and both packages' web examples, through their
-  launchers, with nothing set at all, so the data file is found or downloaded.
+  launchers, with nothing set at all, so the data file is found or downloaded,
+  and `ip-intelligence/tests/MixedExamplesTests.php` runs the mixed console
+  example the same way.
   The cloud examples' classes also run with a key, or
   against a mocked cloud service for IP Intelligence, in each package's
   `tests/ExampleTests.php`. The Device Detection on-premise suite runs only
@@ -351,6 +364,13 @@ cd ../..
   without it), the location suite only with a resource key, and neither
   on-premise package is built on Windows or on PHP 7.4. IP Intelligence uses
   the Lite file that `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
+  CI's asset cache holds every free data file the examples look for, and the
+  packages' `ci/fetch-assets.ps1` scripts link the cached copies into
+  `cxx/data` under the data repository's names, so the tests that run the
+  examples with nothing set find them there rather than downloading them.
+  `ip-intelligence/tests/DownloadDataFileTests.php` still downloads the free
+  ASN file from nothing, with the examples' own code, and says so plainly
+  when the distributor refuses it.
 
 ## Environment variable names
 
@@ -456,6 +476,23 @@ changes either extension or `cxx`, and fails on any memory error.
 tests against the root `vendor`. A package `vendor` folder from a
 `composer install` run inside the package stops it, as the tests would then
 use that copy.
+
+No job of the build matrix downloads a free data file. common-ci's Configure
+job fetches every asset the packages' `ci/fetch-assets.ps1` scripts list into
+the run's asset cache, and each job's Fetch Assets step links the cached copies
+into `cxx/data`, beside the data repository's links, where the examples and
+tests look. After the tests, `ci/check-no-data-file-downloads.ps1` fails the
+job when a file beside a link is not itself a link, which means a test or an
+example downloaded it, and names the file to add to a package's list. The cache
+key covers only the root `ci/fetch-assets.ps1`
+([common-ci#329](https://github.com/51Degrees/common-ci/issues/329)), so a
+file added to a package's list is fetched in each job's Fetch Assets step
+until a cache filled from the new list is restored. The test of the download
+itself is the `Download` suite in `ip-intelligence/phpunit.xml`, which runs
+once, in `.github/workflows/data-file-download.yml`, and in no matrix job. To
+run the tests on your own machine without downloading, link or copy the free
+files you already have into `cxx/data/device-detection` and
+`cxx/data/ip-intelligence` under the data repository's names.
 
 ## Versions
 

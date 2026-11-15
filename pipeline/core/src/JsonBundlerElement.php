@@ -36,11 +36,6 @@ namespace fiftyone\pipeline\core;
 class JsonBundlerElement extends FlowElement
 {
     /**
-     * The nullreason of a Property assigned no value without a message.
-     */
-    private const NO_VALUE_MESSAGE = 'This instance does not have a set value';
-
-    /**
      * The Data Keys of the elements whose data is left out of the JSON,
      * being this element, the JavaScript builder, the Set Headers Element
      * and the Cloud Request Engine, whose data is the cloud service's raw
@@ -195,7 +190,7 @@ class JsonBundlerElement extends FlowElement
                         } else {
                             $nullReason = !empty($valueContainer->noValueMessage)
                                 ? $valueContainer->noValueMessage
-                                : self::NO_VALUE_MESSAGE;
+                                : AspectPropertyValue::NO_VALUE_MESSAGE;
                         }
                     } else {
                         // Standard value

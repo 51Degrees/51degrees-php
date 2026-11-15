@@ -22,6 +22,7 @@
       <file>tests/JsonBundlerKeysTests.php</file>
       <file>tests/LicenseKeyTests.php</file>
       <file>tests/JsonBundlerNullTests.php</file>
+      <file>tests/AspectPropertyValueTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

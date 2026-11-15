@@ -20,6 +20,7 @@
       <file>tests/CloudAllEvidenceTests.php</file>
       <file>tests/MissingProductTests.php</file>
       <file>tests/MissingProductAtBuildTests.php</file>
+      <file>tests/CloudEngineMetadataReasonTests.php</file>
       <file>tests/CloudRequestFailedTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/ExampleTests.php</file>

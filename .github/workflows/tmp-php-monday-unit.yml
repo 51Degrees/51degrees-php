@@ -34,6 +34,9 @@ jobs:
         run: |
           status=0
           for package in pipeline/core pipeline/engines pipeline/cloudrequestengine; do
+            # The package autoloader the examples load, as ci/build-project.ps1 writes it.
+            mkdir -p "$package/vendor"
+            printf '%s\n' '<?php' "return require __DIR__ . '/../../../vendor/autoload.php';" > "$package/vendor/autoload.php"
             echo "::group::$package"
             (cd "$package" && ../../vendor/bin/phpunit --colors=never --bootstrap ../../vendor/autoload.php --testsuite Unit) || status=1
             echo "::endgroup::"

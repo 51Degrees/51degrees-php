@@ -348,7 +348,7 @@ class JsonBundlerElement extends FlowElement
                     $json[$name] = null;
                     $json[$name . 'nullreason'] = !empty($property->noValueMessage)
                         ? $property->noValueMessage
-                        : self::NO_VALUE_MESSAGE;
+                        : AspectPropertyValue::NO_VALUE_MESSAGE;
 
                     continue;
                 }

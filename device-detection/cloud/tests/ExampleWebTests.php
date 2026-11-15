@@ -25,11 +25,13 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @requires OS Linux
  */
+#[RequiresOperatingSystem('Linux')]
 class ExampleWebTests extends TestCase
 {
     public static $process;

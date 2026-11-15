@@ -1,0 +1,50 @@
+name: Data file download
+
+# The one job that downloads a free data file from the distributor, as an
+# example does in a fresh clone. The build matrix takes every free data file
+# from the run's asset cache, so the IP Intelligence Download suite runs here.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - rc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  data-file-download:
+    name: An example downloads a missing free data file
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The download script and each file's link are in the data repository,
+      # which the cxx submodule holds as cxx/data.
+      - name: Checkout the data repository
+        run: |
+          git submodule update --init --depth 1 cxx
+          git -C cxx submodule update --init --depth 1 data
+
+      # The PHPUnit common-ci gives the build matrix.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer, phpunit:9.6.34
+
+      # The test needs only the package's own classes and the examples', so
+      # the autoloader is written without installing the dependencies.
+      # --dev adds the examples' classes, which autoload-dev maps, as no
+      # install has said whether this is a development install.
+      - name: IP Intelligence Download suite
+        working-directory: ip-intelligence
+        run: |
+          composer dump-autoload --dev
+          phpunit --fail-on-warning --testsuite Download

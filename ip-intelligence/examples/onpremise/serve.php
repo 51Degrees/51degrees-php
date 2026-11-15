@@ -34,9 +34,9 @@
  * file downloaded when there is none. With nothing named and an engine PHP
  * built from php.ini, the server uses that file. web-mixed also needs the
  * Device Detection extension, and when PHP built no Device Detection engine
- * it gets the file the _51DEGREES_DD_PATH environment variable names, or
- * else the free Lite file in cxx/data/device-detection, downloaded when it
- * is missing. The server runs until it is stopped.
+ * it gets the file getDeviceDetectionDataFile in ExampleUtils finds, which
+ * the mixed console example uses as well. The server runs until it is
+ * stopped.
  *
  * The server is started with the options this PHP was started with, such
  * as -d extension=..., where the system gives PHP's own command line, as
@@ -55,13 +55,6 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 const SERVE_EXAMPLES = ['web', 'web-mixed'];
 
 const SERVE_DEFAULT_PORT = 3000;
-
-// What web-mixed needs for Device Detection.
-const SERVE_DD_EXTENSION = 'FiftyOneDegreesHashEngine';
-const SERVE_DD_SETTING = 'FiftyOneDegreesHashEngine.data_file';
-const SERVE_DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
-const SERVE_DD_LITE_DATA_FILE = __DIR__ .
-    '/../../../cxx/data/device-detection/51Degrees-LiteV4.1.hash';
 
 /**
  * The options PHP was started with before this script, where the system
@@ -134,19 +127,15 @@ if ($named === [] && $fromEnvironment === '' &&
 }
 
 if ($example === 'web-mixed') {
-    if (!extension_loaded(SERVE_DD_EXTENSION)) {
-        serveStop('web-mixed needs the ' . SERVE_DD_EXTENSION . ' extension ' .
-            'as well. The Device Detection on-premise readme says how to ' .
-            'build it.');
+    if (!extension_loaded(ExampleUtils::DD_EXTENSION)) {
+        serveStop('web-mixed needs the ' . ExampleUtils::DD_EXTENSION .
+            ' extension as well. The Device Detection on-premise readme ' .
+            'says how to build it.');
     }
-    if (\FiftyOneDegreesHashEngine::engine_get() === null) {
-        $ddNamed = (string) getenv(SERVE_DD_PATH_VARIABLE);
-        $ddPath = $ddNamed !== '' ? $ddNamed : SERVE_DD_LITE_DATA_FILE;
-        if (!ExampleUtils::downloadMissingDataFile($ddPath)) {
-            serveStop("There is no Device Detection data file at {$ddPath}.");
-        }
+    $ddPath = ExampleUtils::getDeviceDetectionDataFile();
+    if ($ddPath !== null) {
         $settings[] = '-d';
-        $settings[] = SERVE_DD_SETTING . '=' . realpath($ddPath);
+        $settings[] = ExampleUtils::DD_DATA_FILE_SETTING . '=' . $ddPath;
     }
 }
 

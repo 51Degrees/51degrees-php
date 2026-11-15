@@ -50,24 +50,21 @@ class ExamplesTest extends TestCase
     }
 
     /**
-     * With no resource key the creator context server says where to create
-     * one, with a tagged link to the configuration page, then gives the
-     * links to find out more. What status it answers with is not checked
-     * here.
+     * With no resource key the creator context server answers with HTTP
+     * status 200 and a page that names the environment variable to set,
+     * says where to create a key, with a tagged link to the configuration
+     * page, then gives the links to find out more.
      */
     public function testCreatorContextServerWithoutKey(): void
     {
-        $run = ExampleRun::run(
+        $run = ExampleRun::serve(
             __DIR__ . '/../examples/creator-context-web/server.php',
-            [],
-            self::RESOURCE_KEY_VARIABLES,
-            ExampleRun::WEB_REQUEST
+            self::RESOURCE_KEY_VARIABLES
         );
-        $this->assertStringContainsString(
-            'https://51degrees.com/configure',
-            html_entity_decode($run->output),
-            $run->printed()
-        );
+        $this->assertSame(200, $run->httpStatus, $run->printed());
+        $page = html_entity_decode($run->output);
+        $this->assertStringContainsString('_51DEGREES_RESOURCE_KEY', $page, $run->printed());
+        $this->assertStringContainsString('https://51degrees.com/configure', $page, $run->printed());
         $run->assertPageEndsWithFindOutMore();
     }
 }

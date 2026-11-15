@@ -31,6 +31,9 @@
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 
+// The package's autoloader, which composer install writes.
+require_once __DIR__ . '/../vendor/autoload.php';
+
 // Require some FlowElements to use in this example
 require __DIR__ . '/FlowElementsForExamples.php';
 

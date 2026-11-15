@@ -27,6 +27,24 @@
  * FiftyOneDegreesIpIntelligenceEngine.
  */
 
+/*
+ * A weighted list's get returns a copy of the weighted value, which the PHP
+ * object owns. SWIG would return a reference into the list, and a list that
+ * is itself a returned value, as in $w->getValue()->get(0)->getValue(), is
+ * freed by PHP as soon as get returns, leaving the reference pointing at
+ * freed memory.
+ */
+%define IPI_RETURN_COPY(TYPE)
+%typemap(out, phptype="SWIGTYPE") const TYPE & {
+  SWIG_SetPointerZval($result, (void *)new TYPE(*$1), $1_descriptor, 1);
+}
+%enddef
+IPI_RETURN_COPY(WeightedValue< std::string >)
+IPI_RETURN_COPY(WeightedValue< std::vector< uint8_t > >)
+IPI_RETURN_COPY(WeightedValue< bool >)
+IPI_RETURN_COPY(WeightedValue< int >)
+IPI_RETURN_COPY(WeightedValue< double >)
+
 %include "cxx/src/ipi/ipi.i"
 
 /*

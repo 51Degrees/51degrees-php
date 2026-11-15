@@ -26,3 +26,7 @@ Write-CheckoutComposer -RepoName $RepoName -Package 'device-detection/cloud' `
 
 Invoke-PackageScript -RepoName $RepoName -Script run-integration-tests -Parameters @{ Keys = $Keys } `
     -Environment @{ 'device-detection/cloud' = @{ COMPOSER = 'composer.ci.json' } }
+
+# Every package's unit and integration tests have run by now, so this finds a
+# free data file that any of them downloaded rather than took from the cache.
+& "$PSScriptRoot/check-no-data-file-downloads.ps1" -RepoName $RepoName

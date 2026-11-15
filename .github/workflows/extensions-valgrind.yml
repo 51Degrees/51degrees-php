@@ -62,17 +62,23 @@ jobs:
 
       # The free data files come from the asset cache, never the Distributor.
       # The Nightly Pipeline saves that cache on the default branch once
-      # a day, under a key that starts with the date (common-ci's
+      # a day, under a key that starts with the UTC date (common-ci's
       # prefetch_assets), and a pull request's run can restore it from there.
-      - name: Name today's asset cache
+      # A run before that day's save takes the previous day's cache, as the
+      # free files change far less often than daily.
+      - name: Name the asset caches of today and yesterday
         id: day
-        run: echo "prefix=$(date -u +%Y%m%d)-" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "today=$(date -u +%Y%m%d)-" >> "$GITHUB_OUTPUT"
+          echo "yesterday=$(date -u -d '1 day ago' +%Y%m%d)-" >> "$GITHUB_OUTPUT"
 
       - name: Restore the asset cache
         uses: actions/cache/restore@v5
         with:
-          key: ${{ steps.day.outputs.prefix }}assets
-          restore-keys: ${{ steps.day.outputs.prefix }}
+          key: ${{ steps.day.outputs.today }}assets
+          restore-keys: |
+            ${{ steps.day.outputs.today }}
+            ${{ steps.day.outputs.yesterday }}
           path: assets
           enableCrossOsArchive: true
 
@@ -80,9 +86,10 @@ jobs:
         run: |
           for file in 51Degrees-LiteV4.1.hash 51Degrees-LiteIpiV41.ipi; do
             if [ ! -s "assets/$file" ]; then
-              echo "::error::$file is not in today's asset cache, and this" \
-                "check never downloads it. Run the check again once the" \
-                "Nightly Pipeline has saved the cache today."
+              echo "::error::$file is in neither today's nor yesterday's" \
+                "asset cache, and this check never downloads it. The" \
+                "Nightly Pipeline saves the cache on the default branch" \
+                "each day, so run the check again once it has saved one."
               exit 1
             fi
           done

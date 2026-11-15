@@ -98,4 +98,13 @@ class Messages
         "the engine could not be built from '%s', which " .
         'FiftyOneDegreesHashEngine.data_file names. PHP gave the reason in a ' .
         'warning when it started.';
+
+    /**
+     * Thrown when refreshData is given a data file held in memory.
+     */
+    public const REFRESH_FROM_MEMORY =
+        'A data file held in memory cannot be passed to the engine from ' .
+        'PHP. Replace the data file the engine was built from and call ' .
+        'refreshData() with no argument, or call refreshData($fileName) ' .
+        'with the path of the new data file.';
 }

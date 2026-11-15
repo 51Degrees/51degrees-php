@@ -28,6 +28,7 @@
       <file>tests/ReadTimingTests.php</file>
       <file>tests/IpIntelligenceCloudTests.php</file>
       <file>tests/IpIntelligenceOnPremiseTests.php</file>
+      <file>tests/RefreshDataTests.php</file>
       <file>tests/ServeWebExamplesTests.php</file>
       <file>tests/IpIntelligenceTranslationTests.php</file>
       <file>tests/RestrictedPropertiesListTests.php</file>

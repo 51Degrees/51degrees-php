@@ -22,6 +22,7 @@
 	    <file>tests/SetHeaderTests.php</file>
       <file>tests/EvidenceFromWebRequestTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>
+      <file>tests/PipelineEvidenceKeyFilterTests.php</file>
       <file>tests/WebIntegrationElementsTests.php</file>
       <file>tests/ClientSideResponseTests.php</file>
       <file>tests/JsonBundlerSequenceTests.php</file>

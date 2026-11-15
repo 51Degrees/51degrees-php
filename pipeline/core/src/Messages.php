@@ -37,6 +37,12 @@ class Messages
      */
     public const NO_ELEMENT_DATA = "There is no element data for '%s' against this flow data. Available element data keys are: '%s'";
     public const NO_ELEMENT_DATA_NULL = "There is no element data for '%s' against this flow data.'";
+
+    /**
+     * Logged once when a deprecated Data Key is used. This takes the
+     * deprecated key, then the key that replaces it.
+     */
+    public const DATA_KEY_DEPRECATED = "The Data Key '%s' is deprecated and will be removed in a later release. Use '%s', which gives the same element and data.";
     public const PASS_KEY_VALUE = 'Must pass key and value';
     public const FLOW_DATA_PROCESSED = 'FlowData already processed';
 

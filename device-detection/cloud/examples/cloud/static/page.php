@@ -133,7 +133,7 @@
                 <?php
                     foreach ($flowdata->evidence->getAll() as $key => $value)
                     {
-                        if ($flowdata->pipeline->getElement("cloud")->getEvidenceKeyFilter()->filterEvidenceKey($key))
+                        if ($flowdata->pipeline->getElement("cloud-response")->getEvidenceKeyFilter()->filterEvidenceKey($key))
                         {
                             $output("<tr class='c-eg-table__row c-eg-table__row--used'>");
                         }

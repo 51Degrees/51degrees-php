@@ -43,7 +43,7 @@
         "php": ">=7.4",
         "51degrees/fiftyone.pipeline.core": "4.*",
         "51degrees/fiftyone.pipeline.engines": "4.*",
-        "51degrees/fiftyone.pipeline.cloudrequestengine": "4.*"
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "^4.5.208"
     },
     "require-dev":
     {

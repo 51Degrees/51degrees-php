@@ -137,7 +137,8 @@ class FlowData
 
     /**
      * Retrieve data by FlowElement key, compared ignoring case as every
-     * string key is.
+     * string key is, or by a deprecated Data Key the element had before,
+     * which is logged once.
      *
      * @throws \Exception
      */
@@ -151,6 +152,13 @@ class FlowData
             if (strcasecmp((string) $key, $flowElementKey) === 0) {
                 return $data;
             }
+        }
+
+        // A deprecated Data Key gives the data under the key that replaced
+        // it.
+        $currentKey = $this->pipeline->currentDataKey($flowElementKey);
+        if (isset($this->data[$currentKey])) {
+            return $this->data[$currentKey];
         }
 
         throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));

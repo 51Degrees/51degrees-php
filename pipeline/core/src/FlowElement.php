@@ -49,6 +49,15 @@ class FlowElement
     public array $pipelines = [];
 
     /**
+     * Data Keys the element had before. Pipeline::getElement and
+     * FlowData::get still answer to each, logging once that it is
+     * deprecated, so code that names an old key keeps working.
+     *
+     * @var array<string>
+     */
+    public array $deprecatedDataKeys = [];
+
+    /**
      * A default dummy constructor is needed for there are classes inheriting this
      * class deeper than 1-level of inheritance and calling parent::__construct() in their
      * explicit constructors. Unfortunately intermediates do not define their own __construct()

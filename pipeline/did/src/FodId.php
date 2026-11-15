@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\did;
 
 use DateTimeImmutable;
+use Error;
 use InvalidArgumentException;
 use SwanCommunity\Owid\Owid;
 use SwanCommunity\Owid\OwidException;
@@ -101,8 +102,9 @@ use SwanCommunity\Owid\Version;
  *
  * The owid-php {@see Owid} is `final`, so this type **composes** an OWID
  * (holds the envelope and delegates OWID-level concerns to it) rather than
- * inheriting from it. An OWID only exists once it has been read or signed
- * and its fields are read only, so the one handed in is held as it is.
+ * inheriting from it. An OWID is made by reading or signing and its fields
+ * are read only, so the one handed in is held as it is. A serialized 51Did
+ * keeps only the envelope's bytes, which unserializing it reads again.
  * Reading a {@see FodId} does **not** verify the signature, and a parsed
  * 51Did is not necessarily genuine. Call {@see FodId::verify()} or
  * {@see FodId::signatureStatus()} explicitly.
@@ -136,6 +138,16 @@ final class FodId
         . '\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}'
         . '\x{3000}';
 
+    /** The key under which {@see FodId::__serialize()} keeps the envelope. */
+    private const SERIALIZED_ENVELOPE = 'envelope';
+
+    /**
+     * The key of the OWID in a serialized 51Did written before this class
+     * had {@see FodId::__serialize()}, being the private property's name as
+     * PHP writes it.
+     */
+    private const SERIALIZED_OWID = "\0" . self::class . "\0owid";
+
     private Owid $owid;
     private int $flags;
     private int $licenseId;
@@ -158,6 +170,86 @@ final class FodId
      *                                  or has usage bits 000.
      */
     public function __construct(Owid $owid)
+    {
+        $this->readFrom($owid);
+    }
+
+    /**
+     * Keeps only the envelope's bytes, so that
+     * {@see FodId::__unserialize()} reads them again rather than taking
+     * fields a serialized string could carry.
+     *
+     * @return array{envelope: string}
+     */
+    public function __serialize(): array
+    {
+        return [self::SERIALIZED_ENVELOPE => $this->owid->asByteArray()];
+    }
+
+    /**
+     * Reads the envelope's bytes with the reader the public readers use, so
+     * a serialized 51Did is made only by reading a complete envelope. A
+     * changed envelope is refused or reads as what it now holds, whose
+     * signature then fails. A string written before this class had
+     * {@see FodId::__serialize()} holds the OWID and the fields read from
+     * it, and only the OWID's bytes are taken from it.
+     *
+     * @param array<array-key, mixed> $data
+     * @throws OwidException when the bytes are not a valid OWID envelope.
+     * @throws InvalidArgumentException when the value holds no envelope, or
+     *                                  the payload does not fit a 51Did.
+     */
+    public function __unserialize(array $data): void
+    {
+        $this->readFrom(self::envelopeOrThrow(
+            Owid::tryFromByteArray(self::serializedEnvelope($data))
+        ));
+    }
+
+    /**
+     * The envelope's bytes from a serialized 51Did, in the form
+     * {@see FodId::__serialize()} writes or the form written before it.
+     *
+     * @param array<array-key, mixed> $data
+     * @throws OwidException when the OWID's fields cannot be written.
+     * @throws InvalidArgumentException when the value holds no envelope.
+     */
+    private static function serializedEnvelope(array $data): string
+    {
+        $envelope = $data[self::SERIALIZED_ENVELOPE] ?? null;
+        if (is_string($envelope)) {
+            return $envelope;
+        }
+        $owid = $data[self::SERIALIZED_OWID] ?? null;
+        if ($owid instanceof Owid) {
+            try {
+                return $owid->asByteArray();
+            } catch (Error $missing) {
+                // A field of the OWID was left out of the string.
+                throw self::noEnvelope($missing);
+            }
+        }
+        throw self::noEnvelope(null);
+    }
+
+    /** The exception for a serialized value that holds no envelope. */
+    private static function noEnvelope(
+        ?Error $previous
+    ): InvalidArgumentException {
+        return new InvalidArgumentException(
+            'The serialized value holds no 51Did envelope.',
+            0,
+            $previous
+        );
+    }
+
+    /**
+     * Unpacks the payload of the OWID given and holds both, or raises when
+     * the payload does not fit a 51Did.
+     *
+     * @throws InvalidArgumentException when the payload does not fit.
+     */
+    private function readFrom(Owid $owid): void
     {
         $read = self::readPayload($owid->payload);
         if ($read instanceof FodIdParseStatus) {
@@ -383,12 +475,14 @@ final class FodId
      * payload does not fit a 51Did. This is the one place the payload rules
      * live, so the raising and the answering surfaces cannot drift apart.
      *
-     * The header must be present before the type can be read, and the type
-     * then says how many match key bytes must follow. A Reserved identifier
-     * takes whatever follows the header, which is the existing best-effort
-     * reading of a type not yet assigned. One byte after the match key is
-     * the terms index, and anything after that is a creator context section
-     * and is left in the payload unread.
+     * The version in the first byte is checked first, so a payload whose
+     * first byte names another version is refused for that version however
+     * short it is. The header must then be present before the type can be
+     * read, and the type says how many match key bytes must follow. A
+     * Reserved identifier takes whatever follows the header, which is the
+     * existing best-effort reading of a type not yet assigned. One byte
+     * after the match key is the terms index, and anything after that is a
+     * creator context section and is left in the payload unread.
      *
      * The terms index is the only field that may be absent, because a
      * payload may end at the match key. A payload with no byte there reads
@@ -402,18 +496,22 @@ final class FodId
     private static function readPayload(string $payload): array|FodIdParseStatus
     {
         $length = strlen($payload);
-        if ($length < FodIdLayout::HEADER_LENGTH) {
+        if ($length <= FodIdLayout::FLAGS_OFFSET) {
             return FodIdParseStatus::PayloadTooShort;
         }
         $flags = ord($payload[FodIdLayout::FLAGS_OFFSET]);
-        // The version is read before any field, because a later version
-        // exists precisely because a field moved. Reading a payload of a
-        // version this package does not know under the layout it does know
-        // would answer with values that are wrong rather than absent,
-        // which is worse than refusing, and a version that nothing checks
-        // protects nothing.
+        // The version is read before any field, and before the header
+        // length is checked, because a later version exists precisely
+        // because a field moved, so the header length of version 0 says
+        // nothing about it. Reading a payload of a version this package
+        // does not know under the layout it does know would answer with
+        // values that are wrong rather than absent, which is worse than
+        // refusing, and a version that nothing checks protects nothing.
         if (self::payloadVersion($flags) !== self::SUPPORTED_PAYLOAD_VERSION) {
             return FodIdParseStatus::UnsupportedPayloadVersion;
+        }
+        if ($length < FodIdLayout::HEADER_LENGTH) {
+            return FodIdParseStatus::PayloadTooShort;
         }
         // A payload with no usage bit set states no usage at all. The cloud
         // never writes one, so it is damaged or forged, and it is refused

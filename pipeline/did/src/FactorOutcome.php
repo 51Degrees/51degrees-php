@@ -60,11 +60,18 @@ enum FactorOutcome: string
     case NotRecorded = 'notrecorded';
 
     /**
-     * Maps the cloud's factor string, answering
+     * Maps the cloud's factor string without regard to case, answering
      * {@see FactorOutcome::Mismatch} for anything not known (fail closed).
      */
     public static function fromCloud(?string $value): self
     {
-        return self::tryFrom((string) $value) ?? self::Mismatch;
+        // ASCII only, so the answer does not depend on the locale, which
+        // strtolower() follows before PHP 8.2.
+        $word = strtr(
+            (string) $value,
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            'abcdefghijklmnopqrstuvwxyz'
+        );
+        return self::tryFrom($word) ?? self::Mismatch;
     }
 }

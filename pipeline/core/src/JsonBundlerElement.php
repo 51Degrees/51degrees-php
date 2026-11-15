@@ -148,7 +148,7 @@ class JsonBundlerElement extends FlowElement
 
         $this->propertyCaches = $this->propertyCaches ?? new \SplObjectStorage();
         $pipeline = $flowData->pipeline;
-        $propertyCacheSet = $this->propertyCaches->contains($pipeline);
+        $propertyCacheSet = isset($this->propertyCaches[$pipeline]);
         $pipelineCache = $propertyCacheSet ? $this->propertyCaches[$pipeline] : [];
 
         foreach ($flowData->pipeline->flowElements as $flowElement) {

@@ -61,13 +61,21 @@ class CloudEngine extends CloudEngineBase
     private bool $missingProductLogged = false;
 
     /**
-     * Callback called when an engine is added to a pipeline.
+     * Callback called when an engine is added to a pipeline. The engine
+     * takes its properties from the Cloud Request Engine, which normally
+     * has them once it is built. Where it has none yet, processInternal
+     * takes them on first use.
      *
-     * @throws \Exception
+     * @throws \Exception when the pipeline has no Cloud Request Engine
      */
     public function onRegistration(Pipeline $pipeline): void
     {
         if (isset($pipeline->flowElementsList['cloud'])) {
+            $cloudRequestEngine = $pipeline->flowElementsList['cloud'];
+            if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
+                $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
+            }
+
             return;
         }
 

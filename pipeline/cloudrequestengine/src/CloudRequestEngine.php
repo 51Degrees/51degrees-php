@@ -108,10 +108,15 @@ class CloudRequestEngine extends Engine
      * once the engine is in a pipeline, and the request is made again when
      * the engine is first used.
      *
+     * The timeoutSeconds setting is the timeout of each request to the
+     * cloud service, 2 seconds unless set. A given httpClient keeps its own
+     * timeout unless the setting is given.
+     *
      * @param array{
      *     resourceKey?: string,
      *     licenseKey?: string,
      *     requestedProperties?: array<string>|string,
+     *     timeoutSeconds?: float|int|string,
      *     cloudEndPoint?: string,
      *     cloudRequestOrigin?: string,
      *     discoveryResults?: array<string, mixed>,
@@ -155,6 +160,10 @@ class CloudRequestEngine extends Engine
         }
 
         $this->httpClient = $settings['httpClient'] ?? new HttpClient();
+        $timeoutSeconds = self::timeoutSetting($settings['timeoutSeconds'] ?? null);
+        if ($timeoutSeconds !== null) {
+            $this->httpClient->setTimeoutSeconds($timeoutSeconds);
+        }
         $this->cloudRequestOrigin = $settings['cloudRequestOrigin'] ?? null;
 
         parent::__construct();
@@ -852,6 +861,29 @@ class CloudRequestEngine extends Engine
         $key = (string) ($value ?? '');
 
         return trim($key) === '' ? '' : $key;
+    }
+
+    /**
+     * The timeoutSeconds setting in seconds, or null when it is absent or
+     * empty.
+     *
+     * @param mixed $value
+     * @throws \InvalidArgumentException when the value is not a number
+     *   greater than 0
+     */
+    private static function timeoutSetting($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (!is_numeric($value) || (float) $value <= 0) {
+            throw new \InvalidArgumentException(sprintf(
+                Constants::MESSAGE_TIMEOUT_NOT_POSITIVE,
+                var_export($value, true)
+            ));
+        }
+
+        return (float) $value;
     }
 
     /**

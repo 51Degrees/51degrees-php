@@ -1,0 +1,63 @@
+name: tmp php fork green
+# Throwaway. Runs ForkSafetyScriptTests on the draft's head, then with
+# testForkSafety.php as it is on rc 33eaae22.
+on:
+  push:
+    branches:
+      - tmp/php-fork-green
+permissions:
+  contents: read
+jobs:
+  red:
+    name: red (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install the package's own dependencies
+        working-directory: device-detection/onpremise
+        run: composer install --no-interaction --no-progress
+      - name: Head, then rc's script
+        working-directory: device-detection/onpremise
+        run: |
+          set +e
+          mkdir -p "$GITHUB_WORKSPACE/junit"
+          run() {
+            echo "::group::$1"
+            vendor/bin/phpunit --colors=never --log-junit "$GITHUB_WORKSPACE/junit/$1.xml" --filter "ForkSafetyScriptTests|EnvironmentVariableTests"
+            echo "exit $? for $1"
+            echo "::endgroup::"
+          }
+          run head
+          git fetch -q --depth 1 origin 33eaae22ea9f9d119ea0f4f4069c0f5a241af6a9
+          git show FETCH_HEAD:device-detection/onpremise/configuration-tests/testForkSafety.php > configuration-tests/testForkSafety.php
+          echo "::group::rc's script run directly with no User-Agents file"
+          php configuration-tests/testForkSafety.php
+          echo "exit $? for rc's script"
+          echo "::endgroup::"
+          run rc-script
+          exit 0
+      - name: Each test's result
+        shell: python
+        run: |
+          import xml.etree.ElementTree as ET
+          def results(name):
+              out = {}
+              for case in ET.parse(f'junit/{name}.xml').getroot().iter('testcase'):
+                  failed = case.find('failure') is not None or case.find('error') is not None
+                  out[case.get('name')] = 'fail' if failed else 'pass'
+              return out
+          head, rc = results('head'), results('rc-script')
+          ok = bool(head)
+          for t in head:
+              print(f'{t}: head {head[t]}, rc script {rc.get(t)}')
+              ok = ok and head[t] == 'pass' and rc.get(t) == 'fail'
+          print('RESULT', 'as expected' if ok else 'NOT as expected')
+          raise SystemExit(0 if ok else 1)

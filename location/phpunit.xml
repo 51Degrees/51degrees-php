@@ -9,6 +9,7 @@
       <file>tests/ExamplesWithoutKeyTests.php</file>
       <file>tests/GeoLocationTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/MissingProductTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

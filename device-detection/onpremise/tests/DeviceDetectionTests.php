@@ -139,12 +139,6 @@ class DeviceDetectionTests extends TestCase
             foreach ($properties as &$property) {
                 $key = strtolower($property['name']);
 
-                // Method is left out while it reads the difference, an
-                // integer, rather than the match method's name.
-                if ($key == 'method') {
-                    continue;
-                }
-
                 $apv = $result->device->getInternal($key);
 
                 $expectedType = $property['type'];

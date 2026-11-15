@@ -30,10 +30,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Checkout cxx and its data
-        run: |
-          git submodule update --init --depth 1 cxx
-          git -C cxx submodule update --init --depth 1 data
+      - name: Checkout cxx
+        run: git submodule update --init --depth 1 cxx
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -62,8 +60,33 @@ jobs:
           build device-detection/onpremise/on-premise ''
           build ip-intelligence/on-premise --enable-FiftyOneDegreesIpIntelligenceEngine
 
-      - name: Fetch the free data files
-        run: sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
+      # The free data files come from the asset cache, never the Distributor.
+      # The Nightly Pipeline saves that cache on the default branch once
+      # a day, under a key that starts with the date (common-ci's
+      # prefetch_assets), and a pull request's run can restore it from there.
+      - name: Name today's asset cache
+        id: day
+        run: echo "prefix=$(date -u +%Y%m%d)-" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the asset cache
+        uses: actions/cache/restore@v5
+        with:
+          key: ${{ steps.day.outputs.prefix }}assets
+          restore-keys: ${{ steps.day.outputs.prefix }}
+          path: assets
+          enableCrossOsArchive: true
+
+      - name: Check the free data files are in the cache
+        run: |
+          for file in 51Degrees-LiteV4.1.hash 51Degrees-LiteIpiV41.ipi; do
+            if [ ! -s "assets/$file" ]; then
+              echo "::error::$file is not in today's asset cache, and this" \
+                "check never downloads it. Run the check again once the" \
+                "Nightly Pipeline has saved the cache today."
+              exit 1
+            fi
+          done
+          ls -lL assets/51Degrees-LiteV4.1.hash assets/51Degrees-LiteIpiV41.ipi
 
       # PHP's own allocator is off so that Valgrind sees every allocation,
       # and PCRE's compiled patterns are off because Valgrind cannot see into
@@ -74,9 +97,9 @@ jobs:
           ZEND_DONT_UNLOAD_MODULES: '1'
         run: |
           dd="-d extension=$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so
-            -d FiftyOneDegreesHashEngine.data_file=$PWD/cxx/data/device-detection/51Degrees-LiteV4.1.hash"
+            -d FiftyOneDegreesHashEngine.data_file=$PWD/assets/51Degrees-LiteV4.1.hash"
           ipi="-d extension=$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
-            -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
+            -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/assets/51Degrees-LiteIpiV41.ipi"
           for order in "$dd $ipi" "$ipi $dd"; do
             valgrind --error-exitcode=1 --num-callers=30 \
               php -n -d pcre.jit=0 $order ci/read-pointer-classes.php

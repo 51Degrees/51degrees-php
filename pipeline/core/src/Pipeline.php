@@ -342,28 +342,49 @@ class Pipeline
     }
 
     /**
-     * The Data Key of the FlowElement a deprecated Data Key gives, logging
-     * once that the deprecated key was used, or the key unchanged when it
-     * is not deprecated. getElement and FlowData::get call it, so an old
-     * key finds the element and its data.
+     * The Data Key of the FlowElement a deprecated Data Key gives, in any
+     * letter case, logging once for each deprecated key that it was used,
+     * or the key unchanged when it is not deprecated. getElement and
+     * FlowData::get call it after their own keys, so an old key finds the
+     * element and its data.
      */
     public function currentDataKey(string $key): string
     {
-        if (!isset($this->deprecatedDataKeys[$key])) {
+        $deprecatedKey = $this->deprecatedKeyNamed($key);
+        if ($deprecatedKey === null) {
             return $key;
         }
 
-        $currentKey = $this->deprecatedDataKeys[$key];
-        if (!isset($this->deprecatedDataKeysLogged[$key])) {
-            $this->deprecatedDataKeysLogged[$key] = true;
+        $currentKey = $this->deprecatedDataKeys[$deprecatedKey];
+        if (!isset($this->deprecatedDataKeysLogged[$deprecatedKey])) {
+            $this->deprecatedDataKeysLogged[$deprecatedKey] = true;
             $this->log('warning', sprintf(
                 Messages::DATA_KEY_DEPRECATED,
-                $key,
+                $deprecatedKey,
                 $currentKey
             ));
         }
 
         return $currentKey;
+    }
+
+    /**
+     * The deprecated Data Key the key names, found by the exact key and then
+     * in any letter case, or null when it names none.
+     */
+    private function deprecatedKeyNamed(string $key): ?string
+    {
+        if (isset($this->deprecatedDataKeys[$key])) {
+            return $key;
+        }
+
+        foreach (array_keys($this->deprecatedDataKeys) as $deprecatedKey) {
+            if (strcasecmp((string) $deprecatedKey, $key) === 0) {
+                return (string) $deprecatedKey;
+            }
+        }
+
+        return null;
     }
 
     /**

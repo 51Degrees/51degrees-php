@@ -307,6 +307,31 @@ class DeviceDetectionTests extends TestCase
     }
 
     /**
+     * Method is the name of the method the match used, being one of the C
+     * library's NONE, PERFORMANCE, COMBINED and PREDICTIVE, as
+     * device-detection-on-premise.md's match metric table says (a string,
+     * read with getMethod).
+     */
+    public function testMethodIsTheMatchMethodName()
+    {
+        $pipeline = (new PipelineBuilder())->add(new DeviceDetectionOnPremise())->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $method = $flowData->process()->device->method->value;
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+
+        $this->assertContains(
+            $method,
+            ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'],
+            'Method read ' . var_export($method, true)
+        );
+    }
+
+    /**
      * Closing the FlowData releases its results, and reading a property
      * afterwards throws an exception.
      */

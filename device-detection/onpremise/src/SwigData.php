@@ -28,6 +28,12 @@ use fiftyone\pipeline\engines\AspectData;
 
 class SwigData extends AspectData
 {
+    /**
+     * The names of the C library's match methods, in the order of its
+     * fiftyoneDegreesHashMatchMethod values, which getMethod returns.
+     */
+    private const MATCH_METHODS = ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'];
+
     private $result;
 
     public function __construct($engine, $result)
@@ -113,7 +119,7 @@ class SwigData extends AspectData
                     case 'Method':
                         $result = new AspectPropertyValue(
                             null,
-                            $this->result->getDifference()
+                            self::MATCH_METHODS[$this->result->getMethod()] ?? 'NONE'
                         );
                         break;
                     case 'Iterations':

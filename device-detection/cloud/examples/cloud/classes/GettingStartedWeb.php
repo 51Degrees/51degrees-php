@@ -109,17 +109,10 @@ class GettingStartedWeb
         }
         $builder = new DeviceDetectionPipelineBuilder($builderSettings);
 
-        // To stop having to construct the pipeline
-        // and re-make cloud API requests used during construction on every page load,
-        // we recommend caching the serialized pipeline to a database or disk.
-        // Below we are using PHP's serialize and writing to a file if it doesn't exist
-        $serializedPipelineFile = __DIR__ . 'gettingStartedWeb.pipeline';
-        if (file_exists($serializedPipelineFile)) {
-            $pipeline = unserialize(file_get_contents($serializedPipelineFile));
-        } else {
-            $pipeline = $builder->build();
-            file_put_contents($serializedPipelineFile, serialize($pipeline));
-        }
+        // PHP keeps nothing from one request to the next, so the pipeline is
+        // built for each request. A pipeline saved to a file and read back
+        // would keep the resource key it was built with.
+        $pipeline = $builder->build();
 
         $this->processRequest($pipeline, $output);
     }

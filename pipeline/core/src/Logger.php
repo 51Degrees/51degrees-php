@@ -26,10 +26,26 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\core;
 
 /**
- * Logging for a Pipeline.
+ * Logging for a Pipeline. Given a location in the file setting, the Logger
+ * adds each entry at or above its level to that location as a line of
+ * text. Without one it writes nothing, and a subclass can override
+ * logInternal to send entries elsewhere.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/logging.md
  */
 class Logger
 {
+    /**
+     * The setting that gives the location entries are added to, being a
+     * file path or a PHP stream such as php://stderr.
+     */
+    public const FILE_SETTING = 'file';
+
+    /**
+     * The PHP error_log message type that adds the message to a location.
+     */
+    private const ERROR_LOG_APPEND = 3;
+
     /**
      * @var array<string, mixed>
      */
@@ -45,8 +61,11 @@ class Logger
     /**
      * Create a logger.
      *
-     * @param null|string $level Values: 'trace', 'debug', 'info', 'warning', 'error', 'critical'
-     * @param array<string, mixed> $settings Custom settings for a logger
+     * @param null|string $level Values: 'trace', 'debug', 'info', 'warning', 'error', 'critical'.
+     *   Defaults to 'error'.
+     * @param array<string, mixed> $settings Custom settings for a logger,
+     *   including FILE_SETTING, the location entries are added to, which
+     *   has no default
      */
     public function __construct(?string $level, array $settings = [])
     {
@@ -79,12 +98,25 @@ class Logger
     }
 
     /**
-     * Internal logging function overridden by specific loggers.
+     * Adds the entry to the location in the file setting as one line of
+     * time, level and message, or does nothing without one. Writing never
+     * throws, so a location that cannot be written does not stop the
+     * request being processed. Overridden by loggers that send entries
+     * elsewhere.
      *
      * @param array<string, string> $log
      */
     public function logInternal(array $log): void
     {
-        return;
+        $file = $this->settings[self::FILE_SETTING] ?? null;
+        if (!is_string($file) || $file === '') {
+            return;
+        }
+
+        @error_log(
+            sprintf("%s %s %s\n", $log['time'], $log['level'], $log['message']),
+            self::ERROR_LOG_APPEND,
+            $file
+        );
     }
 }

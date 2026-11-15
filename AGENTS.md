@@ -232,8 +232,8 @@ of which the Lite file has, then `Hardware Vendor`, `Hardware Name` and
 they read `needs the Enterprise data file`. After the three it prints
 `Some of these properties need the Enterprise data file. Contact us for a copy
 at` and the tagged contact page. It prints nothing about the data file,
-because the messages go to `fiftyone\pipeline\core\Logger`, whose
-`logInternal` writes nothing.
+because the messages go to a `fiftyone\pipeline\core\Logger` given no
+`file` setting, which writes nothing.
 
 The IP Intelligence example looks up four addresses, being
 `116.154.188.222`, `1.3.32.31`, `45.236.48.61` and

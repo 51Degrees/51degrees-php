@@ -176,7 +176,7 @@ class NativeCallTests extends TestCase
             [['value' => 'An ISP', 'rawweighting' => 65535]],
             $value->value
         );
-        $this->assertSame(['RegisteredName'], $native->results[0]->requestedKeys);
+        $this->assertSame([0], $native->results[0]->requestedKeys);
     }
 
     public function testAPropertysMetadataIsLookedUpOnce(): void

@@ -71,8 +71,8 @@ class ReadTimingTests extends OnPremiseTestCase
     /**
      * The most a read by name may take, as a multiple of a read by
      * position. It is well above the multiples measured on the runners the
-     * test runs on, so this fails when reading by name, which SwigData does,
-     * becomes much slower than reading by position.
+     * test runs on, so this fails when reading by name becomes much slower
+     * than reading by position, which is how SwigData reads.
      */
     private const MAX_NAME_OVER_POSITION = 2;
 

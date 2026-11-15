@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\core\tests;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\tests\classes\ConfiguredElement;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
+use fiftyone\pipeline\core\tests\classes\WebIntegrationKeys;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -82,7 +83,7 @@ JSON;
             $pipeline = (new PipelineBuilder())->buildFromConfig($file);
             $this->assertSame(
                 ['first', 'second', 'example1'],
-                array_keys($pipeline->flowElementsList)
+                WebIntegrationKeys::without($pipeline)
             );
 
             $flowData = $pipeline->createFlowData();

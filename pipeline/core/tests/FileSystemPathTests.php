@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\tests\classes\ConfiguredElement;
+use fiftyone\pipeline\core\tests\classes\WebIntegrationKeys;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -80,7 +81,7 @@ class FileSystemPathTests extends TestCase
 
         $this->assertSame(
             [self::DATA_KEY],
-            array_keys($pipeline->flowElementsList),
+            WebIntegrationKeys::without($pipeline),
             $path
         );
     }

@@ -28,12 +28,13 @@ use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\RequiresPhp;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @requires OS Linux
  */
+#[RequiresOperatingSystem('Linux')]
 class UACHCloudTests extends TestCase
 {
     public static $process;
@@ -106,13 +107,11 @@ class UACHCloudTests extends TestCase
      * Tests response header value to set in Accept-CH response header.
      *
      * @dataProvider provider_testAcceptCH
-     * @requires PHP >= 7.2
      * @param mixed $userAgent
      * @param mixed $resourceKey
      * @param mixed $expectedValue
      */
     #[DataProvider('provider_testAcceptCH')]
-    #[RequiresPhp('>= 7.2')]
     public function testAcceptCH($userAgent, $resourceKey, $expectedValue)
     {
         $requestHeaders = Constants::UA_HEADER . $userAgent . '\r\n';

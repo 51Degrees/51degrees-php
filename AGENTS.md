@@ -20,6 +20,10 @@ CI builds the extensions on Linux and macOS only (`Get-SkipReason` in
 for Linux on Windows. So on Windows, clone and run everything inside WSL, and
 use the Linux commands below.
 
+The extensions' `config.m4` files build the C++ without `-fpermissive`, which
+would let g++ turn some errors into warnings, so code that clang refuses on
+macOS fails on Linux too, where pull request builds run.
+
 ### Prerequisites
 
 - Git.
@@ -350,7 +354,8 @@ follow.
   Its `scripts` folder is a copy of the `scripts` folder of the
   `derived-properties` submodule at the root, and its tests run the
   submodule's case files, so never edit a script there. Change the script in
-  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`.
+  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`,
+  which also rewrites the compiled scripts in its `compiled` folder.
 - `device-detection/cloud`: `51degrees/fiftyone.devicedetection`
 - `device-detection/onpremise`: `51degrees/fiftyone.devicedetection` (same name, path repository only)
 - `location`: `51degrees/fiftyone.geolocation`
@@ -401,6 +406,15 @@ only `Integration`.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 
+PHPUnit 9 reads test metadata (a data provider, a requirement, a hook, a
+process setting) from doc comments, PHPUnit 10 and 11 read attributes
+first, and PHPUnit 12 reads attributes only. Each package allows any
+PHPUnit, so a test gives each annotation its attribute from
+`PHPUnit\Framework\Attributes` as well, imported with `use`.
+[`ci/check-test-attributes.ps1`](ci/check-test-attributes.ps1) fails on an
+annotation with no attribute, and the Test attributes workflow runs it on
+every pull request.
+
 ## CI
 
 The workflows call common-ci, which runs the scripts in the root `ci/` once
@@ -408,6 +422,13 @@ for the whole repository. Those run each package's own `ci/` scripts with
 `-RepoName <repository>/<package>`. `ci/packages.ps1` lists the packages, the
 mirrors, and which packages test against the root `vendor` and which install
 their own. Add a package there, not in the workflows.
+
+Both on-premise extensions register SWIG's pointer classes, such as
+`SWIG\_p_byte`, under the same names, so the second to load replaces the
+first's. The Native extensions under Valgrind workflow
+(`.github/workflows/extensions-valgrind.yml`) loads both in each order and
+runs `ci/read-pointer-classes.php` under Valgrind on a pull request that
+changes either extension or `cxx`, and fails on any memory error.
 
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a

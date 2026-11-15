@@ -36,11 +36,6 @@ namespace fiftyone\pipeline\core;
 class JsonBundlerElement extends FlowElement
 {
     /**
-     * The nullreason of a Property assigned no value without a message.
-     */
-    private const NO_VALUE_MESSAGE = 'This instance does not have a set value';
-
-    /**
      * The Data Keys of the elements whose data is left out of the JSON,
      * being this element, the JavaScript builder, the Set Headers Element
      * and the Cloud Request Engine, whose data is the cloud service's raw
@@ -49,6 +44,12 @@ class JsonBundlerElement extends FlowElement
     private const EXCLUDED_DATA_KEYS = [
         'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud'
     ];
+
+    /**
+     * The Property types, in lower case, whose values are shapes in
+     * well-known text (WKT).
+     */
+    private const WKT_TYPES = ['wkt', 'wktstring', 'wkb', 'wkbr'];
 
     public string $dataKey = 'jsonbundler';
 
@@ -94,6 +95,26 @@ class JsonBundlerElement extends FlowElement
         }
 
         return $sequence;
+    }
+
+    /**
+     * Whether a value is a shape in well-known text, being a string whose
+     * Property type is one of WKT_TYPES. The JSON holds such a value as an
+     * object with one member, value, holding the text.
+     *
+     * @param mixed $property The Property's metadata
+     * @param mixed $value
+     */
+    private static function isWkt($property, $value): bool
+    {
+        if (!is_string($value) || !is_array($property)) {
+            return false;
+        }
+
+        $type = $property['type'] ?? $property['Type'] ?? null;
+
+        return is_string($type) &&
+            in_array(strtolower($type), self::WKT_TYPES, true);
     }
 
     /**
@@ -195,7 +216,7 @@ class JsonBundlerElement extends FlowElement
                         } else {
                             $nullReason = !empty($valueContainer->noValueMessage)
                                 ? $valueContainer->noValueMessage
-                                : self::NO_VALUE_MESSAGE;
+                                : AspectPropertyValue::NO_VALUE_MESSAGE;
                         }
                     } else {
                         // Standard value
@@ -220,7 +241,9 @@ class JsonBundlerElement extends FlowElement
                     $output[$dataKey][strtolower($propertyKey)] = null;
                     $output[$dataKey][strtolower($propertyKey) . 'nullreason'] = $nullReason;
                 } elseif ($value !== null) {
-                    $output[$dataKey][strtolower($propertyKey)] = $value;
+                    $output[$dataKey][strtolower($propertyKey)] = self::isWkt($property, $value)
+                        ? ['value' => $value]
+                        : $value;
                     if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
                         $output[$dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
                     }

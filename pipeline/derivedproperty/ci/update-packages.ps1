@@ -27,3 +27,26 @@ Get-ChildItem -Path $copy -File |
 Get-ChildItem -Path $source -File |
     Where-Object { $extensions -contains $_.Extension.ToLowerInvariant() } |
     Copy-Item -Destination $copy
+
+# The compiled scripts are written from the copy, so that building the
+# element reads no YAML for a built in script. tests/BuiltInScriptsTests.php
+# fails when a compiled script is not the script file beside it. The
+# generator needs an autoloader, so a package install is made when there is
+# none and removed afterwards, as a package vendor folder stops the root
+# build.
+Write-Host "Compiling the built in scripts..."
+Push-Location $RepoName
+$installed = $false
+try {
+    if (-not (Test-Path 'vendor/autoload.php') -and
+        -not (Test-Path '../../vendor/autoload.php')) {
+        composer install --no-dev --no-interaction --no-progress
+        $installed = $true
+    }
+    php ci/compile-built-in-scripts.php
+} finally {
+    if ($installed) {
+        Remove-Item -Recurse -Force 'vendor', 'composer.lock' -ErrorAction SilentlyContinue
+    }
+    Pop-Location
+}

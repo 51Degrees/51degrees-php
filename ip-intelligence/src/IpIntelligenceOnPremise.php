@@ -138,7 +138,8 @@ class IpIntelligenceOnPremise extends Engine
      *                         Constants::PERFORMANCE_PROFILES, defaulting to
      *                         Constants::DEFAULT_PERFORMANCE_PROFILE.
      *   restrictedProperties- (optional, with dataFile) list of properties
-     *                         to populate.
+     *                         to populate, as an array or as one
+     *                         comma-separated string.
      *   concurrency         - (optional, with dataFile) expected concurrent
      *                         accesses.
      * @throws \Exception
@@ -208,6 +209,13 @@ class IpIntelligenceOnPremise extends Engine
         }
 
         $restrictedProperties = $settings['restrictedProperties'] ?? [];
+        // A configuration file gives a list as one comma-separated string.
+        if (is_string($restrictedProperties)) {
+            $restrictedProperties = array_values(array_filter(
+                array_map('trim', explode(',', $restrictedProperties)),
+                static fn (string $name): bool => $name !== ''
+            ));
+        }
         $concurrency = $settings['concurrency'] ?? null;
 
         // Build the required properties configuration.

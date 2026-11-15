@@ -132,7 +132,11 @@ cd pipeline/derivedproperty
 ../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit
 ```
 
-`ci/update-packages.ps1` moves the submodule to the head of derived-properties
-and copies its scripts into `scripts`, and
+`ci/update-packages.ps1` moves the submodule to the head of derived-properties,
+copies its scripts into `scripts`, and runs `ci/compile-built-in-scripts.php`,
+which writes each script compiled into `compiled` as a PHP file. PHP builds
+the pipeline on every request, so the element reads a built in script from
+its compiled file, which opcache keeps in memory, and parses no YAML, while
+the SHA-256 of the script file matches the one the compiled file holds.
 `tests/BuiltInScriptsTests.php` fails when the copy differs from the
-submodule.
+submodule, or a compiled file differs from the script beside it.

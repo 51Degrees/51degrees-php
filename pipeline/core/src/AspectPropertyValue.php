@@ -34,6 +34,11 @@ namespace fiftyone\pipeline\core;
  */
 class AspectPropertyValue
 {
+    /**
+     * The message read when there is no value and no reason was given.
+     */
+    public const NO_VALUE_MESSAGE = 'This instance does not have a set value';
+
     public ?string $noValueMessage = null;
     public bool $hasValue = false;
 
@@ -63,7 +68,8 @@ class AspectPropertyValue
     }
 
     /**
-     * Magic getter to access the value or throw an error with the no value message.
+     * Magic getter for the value. With no value it throws, with the reason
+     * given or, when none was given, NO_VALUE_MESSAGE.
      *
      * @return mixed
      * @throws \Exception
@@ -74,9 +80,10 @@ class AspectPropertyValue
             if ($this->hasValue) {
                 return $this->_value;
             }
-            if (!empty($this->noValueMessage)) {
-                throw new \Exception($this->noValueMessage);
-            }
+
+            throw new \Exception(!empty($this->noValueMessage)
+                ? $this->noValueMessage
+                : self::NO_VALUE_MESSAGE);
         }
 
         return null;

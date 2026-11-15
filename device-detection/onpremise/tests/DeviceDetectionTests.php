@@ -113,8 +113,11 @@ class DeviceDetectionTests extends TestCase
         }
     }
 
-    // TODO: fix the test
-    public function __SKIP__testValueTypes()
+    /**
+     * Each Property's value, a match metric's included, has the type the
+     * Property's metadata gives.
+     */
+    public function testValueTypes()
     {
         $deviceDetection = new DeviceDetectionOnPremise();
 
@@ -133,10 +136,9 @@ class DeviceDetectionTests extends TestCase
             foreach ($properties as &$property) {
                 $key = strtolower($property['name']);
 
-                // TODO: Skip 'useragents' and 'method' property. These are returned
-                // as an int() by the SWIG interface but should be an Array and a
-                // String respectively.
-                if ($key == 'useragents' || $key == 'method') {
+                // Method is left out while it reads the difference, an
+                // integer, rather than the match method's name.
+                if ($key == 'method') {
                     continue;
                 }
 
@@ -145,6 +147,11 @@ class DeviceDetectionTests extends TestCase
                 $expectedType = $property['type'];
 
                 $this->assertNotNull($apv, $key);
+
+                // A Property with no value has no type to check.
+                if (!$apv->hasValue) {
+                    continue;
+                }
 
                 $value = $apv->value;
 
@@ -304,6 +311,31 @@ class DeviceDetectionTests extends TestCase
             $flowData->close();
             $pipeline->close();
         }
+    }
+
+    /**
+     * Method is the name of the method the match used, being one of the C
+     * library's NONE, PERFORMANCE, COMBINED and PREDICTIVE, as
+     * device-detection-on-premise.md's match metric table says (a string,
+     * read with getMethod).
+     */
+    public function testMethodIsTheMatchMethodName()
+    {
+        $pipeline = (new PipelineBuilder())->add(new DeviceDetectionOnPremise())->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('header.user-agent', $this->iPhoneUA);
+            $method = $flowData->process()->device->method->value;
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+
+        $this->assertContains(
+            $method,
+            ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'],
+            'Method read ' . var_export($method, true)
+        );
     }
 
     /**

@@ -45,6 +45,12 @@ class CloudEngine extends CloudEngineBase
     public string $dataKey = 'CloudEngineBase'; // This should be overridden
 
     /**
+     * The Property types, in lower case, whose values are shapes in
+     * well-known text (WKT).
+     */
+    private const WKT_TYPES = ['wkt', 'wktstring', 'wkb', 'wkbr'];
+
+    /**
      * @var array<string, array<string, mixed>>
      */
     public array $aspectProperties;
@@ -105,7 +111,7 @@ class CloudEngine extends CloudEngineBase
                 if (isset($cloudData[$this->dataKey][$key . 'nullreason'])) {
                     $result[$key] = new AspectPropertyValue($cloudData[$this->dataKey][$key . 'nullreason']);
                 } else {
-                    $result[$key] = new AspectPropertyValue(null, $value);
+                    $result[$key] = new AspectPropertyValue(null, $this->wktText((string) $key, $value));
                 }
             }
 
@@ -113,6 +119,30 @@ class CloudEngine extends CloudEngineBase
 
             $flowData->setElementData($data);
         }
+    }
+
+    /**
+     * The text of a shape in well-known text (WKT), which the cloud service
+     * gives as an object with one member, value, holding the text, so that
+     * the value is the text the on-premise Engine gives. Any other value is
+     * given as it is.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private function wktText(string $key, $value)
+    {
+        $property = $this->properties[strtolower($key)] ?? [];
+        $type = $property['type'] ?? $property['Type'] ?? null;
+        if (!is_string($type) || !in_array(strtolower($type), self::WKT_TYPES, true)) {
+            return $value;
+        }
+
+        if (is_array($value) && array_keys($value) === ['value'] && is_string($value['value'])) {
+            return $value['value'];
+        }
+
+        return $value;
     }
 
     /**

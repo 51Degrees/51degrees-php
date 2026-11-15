@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\cloudrequestengine\tests;
 
+use fiftyone\pipeline\cloudrequestengine\CloudEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestException;
 use fiftyone\pipeline\cloudrequestengine\Constants;
@@ -148,6 +149,41 @@ class DiscoveryTests extends TestCase
             $this->assertArrayHasKey('ismobile', $engine->flowElementProperties['device'] ?? []);
             $this->assertNotNull($engine->getDiscoveryResults());
         }
+    }
+
+    /**
+     * After a transient failure the Cloud Aspect Engine's Property metadata
+     * and the accepted Evidence keys are empty, and neither keeps that
+     * empty result. Once first use has asked again, the aspect engine has
+     * the metadata and the engine accepts the cloud service's keys.
+     */
+    public function testAnEmptyResultFromATransientFailureIsNotKept(): void
+    {
+        $this->failures = [
+            'properties' => new CloudRequestException('down', 503),
+            'keys' => new CloudRequestException('down', 503),
+        ];
+        $engine = $this->engine();
+        $device = new CloudEngine();
+        $device->dataKey = 'device';
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+        ]))->add($engine)->add($device)->build();
+
+        $this->assertSame([], $device->getProperties());
+
+        $this->failures = [];
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->set('query.User-Agent', 'iPhone');
+        $flowData->process();
+
+        $this->assertSame(['ismobile'], array_keys($device->getProperties()));
+        $this->assertSame('Boolean', $device->getProperties()['ismobile']['type']);
+        $this->assertSame(true, $flowData->get('device')->get('ismobile')->value);
+        $filter = $engine->getEvidenceKeyFilter();
+        $this->assertTrue($filter->filterEvidenceKey('query.user-agent'));
+        $this->assertTrue($filter->filterEvidenceKey('header.user-agent'));
     }
 
     /**

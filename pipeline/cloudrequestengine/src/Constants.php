@@ -47,6 +47,28 @@ class Constants
     // Default base url
     public const BASE_URL_DEFAULT = 'https://cloud.51degrees.com/api/v4/';
 
+    // The Cloud Request Engine's Data Key.
+    public const DATA_KEY = 'cloud-response';
+
+    // The Data Key the Cloud Request Engine had before DATA_KEY, which still
+    // finds the engine and its data and is logged as deprecated.
+    public const DEPRECATED_DATA_KEY = 'cloud';
+
+    // The one Property of the Cloud Request Engine's Element Data, the raw
+    // JSON response body.
+    public const JSON_RESPONSE_PROPERTY = 'json-response';
+
+    // The name the Property had before JSON_RESPONSE_PROPERTY, which still
+    // gives the response and is logged as deprecated.
+    public const DEPRECATED_JSON_RESPONSE_PROPERTY = 'cloud';
+
+    // Logged once by each engine whose Element Data is read by the
+    // Property's deprecated name, which is named first, then the new one.
+    public const MESSAGE_PROPERTY_DEPRECATED =
+        "The Cloud Request Engine's Property '%s' is deprecated and will be " .
+        "removed in a later release. Use '%s', which gives the same raw " .
+        'JSON response.';
+
     // No Data in response message to be set in exception when cloud neither
     // return any data nor any error messages
     public const MESSAGE_NO_DATA_IN_RESPONSE = "No data in response from cloud service at '%s'";

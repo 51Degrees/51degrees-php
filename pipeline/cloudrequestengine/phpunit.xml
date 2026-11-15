@@ -14,6 +14,8 @@
       <file>tests/HttpClientFailureTests.php</file>
       <file>tests/CloudEngineWktTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>
+      <file>tests/TimeoutTests.php</file>
+      <file>tests/AspectEnginePropertiesTests.php</file>
       <file>tests/CloudAllEvidenceTests.php</file>
       <file>tests/MissingProductTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>

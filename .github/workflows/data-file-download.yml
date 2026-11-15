@@ -48,3 +48,10 @@ jobs:
         run: |
           composer dump-autoload --dev
           phpunit --fail-on-warning --testsuite Download
+
+      - name: Device Detection Download suite
+        if: ${{ !cancelled() }}
+        working-directory: device-detection/onpremise
+        run: |
+          composer dump-autoload --dev
+          phpunit --fail-on-warning --testsuite Download

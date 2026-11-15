@@ -379,9 +379,11 @@ cd ../..
   packages' `ci/fetch-assets.ps1` scripts link the cached copies into
   `cxx/data` under the data repository's names, so the tests that run the
   examples with nothing set find them there rather than downloading them.
-  `ip-intelligence/tests/DownloadDataFileTests.php` still downloads the free
-  ASN file from nothing, with the examples' own code, and says so plainly
-  when the distributor refuses it.
+  `ip-intelligence/tests/DownloadDataFileTests.php` and
+  `device-detection/onpremise/tests/DownloadDataFileTests.php` still
+  download the free ASN file and the free Device Detection Lite file from
+  nothing, with the examples' own code, and say so plainly when the
+  distributor refuses one.
 
 ## Environment variable names
 
@@ -500,9 +502,10 @@ example downloaded it, and names the file to add to a package's list. The cache
 key covers only the root `ci/fetch-assets.ps1`
 ([common-ci#329](https://github.com/51Degrees/common-ci/issues/329)), so a
 file added to a package's list is fetched in each job's Fetch Assets step
-until a cache filled from the new list is restored. The test of the download
-itself is the `Download` suite in `ip-intelligence/phpunit.xml`, which runs
-once, in `.github/workflows/data-file-download.yml`, and in no matrix job. To
+until a cache filled from the new list is restored. The tests of the
+download itself are the `Download` suites in `ip-intelligence/phpunit.xml`
+and `device-detection/onpremise/phpunit.xml`, which run once, in
+`.github/workflows/data-file-download.yml`, and in no matrix job. To
 run the tests on your own machine without downloading, link or copy the free
 files you already have into `cxx/data/device-detection` and
 `cxx/data/ip-intelligence` under the data repository's names.

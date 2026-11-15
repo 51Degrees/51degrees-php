@@ -43,6 +43,7 @@
       <file>tests/RequestLineEvidenceTests.php</file>
       <file>tests/AspectPropertyValueTests.php</file>
       <file>tests/LoggerTargetTests.php</file>
+      <file>tests/ElementDataTypedGetterTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
     </testsuite>
   </testsuites>

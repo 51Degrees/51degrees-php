@@ -21,7 +21,7 @@ but additional caution should be applied.
 
 ## Examples
 
-To run the examples, you first need to install dependencies. Navigate to the repository root and execute:
+To run the examples, you first need to install dependencies. Navigate to this package's folder, which is `pipeline/core` in the monorepo, and execute:
 
 ```
 composer install
@@ -31,10 +31,12 @@ This will create the vendor directory containing autoload.php. Now navigate to t
 directory and start a PHP server with the relevant file. For example:
 
 ```
-PHP -S localhost:3000 CustomFlowElement.php
+php -S localhost:3000 CustomFlowElement.php
 ```
 
 This will start a local web server listening on port 3000. Open your web browser and browse to http://localhost:3000/ to see the example in action.
+
+`Pipeline.php` writes to the console, so run it with `php Pipeline.php` from the same directory.
 
 There are several examples available that demonstrate how to make use of the Pipeline API in 
 isolation. These are described in the table below.
@@ -46,6 +48,9 @@ and on our [website](https://51degrees.com/documentation/_device_detection__exam
 |----------------------------------------|-------------|
 | Pipeline                               | Demonstrates adding some sample flow elements to a pipeline and processing some data with them. |
 | CustomFlowElement                      | Demonstrates how to write your own flow element, which can then be added to a pipeline to perform processing. |
+| OnPremiseEngine                        | In [pipeline/engines](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/engines). Demonstrates an on-premise engine, which gives the star sign for a date of birth from a data file. |
+| CloudEngine                            | In [pipeline/cloudrequestengine](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/cloudrequestengine). Demonstrates a cloud engine, which gives the star sign for a date of birth from a remote service. |
+| DerivedProperty                        | In [pipeline/derivedproperty](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/derivedproperty). Demonstrates the derived property element, which computes properties from properties other elements have produced. |
 
 ## Tests
 To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:

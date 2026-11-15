@@ -240,7 +240,7 @@ more` section, a heading underlined with hyphens and then one `label: address`
 line for each link, or the same list at the foot of a web page. A cloud
 example run with no resource key prints where to create one and then the same
 section. Each package's helper (`ExampleUtils` in Device Detection and IP
-Intelligence, `Constants` in location) writes it, the pipeline core and 51Did
+Intelligence, `Constants` in location) writes it, the pipeline and 51Did
 examples write their own, and every 51degrees.com link an example prints
 carries `utm_source=code&utm_medium=example`, the campaign `51degrees-php` and
 the example's file as `utm_content`.
@@ -277,13 +277,33 @@ its first argument or from `_51DEGREES_RESOURCE_KEY`, after a `composer install`
 still read the old name `resource_key` when `_51DEGREES_RESOURCE_KEY` is unset
 or empty, and write to the PHP error log that the old name is deprecated.
 
+### Pipeline examples
+
+The examples of `pipeline/engines`, `pipeline/cloudrequestengine` and
+`pipeline/derivedproperty` need no extension, no data file, no resource key
+and no network. Each runs from its package folder after a `composer install`
+there. Two of them make the star sign engines the Pipeline API specification
+asks for, `pipeline/engines/examples/OnPremiseEngine.php` from a data file
+beside it and `pipeline/cloudrequestengine/examples/CloudEngine.php` from a
+service it starts on the same machine with PHP's built-in web server.
+`pipeline/derivedproperty/examples/DerivedProperty.php` computes properties
+with derived property scripts, from code and from a configuration file.
+
+```bash
+cd pipeline/derivedproperty
+composer install
+php examples/DerivedProperty.php
+cd ../..
+```
+
 ### Pitfalls
 
 - **No vendor folder in the package.** Every example loads the
   `vendor/autoload.php` of its own package, which the root `composer install`
   does not create. Run `composer install` in the package folder, as above.
-  After one in `device-detection/cloud`, the root `ci/build-project.ps1`
-  refuses to run until that `vendor` folder is removed, as "CI" below says.
+  After one in `device-detection/cloud`, or in a pipeline package, the root
+  `ci/build-project.ps1` refuses to run until that `vendor` folder is
+  removed, as "CI" below says.
 - **The extension is not loaded.** Each on-premise example needs its
   extension, from `php.ini` or `-d extension=...` as above. Without it, the
   Device Detection example stops with
@@ -315,8 +335,10 @@ or empty, and write to the PHP error log that the old name is deprecated.
   IP Intelligence on-premise ones in `ExamplesWithoutSettingsTests.php` and
   `WebExamplesWithoutSettingsTests.php`, and the `ExamplesWithoutKeyTests.php`
   of `device-detection/cloud`, `ip-intelligence` and `location` run every
-  cloud example with no resource key. Pipeline core's `tests/ExampleTests.php`
-  and 51Did's `tests/ExamplesTest.php` run theirs the same way. Each checks
+  cloud example with no resource key. The `tests/ExampleTests.php` of
+  `pipeline/core`, `pipeline/engines`, `pipeline/cloudrequestengine` and
+  `pipeline/derivedproperty`, and 51Did's `tests/ExamplesTest.php`, run
+  theirs the same way. Each checks
   that the example ends with Find out more and that every 51degrees.com link
   it prints is tagged. `device-detection/onpremise/tests/StartWithoutDataFileTests.php`
   and `ip-intelligence/tests/ServeWebExamplesTests.php` also run the Device

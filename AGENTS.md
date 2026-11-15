@@ -20,6 +20,10 @@ CI builds the extensions on Linux and macOS only (`Get-SkipReason` in
 for Linux on Windows. So on Windows, clone and run everything inside WSL, and
 use the Linux commands below.
 
+The extensions' `config.m4` files build the C++ without `-fpermissive`, which
+would let g++ turn some errors into warnings, so code that clang refuses on
+macOS fails on Linux too, where pull request builds run.
+
 ### Prerequisites
 
 - Git.

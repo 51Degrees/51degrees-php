@@ -46,7 +46,12 @@ class ForkSafetyScriptTests extends TestCase
     public function testWithNoUserAgentsFileItRefusesEveryTime(): void
     {
         for ($run = 0; $run < self::RUNS; ++$run) {
-            $result = ExampleRun::run(self::SCRIPT, [], ['_51DEGREES_UA_CSV']);
+            // Both names the script reads the file from are left out.
+            $result = ExampleRun::run(
+                self::SCRIPT,
+                [],
+                ['_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV']
+            );
 
             $this->assertSame(self::MISSING, $result->status, $result->errors);
             $this->assertStringContainsString(

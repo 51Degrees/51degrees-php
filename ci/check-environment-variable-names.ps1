@@ -92,6 +92,7 @@ $script:DeprecatedNameFiles = @(
     'device-detection/onpremise/configuration-tests/testForkSafety.php'
     'device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php'
     'device-detection/onpremise/tests/EnvironmentVariableTests.php'
+    'device-detection/onpremise/tests/ForkSafetyScriptTests.php'
     'ip-intelligence/examples/classes/ExampleConstants.php'
     'ip-intelligence/src/translation/TranslationPaths.php'
     'ip-intelligence/tests/EnvironmentVariableTests.php'

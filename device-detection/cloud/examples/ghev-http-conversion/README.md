@@ -7,6 +7,18 @@ via the Accept-CH or Delegate-CH header.
 This example code converts User Agent Client Hints obtained through the 
 getHighEntropyValues() browser API into HTTP headers format.
 
+It then gives the same values in the three forms they are presented in:
+
+- As the HTTP headers the origin server receives, which a browser sends itself once
+  the server asks for them with Accept-CH, as `../cloud/userAgentClientHints-Web.php` shows
+- As `header.sec-ch-ua-*` Evidence for a request to the cloud service
+- As the getHighEntropyValues() result, JSON encoded in base 64, under the
+  `query.51D_GetHighEntropyValues` Evidence key, which the cloud service converts
+  into the headers itself. The JavaScript served by the JavaScript builder element
+  sends the result in this form
+
+Run it with `php ghev-to-http.php`. It needs no resource key and no network.
+
 
 ## Notes
 

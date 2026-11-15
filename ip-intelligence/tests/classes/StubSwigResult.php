@@ -33,11 +33,18 @@ namespace fiftyone\pipeline\ipintelligence\tests\classes;
  *
  * An index is resolved through the required property names given at
  * construction, which stand for the list the engine was built with. A name
- * that list does not hold gives no value, which is what the native results
- * do for a property the loaded data set lacks.
+ * or an index outside that list gives no value with the invalid property
+ * message, as the native results do.
  */
 class StubSwigResult
 {
+    /**
+     * The native code's message for a name or position outside the names
+     * the engine was created with.
+     */
+    public const INVALID_PROPERTY =
+        'The requested property does not exist, or is not a required property';
+
     /**
      * Property names read through one of the weighted list accessors.
      *
@@ -54,7 +61,7 @@ class StubSwigResult
 
     /**
      * Every argument an accessor was called with, in call order, so a test
-     * can assert that reads went by name rather than by index.
+     * can assert that reads went by position rather than by name.
      *
      * @var array<int|string>
      */
@@ -205,7 +212,7 @@ class StubSwigResult
         $name = $this->nameOf($key);
 
         if ($name === '' || !in_array($name, $this->requiredProperties, true)) {
-            return new StubSwigValue(false, null);
+            return new StubSwigValue(false, null, self::INVALID_PROPERTY);
         }
 
         return $this->values[$name] ?? new StubSwigValue(false, null);

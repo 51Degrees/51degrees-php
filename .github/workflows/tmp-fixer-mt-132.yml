@@ -1,0 +1,186 @@
+name: tmp fixer mt 132
+# Throwaway. Shows each new test of 51degrees-php#132 can fail. Builds both
+# extensions as CI does, takes the free Lite IP Intelligence data file from
+# the day's asset cache, runs every new test unchanged, then applies each
+# throwaway change in tmp-breaks on its own, runs the tests it should break
+# and takes the change out again. The native job builds with the native
+# throwaway change applied. A job passes only when the unchanged tests pass
+# and every expected failure happens.
+on:
+  push:
+    branches:
+      - tmp/fixer-mt-132-1
+permissions:
+  contents: read
+jobs:
+  test:
+    name: ${{ matrix.job }} (ubuntu-24.04, PHP 8.5)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [php, native]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          path: common-ci
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: common-ci/51degrees-php
+          persist-credentials: false
+      - name: Checkout submodules
+        working-directory: common-ci/51degrees-php
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - name: Apply the native throwaway change
+        if: matrix.job == 'native'
+        working-directory: common-ci/51degrees-php
+        run: patch -p1 --no-backup-if-mismatch < tmp-breaks/native.patch
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Build the extensions as CI does
+        working-directory: common-ci
+        shell: pwsh
+        run: |
+          ./51degrees-php/ci/setup-environment.ps1 -LanguageVersion 8.5
+          ./51degrees-php/ci/build-project.ps1 -RepoName 51degrees-php
+      - name: Restore Asset Cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261115-D08993235BC59D4245755D798844D1F982A792C9
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Link the Lite data file where the package's php.ini names it
+        working-directory: common-ci/51degrees-php/ip-intelligence
+        run: |
+          ls -la "$GITHUB_WORKSPACE/assets/51Degrees-LiteIpiV41.ipi"
+          mkdir -p assets
+          ln -sf "$GITHUB_WORKSPACE/assets/51Degrees-LiteIpiV41.ipi" assets/51Degrees-LiteIpiV41.ipi
+          cat php.ini
+      - name: Run the tests unchanged and under each change
+        working-directory: common-ci/51degrees-php
+        env:
+          JOB: ${{ matrix.job }}
+        run: |
+          set +e
+          export PHP_INI_SCAN_DIR=":$PWD/ip-intelligence"
+          export _51DEGREES_IPI_PATH="$PWD/ip-intelligence/assets/51Degrees-LiteIpiV41.ipi"
+          repo=$PWD
+          summary=$GITHUB_WORKSPACE/summary.txt
+          : > "$summary"
+          bad=0
+          php -r 'echo PHP_VERSION, " ", extension_loaded("FiftyOneDegreesIpIntelligenceEngine") ? "loaded" : "not loaded", PHP_EOL;'
+          # change, package, test file, optional filter
+          run() {
+            local change=$1 package=$2 file=$3 filter=$4
+            local junit="$GITHUB_WORKSPACE/junit-$change-$file.xml"
+            rm -f "$junit"
+            echo "::group::[$change] $package $file $filter"
+            (cd "$repo/$package" && php vendor/bin/phpunit --colors=never --log-junit "$junit" ${filter:+--filter "$filter"} "tests/$file.php") > "$GITHUB_WORKSPACE/out.txt" 2>&1
+            echo "phpunit exit $?"
+            cat "$GITHUB_WORKSPACE/out.txt"
+            echo "::endgroup::"
+            grep -E '^IP Intelligence (process|read) on PHP' "$GITHUB_WORKSPACE/out.txt" | sed "s|^|FIGURES [$change] |"
+            php -r '$x = @simplexml_load_file($argv[1]);
+              if ($x === false) { echo "RESULT [", $argv[2], "] ", $argv[3], " NO JUNIT FILE", PHP_EOL; exit; }
+              foreach ($x->xpath("//testcase") as $t) {
+                $s = (count($t->failure) + count($t->error)) > 0 ? "FAILED" : (count($t->skipped) > 0 ? "SKIPPED" : "passed");
+                echo "RESULT [", $argv[2], "] ", $t["class"], "::", $t["name"], " ", $s, PHP_EOL;
+              }' "$junit" "$change" "$file" | tee -a "$summary"
+          }
+          # change, then each test file
+          broken() {
+            local change=$1
+            shift
+            if ! patch -p1 --forward --no-backup-if-mismatch < "tmp-breaks/$change.patch"; then
+              echo "RESULT [$change] PATCH DID NOT APPLY" | tee -a "$summary"
+              bad=1
+              return
+            fi
+            for file in "$@"; do
+              run "$change" ip-intelligence "$file"
+            done
+            patch -p1 -R --no-backup-if-mismatch < "tmp-breaks/$change.patch" || bad=1
+          }
+          # change, then each test method expected to fail under it
+          expect() {
+            local change=$1
+            shift
+            for method in "$@"; do
+              if grep -q "^RESULT \[$change\] .*::$method FAILED" "$summary"; then
+                echo "EXPECTED [$change] $method failed"
+              else
+                echo "UNEXPECTED [$change] $method did not fail"
+                bad=1
+              fi
+            done
+          }
+          # change, then a test method whose check of that change is
+          # expected to be inert, which is reported and not counted
+          inert() {
+            if grep -q "^RESULT \[$1\] .*::$2 passed" "$summary"; then
+              echo "INERT [$1] $2 still passed"
+            else
+              echo "NOT INERT [$1] $2 did not pass"
+            fi
+          }
+          if [ "$JOB" = php ]; then
+            for file in NativeCallTests CloudPipelineOrderTests ExampleWeightingTests DataModelTests EngineCreationTests ReadTimingTests; do
+              run none ip-intelligence $file
+            done
+            if grep -q '^RESULT \[none\] .*\(FAILED\|SKIPPED\|NO JUNIT\)' "$summary"; then
+              echo "UNEXPECTED [none] a test did not pass unchanged"
+              bad=1
+            fi
+            broken cloud-engine-not-required CloudPipelineOrderTests
+            expect cloud-engine-not-required \
+              testTheEngineRefusesACloudRequestEngineAfterIt \
+              testTheEngineRefusesAPipelineWithNoCloudRequestEngine
+            broken pipeline-registers-in-reverse CloudPipelineOrderTests
+            expect pipeline-registers-in-reverse \
+              testTheEngineWorksAfterACloudRequestEngine \
+              testTheEngineRefusesACloudRequestEngineAfterIt
+            broken data-not-aspect-data DataModelTests NativeCallTests CloudPipelineOrderTests
+            expect data-not-aspect-data \
+              testTheElementDataIsAspectData \
+              testProcessingReadsNoValue \
+              testTheEngineWorksAfterACloudRequestEngine
+            broken values-copied-while-processing NativeCallTests
+            expect values-copied-while-processing \
+              testProcessingReadsNoValue \
+              testAValueIsReadOnlyWhenItIsAskedFor
+            broken metadata-looked-up-on-every-read NativeCallTests
+            expect metadata-looked-up-on-every-read testAPropertysMetadataIsLookedUpOnce
+            broken keys-read-on-every-request NativeCallTests
+            expect keys-read-on-every-request testRequestsReadNeitherKeysNorMetadata
+            broken keys-not-read-again-on-refresh NativeCallTests
+            expect keys-not-read-again-on-refresh testARefreshReadsTheKeysAgain
+            broken refreshed-keys-not-kept NativeCallTests
+            inert refreshed-keys-not-kept testARefreshReadsTheKeysAgain
+            broken keys-out-of-order NativeCallTests EngineCreationTests
+            expect keys-out-of-order \
+              testTheAcceptedEvidenceIsTheEnginesKeysInItsOrder \
+              testTheAcceptedEvidenceIsTheDataFilesKeysInTheirOrder
+            broken configured-names-not-passed EngineCreationTests
+            expect configured-names-not-passed testTheEngineIsCreatedWithOnlyTheNamesConfigured
+            broken example-weighting-left-out ExampleWeightingTests
+            expect example-weighting-left-out testAWeightedValueIsPrintedWithItsWeighting
+            broken names-passed-when-none-configured ReadTimingTests
+            expect names-passed-when-none-configured testProcessWithNoNamesAgainstEveryName
+          else
+            run native ip-intelligence ReadTimingTests
+            expect native testReadingByNameAgainstByPosition
+          fi
+          echo "::group::Summary"
+          cat "$summary"
+          echo "::endgroup::"
+          git status --short
+          exit $bad

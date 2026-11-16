@@ -165,7 +165,9 @@ class PipelineBuilder
      * nothing and then given each build parameter by its method of the same
      * name, set<Name> or else add<Name>, before its build() method creates
      * the element. An add method is called once for each item of a list,
-     * and an item that is itself a list gives the method's arguments. A
+     * whether a JSON list or a string of items separated by commas, as the
+     * configuration files of every language write a list of strings, and
+     * an item that is itself a list gives the method's arguments. A
      * parameter the builder has no method for is refused.
      *
      * The configured elements are then built into a Pipeline as build()
@@ -232,7 +234,7 @@ class PipelineBuilder
             if (method_exists($builder, 'set' . $parameter)) {
                 $builder->{'set' . $parameter}($value);
             } elseif (method_exists($builder, 'add' . $parameter)) {
-                $items = self::isList($value) ? $value : [$value];
+                $items = self::items($value);
                 foreach ($items as $item) {
                     $arguments = self::isList($item) ? $item : [$item];
                     $builder->{'add' . $parameter}(...$arguments);
@@ -247,6 +249,34 @@ class PipelineBuilder
         }
 
         return $builder->build();
+    }
+
+    /**
+     * The items an add method is called with for a build parameter. A list
+     * gives its items, and a string gives the items it separates with
+     * commas, each without the white space around it, as a configuration
+     * file writes a list of strings in every language. Any other value is
+     * one item.
+     *
+     * @param mixed $value
+     * @return array<int, mixed>
+     */
+    private static function items($value): array
+    {
+        if (self::isList($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return array_values(array_filter(
+                array_map('trim', explode(',', $value)),
+                static function (string $item): bool {
+                    return $item !== '';
+                }
+            ));
+        }
+
+        return [$value];
     }
 
     /**

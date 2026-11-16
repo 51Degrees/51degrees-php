@@ -1,0 +1,59 @@
+name: Temporary run, why the minification cost differs between two PHP set ups
+
+# Throwaway. Times JavaScriptBuilderPerformanceTests on rc fe547298 with PHP
+# 8.5 set up three ways, and prints which coverage extensions are loaded and
+# the settings that change how fast PHP runs, so the cost each measures can
+# be put beside what was loaded.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-185-why'
+
+permissions:
+  contents: read
+
+jobs:
+  timing:
+    name: coverage ${{ matrix.coverage }}
+    strategy:
+      fail-fast: false
+      matrix:
+        coverage: ['not set', 'none', 'xdebug']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fe5472981944c09c18748fd1f3832a4ceb4a3640
+      - uses: shivammathur/setup-php@v2
+        if: matrix.coverage == 'not set'
+        with:
+          php-version: '8.5'
+          tools: composer
+      - uses: shivammathur/setup-php@v2
+        if: matrix.coverage != 'not set'
+        with:
+          php-version: '8.5'
+          coverage: ${{ matrix.coverage }}
+          tools: composer
+      - name: What PHP has loaded
+        shell: bash
+        run: |
+          php -v
+          echo "EXTENSIONS $(php -m | grep -iE '^(xdebug|pcov|zend opcache|opcache)$' | tr '\n' ' ')"
+          php -r 'foreach (["xdebug.mode","opcache.enable_cli","opcache.jit","pcre.jit","zend.assertions"] as $k) { echo "INI $k=", var_export(ini_get($k), true), "\n"; }'
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Time the minification
+        shell: bash
+        run: |
+          cd pipeline/core
+          php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+            --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+            tests/JavaScriptBuilderPerformanceTests.php || true

@@ -143,7 +143,10 @@ class JavascriptBuilderElement extends FlowElement
 
     /**
      * The template's choices the minified template is kept for. Each is
-     * true or false, so at most 32 minified templates are kept.
+     * true or false, so at most 32 minified templates are kept. The template
+     * also opens sections on _userPrompt, which this builder never sets, so
+     * those sections are always left out. _userPrompt joins this list on
+     * the day the builder sets it.
      */
     private const MINIFY_CHOICES = [
         '_updateEnabled', '_enableCookies', '_supportsFetch',
@@ -156,8 +159,11 @@ class JavascriptBuilderElement extends FlowElement
      * takes tens of milliseconds for the whole script, and the values are a
      * small part of it, so the template is minified once for each set of
      * choices rather than on every request. The minified templates are kept
-     * for the life of this builder, so a Pipeline built for every request
-     * minifies the whole template in each of those requests.
+     * for the life of this builder. So a process that keeps its Pipeline
+     * between requests minifies the template once for each set of choices,
+     * and only it gains. A Pipeline built for every request, as the cloud
+     * Device Detection web example builds it, minifies the whole template in
+     * each of those requests, as it did before the templates were kept.
      *
      * @var array<string, string>
      */

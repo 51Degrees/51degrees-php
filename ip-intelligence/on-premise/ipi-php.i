@@ -200,7 +200,21 @@ EngineIpi *ipi_engine;
         } else {
             ipi_engine_properties = new RequiredPropertiesConfig();
         }
-        ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        try {
+            ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        }
+        catch (const std::exception &e) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names. %s",
+                filePath, e.what());
+        }
+        catch (...) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names.",
+                filePath);
+        }
     }
 }
 

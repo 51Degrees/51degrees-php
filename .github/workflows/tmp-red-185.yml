@@ -1,0 +1,50 @@
+name: Temporary red run of pull request 185
+
+# Throwaway. The job checks out the test commit of pull request 185, which
+# holds the new tests and none of the fix that follows them, and runs only
+# those tests. It is expected to fail.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-185-red'
+
+permissions:
+  contents: read
+
+jobs:
+  red:
+    name: the minified script is JShrink's output for each choice the template makes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e3aa6ef2
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Run the new tests on the test commit
+        shell: bash
+        env:
+          FILES: pipeline/core/tests/JavaScriptBuilderMinifyChoicesTests.php
+        run: |
+          failed=0
+          for f in $FILES; do
+            echo "::group::$f"
+            (cd "$(dirname "$(dirname "$f")")" &&
+              php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+                --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+                "tests/$(basename "$f")") || { failed=1; echo "FAILED: $f"; }
+            echo "::endgroup::"
+          done
+          exit $failed

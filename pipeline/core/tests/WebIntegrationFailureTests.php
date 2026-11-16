@@ -207,7 +207,10 @@ class WebIntegrationFailureTests extends TestCase
 
     /**
      * Serves scripts/set-response-header.php with PHP's built-in web server
-     * and requests it with the element query value given.
+     * and requests it with the element query value given. PHP's own
+     * messages, such as the deprecation notices Mustache gives on PHP 8.4
+     * and later, go to the server's log rather than the body, so the body
+     * is what the script writes whatever the php.ini of the machine says.
      *
      * @return array{0: array<int, string>, 1: string} The response header
      * lines and the body
@@ -217,7 +220,16 @@ class WebIntegrationFailureTests extends TestCase
         $port = $this->freePort();
         $log = (string) tempnam(sys_get_temp_dir(), 'set-header');
         $server = proc_open(
-            [PHP_BINARY, '-S', "127.0.0.1:{$port}", 'set-response-header.php'],
+            [
+                PHP_BINARY,
+                '-d',
+                'display_errors=0',
+                '-d',
+                'log_errors=1',
+                '-S',
+                "127.0.0.1:{$port}",
+                'set-response-header.php'
+            ],
             [0 => ['pipe', 'r'], 1 => ['file', $log, 'w'], 2 => ['file', $log, 'a']],
             $pipes,
             __DIR__ . '/scripts'

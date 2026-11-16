@@ -28,7 +28,7 @@ jobs:
             ref: b5243579e7d00fec57740cb2d3e9f6b451bed4f2
             expect: 'fail fail fail pass'
           - what: the head 4f1903e6
-            ref: 4f1903e6
+            ref: 4f1903e6501f0facd3fc87f9d7e69451597c3820
             expect: 'pass pass pass pass'
     runs-on: ${{ matrix.os }}
     steps:

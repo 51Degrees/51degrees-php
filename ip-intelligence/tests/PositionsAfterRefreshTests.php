@@ -31,13 +31,15 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Every value is read at the position IpIntelligenceOnPremise::getPosition
- * gives, so a position must name the same property as the name does, after
- * a refresh as well as before. The engine is built when PHP starts from the
- * free Lite data file with no required properties set, which takes every
- * property the file has, and is then refreshed from the free ASN data file,
- * which has other properties. Each case starts its own PHP process, as the
- * engine is built when PHP starts and a refresh changes it for the rest of
- * the process.
+ * gives, which the element works out once from the names the native engine
+ * was created with and keeps through a refresh. So after a refresh the
+ * native engine must still have those names, in that order, and a position
+ * must read the same value as the name. The engine is built when PHP starts
+ * from the free Lite data file with no required properties set, and is
+ * refreshed from a copy of that file, and from the free ASN data file, which
+ * has other properties. Each case starts its own PHP process, as the engine
+ * is built when PHP starts and a refresh changes it for the rest of the
+ * process.
  */
 class PositionsAfterRefreshTests extends TestCase
 {
@@ -45,7 +47,8 @@ class PositionsAfterRefreshTests extends TestCase
     // the source, looks up the address, and reads every property the native
     // engine now has, once by its name and once at the position the element
     // gives for it. Prints, as JSON, the native engine's names before and
-    // after, how many values were compared, and each property whose two
+    // after, how many values were compared, how many different values the
+    // reads by name gave, and each property whose two
     // reads differ. The arguments are the autoloader, the address and the
     // source.
     private const READ = <<<'PHP'
@@ -118,44 +121,92 @@ class PositionsAfterRefreshTests extends TestCase
         }
         $results = $engine->engine->process($address);
         $compared = 0;
+        $texts = [];
         $differ = [];
         foreach ($after as $name) {
             $read = $accessor($types[strtolower($name)] ?? 'string');
             $byName = $text($results->{$read}($name));
             $byPosition = $text($results->{$read}($engine->getPosition($name)));
             ++$compared;
+            $texts[] = $byName;
             if ($byName !== $byPosition) {
                 $differ[$name] = ['by name' => $byName, 'by position' => $byPosition];
             }
         }
         echo json_encode(['error' => $error, 'before' => $before,
-            'after' => $after, 'compared' => $compared, 'differ' => $differ]);
+            'after' => $after, 'compared' => $compared, 'differ' => $differ,
+            'distinct' => count(array_unique($texts))]);
         PHP;
+
+    private string $folder;
 
     protected function setUp(): void
     {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             $this->markTestSkipped('The FiftyOneDegreesIpIntelligenceEngine native extension is not loaded.');
         }
+        $this->folder = sys_get_temp_dir() . '/51d-positions-' . uniqid();
+        mkdir($this->folder);
+    }
+
+    protected function tearDown(): void
+    {
+        if (isset($this->folder) && is_dir($this->folder)) {
+            array_map('unlink', glob($this->folder . '/*') ?: []);
+            rmdir($this->folder);
+        }
     }
 
     /**
-     * After a refresh from a data file with other properties, each
-     * position the element gives still names the property it is asked for.
+     * After a refresh from an updated copy of the file, each position still
+     * reads the property it is asked for. The values read differ from one
+     * property to another, so a position that named another property would
+     * be seen.
+     */
+    public function testEachPositionNamesItsPropertyAfterARefreshFromACopy(): void
+    {
+        $lite = $this->dataFile(ExampleConstants::LITE_DATA_FILE_NAME);
+        $copy = $this->folder . '/copy.ipi';
+        $this->assertTrue(copy($lite, $copy));
+
+        $printed = $this->read($lite, (string) realpath($copy));
+
+        $this->assertPositionsKept($printed);
+        $this->assertGreaterThan(
+            1,
+            $printed['distinct'],
+            'Every property read the same value, so a wrong position would not be seen.'
+        );
+    }
+
+    /**
+     * After a refresh from a data file with other properties, the native
+     * engine keeps the names it was created with, so each position still
+     * reads the property it is asked for.
      */
     public function testEachPositionNamesItsPropertyAfterARefreshFromAnotherFile(): void
     {
         $lite = $this->dataFile(ExampleConstants::LITE_DATA_FILE_NAME);
         $asn = $this->dataFile(ExampleConstants::ASN_DATA_FILE_NAME);
 
-        $printed = $this->read($lite, $asn);
+        $this->assertPositionsKept($this->read($lite, $asn));
+    }
 
+    /**
+     * The refresh worked, the native engine has the names it had before, in
+     * the same order, and every value read at its position is the value read
+     * by its name.
+     *
+     * @param array<string, mixed> $printed
+     */
+    private function assertPositionsKept(array $printed): void
+    {
         $this->assertNull($printed['error']);
-        $this->assertNotSame(
+        $this->assertSame(
             $printed['before'],
             $printed['after'],
-            'The two data files gave the engine the same properties, so ' .
-            'the test reads nothing a stale position would get wrong.'
+            'The native engine changed its names on the refresh, so the ' .
+            'positions the element holds no longer match them.'
         );
         $this->assertGreaterThan(0, $printed['compared']);
         $this->assertSame(

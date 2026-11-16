@@ -120,6 +120,32 @@ class SharedSetHeaderHardwareElement extends FlowElement
 }
 
 /**
+ * An element whose script Property is marked for delayed execution only
+ * once it learns so later, when it updates its property list.
+ */
+class SharedBundlerLearningElement extends FlowElement
+{
+    public string $dataKey = 'learning';
+
+    public array $properties = [
+        'Script' => ['type' => 'javascript'],
+    ];
+
+    public function learnDelayedExecution(): void
+    {
+        $this->properties['Script']['delayexecution'] = true;
+        $this->updatePropertyList();
+    }
+
+    public function processInternal(FlowData $flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'Script' => new AspectPropertyValue(null, 'void 0;'),
+        ]));
+    }
+}
+
+/**
  * An element that asks for the Accept-CH hints of the browser, and that
  * learns later that it also asks for those of the hardware, so it updates
  * its property list, as an element that learns its properties later does.
@@ -225,6 +251,38 @@ class MultiPipelineElementTests extends TestCase
         $this->assertArrayNotHasKey('second', $firstJson);
         $this->assertArrayNotHasKey('first', $secondJson);
         $this->assertTrue($secondJson['second']['scriptdelayexecution']);
+    }
+
+    /**
+     * What the JSON keeps for a Pipeline is worked out from the properties
+     * its elements have now, so an element that updates its property list
+     * is written by its new metadata, in its own Pipeline only.
+     */
+    public function testAPipelineGetsTheJsonOfPropertiesAnElementLearnsLater()
+    {
+        $bundler = new JsonBundlerElement();
+        $learning = new SharedBundlerLearningElement();
+        $first = new Pipeline([
+            new SequenceElement(),
+            $learning,
+            $bundler
+        ], []);
+        $second = new Pipeline([
+            new SequenceElement(),
+            new SharedBundlerFirstElement(),
+            $bundler
+        ], []);
+
+        $firstBefore = self::json($first);
+        self::json($second);
+        $learning->learnDelayedExecution();
+        $firstAfter = self::json($first);
+        $secondAfter = self::json($second);
+
+        $this->assertArrayNotHasKey('scriptdelayexecution', $firstBefore['learning']);
+        $this->assertTrue($firstAfter['learning']['scriptdelayexecution']);
+        $this->assertSame('one', $secondAfter['first']['value']);
+        $this->assertArrayNotHasKey('learning', $secondAfter);
     }
 
     /**

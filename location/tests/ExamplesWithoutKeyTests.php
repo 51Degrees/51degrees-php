@@ -102,7 +102,7 @@ class ExamplesWithoutKeyTests extends TestCase
     /**
      * The sentence that says where to create a resource key gives the
      * configuration page link after a space and the word "at", so that the
-     * word before it does not run into it, as "this exampleat https://" did.
+     * word before it does not run into it.
      */
     private function assertLinksStandApart(string $text, string $printed): void
     {

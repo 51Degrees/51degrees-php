@@ -75,9 +75,10 @@ class Pipeline
     ];
 
     /**
-     * The default of each setting, used where the settings leave it out. A
-     * null logger gives a Logger at Logger::DEFAULT_LEVEL with no file
-     * setting, which writes nothing.
+     * The default of each setting, used where the settings leave it out.
+     * The logger entry records the setting's default of null, and a
+     * Pipeline given no logger makes a Logger at Logger::DEFAULT_LEVEL
+     * with no file setting, which writes nothing.
      *
      * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/reference-implementation-notes.md#builders
      */

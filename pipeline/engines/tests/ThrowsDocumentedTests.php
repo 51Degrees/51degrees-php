@@ -39,7 +39,9 @@ class ThrowsDocumentedTests extends TestCase
     public function testEachPublicMethodThatThrowsSaysSo(): void
     {
         $missing = [];
-        foreach (glob(dirname(__DIR__) . '/src/*.php') ?: [] as $file) {
+        $files = glob(dirname(__DIR__) . '/src/*.php') ?: [];
+        $read = 0;
+        foreach ($files as $file) {
             $code = (string) file_get_contents($file);
             if (!preg_match('/^namespace\s+([^;]+);/m', $code, $namespace) ||
                 !preg_match('/^(?:abstract |final )?class\s+(\w+)/m', $code, $name)) {
@@ -55,6 +57,7 @@ class ThrowsDocumentedTests extends TestCase
             }
 
             $class = new \ReflectionClass($namespace[1] . '\\' . $name[1]);
+            ++$read;
             foreach ($class->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
                 if ($method->getDeclaringClass()->getName() !== $class->getName()) {
                     continue;
@@ -73,6 +76,9 @@ class ThrowsDocumentedTests extends TestCase
                 }
             }
         }
+
+        $this->assertNotSame([], $files, 'No source file was read from src.');
+        $this->assertGreaterThan(0, $read, 'No class was read from src.');
 
         $this->assertSame([], $missing, 'Give each of these an @throws tag.');
     }

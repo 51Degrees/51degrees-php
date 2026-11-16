@@ -48,8 +48,10 @@ class SetHeaderElement extends FlowElement
 
     /**
      * The SetHeader properties of the elements of each Pipeline the element
-     * is in, worked out once for each Pipeline, because an element can be in
-     * Pipelines with different elements.
+     * is in, worked out for each Pipeline, because an element can be in
+     * Pipelines with different elements. Each is kept with the Pipeline's
+     * count of property list updates when it was worked out, and is worked
+     * out again when an element of that Pipeline has updated its list since.
      */
     private ?\SplObjectStorage $setHeaderProperties = null;
 
@@ -70,15 +72,22 @@ class SetHeaderElement extends FlowElement
         $this->setHeaderProperties = $this->setHeaderProperties ?? new \SplObjectStorage();
         $pipeline = $flowData->pipeline;
 
+        $updates = $pipeline->getPropertyListUpdates();
+
         // A Pipeline whose elements had no SetHeader property yet is looked
-        // at again, as an element can learn its properties later.
+        // at again, as an element can learn its properties later, and so is
+        // one with an element that has updated its property list since.
         if (!isset($this->setHeaderProperties[$pipeline])
-            || empty($this->setHeaderProperties[$pipeline])) {
-            $this->setHeaderProperties[$pipeline] = $this->getSetHeaderPropertiesPipeline($pipeline);
+            || empty($this->setHeaderProperties[$pipeline]['properties'])
+            || $this->setHeaderProperties[$pipeline]['updates'] !== $updates) {
+            $this->setHeaderProperties[$pipeline] = [
+                'updates' => $updates,
+                'properties' => $this->getSetHeaderPropertiesPipeline($pipeline)
+            ];
         }
 
         /** @var array<string, array<int, mixed>> $setHeaderProperties */
-        $setHeaderProperties = $this->setHeaderProperties[$pipeline];
+        $setHeaderProperties = $this->setHeaderProperties[$pipeline]['properties'];
 
         $responseHeaders = $this->getResponseHeaderValue($flowData, $setHeaderProperties);
 

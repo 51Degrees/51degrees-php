@@ -1,0 +1,64 @@
+name: Temporary guard run of pull request 182, second part
+
+# Throwaway. It takes the head of pull request 182 and, in each package that
+# runs without a native extension, puts "Bad_" in front of every Data Key the
+# package declares, then runs that package's KeyFormatTests. Each is expected
+# to fail, once for the underscore and once for the capital letter.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-182-guard2'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Every KeyFormatTests fails on a key with an underscore and a capital
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Spoil every Data Key the packages declare
+        shell: bash
+        run: |
+          for p in pipeline/core pipeline/cloudrequestengine pipeline/derivedproperty \
+                   pipeline/translation device-detection/cloud location; do
+            find "$p/src" -name '*.php' -print0 | xargs -0 sed -i -E \
+              -e "s/(DATA_KEY *= *')/\1Bad_/" -e "s/(dataKey *= *')/\1Bad_/"
+            echo "::group::$p"
+            grep -rn "Bad_" "$p/src" || { echo "NOTHING PATCHED IN $p"; exit 1; }
+            echo "::endgroup::"
+          done
+      - name: Every copy is expected to fail
+        shell: bash
+        run: |
+          passed=0
+          for p in pipeline/core pipeline/cloudrequestengine pipeline/derivedproperty \
+                   pipeline/translation device-detection/cloud location; do
+            echo "::group::$p"
+            if (cd "$p" &&
+              php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+                --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+                tests/KeyFormatTests.php); then
+              echo "PASSED, which it should not: $p"
+              passed=1
+            else
+              echo "FAILED as expected: $p"
+            fi
+            echo "::endgroup::"
+          done
+          exit $passed

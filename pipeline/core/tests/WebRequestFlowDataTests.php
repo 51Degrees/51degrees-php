@@ -25,7 +25,9 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core\tests;
 
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
@@ -103,6 +105,51 @@ class WebRequestFlowDataTests extends TestCase
             'Another',
             Utils::getFlowData()->evidence->get('header.user-agent')
         );
+    }
+
+    /**
+     * A PHP that serves one request after another, as a worker does, keeps
+     * its static state between them, so a Flow Data replaced by the next
+     * request's is closed then rather than when that PHP stops.
+     */
+    public function testTheFlowDataAnotherRequestReplacesIsClosed(): void
+    {
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false
+        ]))->add($this->closingElement())->build();
+
+        $first = Utils::processWebRequest($pipeline, self::SERVER, [], []);
+        $this->assertFalse($first->closing->closed);
+
+        $second = Utils::processWebRequest($pipeline, self::SERVER, [], []);
+
+        $this->assertTrue($first->closing->closed);
+        $this->assertFalse($second->closing->closed);
+        $this->assertSame($second, Utils::getFlowData());
+    }
+
+    /**
+     * An element whose element data has a close method of its own, as the
+     * results of an on-premise engine have.
+     */
+    private function closingElement(): FlowElement
+    {
+        return new class() extends FlowElement {
+            public string $dataKey = 'closing';
+
+            public function processInternal($flowData): void
+            {
+                $flowData->setElementData(new class($this) extends ElementData {
+                    public bool $closed = false;
+
+                    public function close(): void
+                    {
+                        $this->closed = true;
+                    }
+                });
+            }
+        };
     }
 
     private function pipeline(): Pipeline

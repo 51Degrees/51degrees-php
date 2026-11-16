@@ -100,15 +100,16 @@ class ExamplesWithoutKeyTests extends TestCase
     }
 
     /**
-     * Each link in the text starts after a space, a line break or an
-     * opening bracket or quote, so no word runs into it.
+     * The sentence that says where to create a resource key gives the
+     * configuration page link after a space and the word "at", so that the
+     * word before it does not run into it, as "this exampleat https://" did.
      */
     private function assertLinksStandApart(string $text, string $printed): void
     {
-        $this->assertDoesNotMatchRegularExpression(
-            '#[^\s(\[<"\']https?://#',
+        $this->assertMatchesRegularExpression(
+            '#Create a resource key[^\n]* at ' . preg_quote(self::CONFIGURE, '#') . '#',
             $text,
-            "A word runs into a link.\n" . $printed
+            "The sentence about creating a resource key runs a word into its link.\n" . $printed
         );
     }
 

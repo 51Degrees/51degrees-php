@@ -47,9 +47,11 @@ class SetHeaderElement extends FlowElement
     ];
 
     /**
-     * @var array<string, array<int, mixed>>
+     * The SetHeader properties of the elements of each Pipeline the element
+     * is in, worked out once for each Pipeline, because an element can be in
+     * Pipelines with different elements.
      */
-    private array $setHeaderProperties = [];
+    private ?\SplObjectStorage $setHeaderProperties = null;
 
     /**
      * The element reads only the element data of the elements before it, so
@@ -65,11 +67,20 @@ class SetHeaderElement extends FlowElement
      */
     public function processInternal(FlowData $flowData): void
     {
-        if (empty($this->setHeaderProperties)) {
-            $this->setHeaderProperties = $this->getSetHeaderPropertiesPipeline($flowData->pipeline);
+        $this->setHeaderProperties = $this->setHeaderProperties ?? new \SplObjectStorage();
+        $pipeline = $flowData->pipeline;
+
+        // A Pipeline whose elements had no SetHeader property yet is looked
+        // at again, as an element can learn its properties later.
+        if (!isset($this->setHeaderProperties[$pipeline])
+            || empty($this->setHeaderProperties[$pipeline])) {
+            $this->setHeaderProperties[$pipeline] = $this->getSetHeaderPropertiesPipeline($pipeline);
         }
 
-        $responseHeaders = $this->getResponseHeaderValue($flowData, $this->setHeaderProperties);
+        /** @var array<string, array<int, mixed>> $setHeaderProperties */
+        $setHeaderProperties = $this->setHeaderProperties[$pipeline];
+
+        $responseHeaders = $this->getResponseHeaderValue($flowData, $setHeaderProperties);
 
         $data = new ElementDataDictionary($this, ['responseheaderdictionary' => $responseHeaders]);
 

@@ -1,0 +1,70 @@
+name: Temporary guard run of pull request 185, second part
+
+# Throwaway. On the head b35a8f07, one job replaces the strtr that writes the
+# values over the tokens with a loop of str_replace calls, which looks again
+# inside the values it has written, and expects testEachChoiceIsJShrinksOutput
+# to fail. The other runs the same test on the head as it is and expects it
+# to pass.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-185-guard2'
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: ${{ matrix.what }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - what: a loop of replacements in place of strtr, expected to fail
+            patch: true
+          - what: the head as it is, expected to pass
+            patch: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: b35a8f07925630fb3bc3df494588b501cd35a2e4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Replace strtr with a loop
+        if: matrix.patch
+        shell: bash
+        run: |
+          f=pipeline/core/src/JavascriptBuilderElement.php
+          line='        return strtr($this->minifiedTemplates[$key], $values);'
+          grep -qxF "$line" "$f"
+          php -r '$f = $argv[1]; $s = file_get_contents($f);
+            $a = "        return strtr(\$this->minifiedTemplates[\$key], \$values);";
+            $b = "        \$script = \$this->minifiedTemplates[\$key];\n        foreach (\$values as \$token => \$value) {\n            \$script = str_replace(\$token, \$value, \$script);\n        }\n        return \$script;";
+            file_put_contents($f, str_replace($a, $b, $s));' "$f"
+          git diff
+      - name: The choices test
+        shell: bash
+        env:
+          PATCHED: ${{ matrix.patch }}
+        run: |
+          cd pipeline/core
+          set +e
+          php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php \
+            --filter testEachChoiceIsJShrinksOutput tests/JavaScriptBuilderMinifyChoicesTests.php
+          status=$?
+          echo "RESULT status=$status patched=$PATCHED"
+          if [ "$PATCHED" = true ]; then [ "$status" -ne 0 ]; else [ "$status" -eq 0 ]; fi

@@ -196,7 +196,10 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
      */
     public function testHttpDataSetInException()
     {
-        $params = ['resourceKey' => 'resource_key'];
+        $params = [
+            'resourceKey' => 'resource_key',
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ];
 
         $pipeline = new PipelineBuilder();
 

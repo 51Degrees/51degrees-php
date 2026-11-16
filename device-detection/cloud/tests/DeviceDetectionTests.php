@@ -267,6 +267,7 @@ class DeviceDetectionTests extends TestCase
         try {
             $builder = new DeviceDetectionPipelineBuilder([
                 'resourceKey' => 'AQS5HKcyVj6B8wNG2Ug',
+                'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS,
                 'cloudRequestOrigin' => $origin
             ]);
 

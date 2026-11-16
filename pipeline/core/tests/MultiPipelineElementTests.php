@@ -120,6 +120,40 @@ class SharedSetHeaderHardwareElement extends FlowElement
 }
 
 /**
+ * An element that asks for the Accept-CH hints of the browser, and that
+ * learns later that it also asks for those of the hardware, so it updates
+ * its property list, as an element that learns its properties later does.
+ */
+class SharedSetHeaderLearningElement extends FlowElement
+{
+    public string $dataKey = 'learninghints';
+
+    public array $properties = [
+        'setheaderbrowseraccept-ch' => [
+            'name' => 'SetHeaderBrowserAccept-CH',
+            'type' => 'string'
+        ],
+    ];
+
+    public function learnHardwareHints(): void
+    {
+        $this->properties['setheaderhardwareaccept-ch'] = [
+            'name' => 'SetHeaderHardwareAccept-CH',
+            'type' => 'string'
+        ];
+        $this->updatePropertyList();
+    }
+
+    public function processInternal(FlowData $flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'setheaderbrowseraccept-ch' => new AspectPropertyValue(null, 'Sec-CH-UA'),
+            'setheaderhardwareaccept-ch' => new AspectPropertyValue(null, 'Sec-CH-UA-Model'),
+        ]));
+    }
+}
+
+/**
  * One JSON Bundler, or one Set Headers Element, added to two Pipelines
  * keeps what it learns about the elements of each Pipeline apart, as
  * multi-pipeline-elements.md in the Pipeline specification asks.
@@ -229,5 +263,36 @@ class MultiPipelineElementTests extends TestCase
         $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $firstHeaders);
         $this->assertSame(['Accept-CH' => 'Sec-CH-UA-Model'], $secondHeaders);
         $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $firstAgain);
+    }
+
+    /**
+     * The SetHeader properties kept for a Pipeline are the ones its elements
+     * have now, so an element that updates its property list is given the
+     * headers of its new properties, in its own Pipeline only.
+     */
+    public function testAPipelineGetsTheHeadersOfPropertiesAnElementLearnsLater()
+    {
+        $setHeaders = new SetHeaderElement();
+        $learning = new SharedSetHeaderLearningElement();
+        $first = new Pipeline([
+            new SequenceElement(),
+            $learning,
+            $setHeaders
+        ], []);
+        $second = new Pipeline([
+            new SequenceElement(),
+            new SharedSetHeaderBrowserElement(),
+            $setHeaders
+        ], []);
+
+        $firstBefore = self::responseHeaders($first);
+        self::responseHeaders($second);
+        $learning->learnHardwareHints();
+        $firstAfter = self::responseHeaders($first);
+        $secondAfter = self::responseHeaders($second);
+
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $firstBefore);
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA,Sec-CH-UA-Model'], $firstAfter);
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $secondAfter);
     }
 }

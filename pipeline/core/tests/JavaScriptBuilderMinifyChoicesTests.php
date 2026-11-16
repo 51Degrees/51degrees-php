@@ -115,6 +115,18 @@ class JavaScriptBuilderMinifyChoicesTests extends TestCase
         "_51DegreesMinifySessionId_ _51DegreesMinifySequence_ " .
         "_51DegreesMinifyObjectName_ _51DegreesMinifyUrl_";
 
+    /**
+     * The endpoint holds the object name's token, and the object name asked
+     * for with the awkward text is the URL's token, so that the URL and the
+     * object name each hold the other's token. Writing the values one token
+     * after another, in any order, then changes one of the two, where
+     * writing every token at once leaves both as they are. The JSON alone
+     * could not show that, because no other value can hold its token.
+     */
+    private const ENDPOINT = '/51dpipeline/_51DegreesMinifyObjectName_/json';
+
+    private const OBJECT_NAME_TOKEN_TEXT = '_51DegreesMinifyUrl_';
+
     public function testEachChoiceIsJShrinksOutput()
     {
         $checked = 0;
@@ -196,7 +208,9 @@ class JavaScriptBuilderMinifyChoicesTests extends TestCase
             $evidence['header.host'] = 'example.com';
         }
         if ($objectName) {
-            $evidence['query.fod-js-object-name'] = 'my$Object_2';
+            $evidence['query.fod-js-object-name'] = $awkward
+                ? self::OBJECT_NAME_TOKEN_TEXT
+                : 'my$Object_2';
         }
 
         return $evidence;
@@ -207,7 +221,7 @@ class JavaScriptBuilderMinifyChoicesTests extends TestCase
         $builder = (new PipelineBuilder([
             'javascriptBuilderSettings' => [
                 'minify' => $minify,
-                'endpoint' => '/51dpipeline/json'
+                'endpoint' => self::ENDPOINT
             ]
         ]))->add(new MinifyChoicesDeviceElement());
         if ($delayed) {

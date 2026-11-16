@@ -1,0 +1,16 @@
+diff --git a/pipeline/core/src/JavascriptBuilderElement.php b/pipeline/core/src/JavascriptBuilderElement.php
+index ba032e02..e86ebdc3 100644
+--- a/pipeline/core/src/JavascriptBuilderElement.php
++++ b/pipeline/core/src/JavascriptBuilderElement.php
+@@ -496,11 +496,6 @@ class JavascriptBuilderElement extends FlowElement
+ 
+         // The template writes the object name as {{_objName}}, which
+         // Mustache escapes as below, and every other value as it is.
+-        $values[self::MINIFY_TOKENS['_objName']] = htmlspecialchars(
+-            $values[self::MINIFY_TOKENS['_objName']],
+-            ENT_COMPAT,
+-            'UTF-8'
+-        );
+ 
+         // strtr replaces each token once and does not look again inside the
+         // values it writes, so a value holding a token's text is kept as it

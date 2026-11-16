@@ -1,0 +1,93 @@
+name: Temporary timing and guard run of pull request 185
+
+# Throwaway. Two jobs time the JavaScript Builder's minification, one on rc
+# and one on this head, on runners of the same kind. Two more take this head,
+# break the minification by one change each, and run the new test, which is
+# expected to fail in both.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-185-perf'
+
+permissions:
+  contents: read
+
+jobs:
+  timing:
+    name: Minification cost, ${{ matrix.where }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - where: rc fe547298
+            ref: fe5472981944c09c18748fd1f3832a4ceb4a3640
+          - where: the head f7088146
+            ref: ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Time the minification
+        shell: bash
+        run: |
+          cd pipeline/core
+          php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+            --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+            tests/JavaScriptBuilderPerformanceTests.php
+  guard:
+    name: The new test fails when ${{ matrix.rule }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rule: the object name is written over the token unescaped
+            patch: tmp-breaks/no-escape.patch
+          - rule: one of the template's choices is left out of the cache key
+            patch: tmp-breaks/one-choice.patch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Break the minification
+        shell: bash
+        run: |
+          git apply --verbose "${{ matrix.patch }}"
+          git diff --stat
+      - name: The new test is expected to fail
+        shell: bash
+        run: |
+          cd pipeline/core
+          if php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+            --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+            tests/JavaScriptBuilderMinifyChoicesTests.php; then
+            echo "PASSED, which it should not"
+            exit 1
+          fi
+          echo "FAILED as expected"

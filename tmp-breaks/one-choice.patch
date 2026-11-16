@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/JavascriptBuilderElement.php b/pipeline/core/src/JavascriptBuilderElement.php
+index ba032e02..780fd966 100644
+--- a/pipeline/core/src/JavascriptBuilderElement.php
++++ b/pipeline/core/src/JavascriptBuilderElement.php
+@@ -147,7 +147,7 @@ class JavascriptBuilderElement extends FlowElement
+      */
+     private const MINIFY_CHOICES = [
+         '_updateEnabled', '_enableCookies', '_supportsFetch',
+-        '_supportsPromises', '_hasDelayedProperties',
++        '_supportsPromises',
+     ];
+ 
+     /**

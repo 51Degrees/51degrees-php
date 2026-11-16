@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -54,6 +55,7 @@ class StoppedExampleFindOutMoreTests extends TestCase
     /**
      * @dataProvider examples
      */
+    #[DataProvider('examples')]
     public function testAnExampleThatCannotStartGivesTheFindOutMoreLinks(
         string $example
     ): void {

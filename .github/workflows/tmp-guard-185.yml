@@ -1,0 +1,86 @@
+name: Temporary guard run of pull request 185
+
+# Throwaway. Each job takes the head of pull request 185, leaves one of the
+# template's choices out of the key the minified template is kept under, and
+# runs the new test file. Each is expected to fail, and the log names which
+# test caught it.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-185-guard'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: The tests catch a key missing ${{ matrix.rule }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rule: the cookies choice, which changes from request to request
+            patch: tmp-breaks/no-cookie-choice.patch
+          - rule: the delayed Property choice, which changes between Pipelines
+            patch: tmp-breaks/no-delayed-choice.patch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Leave the choice out of the key
+        shell: bash
+        run: |
+          git apply --verbose "${{ matrix.patch }}"
+          git diff
+      - name: The tests are expected to fail
+        shell: bash
+        run: |
+          cd pipeline/core
+          if php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+            --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+            tests/JavaScriptBuilderMinifyChoicesTests.php; then
+            echo "PASSED, which it should not"
+            exit 1
+          fi
+          echo "FAILED as expected"
+  green:
+    name: Every test passes on the head
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: The new test file and the timing test
+        shell: bash
+        run: |
+          cd pipeline/core
+          php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+            --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+            tests/JavaScriptBuilderMinifyChoicesTests.php
+          php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+            --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+            tests/JavaScriptBuilderPerformanceTests.php

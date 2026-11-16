@@ -1,0 +1,13 @@
+diff --git a/pipeline/core/src/JavascriptBuilderElement.php b/pipeline/core/src/JavascriptBuilderElement.php
+index 758fd19a..2df13056 100644
+--- a/pipeline/core/src/JavascriptBuilderElement.php
++++ b/pipeline/core/src/JavascriptBuilderElement.php
+@@ -146,7 +146,7 @@ class JavascriptBuilderElement extends FlowElement
+      * true or false, so at most 32 minified templates are kept.
+      */
+     private const MINIFY_CHOICES = [
+-        '_updateEnabled', '_enableCookies', '_supportsFetch',
++        '_updateEnabled', '_supportsFetch',
+         '_supportsPromises', '_hasDelayedProperties',
+     ];
+ 

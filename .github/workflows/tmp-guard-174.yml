@@ -1,0 +1,60 @@
+name: Temporary guard run of pull request 174
+
+# Throwaway. It takes the head of pull request 174, makes the source file
+# search of every ThrowsDocumentedTests find nothing, and runs the five
+# copies. Each is expected to fail, which is what the new count assertions
+# are for.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-174-guard'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Every ThrowsDocumentedTests fails when its search finds no file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Make the source file search find nothing
+        shell: bash
+        run: |
+          for p in core engines translation cloudrequestengine derivedproperty; do
+            sed -i "s|/src/\*\.php|/src/*.no-such-file|" \
+              "pipeline/$p/tests/ThrowsDocumentedTests.php"
+            grep -n "no-such-file" "pipeline/$p/tests/ThrowsDocumentedTests.php"
+          done
+      - name: Every copy is expected to fail
+        shell: bash
+        run: |
+          passed=0
+          for p in core engines translation cloudrequestengine derivedproperty; do
+            echo "::group::$p"
+            if (cd "pipeline/$p" &&
+              php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+                --bootstrap "$GITHUB_WORKSPACE/vendor/autoload.php" \
+                tests/ThrowsDocumentedTests.php); then
+              echo "PASSED, which it should not: $p"
+              passed=1
+            else
+              echo "FAILED as expected: $p"
+            fi
+            echo "::endgroup::"
+          done
+          exit $passed

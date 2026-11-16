@@ -90,7 +90,26 @@ class ExamplesWithoutKeyTests extends TestCase
         $this->assertSame(0, $run->status, $run->printed());
         $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $run->output, $run->printed());
         $this->assertStringContainsString(self::CONFIGURE, $run->output, $run->printed());
+        $this->assertStringNotContainsString(
+            '<br',
+            $run->output,
+            "A console example printed an HTML line break.\n" . $run->printed()
+        );
+        $this->assertLinksStandApart($run->output, $run->printed());
         $run->assertEndsWithFindOutMore();
+    }
+
+    /**
+     * Each link in the text starts after a space, a line break or an
+     * opening bracket or quote, so no word runs into it.
+     */
+    private function assertLinksStandApart(string $text, string $printed): void
+    {
+        $this->assertDoesNotMatchRegularExpression(
+            '#[^\s(\[<"\']https?://#',
+            $text,
+            "A word runs into a link.\n" . $printed
+        );
     }
 
     /**
@@ -107,6 +126,7 @@ class ExamplesWithoutKeyTests extends TestCase
         $page = html_entity_decode($run->output);
         $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $page, $run->printed());
         $this->assertStringContainsString(self::CONFIGURE, $page, $run->printed());
+        $this->assertLinksStandApart(strip_tags($page), $run->printed());
         $run->assertPageEndsWithFindOutMore();
     }
 }

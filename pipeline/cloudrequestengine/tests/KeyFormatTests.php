@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\cloudrequestengine\tests;
 
+use fiftyone\pipeline\cloudrequestengine\CloudEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\Constants;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +33,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * The string keys the Cloud Request Engine gives, being its Data Key and
  * the key of its property, each with the older key it still answers to,
+ * and the Data Key a cloud engine is given when it sets none of its own,
  * follow the general guidance of access-to-results.md in the Pipeline
  * specification.
  */
@@ -41,6 +43,14 @@ class KeyFormatTests extends TestCase
      * Letters, digits, full stops and hyphens only.
      */
     private const KEY_CHARACTERS = '/^[A-Za-z0-9.-]+$/';
+
+    /**
+     * The Data Key CloudEngine gives a cloud engine that does not set its
+     * own. Every engine in these packages sets one, and changing this
+     * default would rename a public value in a patch release, so it is
+     * held to the character rule and left out of the lower case rule only.
+     */
+    private const BASE_CLASS_DEFAULTS = ['CloudEngineBase'];
 
     /**
      * The keys an engine starts with, read from the class, as building the
@@ -58,6 +68,8 @@ class KeyFormatTests extends TestCase
         }
         $keys[] = Constants::DEPRECATED_DATA_KEY;
         $keys[] = Constants::DEPRECATED_JSON_RESPONSE_PROPERTY;
+        $keys[] = (new \ReflectionClass(CloudEngine::class))
+            ->getDefaultProperties()['dataKey'];
 
         return $keys;
     }
@@ -73,7 +85,7 @@ class KeyFormatTests extends TestCase
     public function testEveryKeyIsLowerCase(): void
     {
         $this->assertSame([], array_values(array_filter(
-            self::keys(),
+            array_diff(self::keys(), self::BASE_CLASS_DEFAULTS),
             fn (string $key) => $key !== strtolower($key)
         )));
     }

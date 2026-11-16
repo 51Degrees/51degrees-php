@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: e3aa6ef2
+          ref: e3aa6ef2581b183316b1eb9c598a33d55af2ecae
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'

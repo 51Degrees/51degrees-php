@@ -33,6 +33,11 @@ class ConfiguredElementBuilder
 
     private int $answer = 0;
 
+    /**
+     * @var string[]
+     */
+    private array $names = [];
+
     public function setDataKey(string $dataKey): self
     {
         $this->dataKey = $dataKey;
@@ -54,11 +59,23 @@ class ConfiguredElementBuilder
         return $this;
     }
 
+    /**
+     * Adds one name, as a builder's add method for a list of strings, such
+     * as addBuiltInScript or addSource, takes one item.
+     */
+    public function addName(string $name): self
+    {
+        $this->names[] = $name;
+
+        return $this;
+    }
+
     public function build(): ConfiguredElement
     {
         return new ConfiguredElement([
             'dataKey' => $this->dataKey,
-            'answer' => $this->answer
+            'answer' => $this->answer,
+            'names' => $this->names
         ]);
     }
 }

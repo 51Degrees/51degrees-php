@@ -83,6 +83,43 @@ class ElementBuilderConfigurationTests extends TestCase
         $this->assertSame(42, $pipeline->createFlowData()->process()->configured->answer);
     }
 
+    /**
+     * The pipeline configuration feature says "Configuration files MUST be
+     * human-readable and consistent between languages." and lists among the
+     * types supported in configuration files for all languages a "list of
+     * strings (represented as a comma-separated string)". So a list written
+     * as a configuration file for another language writes it reaches the
+     * builder's add method once for each item, as a JSON list does.
+     */
+    public function testACommaSeparatedListCallsTheBuildersAddMethodForEachItem(): void
+    {
+        $fromText = (new PipelineBuilder())->buildFromConfig([
+            'PipelineOptions' => [
+                'Elements' => [[
+                    'BuilderName' => ConfiguredElementBuilder::class,
+                    'BuildParameters' => ['Name' => 'first, second,third']
+                ]]
+            ]
+        ]);
+        $fromList = (new PipelineBuilder())->buildFromConfig([
+            'PipelineOptions' => [
+                'Elements' => [[
+                    'BuilderName' => ConfiguredElementBuilder::class,
+                    'BuildParameters' => ['Name' => ['first', 'second', 'third']]
+                ]]
+            ]
+        ]);
+
+        $this->assertSame(
+            ['first', 'second', 'third'],
+            $fromText->getElement('configured')->names
+        );
+        $this->assertSame(
+            $fromList->getElement('configured')->names,
+            $fromText->getElement('configured')->names
+        );
+    }
+
     public function testABuilderNamedWithoutParametersBuildsWithItsDefaults(): void
     {
         $pipeline = (new PipelineBuilder())->buildFromConfig([

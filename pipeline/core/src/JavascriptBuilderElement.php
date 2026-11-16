@@ -495,7 +495,10 @@ class JavascriptBuilderElement extends FlowElement
         }
 
         // The template writes the object name as {{_objName}}, which
-        // Mustache escapes as below, and every other value as it is.
+        // Mustache escapes, so the same escaping is written here. The name
+        // is checked by isValidObjectName, so no name the element accepts
+        // reaches this line with anything to escape, and the minified and
+        // plain scripts stay the same if that check ever widens.
         $values[self::MINIFY_TOKENS['_objName']] = htmlspecialchars(
             $values[self::MINIFY_TOKENS['_objName']],
             ENT_COMPAT,

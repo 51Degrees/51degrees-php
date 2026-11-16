@@ -28,8 +28,11 @@ namespace fiftyone\pipeline\core\tests;
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowElement;
+use fiftyone\pipeline\core\JavascriptBuilderElement;
+use fiftyone\pipeline\core\JsonBundlerElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\SequenceElement;
 use JShrink\Minifier;
 use PHPUnit\Framework\TestCase;
 
@@ -221,5 +224,55 @@ class JavaScriptBuilderMinifyChoicesTests extends TestCase
         $flowData->process();
 
         return $flowData->javascriptbuilder->javascript;
+    }
+
+    /**
+     * A Pipeline around the JavaScript Builder given, with the delayed
+     * element added where asked, so that one builder can be put in two
+     * Pipelines whose elements differ.
+     */
+    private static function pipelineAround(
+        JavascriptBuilderElement $builder,
+        bool $delayed
+    ): Pipeline {
+        $elements = [new SequenceElement(), new MinifyChoicesDeviceElement()];
+        if ($delayed) {
+            $elements[] = new MinifyChoicesDelayedElement();
+        }
+        $elements[] = new JsonBundlerElement();
+        $elements[] = $builder;
+
+        return new Pipeline($elements, []);
+    }
+
+    public function testOneBuilderInTwoPipelinesFollowsEachPipelineChoices()
+    {
+        $minifying = new JavascriptBuilderElement([
+            'minify' => true,
+            'endpoint' => '/51dpipeline/json'
+        ]);
+        $plain = new JavascriptBuilderElement([
+            'minify' => false,
+            'endpoint' => '/51dpipeline/json'
+        ]);
+        $evidence = self::evidence(false, false, false, false, false, false);
+
+        // Without the delayed element, then with it, then without it again,
+        // because a delayed Property is a choice of the Pipeline's elements
+        // rather than of the request, and one builder in two Pipelines is
+        // the only way it changes for one builder.
+        foreach ([false, true, false] as $delayed) {
+            $this->assertSame(
+                Minifier::minify(self::script(
+                    self::pipelineAround($plain, $delayed),
+                    $evidence
+                )),
+                self::script(
+                    self::pipelineAround($minifying, $delayed),
+                    $evidence
+                ),
+                'delayed ' . ($delayed ? 'yes' : 'no')
+            );
+        }
     }
 }

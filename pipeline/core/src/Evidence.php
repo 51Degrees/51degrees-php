@@ -267,34 +267,16 @@ class Evidence
      * path after its authority, which is empty when it has none.
      * All three keys are given together, and only when an element in the
      * Pipeline accepts one of them, so a Pipeline that does not read the
-     * request line carries none of it.
+     * request line carries none of it. The Pipeline decides that once and
+     * keeps the answer, see Pipeline::acceptsRequestLine().
      *
      * @param array<string, mixed> $server The request's server values
      * @return array<string, string>
      */
     private function requestLine(array $server): array
     {
-        if (!isset($server['REQUEST_METHOD'], $server['REQUEST_URI'])) {
-            return [];
-        }
-
-        $keys = [
-            self::REQUEST_METHOD_KEY,
-            self::REQUEST_PATH_KEY,
-            self::REQUEST_QUERY_KEY,
-        ];
-        $accepted = false;
-        foreach ($this->flowData->pipeline->flowElements as $flowElement) {
-            foreach ($keys as $key) {
-                if ($flowElement->filterEvidenceKey($key)) {
-                    $accepted = true;
-
-                    break 2;
-                }
-            }
-        }
-
-        if (!$accepted) {
+        if (!isset($server['REQUEST_METHOD'], $server['REQUEST_URI']) ||
+            !$this->flowData->pipeline->acceptsRequestLine()) {
             return [];
         }
 

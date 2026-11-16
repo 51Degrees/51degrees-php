@@ -27,6 +27,7 @@
       <file>tests/RelativeDataFileTests.php</file>
       <file>tests/DataModelTests.php</file>
       <file>tests/EngineCreationTests.php</file>
+      <file>tests/StartWithUnusableDataFileTests.php</file>
       <file>tests/ReadTimingTests.php</file>
       <file>tests/IpIntelligenceCloudTests.php</file>
       <file>tests/IpIntelligenceOnPremiseTests.php</file>

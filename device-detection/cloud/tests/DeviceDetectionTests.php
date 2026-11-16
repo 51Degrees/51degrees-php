@@ -36,6 +36,14 @@ use PHPUnit\Framework\TestCase;
 
 class DeviceDetectionTests extends TestCase
 {
+    /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
     protected $CSVDataFile = __DIR__ . '/51Degrees.csv';
 
     protected $iPhoneUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114';
@@ -44,7 +52,8 @@ class DeviceDetectionTests extends TestCase
     public function __SKIP__testValueTypes()
     {
         $builder = new DeviceDetectionPipelineBuilder([
-            'resourceKey' => $this->getResourceKey()
+            'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ]);
 
         $pipeline = $builder->build();
@@ -119,7 +128,8 @@ class DeviceDetectionTests extends TestCase
     public function testPropertyValueBad()
     {
         $builder1 = new DeviceDetectionPipelineBuilder([
-            'resourceKey' => $this->getResourceKey()
+            'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ]);
 
         $badUA = '~';
@@ -144,7 +154,8 @@ class DeviceDetectionTests extends TestCase
     public function testPropertyValueGood()
     {
         $builder = new DeviceDetectionPipelineBuilder([
-            'resourceKey' => $this->getResourceKey()
+            'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ]);
 
         $pipeline = $builder->build();
@@ -161,7 +172,8 @@ class DeviceDetectionTests extends TestCase
     public function testGetProperties()
     {
         $builder = new DeviceDetectionPipelineBuilder([
-            'resourceKey' => $this->getResourceKey()
+            'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ]);
 
         $pipeline = $builder->build();
@@ -195,7 +207,8 @@ class DeviceDetectionTests extends TestCase
         }
 
         $builder = new DeviceDetectionPipelineBuilder([
-            'resourceKey' => $this->getResourceKey()
+            'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ]);
 
         $pipeline = $builder->build();

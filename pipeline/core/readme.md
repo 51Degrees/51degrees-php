@@ -57,8 +57,9 @@ and on our [website](https://51degrees.com/documentation/_device_detection__exam
 `Utils::processWebRequest($pipeline)` handles a page request in one call. It creates a Flow Data,
 adds the request's headers, cookies, query and form parameters as Evidence, and processes it.
 The processed Flow Data is kept for the rest of the request, so any other part of the application
-reads the results with `Utils::getFlowData()` without being handed it, and it is closed when PHP
-finishes the request.
+reads the results with `Utils::getFlowData()` without being handed it. It is closed when PHP
+finishes the request, or when the next request's call replaces it in a PHP that serves one request
+after another.
 
 ```php
 use fiftyone\pipeline\core\Utils;

@@ -96,7 +96,9 @@ class Utils
      * Evidence::setFromWebRequest(), and it is processed. The processed
      * Flow Data is then kept for the rest of the request, where any other
      * part of the application reads it with getFlowData() without being
-     * handed it, and it is closed when PHP finishes the request.
+     * handed it. It is closed when PHP finishes the request, or when a
+     * later call replaces it, as in a PHP that serves one request after
+     * another.
      *
      * Requests for the client-side JavaScript and JSON need a Flow Data
      * that has not been processed, so answer those with
@@ -120,6 +122,13 @@ class Utils
     ): FlowData {
         $flowData = $pipeline->createFlowData();
         $flowData->evidence->setFromWebRequest($server, $cookies, $query);
+
+        // A PHP that serves one request after another, as a worker does,
+        // keeps this state between them, so the Flow Data this one replaces
+        // is closed now rather than when that PHP stops.
+        if (self::$requestFlowData !== null) {
+            self::$requestFlowData->close();
+        }
 
         // Kept before processing, so that a Pipeline that throws still
         // leaves the request's Flow Data, with its errors, to be read.

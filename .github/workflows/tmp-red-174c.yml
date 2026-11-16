@@ -1,0 +1,76 @@
+name: Temporary red and green run of pull request 174, third part
+
+# Throwaway. Runs the four new tests of WebIntegrationFailureTests one at a
+# time, on the test commit b5243579, which holds the tests and none of the
+# change to Utils, and on the head 4f1903e6. On the test commit the three
+# tests of a failed web element are expected to fail and the control with a
+# working Set Headers Element to pass. On the head all four are expected to
+# pass. Each job passes only when every test does what is expected of it.
+
+on:
+  push:
+    branches:
+      - 'tmp/php-174-red3'
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: ${{ matrix.what }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        what: [the test commit b5243579, the head 4f1903e6]
+        include:
+          - what: the test commit b5243579
+            ref: b5243579e7d00fec57740cb2d3e9f6b451bed4f2
+            expect: 'fail fail fail pass'
+          - what: the head 4f1903e6
+            ref: 4f1903e6
+            expect: 'pass pass pass pass'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Each new test
+        shell: bash
+        env:
+          EXPECT: ${{ matrix.expect }}
+        run: |
+          cd pipeline/core
+          got=""
+          for t in testNoResponseHeaderIsSetWhenTheSetHeadersElementFailed \
+                   testTheJsonIsAnEmptyObjectWhenTheJsonBundlerFailed \
+                   testTheJavaScriptIsEmptyWhenTheJavaScriptBuilderFailed \
+                   testTheResponseHeaderIsSetWhenTheSetHeadersElementWorked; do
+            echo "::group::$t"
+            if php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php \
+                 --filter "/::$t\$/" tests/WebIntegrationFailureTests.php; then
+              r=pass
+            else
+              r=fail
+            fi
+            echo "::endgroup::"
+            echo "RESULT $t $r"
+            got="$got $r"
+          done
+          got="${got# }"
+          echo "RESULT got=[$got] expected=[$EXPECT]"
+          [ "$got" = "$EXPECT" ]

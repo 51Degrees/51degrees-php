@@ -141,6 +141,49 @@ class JavaScriptBuilderPerformanceTests extends TestCase
         );
     }
 
+    /**
+     * A builder keeps the templates it has minified for its own life, so a
+     * Pipeline built for every request, as a PHP web page often builds it,
+     * minifies the whole template in its first request. This times that
+     * first request, on a new minifying Pipeline and a new plain one in
+     * each round, and checks the median cost against the same limit.
+     */
+    public function testFirstRequestCostIsWithinTheLimit()
+    {
+        // One of each first, so that loading the classes and the template
+        // file is not counted.
+        self::millisecondsPerRequest(self::pipeline(true), 1);
+        self::millisecondsPerRequest(self::pipeline(false), 1);
+
+        $costs = [];
+        for ($round = 0; $round < self::ROUNDS; $round++) {
+            $minified = self::pipeline(true);
+            $plain = self::pipeline(false);
+            $costs[] = self::millisecondsPerRequest($minified, 1) -
+                self::millisecondsPerRequest($plain, 1);
+        }
+
+        $cost = self::median($costs);
+        $summary = sprintf(
+            'JavaScript Builder minification on PHP %s, %s, first request ' .
+            'on a new Pipeline: cost %.3f ms (lowest %.3f, highest %.3f) ' .
+            'over %d rounds.',
+            PHP_VERSION,
+            PHP_OS_FAMILY,
+            $cost,
+            min($costs),
+            max($costs),
+            self::ROUNDS
+        );
+        fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
+
+        $this->assertLessThanOrEqual(
+            self::MAX_MINIFICATION_MILLISECONDS,
+            $cost,
+            $summary
+        );
+    }
+
     private static function pipeline(bool $minify): Pipeline
     {
         return (new PipelineBuilder([

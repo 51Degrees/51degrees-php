@@ -155,7 +155,9 @@ class JavascriptBuilderElement extends FlowElement
      * values, for each set of the template's choices met so far. JShrink
      * takes tens of milliseconds for the whole script, and the values are a
      * small part of it, so the template is minified once for each set of
-     * choices rather than on every request.
+     * choices rather than on every request. The minified templates are kept
+     * for the life of this builder, so a Pipeline built for every request
+     * minifies the whole template in each of those requests.
      *
      * @var array<string, string>
      */

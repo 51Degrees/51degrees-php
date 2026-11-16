@@ -104,11 +104,16 @@ class JavaScriptBuilderMinifyChoicesTests extends TestCase
 {
     /**
      * Text with quotes, comment and regular expression marks, a closing
-     * script tag, escapes, a new line and characters outside ASCII.
+     * script tag, escapes, a new line, characters outside ASCII, a tag of
+     * the template and the text of every token the minified template holds,
+     * which a value must leave as it is.
      */
     private const AWKWARD_TEXT =
         "a \"double\" and 'single' // not a comment /* nor this */ " .
-        "</script> /x+/g \\ back\nnew line \u{e9}\u{4e2d}\u{1f600} {{_objName}}";
+        "</script> /x+/g \\ back\nnew line \u{e9}\u{4e2d}\u{1f600} {{_objName}} " .
+        "{_51DegreesMinifyJson_} {_51DegreesMinifyParameters_} " .
+        "_51DegreesMinifySessionId_ _51DegreesMinifySequence_ " .
+        "_51DegreesMinifyObjectName_ _51DegreesMinifyUrl_";
 
     public function testEachChoiceIsJShrinksOutput()
     {

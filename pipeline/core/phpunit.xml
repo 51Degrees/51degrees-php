@@ -42,6 +42,7 @@
       <file>tests/LicenseKeyTests.php</file>
       <file>tests/JsonBundlerNullTests.php</file>
       <file>tests/RequestLineEvidenceTests.php</file>
+      <file>tests/RequestLineDecisionTests.php</file>
       <file>tests/AspectPropertyValueTests.php</file>
     </testsuite>
   </testsuites>

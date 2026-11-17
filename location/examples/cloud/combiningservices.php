@@ -74,11 +74,11 @@ if ($resourceKey === '') {
 
 if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
-    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . '<br/>';
-    $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://51degrees.com/configure/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=resource-key-required' . '<br/>';
+    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . Constants::lineBreak();
+    $message .= 'Create a resource key with the properties required by this example ';
+    $message .= 'at https://51degrees.com/configure/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=resource-key-required' . Constants::lineBreak();
     $message .= 'Once complete, populate the environment variable ';
-    $message .= 'mentioned at the start of this message with the key.' . '<br/>';
+    $message .= 'mentioned at the start of this message with the key.' . Constants::lineBreak();
     echo $message;
     Constants::printFindOutMore(__FILE__);
 
@@ -133,17 +133,17 @@ $country = $flowData->location->country;
 
 if ($country->hasValue) {
     echo "Which country is the location [" . $latitude . "," . $longitude . "] in?";
-    echo "<br />";
+    echo Constants::lineBreak();
     echo $country->value;
-    echo "<br />";
+    echo Constants::lineBreak();
 } else {
     // Echo out why the value isn't meaningful
     echo $country->noValueMessage;
-    echo "<br />";
+    echo Constants::lineBreak();
 };
 
 echo "Is user agent '" . $userAgent . "' a mobile device?";
-echo "<br />";
+echo Constants::lineBreak();
 
 if ($flowData->device->ismobile->hasValue) {
     if ($flowData->device->ismobile->value) {

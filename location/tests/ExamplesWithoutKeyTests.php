@@ -90,7 +90,27 @@ class ExamplesWithoutKeyTests extends TestCase
         $this->assertSame(0, $run->status, $run->printed());
         $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $run->output, $run->printed());
         $this->assertStringContainsString(self::CONFIGURE, $run->output, $run->printed());
+        $this->assertStringNotContainsString(
+            '<br',
+            $run->output,
+            "A console example printed an HTML line break.\n" . $run->printed()
+        );
+        $this->assertLinksStandApart($run->output, $run->printed());
         $run->assertEndsWithFindOutMore();
+    }
+
+    /**
+     * The sentence that says where to create a resource key gives the
+     * configuration page link after a space and the word "at", so that the
+     * word before it does not run into it.
+     */
+    private function assertLinksStandApart(string $text, string $printed): void
+    {
+        $this->assertMatchesRegularExpression(
+            '#Create a resource key[^\n]* at ' . preg_quote(self::CONFIGURE, '#') . '#',
+            $text,
+            "The sentence about creating a resource key runs a word into its link.\n" . $printed
+        );
     }
 
     /**
@@ -107,6 +127,7 @@ class ExamplesWithoutKeyTests extends TestCase
         $page = html_entity_decode($run->output);
         $this->assertStringContainsString(self::RESOURCE_KEY_VARIABLE, $page, $run->printed());
         $this->assertStringContainsString(self::CONFIGURE, $page, $run->printed());
+        $this->assertLinksStandApart(strip_tags($page), $run->printed());
         $run->assertPageEndsWithFindOutMore();
     }
 }

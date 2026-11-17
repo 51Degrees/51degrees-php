@@ -80,8 +80,47 @@ function ghevToHTTPHeaders(array $clientHints): array {
 
 $ghev = json_decode('{"architecture":"x86","bitness":"64","brands":[{"brand":"Chromium","version":"116"},{"brand":"Not)A;Brand","version":"24"},{"brand":"Google Chrome","version":"116"}],"fullVersionList":[{"brand":"Chromium","version":"116.0.5845.187"},{"brand":"Not)A;Brand","version":"24.0.0.0"},{"brand":"Google Chrome","version":"116.0.5845.187"}],"mobile":false,"model":"","platform":"macOS","platformVersion":"13.5.2"}', true);
 
+/**
+ * Writes a heading underlined to its length, then each line.
+ */
+function printSection(string $heading, array $lines): void {
+    echo $heading . "\n" . str_repeat('-', strlen($heading)) . "\n";
+    foreach ($lines as $line) {
+        echo $line . "\n";
+    }
+    echo "\n";
+}
+
 $headers = ghevToHTTPHeaders($ghev);
 
-echo json_encode($headers, JSON_PRETTY_PRINT) . "\n";
+// 1. The origin server. A browser sends these headers itself once the
+// server asks for them with the Accept-CH response header, which
+// Utils::setResponseHeader sets from the pipeline's results, as the
+// userAgentClientHints-Web.php example shows. Where the values were read
+// with getHighEntropyValues() instead, they are sent in the same form.
+printSection('HTTP headers for the origin server', $headers);
+
+// 2. The cloud service, as headers. A request to the cloud service carries
+// the headers as Evidence under header. keys, as the cloud request engine
+// sends every header Evidence value it is given.
+$headerEvidence = [];
+foreach ($headers as $header) {
+    [$name, $value] = explode(': ', $header, 2);
+    $headerEvidence[] = 'header.' . strtolower($name) . ': ' . $value;
+}
+printSection('Evidence for the cloud service, as headers', $headerEvidence);
+
+// 3. The cloud service, as the getHighEntropyValues() result itself. The
+// JavaScript the JavaScript builder element serves calls
+// getHighEntropyValues() and sends the result, as JSON encoded in base 64,
+// under 51D_GetHighEntropyValues, and the cloud service converts it into
+// the headers above. Set it as Evidence in the same way:
+//
+//     $flowData->evidence->set('query.51D_GetHighEntropyValues', $encoded);
+$encoded = base64_encode(json_encode($ghev));
+printSection(
+    'Evidence for the cloud service, as the encoded getHighEntropyValues() result',
+    ['query.51D_GetHighEntropyValues: ' . $encoded]
+);
 
 ExampleUtils::printFindOutMore(__FILE__);

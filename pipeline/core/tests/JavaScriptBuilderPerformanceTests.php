@@ -84,6 +84,28 @@ class JavaScriptBuilderPerformanceTests extends TestCase
 
     private const NANOSECONDS_PER_MILLISECOND = 1000000;
 
+    /**
+     * Debugger and coverage extensions slow the code they watch, so a time
+     * taken with one loaded measures them rather than the code.
+     */
+    private const INSTRUMENTING_EXTENSIONS = ['xdebug', 'pcov'];
+
+    /**
+     * Skips each timing when an instrumenting extension is loaded, naming
+     * the extension, so that the limit is only checked against the code.
+     */
+    protected function setUp(): void
+    {
+        foreach (self::INSTRUMENTING_EXTENSIONS as $extension) {
+            if (extension_loaded($extension)) {
+                $this->markTestSkipped(
+                    "The $extension extension is loaded, so this time " .
+                    'would measure the instrumentation, not the code.'
+                );
+            }
+        }
+    }
+
     public function testMinificationCostIsWithinTheLimit()
     {
         $minified = self::pipeline(true);

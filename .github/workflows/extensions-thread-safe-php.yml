@@ -42,11 +42,14 @@ jobs:
       - name: Checkout cxx
         run: git submodule update --init --depth 1 cxx
 
+      # setup-php takes the thread safety from the phpts environment
+      # variable, not from an input.
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          phpts: ts
           coverage: none
+        env:
+          phpts: ts
 
       - name: Check PHP is thread-safe
         run: |

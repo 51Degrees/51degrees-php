@@ -36,6 +36,12 @@ use fiftyone\pipeline\engines\AspectData;
  * AspectPropertyValue. Weighted properties (for example Mcc) are returned
  * as a list of ['value' => ..., 'rawweighting' => ...] arrays, matching the
  * shape returned by the cloud engine.
+ *
+ * SwigData, and the native results it holds, is not safe to use from
+ * several threads at once, because reading a value writes into the native
+ * results, and SwigData takes no lock. The caller is responsible for
+ * thread-safe access, so a caller that shares an instance between threads
+ * coordinates that itself.
  */
 class SwigData extends AspectData
 {

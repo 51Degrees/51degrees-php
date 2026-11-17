@@ -126,6 +126,13 @@ web server PHP constructs the class in every request, so the data file would
 be loaded in every request, and under any SAPI other than `cli` the setting
 is refused with an exception. Use the engine built when PHP starts instead.
 
+The extension needs a non-thread-safe (NTS) PHP, which is what Apache MPM
+prefork with mod_php and php-fpm use. A thread-safe (ZTS) PHP, which mod_php
+needs under the Apache `worker` or `event` MPM, would share the engine between
+the threads of one process, so building the extension against one stops with
+an error that names the supported setups. `php -v` shows `NTS` or `ZTS` after
+the version.
+
 ## Data file
 
 The tests and examples use the free Lite `.ipi` data file. Download it into

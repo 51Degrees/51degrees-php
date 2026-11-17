@@ -150,11 +150,13 @@ When a `PHP` program is run under a process manager such as `Apache MPM`, `php-f
 
 The reason enforcement is needed is that, in other profiles such as `Balanced`, `BalancedTemp`, `LowMemory` or `Default`, only a part of the data file is loaded into memory so from time to time, calls to read data from disk are required. These calls use file handles from a file handle pool which was designed to optimise the performance. However, this pool was created when the Device Detection engine module is loaded in the main process, so when the process manager spawns child processes in response to incoming requests by forking the main process, this pool is copied to the child processes, causing the file handles to be shared. When multiple processes call to load data from file using shared file handles, problems can occur such as the file position being changed unwantedly by another child process. For this reason the engine always uses `MaxPerformance`, where no call to the data file is required.
 
-While this is an issue in multi-processing environment, it is not a problem in multi-threading environment as the file handles are not shared and are managed by the file handle pool.
-
 #### Apache MPM
 
 When running under Apache MPM, only `prefork` mode is supported, because the engine is built in memory when PHP starts and each worker is forked from that process. The extension is enabled in `php.ini` as described above.
+
+#### Thread-safe PHP
+
+The extension needs a non-thread-safe (NTS) PHP, which is what Apache `prefork` with mod_php and php-fpm use. A thread-safe (ZTS) PHP, which mod_php needs under the Apache `worker` or `event` MPM, would share the engine between the threads of one process, so building the extension against one stops with an error that names the supported setups. `php -v` shows `NTS` or `ZTS` after the version.
 
 #### Refresh Internal Data
 

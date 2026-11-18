@@ -125,24 +125,34 @@ class FlowData
      */
     public function process(): FlowData
     {
-        if (!$this->processed) {
-            foreach ($this->pipeline->flowElements as $flowElement) {
-                if (!$this->stopped) {
-                    // All errors are caught and stored in an errors array keyed by the
-                    // FlowElement that set the error
+        // A finished FlowData takes no more writes, so it is processed once.
+        if ($this->processed) {
+            throw new \Exception(Messages::FLOW_DATA_PROCESSED);
+        }
 
-                    try {
-                        $flowElement->process($this);
-                    } catch (\Throwable $e) {
-                        $this->setError($flowElement->dataKey, $e);
-                    }
+        foreach ($this->pipeline->flowElements as $flowElement) {
+            if (!$this->stopped) {
+                // ElementData another FlowElement added under this key is
+                // open for writing again while this one processes.
+                self::setFinished($this->findByKey($flowElement->dataKey), false);
+
+                // All errors are caught and stored in an errors array keyed by the
+                // FlowElement that set the error
+                try {
+                    $flowElement->process($this);
+                } catch (\Throwable $e) {
+                    $this->setError($flowElement->dataKey, $e);
+                } finally {
+                    self::setFinished($this->findByKey($flowElement->dataKey), true);
                 }
             }
+        }
 
-            // Set processed flag to true. FlowData can only be processed once
-            $this->processed = true;
-        } else {
-            $this->setError('global', new \Exception(Messages::FLOW_DATA_PROCESSED));
+        // The FlowData, and every ElementData in it, including any the
+        // caller added, is read only from now on.
+        $this->processed = true;
+        foreach ($this->listElementData() as $data) {
+            self::setFinished($data, true);
         }
 
         if (count($this->errors) != 0 && $this->pipeline->suppressProcessExceptions === false) {
@@ -214,20 +224,7 @@ class FlowData
      */
     public function tryGet(string $flowElementKey)
     {
-        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
-            if ($node['key'] === $flowElementKey) {
-                return $node['data'];
-            }
-        }
-
-        // Of keys that differ from it only in case, the first added is
-        // found, which is the last in the list.
-        $found = null;
-        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
-            if (strcasecmp($node['key'], $flowElementKey) === 0) {
-                $found = $node['data'];
-            }
-        }
+        $found = $this->findByKey($flowElementKey);
         if ($found !== null) {
             return $found;
         }
@@ -244,6 +241,31 @@ class FlowData
         }
 
         return null;
+    }
+
+    /**
+     * The ElementData under a key as given, or else ignoring its letter
+     * case, finding the first added, or null.
+     *
+     * @return mixed
+     */
+    private function findByKey(string $flowElementKey)
+    {
+        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
+            if ($node['key'] === $flowElementKey) {
+                return $node['data'];
+            }
+        }
+
+        // Of keys that differ from it only in case, the first added is
+        // found, which is the last in the list.
+        $found = null;
+        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
+            if (strcasecmp($node['key'], $flowElementKey) === 0) {
+                $found = $node['data'];
+            }
+        }
+        return $found;
     }
 
     /**
@@ -315,7 +337,35 @@ class FlowData
      */
     public function setElementData(ElementData $data): void
     {
+        $this->checkNotFinished('ElementData');
         $this->addNode($data->flowElement->dataKey, $data);
+    }
+
+    /**
+     * Throws once processing has finished, because a finished FlowData is
+     * read only. Every method that writes to the FlowData calls this first.
+     *
+     * @param string $what what is being added, for the message
+     * @throws \Exception once processing has finished
+     */
+    public function checkNotFinished(string $what): void
+    {
+        if ($this->processed) {
+            throw new \Exception(sprintf(Messages::FLOW_DATA_FINISHED, $what));
+        }
+    }
+
+    /**
+     * Records whether the FlowElements that write an ElementData have
+     * finished. Anything that is not ElementData is left alone.
+     *
+     * @param mixed $data the ElementData
+     */
+    private static function setFinished($data, bool $finished): void
+    {
+        if ($data instanceof ElementData) {
+            $data->setWritesFinished($finished);
+        }
     }
 
     /**
@@ -325,6 +375,8 @@ class FlowData
      */
     public function setError(string $key, \Throwable $error): void
     {
+        $this->checkNotFinished('an error');
+
         $existing = $this->errors[$key] ?? null;
         if ($existing === null) {
             $this->errors[$key] = $error;

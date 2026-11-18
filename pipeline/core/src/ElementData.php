@@ -33,6 +33,12 @@ class ElementData
 {
     public FlowElement $flowElement;
 
+    /**
+     * Whether the FlowElements that write the data have finished
+     * processing, when a write through the data throws.
+     */
+    private bool $writesFinished = false;
+
     public function __construct(FlowElement $flowElement)
     {
         $this->flowElement = $flowElement;
@@ -44,6 +50,35 @@ class ElementData
     public function __get(string $key)
     {
         return $this->get($key);
+    }
+
+    /**
+     * ElementData is written only by the FlowElement that provides it, or
+     * the FlowElements that share it, while they process, so setting a
+     * property through it once they have finished throws.
+     *
+     * @param mixed $value
+     * @throws \Exception once the FlowElements that write it have finished
+     */
+    public function __set(string $key, $value): void
+    {
+        if ($this->writesFinished) {
+            throw new \Exception(sprintf(
+                Messages::ELEMENT_DATA_FINISHED,
+                $key,
+                $this->flowElement->dataKey
+            ));
+        }
+        $this->{$key} = $value;
+    }
+
+    /**
+     * Records whether the FlowElements that write the data have finished.
+     * The FlowData calls this as each FlowElement starts and finishes.
+     */
+    public function setWritesFinished(bool $finished): void
+    {
+        $this->writesFinished = $finished;
     }
 
     /**

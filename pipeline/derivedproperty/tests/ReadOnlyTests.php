@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\derivedproperty\tests;
 
+use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\derivedproperty\DerivedPropertyElementBuilder;
 use fiftyone\pipeline\derivedproperty\tests\classes\StubSourceElement;

@@ -133,6 +133,17 @@ class Constants
     }
 
     /**
+     * A line break, being a new line from the command line and an HTML line
+     * break from a web server, so that an example reads well run either way.
+     *
+     * @return string
+     */
+    public static function lineBreak()
+    {
+        return php_sapi_name() === 'cli' ? PHP_EOL : '<br/>' . PHP_EOL;
+    }
+
+    /**
      * The example's path from the package's folder, in lower case with a
      * hyphen for each folder separator, such as
      * examples-cloud-gettingstarted.php.

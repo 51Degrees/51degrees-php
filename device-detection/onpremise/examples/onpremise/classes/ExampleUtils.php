@@ -255,6 +255,7 @@ class ExampleUtils
                 'The FiftyOneDegreesHashEngine extension is not loaded. The ' .
                 'readme says how to build it and add it to php.ini.'
             );
+            ExampleUtils::printFindOutMore(ExampleUtils::exampleFile());
             exit(1);
         }
 
@@ -265,6 +266,7 @@ class ExampleUtils
                 'no data file was found. Set ' . ExampleUtils::DATA_FILE_SETTING .
                 ' in php.ini to the path of a .hash data file.'
             );
+            ExampleUtils::printFindOutMore(ExampleUtils::exampleFile());
             exit(1);
         }
         if ($configured !== '' && realpath($configured) === $path) {
@@ -274,6 +276,7 @@ class ExampleUtils
                 "No device detection engine was built from {$path}, which " .
                 ExampleUtils::DATA_FILE_SETTING . ' names.'
             );
+            ExampleUtils::printFindOutMore(ExampleUtils::exampleFile());
             exit(1);
         }
 
@@ -286,6 +289,7 @@ class ExampleUtils
                 ExampleUtils::DATA_FILE_SETTING . " in php.ini to {$path}" .
                 ($command === null ? '.' : ", or run\n{$command}")
             );
+            ExampleUtils::printFindOutMore(ExampleUtils::exampleFile());
             exit(1);
         }
         ExampleUtils::writeError(
@@ -691,6 +695,20 @@ class ExampleUtils
         return "<div id=\"find-out-more\">\n" .
             "    <h3 class=\"c-eg-page__heading\">Find out more</h3>\n" .
             "    <ul>\n{$items}    </ul>\n</div>\n";
+    }
+
+    /**
+     * The example's own file, which is the script PHP was started with, so
+     * that a message written before the example can run carries the links
+     * for that example.
+     */
+    private static function exampleFile()
+    {
+        $file = isset($_SERVER['SCRIPT_FILENAME'])
+            ? (string) $_SERVER['SCRIPT_FILENAME']
+            : '';
+
+        return $file === '' ? __FILE__ : $file;
     }
 
     /**

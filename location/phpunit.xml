@@ -6,6 +6,7 @@
   <testsuites>
     <!-- Runs the examples with no resource key, so it runs on every build. -->
     <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/ExamplesWithoutKeyTests.php</file>
     </testsuite>
     <testsuite name="Integration">

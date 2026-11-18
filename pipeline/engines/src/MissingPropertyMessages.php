@@ -36,14 +36,23 @@ class MissingPropertyMessages
      */
     public const PREFIX = "Property '%s' not found in data for element '%s'. ";
     /**
-     * A data upgrade is required (e.g. free to paid). This takes the data tier
-     * name which contains the property and the name of the product as format
-     * arguments.
+     * A data upgrade is required (e.g. free to paid). This takes the data
+     * tiers which contain the property, joined with a comma, and the type
+     * name of the engine as format arguments.
      */
     public const DATA_UPGRADE_REQUIRED =
-        'This is because your license and/or data file ' .
-        'does not include this property. The property is available ' .
-        'with the %s license/data for the %s';
+        'This is because your license or data file does not include this ' .
+        'property. It is available with the %s license/data for the %s. ' .
+        'To upgrade, see ' .
+        'https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=data_upgrade_required.';
+    /**
+     * A data upgrade is required, and the data tiers which contain the
+     * property are not known. This takes no format arguments.
+     */
+    public const DATA_UPGRADE_REQUIRED_TIERS_NOT_KNOWN =
+        'This is because your license or data file does not include this ' .
+        'property. To see which licenses include it, see ' .
+        'https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=data_upgrade_required_tiers_not_known.';
     /**
      * The property was excluded from the engine's configuration. This takes no
      * format arguments.
@@ -51,25 +60,32 @@ class MissingPropertyMessages
     public const PROPERTY_EXCLUDED = 'This is because the property has been excluded when configuring the engine.';
     /**
      * The engine was a cloud engine, and the resource key does not contain the
-     * required product (e.g. device). This takes the name of the product as a
-     * format argument.
+     * required product (e.g. device). This takes the Data Key of the engine
+     * as a format argument.
      */
     public const PRODUCT_NOT_IN_CLOUD_RESOURCE =
         'This is because your resource key does not include access to ' .
-        "any properties under '%s'. For more details on resource keys, " .
-        'see our explainer: ' .
-        'https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=product_not_in_cloud_resource';
+        "any properties under '%s'. Check or create a resource key with " .
+        'the properties you need in the configurator at ' .
+        'https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=product_not_in_cloud_resource.';
+    /**
+     * The cloud request for this FlowData failed, so the cloud engine had no
+     * response to read. This takes no format arguments.
+     */
+    public const CLOUD_REQUEST_FAILED =
+        'This is because an upstream cloud request failed, so no data was ' .
+        'available to populate the property.';
     /**
      * The engine was a cloud engine, and the resource key does not contain the
-     * required property (e.g. hardwarename). This takes the name of the product
-     * and the properties the resource contains as format arguments.
+     * required property (e.g. hardwarename). This takes the Data Key of the
+     * engine and the properties the resource contains, joined with a comma,
+     * as format arguments.
      */
     public const PROPERTY_NOT_IN_CLOUD_RESOURCE =
         'This is because your resource key does not include access to ' .
-        'this property. Properties that are included for this key under ' .
-        "'%s' are %s. For more details on resource keys, see our " .
-        'explainer: ' .
-        'https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=property_not_in_cloud_resource';
+        'this property. The properties included for your key under ' .
+        "'%s' are %s. Check or change your key in the configurator at " .
+        'https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-missingpropertymessages.php&utm_term=property_not_in_cloud_resource.';
     /**
      * The reason for the missing property is none of the above. This takes no
      * format arguments.

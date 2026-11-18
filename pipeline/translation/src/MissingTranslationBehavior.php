@@ -39,4 +39,27 @@ class MissingTranslationBehavior
 
     // Add a flow error if there is no translation for the value.
     public const FLOW_ERROR = 'FlowError';
+
+    /**
+     * The behavior a configuration file names, matched ignoring case.
+     *
+     * @throws \InvalidArgumentException when the name is not one of the
+     *   three behaviors
+     */
+    public static function fromName(string $name): string
+    {
+        foreach ([self::ORIGINAL, self::EMPTY_STRING, self::FLOW_ERROR] as $behavior) {
+            if (strcasecmp($name, $behavior) === 0) {
+                return $behavior;
+            }
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            "'%s' is not a missing translation behavior. Use %s, %s or %s.",
+            $name,
+            self::ORIGINAL,
+            self::EMPTY_STRING,
+            self::FLOW_ERROR
+        ));
+    }
 }

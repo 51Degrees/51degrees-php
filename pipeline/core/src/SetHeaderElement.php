@@ -35,9 +35,30 @@ class SetHeaderElement extends FlowElement
     public string $dataKey = 'set-headers';
 
     /**
+     * The headers to set, by header name.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'responseheaderdictionary' => [
+            'name' => 'responseheaderdictionary',
+            'type' => 'array'
+        ],
+    ];
+
+    /**
      * @var array<string, array<int, mixed>>
      */
     private array $setHeaderProperties = [];
+
+    /**
+     * The element reads only the element data of the elements before it, so
+     * it accepts no Evidence.
+     */
+    public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
+    {
+        return new BasicListEvidenceKeyFilter([]);
+    }
 
     /**
      * Add the response header dictionary to the FlowData.
@@ -73,8 +94,9 @@ class SetHeaderElement extends FlowElement
 
             // Loop over each flowElement property
             foreach ($properties as $propertyKey => $propertyMeta) {
-                // Check if the property starts ith SetHeader
-                if (strpos($propertyKey, 'setheader') !== false) {
+                // The key is the lower-case name, and only a name that
+                // starts with SetHeader is a SetHeader property.
+                if (strpos($propertyKey, 'setheader') === 0) {
                     $setHeaderElementList[] = $propertyMeta['name'];
                 }
             }
@@ -148,12 +170,12 @@ class SetHeaderElement extends FlowElement
      */
     public function getPropertyValue(FlowData $flowData, string $elementKey, string $propertyKey): string
     {
-        if ($flowData->{$elementKey}) {
-            // Get the elementData from flowData that contains required property.
-            $elementData = $flowData->{$elementKey};
-        } else {
-            echo sprintf(Messages::ELEMENT_NOT_FOUND, $elementKey);
-
+        try {
+            $elementData = $flowData->get($elementKey);
+        } catch (\Exception $e) {
+            // An element that failed, or that processing stopped before,
+            // has no data. Its headers are left out, so the response is
+            // still sent.
             return '';
         }
 
@@ -169,43 +191,25 @@ class SetHeaderElement extends FlowElement
     }
 
     /**
-     * Determines which response header the property value will be appended to by
-     * stripping the 'SetHeader' string and the 'Component Name' from the property name.
+     * The response header a SetHeader[Identifier][HeaderName] property sets.
+     * The identifier has no upper-case letter after its first character, so
+     * the header name starts at the first upper-case letter after that.
      *
-     * @param string $propertyKey Key for SetHeaderAcceptCH property
+     * @param string $propertyKey Name of a SetHeader property
      * @return string Response header name
-     * @throws \Exception
+     * @throws \Exception When the name does not start with SetHeader, or has
+     * no identifier or no header name
      */
     public function getResponseHeaderName(string $propertyKey): string
     {
-        $actualPropertyName = $propertyKey;
-
-        // Check if property name starts with SetHeader.
-        // If Yes, Discard SetHeader from property name.
-        if (strcmp(substr($propertyKey, 0, 9), 'SetHeader') !== 0) {
-            throw new \Exception(sprintf(Messages::PROPERTY_NOT_SET_HEADER, $actualPropertyName));
+        if (strncmp($propertyKey, 'SetHeader', 9) !== 0) {
+            throw new \Exception(sprintf(Messages::PROPERTY_NOT_SET_HEADER, $propertyKey));
         }
 
-        $propertyKey = str_replace('SetHeader', '', $propertyKey);
-
-        // Check if the first letter of Component name is in Uppercase
-        // If Yes, Split the propertyKey based on Uppercase letters
-        if (ctype_upper(substr($propertyKey, 0, 1)) === false) {
-            throw new \Exception(sprintf(Messages::WRONG_PROPERTY_FORMAT, $actualPropertyName));
+        if (preg_match('/^.[^A-Z]*([A-Z].*)$/sD', substr($propertyKey, 9), $match) !== 1) {
+            throw new \Exception(sprintf(Messages::WRONG_PROPERTY_FORMAT, $propertyKey));
         }
 
-        /** @phpstan-var array<string> $parts */
-        $parts = preg_split('/(?=[A-Z][^A-Z]*)/', $propertyKey, -1, PREG_SPLIT_NO_EMPTY);
-
-        // Get the Component name string to be removed from the key
-        $discardLetter = $parts[0];
-
-        // Check if property name contains the header name that starts with upper case
-        // If Yes, Remove the previously found Component Name to get the Header Name
-        if (count($parts) <= 1) {
-            throw new \Exception(sprintf(Messages::WRONG_PROPERTY_FORMAT, $actualPropertyName));
-        }
-
-        return str_replace($discardLetter, '', $propertyKey);
+        return $match[1];
     }
 }

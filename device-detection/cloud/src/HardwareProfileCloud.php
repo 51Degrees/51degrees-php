@@ -44,7 +44,23 @@ class HardwareProfileCloud extends CloudEngine
 
     public function processInternal(FlowData $flowData): void
     {
-        $cloudData = $flowData->get('cloud')->get('cloud');
+        // The properties are the hardware product's, as the Cloud Request
+        // Engine found them, so that the JSON Bundler writes 'profiles'.
+        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+        $products = $cloudRequestEngine !== null
+            ? $cloudRequestEngine->flowElementProperties
+            : [];
+        if (isset($products[$this->dataKey])) {
+            $this->properties = $products[$this->dataKey];
+        }
+
+        if ($this->setDataForFailedRequest($flowData)) {
+            return;
+        }
+
+        $cloudData = self::cloudResponse($flowData);
+
+        $this->logMissingProduct($flowData);
 
         $cloudData = json_decode($cloudData, true);
 
@@ -79,7 +95,8 @@ class HardwareProfileCloud extends CloudEngine
                 }
             }
 
-            $devices[] = $device;
+            // Each profile is read as the device results are.
+            $devices[] = new HardwareProfileData($this, $device);
         }
 
         // The aspect level values are exposed alongside the profiles so a

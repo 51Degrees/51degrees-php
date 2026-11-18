@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
+use fiftyone\pipeline\cloudrequestengine\Constants as CloudConstants;
+use fiftyone\pipeline\ipintelligence\examples\classes\EnvironmentVariable;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceCloud;
 use fiftyone\pipeline\ipintelligence\IpIntelligencePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
@@ -33,6 +35,14 @@ use PHPUnit\Framework\TestCase;
 
 class IpIntelligenceCloudTests extends TestCase
 {
+    /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
     /**
      * Build a cloud pipeline backed by the MockHttpClient so the tests run
      * with no network access or resource key.
@@ -45,6 +55,41 @@ class IpIntelligenceCloudTests extends TestCase
         ]);
 
         return $builder->build();
+    }
+
+    /**
+     * A Resource Key with no IP Intelligence product still builds the
+     * Pipeline, and each request gives empty IP Intelligence data rather
+     * than an error.
+     */
+    public function testMissingProductBuildsAndGivesEmptyData(): void
+    {
+        $client = new class extends MockHttpClient {
+            public function makeCloudRequest(string $type, string $url, ?string $content, ?string $originHeader): string
+            {
+                if (strpos($url, 'accessibleProperties') !== false) {
+                    return '{"Products": {"device": {"DataTier": "tier", "Properties": [{"Name": "IsMobile", "Type": "Boolean", "Category": "Device"}]}}}';
+                }
+
+                if (strpos($url, '.json') !== false) {
+                    return '{"device": {"ismobile": true}, "javascriptProperties": []}';
+                }
+
+                return parent::makeCloudRequest($type, $url, $content, $originHeader);
+            }
+        };
+        $pipeline = (new IpIntelligencePipelineBuilder([
+            'resourceKey' => 'mock_resource_key',
+            'httpClient' => $client
+        ]))->build();
+
+        for ($request = 0; $request < 2; $request++) {
+            $flowData = $pipeline->createFlowData();
+            $flowData->evidence->set('query.client-ip-51d', Constants::IPV4_ADDRESS);
+            $flowData->process();
+
+            $this->assertSame([], $flowData->get('ip')->asDictionary());
+        }
     }
 
     public function testElementDataKey(): void
@@ -135,17 +180,27 @@ class IpIntelligenceCloudTests extends TestCase
 
     /**
      * Live integration test - only runs when a real resource key has been
-     * supplied via the resource_key environment variable.
+     * supplied via the _51DEGREES_RESOURCE_KEY environment variable.
      */
     public function testLiveCloud(): void
     {
-        $resourceKey = getenv(Constants::RESOURCE_KEY_ENV_VAR);
-        if (!$resourceKey || $resourceKey === '!!YOUR_RESOURCE_KEY!!') {
-            $this->markTestSkipped('No resource_key environment variable set - skipping live cloud test.');
+        $resourceKey = EnvironmentVariable::read(
+            Constants::RESOURCE_KEY_VARIABLE,
+            Constants::RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
+        );
+        if ($resourceKey === '') {
+            $this->markTestSkipped('No _51DEGREES_RESOURCE_KEY environment variable set - skipping live cloud test.');
         }
 
-        $settings = ['resourceKey' => $resourceKey];
-        $endPoint = getenv('FOD_CLOUD_API_URL');
+        $settings = [
+            'resourceKey' => $resourceKey,
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ];
+        $endPoint = EnvironmentVariable::read(
+            CloudConstants::CLOUD_ENDPOINT_VARIABLE,
+            CloudConstants::FOD_CLOUD_API_URL
+        );
         if ($endPoint) {
             $settings['cloudEndPoint'] = $endPoint;
         }

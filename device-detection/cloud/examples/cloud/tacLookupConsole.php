@@ -72,22 +72,24 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
                 ExampleUtils::RESOURCE_KEY_ENV_VAR . "', or configuration file." . PHP_EOL .
                 "The 51Degrees cloud service is accessed using a 'ResourceKey'. " .
                 "For more detail see " .
-                "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-taclookupconsole.php&utm_term=resource-key-required. " .
+                "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-taclookupconsole.php&utm_term=resource-key-required. " .
                 "TAC lookup is not available as a free service. This means " .
                 "that you will first need a license key, which can be purchased " .
                 "from our pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-taclookupconsole.php&utm_term=resource-key-required. Once this is " .
                 "done, a resource key with the properties required by this example " .
-                "can be created at https://configure.51degrees.com/QKyYH5XT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-taclookupconsole.php&utm_term=resource-key-required. You " .
+                "can be created at https://51degrees.com/configure/QKyYH5XT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-taclookupconsole.php&utm_term=resource-key-required. You " .
                 "can now populate the environment variable mentioned at the start " .
                 "of this message with the resource key or pass it as the first " .
                 "argument on the command line.";
 
-            ExampleUtils::logErrorAndExit($logger, $message);
+            ExampleUtils::endWithoutResourceKey($message, __FILE__);
         }
         
         ExampleUtils::setResourceKeyInConfig($config, $resourceKey);
 
         (new TacLookupConsole())->run($config, $logger, [ExampleUtils::class, 'output']);
+
+        ExampleUtils::printFindOutMore(__FILE__);
     }
 
     main(isset($argv) ? array_slice($argv, 1) : null);

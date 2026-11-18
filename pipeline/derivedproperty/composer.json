@@ -1,0 +1,51 @@
+{
+    "name": "51degrees/fiftyone.pipeline.derivedproperty",
+    "description": "Derived property element for the 51Degrees Pipeline API. Computes properties such as HumanConfidence and IsGdpr from the properties other elements have already produced, using the scripts of the 51Degrees derived-properties repository.",
+    "homepage": "https://51degrees.com/build-your-own?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.derivedproperty&utm_term=homepage",
+    "keywords":
+    [
+        "51degrees",
+        "pipeline",
+        "derived-properties",
+        "human-confidence"
+    ],
+    "authors":
+    [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2",
+    "type": "library",
+    "support":
+    {
+        "source": "https://github.com/51Degrees/51degrees-php",
+        "docs": "https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.derivedproperty&utm_term=documentation"
+    },
+    "require":
+    {
+        "php": ">=8.0",
+        "51degrees/fiftyone.pipeline.core": "4.*",
+        "symfony/yaml": "^5.4 || ^6.4 || ^7.0 || ^8.0"
+    },
+    "require-dev":
+    {
+        "phpunit/phpunit": "*",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\derivedproperty\\": "src/"
+        }
+    },
+    "autoload-dev":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\derivedproperty\\tests\\": "tests/"
+        }
+    }
+}

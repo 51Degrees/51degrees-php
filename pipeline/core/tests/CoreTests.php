@@ -24,6 +24,7 @@
 namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\core\tests\classes\ErrorFlowData;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement2;
 use fiftyone\pipeline\core\tests\classes\MemoryLogger;
@@ -68,7 +69,9 @@ class CoreTests extends TestCase
     public function testGetWhere()
     {
         $testPipeline = new TestPipeline();
-        $this->assertCount(1, $testPipeline->flowData->getWhere('type', 'int'));
+        // The example element's integer property and the Sequence Element's
+        // sequence.
+        $this->assertCount(2, $testPipeline->flowData->getWhere('type', 'int'));
     }
 
     public function testGetFromElement()
@@ -143,15 +146,43 @@ class CoreTests extends TestCase
             ->add(new ExampleFlowElement2())
             ->addLogger($logger)
             ->build();
-        $flowElement1->properties['integer']['testing'] = 'true';
         $flowData = $pipeline->createFlowData();
         $flowData->evidence->set('header.user-agent', 'test');
         $flowData->evidence->set('some.other-evidence', 'test');
         $flowData->process();
 
+        // The first search builds the property database, so the property
+        // added after it is not found until the element updates its list.
+        $this->assertCount(0, $flowData->getWhere('testing', 'true'));
+        $flowElement1->properties['integer']['testing'] = 'true';
         $this->assertCount(0, $flowData->getWhere('testing', 'true'));
 
         $flowElement1->updatePropertyList();
         $this->assertCount(1, $flowData->getWhere('testing', 'true'));
+    }
+
+    /**
+     * suppressProcessExceptions given to the builder reaches the Pipeline
+     * it builds, from code and from a configuration, so an element that
+     * fails leaves its error in the Flow Data rather than throwing.
+     */
+    public function testSuppressProcessExceptionsReachesThePipeline()
+    {
+        $settings = ['suppressProcessExceptions' => true];
+        $built = (new PipelineBuilder($settings))
+            ->add(new ErrorFlowData())
+            ->build();
+        $configured = (new PipelineBuilder($settings))->buildFromConfig([
+            'PipelineOptions' => [
+                'Elements' => [['BuilderName' => ErrorFlowData::class]]
+            ]
+        ]);
+
+        foreach (['built' => $built, 'configured' => $configured] as $how => $pipeline) {
+            $this->assertTrue($pipeline->suppressProcessExceptions, $how);
+            $flowData = $pipeline->createFlowData();
+            $flowData->process();
+            $this->assertArrayHasKey('error', $flowData->errors, $how);
+        }
     }
 }

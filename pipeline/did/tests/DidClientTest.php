@@ -55,6 +55,14 @@ class DidClientTest extends TestCase
     private const ENDPOINT = 'https://cloud.example/api/v4/';
     private const DOMAIN = '51degrees.com';
 
+    /**
+     * The environment variables the endpoint is read from, written out
+     * so that a test of what the client reads does not depend on the
+     * client's constants.
+     */
+    private const NEW_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
+    private const OLD_VARIABLE = 'FOD_CLOUD_API_URL';
+
     /** The message the cloud sends for a value that does not parse. */
     private const NOT_A_51DID =
         'Value for 51did is not a valid Base64-encoded 51Did.';
@@ -342,29 +350,159 @@ class DidClientTest extends TestCase
 
     public function testEndpointReadsEnvironmentVariableWhenAbsent(): void
     {
-        $previous = getenv(DidClient::ENDPOINT_VARIABLE);
-        putenv(DidClient::ENDPOINT_VARIABLE . '=https://other.example/api/v4');
-        try {
-            $client = new DidClient(self::RESOURCE);
-            $this->assertSame('https://other.example/api/v4/', $client->getEndpoint());
-        } finally {
-            putenv(DidClient::ENDPOINT_VARIABLE
-                . ($previous === false ? '' : '=' . $previous));
-        }
+        $logged = $this->withEndpointVariables(
+            'https://other.example/api/v4',
+            null,
+            function (): void {
+                $this->assertSame(
+                    'https://other.example/api/v4/',
+                    (new DidClient(self::RESOURCE))->getEndpoint()
+                );
+            }
+        );
+        $this->assertSame([], $logged);
+    }
+
+    public function testEndpointReadsOldVariableWhenNewOneIsUnset(): void
+    {
+        $this->withEndpointVariables(
+            null,
+            'https://old.example/api/v4',
+            function (): void {
+                $this->assertSame(
+                    'https://old.example/api/v4/',
+                    (new DidClient(self::RESOURCE))->getEndpoint()
+                );
+            }
+        );
+    }
+
+    public function testEndpointReadsOldVariableWhenNewOneIsEmpty(): void
+    {
+        $this->withEndpointVariables(
+            '',
+            'https://old.example/api/v4',
+            function (): void {
+                $this->assertSame(
+                    'https://old.example/api/v4/',
+                    (new DidClient(self::RESOURCE))->getEndpoint()
+                );
+            }
+        );
+    }
+
+    public function testEndpointReadsNewVariableWhenBothAreSet(): void
+    {
+        $logged = $this->withEndpointVariables(
+            'https://other.example/api/v4',
+            'https://old.example/api/v4',
+            function (): void {
+                $this->assertSame(
+                    'https://other.example/api/v4/',
+                    (new DidClient(self::RESOURCE))->getEndpoint()
+                );
+            }
+        );
+        $this->assertSame([], $logged);
     }
 
     public function testEndpointDefaultsToThePublicCloud(): void
     {
-        $previous = getenv(DidClient::ENDPOINT_VARIABLE);
-        putenv(DidClient::ENDPOINT_VARIABLE);
+        $logged = $this->withEndpointVariables(
+            null,
+            null,
+            function (): void {
+                $this->assertSame(
+                    DidClient::DEFAULT_ENDPOINT,
+                    (new DidClient(self::RESOURCE))->getEndpoint()
+                );
+            }
+        );
+        $this->assertSame([], $logged);
+    }
+
+    public function testEndpointArgumentIsUsedBeforeTheOldVariable(): void
+    {
+        $logged = $this->withEndpointVariables(
+            null,
+            'https://old.example/api/v4',
+            function (): void {
+                $client = new DidClient(self::RESOURCE, null, self::ENDPOINT);
+                $this->assertSame(self::ENDPOINT, $client->getEndpoint());
+            }
+        );
+        $this->assertSame([], $logged);
+    }
+
+    public function testOldVariableInUseIsLoggedOnce(): void
+    {
+        $logged = $this->withEndpointVariables(
+            null,
+            'https://old.example/api/v4',
+            function (): void {
+                new DidClient(self::RESOURCE);
+                new DidClient(self::RESOURCE);
+            }
+        );
+        $this->assertCount(1, $logged);
+        $this->assertStringContainsString(self::OLD_VARIABLE, $logged[0]);
+        $this->assertStringContainsString('deprecated', $logged[0]);
+        $this->assertStringContainsString(self::NEW_VARIABLE, $logged[0]);
+    }
+
+    public function testEndpointConstantsKeepTheirNamesAndValues(): void
+    {
+        $this->assertSame(self::OLD_VARIABLE, DidClient::ENDPOINT_VARIABLE);
+        $this->assertSame(
+            self::NEW_VARIABLE,
+            DidClient::CLOUD_ENDPOINT_VARIABLE
+        );
+
+        $comment = (string) (new ReflectionClass(DidClient::class))
+            ->getReflectionConstant('ENDPOINT_VARIABLE')
+            ->getDocComment();
+        $this->assertStringContainsString('@deprecated', $comment);
+        $this->assertStringContainsString('CLOUD_ENDPOINT_VARIABLE', $comment);
+    }
+
+    /**
+     * Runs the action with the two endpoint variables set as given, null
+     * for one that is not set, and with the old variable not yet reported.
+     * Returns the lines written to the PHP error log meanwhile, and puts
+     * the environment and the log back as they were.
+     *
+     * @return string[]
+     */
+    private function withEndpointVariables(
+        ?string $new,
+        ?string $old,
+        callable $action
+    ): array {
+        $given = [self::NEW_VARIABLE => $new, self::OLD_VARIABLE => $old];
+        $previous = [];
+        foreach ($given as $name => $value) {
+            $previous[$name] = getenv($name);
+            putenv($value === null ? $name : $name . '=' . $value);
+        }
+        $class = new ReflectionClass(DidClient::class);
+        if ($class->hasProperty('oldEndpointVariableReported')) {
+            $class->getProperty('oldEndpointVariableReported')
+                ->setValue(null, false);
+        }
+        $log = (string) tempnam(sys_get_temp_dir(), 'did');
+        ini_set('error_log', $log);
         try {
-            $this->assertSame(
-                DidClient::DEFAULT_ENDPOINT,
-                (new DidClient(self::RESOURCE))->getEndpoint()
-            );
+            $action();
+
+            return array_values(array_filter(
+                array_map('trim', (array) file($log)),
+                static fn (string $line): bool => $line !== ''
+            ));
         } finally {
-            if ($previous !== false) {
-                putenv(DidClient::ENDPOINT_VARIABLE . '=' . $previous);
+            ini_restore('error_log');
+            unlink($log);
+            foreach ($previous as $name => $value) {
+                putenv($value === false ? $name : $name . '=' . $value);
             }
         }
     }
@@ -1682,6 +1820,49 @@ class DidClientTest extends TestCase
         );
     }
 
+    /**
+     * A factor word is compared without regard to case, so a word in
+     * another case reads as its own outcome rather than as a mismatch,
+     * whilst a word the package does not know is still a mismatch in any
+     * case. See
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#what-the-verification-outcomes-are
+     */
+    public function testRedeemReadsAFactorWordInAnyCase(): void
+    {
+        $this->queueJson(200, [
+            'signature' => 'verified',
+            'context' => 'mismatch',
+            'factors' => [
+                'transport' => 'Verified',
+                'device' => 'NotRecorded',
+                'browserip' => 'MISCONFIGURED',
+                'connectionip' => 'Mismatch',
+                'asn' => 'SomethingNewer',
+            ],
+        ]);
+        $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(
+            [
+                'transport' => FactorOutcome::Verified,
+                'device' => FactorOutcome::NotRecorded,
+                'browserip' => FactorOutcome::Misconfigured,
+                'connectionip' => FactorOutcome::Mismatch,
+                'asn' => FactorOutcome::Mismatch,
+            ],
+            $result->factors
+        );
+        foreach (FactorOutcome::cases() as $outcome) {
+            $words = [strtoupper($outcome->value), ucfirst($outcome->value)];
+            foreach ($words as $word) {
+                $this->assertSame(
+                    $outcome,
+                    FactorOutcome::fromCloud($word),
+                    $word
+                );
+            }
+        }
+    }
+
     /** Every outcome carries the cloud's own word for itself. */
     public function testTheFactorOutcomesAreTheWordsTheCloudWrites(): void
     {
@@ -2003,6 +2184,80 @@ class DidClientTest extends TestCase
         $this->assertSame($values, array_unique($values));
         foreach ($cases as $case) {
             $this->assertSame($case->name, $case->value);
+        }
+    }
+
+    /** The 20 character licence with all but its last 4 replaced. */
+    private const MASKED_LICENCE = '****************NURL';
+
+    public function testErrorMessagesHoldOnlyTheMaskedLicenceKey(): void
+    {
+        $this->queueJson(400, [
+            'errors' => ['The license ' . self::LICENCE . ' is not valid.']
+        ]);
+
+        try {
+            $this->client()->redeem($this->someId(), 'SEALED', '');
+            $this->fail('The redeem was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringNotContainsString(
+                self::LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertStringContainsString(
+                self::MASKED_LICENCE,
+                $exception->getMessage()
+            );
+        }
+    }
+
+    public function testServerErrorMessagesHoldOnlyTheMaskedLicenceKey(): void
+    {
+        $this->queue(500, 'Failed for ' . self::LICENCE);
+
+        try {
+            $this->client()->redeem($this->someId(), 'SEALED', '');
+            $this->fail('The redeem was accepted.');
+        } catch (CloudException $exception) {
+            $this->assertStringNotContainsString(
+                self::LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertStringContainsString(
+                self::MASKED_LICENCE,
+                $exception->getMessage()
+            );
+        }
+    }
+
+    public function testTransportFailureMessagesHoldOnlyTheMaskedLicenceKey(): void
+    {
+        $transport = function (): array {
+            throw new RuntimeException(
+                'Could not send the license ' . self::LICENCE . '.'
+            );
+        };
+        $client = new DidClient(
+            self::RESOURCE,
+            self::LICENCE,
+            self::ENDPOINT,
+            $transport,
+            fn (): int => $this->now
+        );
+
+        try {
+            $client->redeem($this->someId(), 'SEALED', '');
+            $this->fail('The redeem was accepted.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringNotContainsString(
+                self::LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertStringContainsString(
+                self::MASKED_LICENCE,
+                $exception->getMessage()
+            );
+            $this->assertNull($exception->getPrevious());
         }
     }
 }

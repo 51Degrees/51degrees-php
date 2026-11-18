@@ -32,17 +32,25 @@ use fiftyone\pipeline\core\FlowElement;
 /**
  * Stands in for the cloud request engine so that the engines which parse a
  * cloud response can be tested without a network connection, a resource key
- * or a licence key. It publishes a fixed JSON document under the 'cloud'
- * data key, which is exactly what the real cloud request engine does.
+ * or a licence key. It publishes a fixed JSON document as the Property
+ * 'json-response' under the 'cloud-response' data key, and answers to
+ * 'cloud', the deprecated key, which is exactly what the real cloud request
+ * engine does.
  */
 class FakeCloudRequestEngine extends FlowElement
 {
-    public string $dataKey = 'cloud';
+    public string $dataKey = 'cloud-response';
+
+    /**
+     * @var array<string>
+     */
+    public array $deprecatedDataKeys = ['cloud'];
 
     /**
      * The properties the real cloud request engine would have discovered
-     * from the accessibleproperties endpoint. The engines under test read
-     * this when it is populated, so an empty list is enough here.
+     * from the accessibleproperties endpoint, by product. An empty list
+     * means no product was found, so an engine logs its product as missing
+     * once and still processes the response.
      *
      * @var array<string, array<string, mixed>>
      */
@@ -61,7 +69,7 @@ class FakeCloudRequestEngine extends FlowElement
     {
         $flowData->setElementData(new ElementDataDictionary(
             $this,
-            ['cloud' => $this->response]
+            ['json-response' => $this->response]
         ));
     }
 }

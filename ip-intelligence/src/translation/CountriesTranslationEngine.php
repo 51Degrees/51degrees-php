@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\ipintelligence\translation;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\ipintelligence\Constants as IpIntelligenceConstants;
 use fiftyone\pipeline\translation\MissingTranslationBehavior;
@@ -101,6 +102,16 @@ class CountriesTranslationEngine extends TranslationEngine
             $this->properties[$allCodesKey] = ['name' => $allCodesKey, 'type' => 'Array'];
         }
         $this->properties['sortingcultureused'] = ['name' => 'SortingCultureUsed', 'type' => 'String'];
+    }
+
+    /**
+     * Logs that a value was read from the deprecated environment variable,
+     * when one was and that has not been logged yet.
+     */
+    public function onRegistration(Pipeline $pipeline): void
+    {
+        parent::onRegistration($pipeline);
+        TranslationPaths::reportDeprecatedVariable($pipeline);
     }
 
     public function processInternal(FlowData $flowData): void

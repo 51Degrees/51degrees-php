@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\engines;
 
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\FlowElement;
 
@@ -78,11 +79,11 @@ class Engine extends FlowElement
      */
     public function inCache(FlowData $flowData): bool
     {
-        $keys = $this->filterEvidence($flowData);
+        $keys = self::cacheKey($this->filterEvidence($flowData));
 
         $cached = $this->cache->get($keys);
 
-        if ($cached) {
+        if ($cached && !$this->holdsValueForOneRequest($cached)) {
             $flowData->setElementData($cached);
 
             return true;
@@ -107,9 +108,43 @@ class Engine extends FlowElement
         $this->processInternal($flowData);
 
         if ($this->cache) {
-            $keys = $this->filterEvidence($flowData);
+            $keys = self::cacheKey($this->filterEvidence($flowData));
 
-            $this->cache->set($keys, $flowData->get($this->dataKey));
+            $data = $flowData->get($this->dataKey);
+
+            if (!$this->holdsValueForOneRequest($data)) {
+                $this->cache->set($keys, $data);
+            }
         }
+    }
+
+    /**
+     * The key a result is cached under, being the Evidence the Engine
+     * accepts with each key in lower case and the keys sorted. The same
+     * Evidence then gives the same key whatever order it was set in and
+     * whatever letters its keys were given in. Values keep their letters.
+     *
+     * @param array<string, int|string> $evidence
+     * @return array<string, int|string>
+     */
+    private static function cacheKey(array $evidence): array
+    {
+        $key = [];
+        foreach ($evidence as $name => $value) {
+            $key[strtolower((string) $name)] = $value;
+        }
+        ksort($key, SORT_STRING);
+
+        return $key;
+    }
+
+    /**
+     * Whether a result holds a value created for the one request that asked
+     * for it, such as a 51Did. A cache neither stores nor serves such a
+     * result. An engine whose results can hold one overrides this.
+     */
+    protected function holdsValueForOneRequest(ElementData $data): bool
+    {
+        return false;
     }
 }

@@ -27,11 +27,20 @@ namespace fiftyone\pipeline\geolocation\tests;
 $_SERVER['REMOTE_ADDR'] = '0.0.0.0';
 
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 use PHPUnit\Framework\TestCase;
 
 class GeoLocationTests extends TestCase
 {
+    /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
     protected $iPhoneUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114';
     protected $testLat = '51.4578261';
     protected $testLon = '-0.975922996290084';
@@ -72,6 +81,7 @@ class GeoLocationTests extends TestCase
     {
         $pipeline = new GeoLocationPipelineBuilder([
             'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS,
             'locationProvider' => 'fiftyonedegrees'
         ]);
 
@@ -94,11 +104,15 @@ class GeoLocationTests extends TestCase
 
     private function getResourceKey()
     {
-        $resourceKey = $_ENV[Constants::RESOURCE_KEY_ENV_VAR];
+        $resourceKey = EnvironmentVariable::read(
+            Constants::RESOURCE_KEY_VARIABLE,
+            Constants::RESOURCE_KEY_ENV_VAR,
+            '!!YOUR_RESOURCE_KEY!!'
+        );
 
-        if ($resourceKey === '!!YOUR_RESOURCE_KEY!!') {
+        if ($resourceKey === '') {
             $this->fail('You need to create a resource key at ' .
-            'https://configure.51degrees.com and paste it into the ' .
+            'https://51degrees.com/configure and paste it into the ' .
             'phpunit.xml config file, ' .
             'replacing !!YOUR_RESOURCE_KEY!!.');
         }
@@ -110,6 +124,7 @@ class GeoLocationTests extends TestCase
     {
         $pipeline = new GeoLocationPipelineBuilder([
             'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS,
             'locationProvider' => $locationProvider
         ]);
 

@@ -3,9 +3,9 @@
 
 # 51Degrees PHP Device Detection
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-device-detection "Data rewards the curious") **PHP Device Detection**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **PHP Device Detection**
 
-[Developer Documentation](https://51degrees.com/device-detection-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-device-detection "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=51degrees-php-device-detection "developer documentation")
 
 ## Introduction
 This project contains the source code for the PHP implementation of 51Degrees' 
@@ -14,18 +14,20 @@ cloud-based device detection engine for use with the
 
 ## Dependencies
 
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies) page shows 
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies) page shows 
 the PHP versions that we currently test against. The software may run fine against other 
 versions, but additional caution should be applied.
 
-You will require a [resource key](https://51degrees.com/documentation/_info__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies)
+You will require a [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies)
 to use the Cloud API. You can create resource keys using our 
-[configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies), see our 
-[documentation](https://51degrees.com/documentation/_concepts__configurator.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies) on how to use this.
+[configuration page](https://51degrees.com/configure/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies), see our 
+[documentation](https://51degrees.com/documentation/_services__configurator.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies) on how to use this.
 
 ## Examples
 
 **Note: Examples run on Linux and macOS. We don't test on Windows environments as it is a rare choice for PHP.**
+
+The examples and tests are in the [51degrees-php repository](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud), not in the package Composer installs, so clone the repository to run them.
 
 To run the examples, you will need PHP and composer installed.
 Once these are available, install (or update) the dependencies required by the examples. 
@@ -44,18 +46,18 @@ if dependencies were install previously.
 
 This will create the vendor directory containing autoload.php.
 
-Ensure the `resource_key` environment variable is set to your resource key prior to running the example scripts.
+Ensure the `_51DEGREES_RESOURCE_KEY` environment variable is set to your resource key prior to running the example scripts.
 Now navigate to the examples directory and start a PHP server with the relevant file. 
 For example:
 
 ```
-resource_key=YOUR_RESOURCE_KEY php -S localhost:3000 cloud/gettingStartedWeb.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php -S localhost:3000 cloud/gettingStartedWeb.php
 ```
 
 or to run in a terminal
 
 ```
-resource_key=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
 ```
 
 This will start a local web server listening on port 3000. 
@@ -114,3 +116,10 @@ then the dependency changed to:
 ```
 "51degrees/fiftyone.pipeline.core": "*"
 ```
+
+## Find out more
+
+- [Device Detection](https://51degrees.com/device-detection?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-device-detection)
+- [Device Detection documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-documentation)
+- [Pricing](https://51degrees.com/pricing?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-pricing)
+- https://github.com/51Degrees/51degrees-php

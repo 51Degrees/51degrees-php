@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\HardwareProfileCloud;
@@ -82,6 +84,43 @@ class HardwareProfileCloudTest extends TestCase
     // A response where the hardware aspect is absent altogether, which is
     // what a resource key without the hardware aspect returns.
     private const NO_HARDWARE_RESPONSE = '{"device": {"ismobile": true}}';
+
+    // A TAC lookup response with one profile. 'hardwarevendor' has a value,
+    // 'hardwaremodel' is null, and 'hardwarefamily' has no value and a
+    // reason at the aspect level, which the engine carries into each
+    // profile.
+    private const PROFILES_RESPONSE = <<<'JSON'
+        {
+            "hardware": {
+                "profiles": [
+                    {
+                        "hardwarevendor": "Coolpad",
+                        "hardwarename": ["5217"],
+                        "hardwaremodel": null
+                    }
+                ],
+                "hardwarefamily": null,
+                "hardwarefamilynullreason": "HardwareFamily is a paid feature. You need a licence key to retrieve data."
+            }
+        }
+        JSON;
+
+    // The hardware product as the cloud request engine finds it from the
+    // accessibleproperties endpoint, with its one Property, 'Profiles'.
+    private const HARDWARE_PRODUCT = [
+        'hardware' => [
+            'profiles' => [
+                'name' => 'Profiles',
+                'type' => 'Array',
+                'itemproperties' => [
+                    ['name' => 'HardwareVendor', 'type' => 'String'],
+                    ['name' => 'HardwareName', 'type' => 'Array'],
+                    ['name' => 'HardwareModel', 'type' => 'String'],
+                    ['name' => 'HardwareFamily', 'type' => 'String'],
+                ],
+            ],
+        ],
+    ];
 
     public function testNullReasonIsCarriedIntoEachProfile()
     {
@@ -145,6 +184,20 @@ class HardwareProfileCloudTest extends TestCase
         $this->assertCount(0, ExampleUtils::getProfiles($hardware));
     }
 
+    /**
+     * A lookup that matches nothing gives an empty list of profiles, which
+     * the JSON holds, so a page can tell it from a lookup that did not run.
+     */
+    public function testALookupThatMatchesNothingGivesAnEmptyListOfProfiles()
+    {
+        $response = '{"hardware": {"profiles": []}}';
+
+        $this->assertSame([], $this->process($response)->get('profiles'));
+        $json = $this->json($response);
+        $this->assertArrayHasKey('profiles', $json);
+        $this->assertSame([], $json['profiles']);
+    }
+
     public function testMissingPropertyIsNamedInTheMessage()
     {
         $hardware = $this->process(self::ENTITLED_RESPONSE);
@@ -154,6 +207,159 @@ class HardwareProfileCloudTest extends TestCase
 
         $this->assertStringContainsString('screenpixelswidth', $message);
         $this->assertStringStartsWith('Unknown (', $message);
+    }
+
+    public function testLogsAMissingHardwareProductOnceAtWarningLevel()
+    {
+        $logged = $this->logs([], 3);
+
+        $this->assertCount(1, $logged);
+        $this->assertSame('warning', $logged[0]['level']);
+        $this->assertStringContainsString('hardware', $logged[0]['message']);
+    }
+
+    /**
+     * When the cloud request fails, reading the profiles gives the
+     * CloudRequestFailed reason, and the error is the cloud request's.
+     */
+    public function testAFailedCloudRequestGivesCloudRequestFailed()
+    {
+        $cloud = new class ('') extends FakeCloudRequestEngine {
+            public function processInternal(FlowData $flowData): void
+            {
+                throw new \Exception('The cloud request failed.');
+            }
+        };
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+            'suppressProcessExceptions' => true,
+        ]))
+            ->add($cloud)
+            ->add(new HardwareProfileCloud())
+            ->build();
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(['cloud-response'], array_keys($flowData->errors));
+        $message = null;
+        try {
+            $flowData->get('hardware')->get('profiles');
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+        }
+        $this->assertSame(
+            "Property 'profiles' not found in data for element 'hardware'. "
+            . 'This is because an upstream cloud request failed, so no data '
+            . 'was available to populate the property.',
+            $message
+        );
+    }
+
+    public function testLogsNothingWhenTheHardwareProductIsPresent()
+    {
+        $logged = $this->logs([
+            'hardware' => [
+                'profiles' => ['name' => 'Profiles', 'type' => 'array']
+            ]
+        ], 1);
+
+        $this->assertSame([], $logged);
+    }
+
+    public function testTheJsonListsTheProfiles()
+    {
+        $json = $this->json(self::PROFILES_RESPONSE);
+
+        $this->assertArrayHasKey(
+            'profiles',
+            $json,
+            "The JSON for 'hardware' should list the profiles"
+        );
+        $this->assertCount(1, $json['profiles']);
+    }
+
+    public function testEachProfileInTheJsonFollowsTheRulesForNoValueAndNull()
+    {
+        $json = $this->json(self::PROFILES_RESPONSE);
+        $this->assertArrayHasKey('profiles', $json);
+
+        $profile = $json['profiles'][0];
+        ksort($profile);
+
+        // The value is written, no value is null with its reason, and the
+        // null has no entry.
+        $this->assertSame([
+            'hardwarefamily' => null,
+            'hardwarefamilynullreason' => 'HardwareFamily is a paid feature. You need a licence key to retrieve data.',
+            'hardwarename' => ['5217'],
+            'hardwarevendor' => 'Coolpad',
+        ], $profile);
+    }
+
+    /**
+     * The 'hardware' entry of the JSON Bundler's output for a fixed cloud
+     * response, through a resource key that carries the hardware product, as
+     * the web page receives it after JSON encoding.
+     *
+     * @return array<string, mixed>
+     */
+    private function json(string $response): array
+    {
+        $cloud = new FakeCloudRequestEngine($response);
+        $cloud->flowElementProperties = self::HARDWARE_PRODUCT;
+        $pipeline = (new PipelineBuilder())
+            ->add($cloud)
+            ->add(new HardwareProfileCloud())
+            ->build();
+
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame([], $flowData->errors);
+
+        $text = json_encode($flowData->jsonbundler->json['hardware']);
+        $this->assertIsString($text, json_last_error_msg());
+
+        return json_decode($text, true);
+    }
+
+    /**
+     * Process the entitled response the given number of times, with the
+     * given products discovered, and return what was logged.
+     *
+     * @param array<string, array<string, mixed>> $products
+     * @return array<array<string, string>>
+     */
+    private function logs(array $products, int $requests): array
+    {
+        $logger = new class ('trace', []) extends Logger {
+            /**
+             * @var array<array<string, string>>
+             */
+            public array $logged = [];
+
+            public function logInternal(array $log): void
+            {
+                $this->logged[] = $log;
+            }
+        };
+        $cloud = new FakeCloudRequestEngine(self::ENTITLED_RESPONSE);
+        $cloud->flowElementProperties = $products;
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+        ]))
+            ->addLogger($logger)
+            ->add($cloud)
+            ->add(new HardwareProfileCloud())
+            ->build();
+
+        for ($request = 0; $request < $requests; $request++) {
+            $pipeline->createFlowData()->process();
+        }
+
+        return $logger->logged;
     }
 
     /**

@@ -25,11 +25,13 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @requires OS Linux
  */
+#[RequiresOperatingSystem('Linux')]
 class ExampleWebTests extends TestCase
 {
     public static $process;
@@ -101,6 +103,54 @@ class ExampleWebTests extends TestCase
         // 'var sequence=;', which does not parse, so no fod object exists.
         $this->assertMatchesRegularExpression('/var sequence\s*=\s*\d+\s*;/', $script);
         $this->assertDoesNotMatchRegularExpression('/var sessionId\s*=\s*""/', $script);
+    }
+
+    /**
+     * The script carries a weak ETag, and a browser revalidating with it
+     * gets a 304 with the same ETag, as the cache header detail of the web
+     * integration specification and RFC 9110 section 13.1.2 ask.
+     */
+    public function testClientSideJavaScriptRevalidates()
+    {
+        $headers = Constants::UA_HEADER . Constants::CHROME_UA . "\r\n";
+
+        $first = self::getHeaders(Constants::URL . '51Degrees.core.js', $headers);
+        $this->assertSame(200, $first['response_code']);
+        $this->assertSame('max-age=1800, private', $first['Cache-Control']);
+        $this->assertMatchesRegularExpression('/^W\/"[0-9a-f]{32}"$/', $first['ETag']);
+
+        $again = self::getHeaders(
+            Constants::URL . '51Degrees.core.js',
+            $headers . 'If-None-Match: ' . $first['ETag'] . "\r\n"
+        );
+        $this->assertSame(304, $again['response_code']);
+        $this->assertSame($first['ETag'], $again['ETag']);
+        // A 304 has no content, so it carries no PHP default Content-Type.
+        $this->assertArrayNotHasKey(
+            'content-type',
+            array_change_key_case($again, CASE_LOWER)
+        );
+    }
+
+    /**
+     * The headers of the response to a GET, whatever its status.
+     *
+     * @param string $url
+     * @param string $headers
+     * @return array
+     */
+    private static function getHeaders($url, $headers)
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => $headers,
+                'ignore_errors' => true
+            ]
+        ]);
+        @file_get_contents($url, false, $context);
+
+        return self::parseHeaders($http_response_header);
     }
 
     /**

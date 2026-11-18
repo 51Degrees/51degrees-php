@@ -25,7 +25,9 @@ if (Test-Path assets) {
     }
 }
 
-# Only device-detection/onpremise measures anything. It writes
+# device-detection/onpremise measures detection and writes
 # results_<Name>.json, which Invoke-PackageScript moves to
 # <repository>/test-results/performance-summary, where common-ci uploads it.
+# pipeline/core times minification in the JavaScript Builder and writes no
+# summary.
 Invoke-PackageScript -RepoName $RepoName -Script run-performance-tests -Parameters @{ Name = $Name; RunPerformance = $RunPerformance }

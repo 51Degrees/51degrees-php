@@ -26,10 +26,12 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\did;
 
 use DateTimeImmutable;
+use Error;
 use InvalidArgumentException;
 use SwanCommunity\Owid\Owid;
 use SwanCommunity\Owid\OwidException;
 use SwanCommunity\Owid\ParseResult;
+use SwanCommunity\Owid\ParseStatus;
 use SwanCommunity\Owid\SignatureStatus;
 use SwanCommunity\Owid\Version;
 
@@ -94,12 +96,15 @@ use SwanCommunity\Owid\Version;
  * The cloud issues a 51Did in standard base64 with padding, and a page puts
  * one in a link in the URL-safe alphabet without padding, so the base64
  * factories accept either form and {@see FodId::asBase64Url()} produces the
- * URL-safe one.
+ * URL-safe one. White space around the text is ignored, and a text with
+ * white space inside it, or with characters from both alphabets, is
+ * refused, as {@see FodId::toStandardBase64()} explains.
  *
  * The owid-php {@see Owid} is `final`, so this type **composes** an OWID
  * (holds the envelope and delegates OWID-level concerns to it) rather than
- * inheriting from it. An OWID only exists once it has been read or signed
- * and its fields are read only, so the one handed in is held as it is.
+ * inheriting from it. An OWID is made by reading or signing and its fields
+ * are read only, so the one handed in is held as it is. A serialized 51Did
+ * keeps only the envelope's bytes, which unserializing it reads again.
  * Reading a {@see FodId} does **not** verify the signature, and a parsed
  * 51Did is not necessarily genuine. Call {@see FodId::verify()} or
  * {@see FodId::signatureStatus()} explicitly.
@@ -121,6 +126,27 @@ final class FodId
 
     /** Bit 3 of the flags byte, set when the usage is indirect. */
     private const USAGE_IS_INDIRECT_MASK = 0b1000;
+
+    /**
+     * The 25 characters with the Unicode White_Space property, as the
+     * inside of a character class for a pattern with the `u` flag. They
+     * are listed because `trim()` takes only five of them and NUL as well,
+     * `\s` also takes U+180E, and `\p{White_Space}` needs PCRE2 10.40,
+     * which is newer than the one PHP 8.1 bundles.
+     */
+    private const WHITE_SPACE = '\x{0009}-\x{000D}\x{0020}\x{0085}\x{00A0}'
+        . '\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}'
+        . '\x{3000}';
+
+    /** The key under which {@see FodId::__serialize()} keeps the envelope. */
+    private const SERIALIZED_ENVELOPE = 'envelope';
+
+    /**
+     * The key of the OWID in a serialized 51Did written before this class
+     * had {@see FodId::__serialize()}, being the private property's name as
+     * PHP writes it.
+     */
+    private const SERIALIZED_OWID = "\0" . self::class . "\0owid";
 
     private Owid $owid;
     private int $flags;
@@ -144,6 +170,86 @@ final class FodId
      *                                  or has usage bits 000.
      */
     public function __construct(Owid $owid)
+    {
+        $this->readFrom($owid);
+    }
+
+    /**
+     * Keeps only the envelope's bytes, so that
+     * {@see FodId::__unserialize()} reads them again rather than taking
+     * fields a serialized string could carry.
+     *
+     * @return array{envelope: string}
+     */
+    public function __serialize(): array
+    {
+        return [self::SERIALIZED_ENVELOPE => $this->owid->asByteArray()];
+    }
+
+    /**
+     * Reads the envelope's bytes with the reader the public readers use, so
+     * a serialized 51Did is made only by reading a complete envelope. A
+     * changed envelope is refused or reads as what it now holds, whose
+     * signature then fails. A string written before this class had
+     * {@see FodId::__serialize()} holds the OWID and the fields read from
+     * it, and only the OWID's bytes are taken from it.
+     *
+     * @param array<array-key, mixed> $data
+     * @throws OwidException when the bytes are not a valid OWID envelope.
+     * @throws InvalidArgumentException when the value holds no envelope, or
+     *                                  the payload does not fit a 51Did.
+     */
+    public function __unserialize(array $data): void
+    {
+        $this->readFrom(self::envelopeOrThrow(
+            Owid::tryFromByteArray(self::serializedEnvelope($data))
+        ));
+    }
+
+    /**
+     * The envelope's bytes from a serialized 51Did, in the form
+     * {@see FodId::__serialize()} writes or the form written before it.
+     *
+     * @param array<array-key, mixed> $data
+     * @throws OwidException when the OWID's fields cannot be written.
+     * @throws InvalidArgumentException when the value holds no envelope.
+     */
+    private static function serializedEnvelope(array $data): string
+    {
+        $envelope = $data[self::SERIALIZED_ENVELOPE] ?? null;
+        if (is_string($envelope)) {
+            return $envelope;
+        }
+        $owid = $data[self::SERIALIZED_OWID] ?? null;
+        if ($owid instanceof Owid) {
+            try {
+                return $owid->asByteArray();
+            } catch (Error $missing) {
+                // A field of the OWID was left out of the string.
+                throw self::noEnvelope($missing);
+            }
+        }
+        throw self::noEnvelope(null);
+    }
+
+    /** The exception for a serialized value that holds no envelope. */
+    private static function noEnvelope(
+        ?Error $previous
+    ): InvalidArgumentException {
+        return new InvalidArgumentException(
+            'The serialized value holds no 51Did envelope.',
+            0,
+            $previous
+        );
+    }
+
+    /**
+     * Unpacks the payload of the OWID given and holds both, or raises when
+     * the payload does not fit a 51Did.
+     *
+     * @throws InvalidArgumentException when the payload does not fit.
+     */
+    private function readFrom(Owid $owid): void
     {
         $read = self::readPayload($owid->payload);
         if ($read instanceof FodIdParseStatus) {
@@ -170,8 +276,10 @@ final class FodId
      * brackets) is reported by status rather than raised. A string in
      * either alphabet is accepted, standard (`+` and `/`, as the cloud
      * issues it) or URL-safe (`-` and `_`, as a page puts it in a link),
-     * with or without padding, and surrounding whitespace is removed, as
-     * the cloud's endpoints normalise the alphabet and the padding.
+     * with or without padding, and white space around it is ignored. A
+     * string with white space inside it, or with characters from both
+     * alphabets, gives {@see ParseStatus::InvalidBase64}, and one of white
+     * space alone gives {@see ParseStatus::MissingInput}.
      *
      * The result carries the OWID library's own status when the envelope
      * could not be read, and a {@see FodIdParseStatus} when the envelope
@@ -184,6 +292,9 @@ final class FodId
     {
         if (is_string($value)) {
             $value = self::toStandardBase64($value);
+            if ($value === null) {
+                return FodIdParseResult::failed(ParseStatus::InvalidBase64);
+            }
         }
         return self::fromEnvelope(Owid::tryFromBase64($value));
     }
@@ -221,31 +332,62 @@ final class FodId
      * one. {@see FodId::tryFromBase64()} answers with a status for the same
      * inputs and is the surface to use for values arriving from outside.
      *
-     * @throws OwidException when the string is not valid base64 or not a
-     *                       valid OWID, with the message naming the OWID
+     * @throws OwidException when the string is not valid base64 in one
+     *                       alphabet, has white space inside it, or is not
+     *                       a valid OWID, with the message naming the OWID
      *                       library's status.
      * @throws InvalidArgumentException when the envelope is sound and the
      *                                  payload does not fit a 51Did.
      */
     public static function fromBase64(string $base64): self
     {
+        $standard = self::toStandardBase64($base64);
+        if ($standard === null) {
+            throw self::envelopeException(ParseStatus::InvalidBase64);
+        }
         return new self(self::envelopeOrThrow(
-            Owid::tryFromBase64(self::toStandardBase64($base64))
+            Owid::tryFromBase64($standard)
         ));
     }
 
     /**
      * Restores a string in either base64 alphabet to the standard alphabet
-     * with padding. Leading and trailing whitespace is removed first, since
-     * a value read from a header, a file or a form often carries a newline
-     * and the padding has to be counted from the characters that remain.
-     * Then `-` becomes `+`, `_` becomes `/`, and `==` or `=` is added when
-     * the length modulo 4 is 2 or 3. A string already in the standard
-     * padded form is returned unchanged.
+     * with padding, or answers null when the string is refused.
+     *
+     * White space before and after the text is removed first, being every
+     * character with the Unicode White_Space property, since a value read
+     * from a header, a file or a form often carries a newline and the
+     * padding has to be counted from the characters that remain. Then `-`
+     * becomes `+`, `_` becomes `/`, and `==` or `=` is added when the
+     * length modulo 4 is 2 or 3. A string already in the standard padded
+     * form is returned unchanged apart from that trim.
+     *
+     * A string with white space inside it, or with a character from each
+     * alphabet such as both `+` and `-`, is refused, as the 51Did
+     * specification requires. The issuer writes neither, so either is a
+     * sign of a damaged value, such as a `+` that a form decoder turned
+     * into a space or a value converted only in part. A string that is not
+     * UTF-8 is refused too, as its bytes cannot all be in the alphabet.
      */
-    public static function toStandardBase64(string $value): string
+    public static function toStandardBase64(string $value): ?string
     {
-        $standard = strtr(trim($value), '-_', '+/');
+        // Trim before anything else, because the padding below is decided
+        // by the length and white space would make that length wrong. The
+        // pattern fails, giving null, on a string that is not UTF-8.
+        $space = '[' . self::WHITE_SPACE . ']';
+        $text = preg_replace(
+            '/\A' . $space . '+|' . $space . '+\z/u',
+            '',
+            $value
+        );
+        if ($text === null || preg_match('/' . $space . '/u', $text) === 1) {
+            return null;
+        }
+        // Checked before the mapping below, which would hide a mix.
+        if (strpbrk($text, '+/') !== false && strpbrk($text, '-_') !== false) {
+            return null;
+        }
+        $standard = strtr($text, '-_', '+/');
         switch (strlen($standard) % 4) {
             case 2:
                 return $standard . '==';
@@ -311,12 +453,21 @@ final class FodId
     private static function envelopeOrThrow(ParseResult $result): Owid
     {
         if (!$result->ok) {
-            throw new OwidException(
-                'The value is not a valid OWID envelope ('
-                . $result->status->value . ').'
-            );
+            throw self::envelopeException($result->status);
         }
         return $result->owid;
+    }
+
+    /**
+     * The exception the throwing factories raise when the envelope could
+     * not be read, naming the OWID library's status.
+     */
+    private static function envelopeException(
+        ParseStatus $status
+    ): OwidException {
+        return new OwidException(
+            'The value is not a valid OWID envelope (' . $status->value . ').'
+        );
     }
 
     /**
@@ -324,12 +475,14 @@ final class FodId
      * payload does not fit a 51Did. This is the one place the payload rules
      * live, so the raising and the answering surfaces cannot drift apart.
      *
-     * The header must be present before the type can be read, and the type
-     * then says how many match key bytes must follow. A Reserved identifier
-     * takes whatever follows the header, which is the existing best-effort
-     * reading of a type not yet assigned. One byte after the match key is
-     * the terms index, and anything after that is a creator context section
-     * and is left in the payload unread.
+     * The version in the first byte is checked first, so a payload whose
+     * first byte names another version is refused for that version however
+     * short it is. The header must then be present before the type can be
+     * read, and the type says how many match key bytes must follow. A
+     * Reserved identifier takes whatever follows the header, which is the
+     * existing best-effort reading of a type not yet assigned. One byte
+     * after the match key is the terms index, and anything after that is a
+     * creator context section and is left in the payload unread.
      *
      * The terms index is the only field that may be absent, because a
      * payload may end at the match key. A payload with no byte there reads
@@ -343,18 +496,22 @@ final class FodId
     private static function readPayload(string $payload): array|FodIdParseStatus
     {
         $length = strlen($payload);
-        if ($length < FodIdLayout::HEADER_LENGTH) {
+        if ($length <= FodIdLayout::FLAGS_OFFSET) {
             return FodIdParseStatus::PayloadTooShort;
         }
         $flags = ord($payload[FodIdLayout::FLAGS_OFFSET]);
-        // The version is read before any field, because a later version
-        // exists precisely because a field moved. Reading a payload of a
-        // version this package does not know under the layout it does know
-        // would answer with values that are wrong rather than absent,
-        // which is worse than refusing, and a version that nothing checks
-        // protects nothing.
+        // The version is read before any field, and before the header
+        // length is checked, because a later version exists precisely
+        // because a field moved, so the header length of version 0 says
+        // nothing about it. Reading a payload of a version this package
+        // does not know under the layout it does know would answer with
+        // values that are wrong rather than absent, which is worse than
+        // refusing, and a version that nothing checks protects nothing.
         if (self::payloadVersion($flags) !== self::SUPPORTED_PAYLOAD_VERSION) {
             return FodIdParseStatus::UnsupportedPayloadVersion;
+        }
+        if ($length < FodIdLayout::HEADER_LENGTH) {
+            return FodIdParseStatus::PayloadTooShort;
         }
         // A payload with no usage bit set states no usage at all. The cloud
         // never writes one, so it is damaged or forged, and it is refused

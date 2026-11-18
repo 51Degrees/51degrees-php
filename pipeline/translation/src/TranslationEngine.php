@@ -35,7 +35,8 @@ use fiftyone\pipeline\engines\Engine;
  * Generic translation engine. Reads one or more properties from an upstream
  * element, translates each value (string, list of strings, or weighted list
  * of strings) into the language resolved from request evidence, and writes
- * the translated values under this engine's element data key.
+ * the translated values under this engine's element data key. Engines with
+ * the same element data key add their values to one element data.
  *
  * The locale is resolved from the evidence keys (in precedence order)
  * query.translation, query.accept-language, header.accept-language, unless a
@@ -77,20 +78,67 @@ class TranslationEngine extends Engine
     protected Translator $emptyTranslator;
 
     /**
-     * @param string $sourceElementDataKey upstream element to read from
+     * The element data key of an engine built from settings, the key the
+     * .NET Translation Engine uses.
+     */
+    public const DEFAULT_ELEMENT_DATA_KEY = 'translation';
+
+    /**
+     * Builds the engine from its arguments, or from the settings array that
+     * PipelineBuilder::buildFromConfig passes every element it builds from a
+     * configuration file.
+     *
+     * The settings use the specification's option names,
+     * SourceElementDataKey (required), FixedLanguage and
+     * MissingTranslationBehavior (Original, EmptyString or FlowError, in any
+     * case), or the same names in camelCase, the style the settings of other
+     * PHP elements use. This engine does not read sources and translations
+     * from settings, so an engine built from settings has none and returns no
+     * properties. A subclass that adds its own is the way to build a useful
+     * one from a configuration file.
+     *
+     * @param string|array<string, mixed> $elementDataKey this engine's element
+     *   data key, or the settings
+     * @param null|string $sourceElementDataKey upstream element to read from
      * @param array<string, string> $propertyMap source => destination names
      * @param array<string, array<string, string>> $localeMaps locale => map
      * @param null|string $fixedLanguage a locale to always use, or null to
      *   resolve from evidence
+     * @param string $missingTranslationBehavior what a value with no
+     *   translation gives, one of the MissingTranslationBehavior values
+     * @param null|string $behavior deprecated, use $missingTranslationBehavior.
+     *   Used in its place when given.
+     * @throws \InvalidArgumentException when no source element data key is
+     *   given, or the settings name a missing translation behavior that is
+     *   not one of the three
      */
     public function __construct(
-        string $elementDataKey,
-        string $sourceElementDataKey,
-        array $propertyMap,
-        array $localeMaps,
+        string|array $elementDataKey = [],
+        ?string $sourceElementDataKey = null,
+        array $propertyMap = [],
+        array $localeMaps = [],
         ?string $fixedLanguage = null,
-        string $behavior = MissingTranslationBehavior::ORIGINAL
+        string $missingTranslationBehavior = MissingTranslationBehavior::ORIGINAL,
+        ?string $behavior = null
     ) {
+        $behavior ??= $missingTranslationBehavior;
+        if (is_array($elementDataKey)) {
+            $settings = $elementDataKey;
+            $elementDataKey = self::DEFAULT_ELEMENT_DATA_KEY;
+            $sourceElementDataKey = self::stringSetting($settings, 'SourceElementDataKey');
+            $fixedLanguage = self::stringSetting($settings, 'FixedLanguage');
+            $named = self::stringSetting($settings, 'MissingTranslationBehavior');
+            $behavior = $named === null
+                ? MissingTranslationBehavior::ORIGINAL
+                : MissingTranslationBehavior::fromName($named);
+        }
+        if ($sourceElementDataKey === null) {
+            throw new \InvalidArgumentException(
+                'The Translation Engine needs a source element data key, ' .
+                'the SourceElementDataKey setting.'
+            );
+        }
+
         $this->pipelines = [];
 
         $this->dataKey = $elementDataKey;
@@ -118,6 +166,28 @@ class TranslationEngine extends Engine
         parent::__construct();
     }
 
+    /**
+     * A text setting by the specification's name, or by the same name in
+     * camelCase. Null when neither is given or the value is empty.
+     *
+     * @param array<string, mixed> $settings
+     * @throws \InvalidArgumentException when the value is not text
+     */
+    private static function stringSetting(array $settings, string $name): ?string
+    {
+        $value = $settings[$name] ?? $settings[lcfirst($name)] ?? null;
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (!is_string($value)) {
+            throw new \InvalidArgumentException(
+                "The Translation Engine's {$name} setting must be text."
+            );
+        }
+
+        return $value;
+    }
+
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
         return new BasicListEvidenceKeyFilter(self::EVIDENCE_KEYS);
@@ -127,6 +197,15 @@ class TranslationEngine extends Engine
     {
         $resolved = $this->resolveTranslator($flowData);
         $result = $this->buildTranslatedProperties($flowData, $resolved['translator']);
+
+        // Translation Engines with the same Data Key share one Element Data,
+        // so the values of one earlier in the Pipeline are kept, and a value
+        // of the same name is replaced. The data is set again rather than
+        // changed, so a result an engine put in its cache stays as it was.
+        $shared = $flowData->data[$this->dataKey] ?? null;
+        if ($shared instanceof AspectDataDictionary && $shared->flowElement instanceof self) {
+            $result = array_replace($shared->asDictionary(), $result);
+        }
 
         $flowData->setElementData(new AspectDataDictionary($this, $result));
     }
@@ -176,14 +255,16 @@ class TranslationEngine extends Engine
 
     /**
      * Read the first non-blank translation evidence value, in precedence
-     * order.
+     * order. Each key is read through the evidence, which matches without
+     * regard to letter case, because a key arrives in the letters it was
+     * first set with.
      */
     protected function getEvidenceValue(FlowData $flowData): ?string
     {
-        $evidence = $flowData->evidence->getAll();
         foreach (self::EVIDENCE_KEYS as $key) {
-            if (isset($evidence[$key]) && trim((string) $evidence[$key]) !== '') {
-                return (string) $evidence[$key];
+            $value = $flowData->evidence->get($key);
+            if ($value !== null && trim((string) $value) !== '') {
+                return (string) $value;
             }
         }
 
@@ -214,7 +295,7 @@ class TranslationEngine extends Engine
         $errors = [];
         $translated = $translator->translate($apv->value, $errors);
         foreach ($errors as $error) {
-            $flowData->setError($error->getMessage(), $this);
+            $flowData->setError($this->dataKey, $error);
         }
 
         if ($translated === null) {

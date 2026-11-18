@@ -59,6 +59,12 @@ use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesHashEngine.data_file php.ini setting. Without it,
+// the page says what to set, as the server cannot be started again from a
+// request.
+ExampleUtils::startWithEngine();
+
 // The example is run as a router script for the PHP built-in server
 // (php -S localhost:3000 userAgentClientHints-Web.php), so every request,
 // including the shared CSS and JS assets, is routed here. Serve the
@@ -93,27 +99,29 @@ $builder = new PipelineBuilder(['suppressProcessExceptions' => true]);
 
 $pipeline = $builder->add($device)->build();
 
-// We create the flowData object that is used to add evidence to and read data from
+// We create the flowData object that is used to add evidence to and read data from.
+// It is closed, with the pipeline, in the finally block at the end of the
+// page, which releases the results of the detection straight away.
 $flowData = $pipeline->createFlowData();
+try {
+    // We set headers, cookies and more information from the web request
+    $flowData->evidence->setFromWebRequest();
 
-// We set headers, cookies and more information from the web request
-$flowData->evidence->setFromWebRequest();
+    // Now we process the flowData
+    $flowData->process();
 
-// Now we process the flowData
-$flowData->process();
+    $device = $flowData->device;
 
-$device = $flowData->device;
+    // Some browsers require that extra HTTP headers are explicitly
+    // requested. So set whatever headers are required by the browser in
+    // order to return the evidence needed by the pipeline.
+    // More info on this can be found at
+    // https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=top
+    Utils::setResponseHeader($flowData);
 
-// Some browsers require that extra HTTP headers are explicitly
-// requested. So set whatever headers are required by the browser in
-// order to return the evidence needed by the pipeline.
-// More info on this can be found at
-// https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=top
-Utils::setResponseHeader($flowData);
-
-// Determine whether the free 'Lite' data file is in use so that the
-// contact-us banner can be shown only on that tier.
-$showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('device')) === 'Lite';
+    // Determine whether the free 'Lite' data file is in use so that the
+    // contact-us banner can be shown only on that tier.
+    $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('device')) === 'Lite';
 ?>
 <head>
     <title>User-Agent Client Hints Example</title>
@@ -183,15 +191,15 @@ $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('
             </tr>
         </thead>
         <tbody>
-            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Vendor:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'hardwarevendor')); ?></td></tr>
-            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Name:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'hardwarename')); ?></td></tr>
-            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Device Type:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'devicetype')); ?></td></tr>
-            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Vendor:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'platformvendor')); ?></td></tr>
-            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Name:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'platformname')); ?></td></tr>
-            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Version:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'platformversion')); ?></td></tr>
-            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Vendor:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'browservendor')); ?></td></tr>
-            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Name:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'browsername')); ?></td></tr>
-            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Version:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getHumanReadable($device, 'browserversion')); ?></td></tr>
+            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Vendor:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'hardwarevendor')); ?></td></tr>
+            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Name:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'hardwarename')); ?></td></tr>
+            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Device Type:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'devicetype')); ?></td></tr>
+            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Vendor:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'platformvendor')); ?></td></tr>
+            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Name:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'platformname')); ?></td></tr>
+            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Version:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'platformversion')); ?></td></tr>
+            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Vendor:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'browservendor')); ?></td></tr>
+            <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Name:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'browsername')); ?></td></tr>
+            <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Version:</td><td class="c-eg-table__cell"><?php echo htmlspecialchars(ExampleUtils::getEnterpriseValue($flowData->pipeline->getElement('device'), $device, 'browserversion')); ?></td></tr>
         </tbody>
     </table>
 
@@ -201,6 +209,8 @@ $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('
       <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=paid-data-file">Contact us</a>
     </div>
     <?php } ?>
+
+    <?php echo ExampleUtils::getFindOutMoreHtml(__FILE__); ?>
 </div>
 
 <script>
@@ -235,3 +245,8 @@ $showContactUs = ExampleUtils::getDataFileTier($flowData->pipeline->getElement('
     };
 
 </script>
+<?php
+} finally {
+    $flowData->close();
+    $pipeline->close();
+}

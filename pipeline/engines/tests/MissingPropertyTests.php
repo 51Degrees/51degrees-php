@@ -134,7 +134,7 @@ class MissingPropertyTests extends TestCase
         $engine->dataKey = 'testElement';
 
         $message = sprintf(MissingPropertyMessages::PREFIX, 'testProperty', 'testElement');
-        $message .= sprintf(MissingPropertyMessages::PRODUCT_NOT_IN_CLOUD_RESOURCE, get_class($engine));
+        $message .= sprintf(MissingPropertyMessages::PRODUCT_NOT_IN_CLOUD_RESOURCE, 'testElement');
         $this->expectExceptionMessage($message);
         $service->check('testProperty', $engine);
     }
@@ -195,5 +195,249 @@ class MissingPropertyTests extends TestCase
         $message .= MissingPropertyMessages::UNKNOWN;
         $this->expectExceptionMessage($message);
         $service->check('testProperty', $engine);
+    }
+
+    // ----- The text and the order the specification gives -----
+    // https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/properties.md#missing-properties
+
+    private const PREFIX =
+        "Property 'testProperty' not found in data for element 'testElement'. ";
+
+    /**
+     * An engine mock with the properties, data tier and Data Key given.
+     *
+     * @param array<string, array<string, mixed>> $properties
+     */
+    private function engine(
+        string $class,
+        array $properties,
+        string $tier = 'Lite'
+    ): Engine {
+        $engine = $this->createMock($class);
+        $engine->method('getProperties')->willReturn($properties);
+        $engine->method('getDataSourceTier')->willReturn($tier);
+        $engine->dataKey = 'testElement';
+
+        return $engine;
+    }
+
+    /**
+     * The message for the property, with the campaign parameters a link
+     * may carry taken out, so it compares with the specification's text.
+     */
+    private static function messageFor(Engine $engine, string $name): string
+    {
+        try {
+            (new MissingPropertyService())->check($name, $engine);
+        } catch (\Exception $e) {
+            return preg_replace(
+                '/\?utm_[A-Za-z0-9_=&.-]*[A-Za-z0-9_-]/',
+                '',
+                $e->getMessage()
+            );
+        }
+
+        throw new \LogicException('No exception for ' . $name);
+    }
+
+    public function testDataFileUpgradeRequiredIsTheSpecificationText()
+    {
+        $engine = $this->engine(Engine::class, [
+            'testproperty' => [
+                'name' => 'testProperty',
+                'datatierswherepresent' => ['Premium', 'Enterprise'],
+                'available' => true
+            ]
+        ]);
+
+        $this->assertSame(
+            self::PREFIX . 'This is because your license or data file does '
+            . 'not include this property. It is available with the '
+            . 'Premium,Enterprise license/data for the ' . get_class($engine)
+            . '. To upgrade, see https://51degrees.com/pricing.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * An empty list of data tiers gives the message for tiers that are not
+     * known, which leaves out the sentence naming them.
+     */
+    public function testDataFileUpgradeRequiredWithNoTiersIsTheSpecificationText()
+    {
+        $engine = $this->engine(Engine::class, [
+            'testproperty' => [
+                'name' => 'testProperty',
+                'datatierswherepresent' => [],
+                'available' => true
+            ]
+        ]);
+
+        $this->assertSame(
+            self::PREFIX . 'This is because your license or data file does '
+            . 'not include this property. To see which licenses include it, '
+            . 'see https://51degrees.com/pricing.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * A failed cloud request comes first, even for a property the engine's
+     * metadata lists.
+     */
+    public function testCloudRequestFailedIsTheSpecificationText()
+    {
+        $engine = $this->engine(CloudEngineBase::class, [
+            'testproperty' => ['name' => 'testProperty', 'type' => 'string'],
+        ]);
+
+        $message = null;
+        try {
+            (new MissingPropertyService(true))->check('testProperty', $engine);
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+        }
+
+        $this->assertSame(
+            self::PREFIX . 'This is because an upstream cloud request '
+            . 'failed, so no data was available to populate the property.',
+            $message
+        );
+    }
+
+    public function testProductNotAccessibleIsTheSpecificationText()
+    {
+        $engine = $this->engine(CloudEngineBase::class, []);
+
+        $this->assertSame(
+            self::PREFIX . 'This is because your resource key does not '
+            . "include access to any properties under 'testElement'. Check "
+            . 'or create a resource key with the properties you need in the '
+            . 'configurator at https://configure.51degrees.com.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    public function testPropertyNotAccessibleIsTheSpecificationText()
+    {
+        $engine = $this->engine(CloudEngineBase::class, [
+            'ismobile' => ['name' => 'IsMobile', 'available' => true],
+            'platformname' => ['name' => 'PlatformName', 'available' => true]
+        ]);
+
+        $this->assertSame(
+            self::PREFIX . 'This is because your resource key does not '
+            . 'include access to this property. The properties included for '
+            . "your key under 'testElement' are IsMobile,PlatformName. Check "
+            . 'or change your key in the configurator at '
+            . 'https://configure.51degrees.com.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * A listed property that is not available is excluded, whether or not
+     * its metadata gives the data tiers.
+     */
+    public function testAPropertyThatIsNotAvailableIsExcluded()
+    {
+        $engine = $this->engine(Engine::class, [
+            'testproperty' => ['name' => 'testProperty', 'available' => false]
+        ]);
+
+        $this->assertSame(
+            self::PREFIX . 'This is because the property has been excluded '
+            . 'when configuring the engine.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * The data tier is compared before the property's availability, so a
+     * property the data file does not hold is an upgrade even where it is
+     * also not available.
+     */
+    public function testTheDataTierIsComparedBeforeAvailability()
+    {
+        $engine = $this->engine(Engine::class, [
+            'testproperty' => [
+                'name' => 'testProperty',
+                'datatierswherepresent' => ['Enterprise'],
+                'available' => false
+            ]
+        ]);
+
+        $this->assertStringContainsString(
+            'It is available with the Enterprise license/data',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * A cloud engine compares no data tier. A property it lists that is not
+     * available is excluded, and one it lists that is available but missing
+     * is not accessible with the resource key.
+     */
+    public function testACloudEngineListingThePropertyGivesTheResourceKeyOrExclusion()
+    {
+        $available = $this->engine(CloudEngineBase::class, [
+            'testproperty' => [
+                'name' => 'testProperty',
+                'datatierswherepresent' => ['Enterprise'],
+                'available' => true
+            ]
+        ]);
+        $this->assertSame(
+            self::PREFIX . 'This is because your resource key does not '
+            . 'include access to this property. The properties included for '
+            . "your key under 'testElement' are testProperty. Check or change "
+            . 'your key in the configurator at https://configure.51degrees.com.',
+            self::messageFor($available, 'testProperty')
+        );
+
+        $excluded = $this->engine(CloudEngineBase::class, [
+            'testproperty' => ['name' => 'testProperty', 'available' => false]
+        ]);
+        $this->assertSame(
+            self::PREFIX . 'This is because the property has been excluded '
+            . 'when configuring the engine.',
+            self::messageFor($excluded, 'testProperty')
+        );
+    }
+
+    /**
+     * Names are compared ignoring case, so a property is given the same
+     * reason however the caller spells it, and the message names it as the
+     * caller did.
+     */
+    public function testNamesAreComparedIgnoringCase()
+    {
+        $engine = $this->engine(Engine::class, [
+            'testproperty' => ['name' => 'testProperty', 'available' => false]
+        ]);
+
+        $this->assertSame(
+            "Property 'TESTPROPERTY' not found in data for element "
+            . "'testElement'. This is because the property has been excluded "
+            . 'when configuring the engine.',
+            self::messageFor($engine, 'TESTPROPERTY')
+        );
+    }
+
+    /**
+     * An on-premise engine that does not list the property gives the
+     * unknown reason.
+     */
+    public function testAnUnlistedPropertyOfAnOnPremiseEngineIsUnknown()
+    {
+        $engine = $this->engine(Engine::class, [
+            'otherproperty' => ['name' => 'otherProperty', 'available' => true]
+        ]);
+
+        $this->assertSame(
+            self::PREFIX . 'The reason for this is unknown. Please check that '
+            . 'the aspect and property name are correct.',
+            self::messageFor($engine, 'testProperty')
+        );
     }
 }

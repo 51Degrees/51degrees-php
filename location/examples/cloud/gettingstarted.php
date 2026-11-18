@@ -32,7 +32,7 @@
  * The resource key is used as short-hand to store the particular set of
  * properties you are interested in as well as any associated license keys
  * that entitle you to increased request limits and/or paid-for properties.
- * You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=header).
+ * You can create a resource key using the 51Degrees [configuration page](https://51degrees.com/configure/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=header).
  * 
  * This example uses the 'Country' property, which is pre-populated 
  * when creating a key using the link above.
@@ -51,24 +51,29 @@
 require(__DIR__ . "/../../vendor/autoload.php");
 
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 
 // Check if there is a resource key in the environment variable and use
 // it if there is one. (This is used for automated testing)
-if (isset($_ENV[Constants::RESOURCE_KEY_ENV_VAR])) {
-    $resourceKey = $_ENV[Constants::RESOURCE_KEY_ENV_VAR];
-} else {
+$resourceKey = EnvironmentVariable::read(
+    Constants::RESOURCE_KEY_VARIABLE,
+    Constants::RESOURCE_KEY_ENV_VAR,
+    "!!YOUR_RESOURCE_KEY!!"
+);
+if ($resourceKey === '') {
     $resourceKey = "!!YOUR_RESOURCE_KEY!!";
 }
 
 if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
-    $message .= '"' . Constants::RESOURCE_KEY_ENV_VAR . '"' . '<br/>';
-    $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=resource-key-required' . '<br/>';
+    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . Constants::lineBreak();
+    $message .= 'Create a resource key with the properties required by this example ';
+    $message .= 'at https://51degrees.com/configure/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=resource-key-required' . Constants::lineBreak();
     $message .= 'Once complete, populate the environment variable ';
-    $message .= 'mentioned at the start of this message with the key.' . '<br/>';
+    $message .= 'mentioned at the start of this message with the key.' . Constants::lineBreak();
     echo $message;
+    Constants::printFindOutMore(__FILE__);
 
     return;
 }
@@ -79,7 +84,7 @@ if (substr($resourceKey, 0, 2) === "!!") {
 // * The location provider: "digitalelement" or "fiftyonedegrees" 
 // (If digital element is used, you will need a resource key that allows you 
 // access to the appropriate property. You can do this via the following
-// link https://configure.51degrees.com/QMWqcX9n?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=top)
+// link https://51degrees.com/configure/QMWqcX9n?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=top)
 $settings = array(
     "resourceKey" => $resourceKey,
     "locationProvider" => "fiftyonedegrees"
@@ -107,9 +112,11 @@ $country = $flowData->location->country;
 
 if ($country->hasValue) {
     echo "Which country is the location [" . $latitude . "," . $longitude . "] in?";
-    echo "<br />";
+    echo Constants::lineBreak();
     echo $flowData->location->country->value;
 } else {
     // Echo out why the value isn't meaningful
     echo $country->noValueMessage;
 }
+
+Constants::printFindOutMore(__FILE__);

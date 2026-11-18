@@ -58,7 +58,7 @@ class MetadataConsole
      * In this example, we use the DeviceDetectionPipelineBuilder
      * and configure it in code. For more information about
      * pipelines in general see the documentation at
-     * https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-classes-metadataconsole.php&utm_term=run.
+     * https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-classes-metadataconsole.php&utm_term=run.
      *
      * @param string $resourceKey
      * @param \fiftyone\pipeline\core\Logger $logger
@@ -79,7 +79,7 @@ class MetadataConsole
         // by the call to the cloud service that is made by the CloudRequestEngine.
         // The CloudRequestEngine is actually taking the evidence values and passing
         // them to the cloud, so that's the engine we want the keys from.
-        $this->outputEvidenceKeyDetails($pipeline->getElement('cloud'), $output);
+        $this->outputEvidenceKeyDetails($pipeline->getElement('cloud-response'), $output);
     }
 
     private function outputProperties($engine, callable $output)

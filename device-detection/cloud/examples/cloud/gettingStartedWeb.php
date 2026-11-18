@@ -59,7 +59,7 @@
  * ```
  * 
  * Results can also be accessed in client-side code by using the `fod` object. See the 
- * [JavaScriptBuilderElement](/documentation/4.5/apis/pipeline-php-core/classfiftyone_1_1pipeline_1_1core_1_1_javascript_builder_element.html)
+ * [JavaScriptBuilderElement](https://51degrees.com/pipeline-php/4.5/classfiftyone_1_1pipeline_1_1core_1_1_javascript_builder_element.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedweb.php&utm_term=header)
  * for details on available settings such as changing the `fod` name.
  * ```{js}
  * window.onload = function () {
@@ -96,18 +96,19 @@ function main()
     }
     
     if (empty($resourceKey)) {
-        $message = "No resource key specified in CLI args or environment variable '" .
-            ExampleUtils::RESOURCE_KEY_ENV_VAR . "'." . PHP_EOL .
+        $message = "No resource key specified in the environment variable '" .
+            ExampleUtils::RESOURCE_KEY_ENV_VAR . "' or the query parameter '" .
+            ExampleUtils::RESOURCE_KEY_QUERY_PARAM . "'." . PHP_EOL .
             "The 51Degrees cloud service is accessed using a 'ResourceKey'. " .
             "For more detail see " .
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedweb.php&utm_term=resource-key-required. " .
+            "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedweb.php&utm_term=resource-key-required. " .
             "A resource key with the properties required by this " .
             "example can be created for free at " .
-            "https://configure.51degrees.com/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedweb.php&utm_term=resource-key-required. " .
+            "https://51degrees.com/configure/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstartedweb.php&utm_term=resource-key-required. " .
             "Once complete, populate the environment variable " .
             "mentioned at the start of this message with the key.";
 
-        ExampleUtils::logErrorAndExit($logger, $message);
+        ExampleUtils::endWithoutResourceKey($message, __FILE__);
     }
 
     (new GettingStartedWeb())->run($resourceKey, $logger, function($message) { echo $message; });

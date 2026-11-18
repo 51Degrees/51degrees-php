@@ -25,14 +25,23 @@ namespace fiftyone\pipeline\cloudrequestengine\tests;
 
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\Constants;
+use fiftyone\pipeline\cloudrequestengine\HttpClient;
+use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use PHPUnit\Framework\Attributes\After;
+use PHPUnit\Framework\Attributes\Before;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class CloudRequestEngineTests extends CloudRequestEngineTestsBase
 {
     public const testEndPoint = 'http://testEndPoint/';
     public const testEnvVarEndPoint = 'http://testEnvVarEndPoint/';
+    public const testOldEnvVarEndPoint = 'http://testOldEnvVarEndPoint/';
+
+    // The deprecated environment variable for the endpoint, written out
+    // so that a test of what the engine reads does not depend on the
+    // constant that holds the name.
+    private const oldEndPointVariable = 'FOD_CLOUD_API_URL';
 
     /**
      * Test the explicit setting of cloudEndPoint via constructor take
@@ -42,7 +51,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     {
         $httpClient = $this->mockHttp();
 
-        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
 
         $engine = new CloudRequestEngine([
             'resourceKey' => CloudRequestEngineTests::resourceKey,
@@ -61,7 +70,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     {
         $httpClient = $this->mockHttp();
 
-        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
 
         $engine = new CloudRequestEngine([
             'resourceKey' => CloudRequestEngineTests::resourceKey,
@@ -84,6 +93,158 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         ]);
 
         $this->assertSame(Constants::BASE_URL_DEFAULT, $engine->baseURL);
+    }
+
+    /**
+     * Test that the old environment variable is still read when the new
+     * one is not set.
+     */
+    public function testOldEndPointVariableReadWhenNewOneUnset()
+    {
+        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame(self::testOldEnvVarEndPoint, $engine->baseURL);
+    }
+
+    /**
+     * Test that the old environment variable is still read when the new
+     * one is set to nothing.
+     */
+    public function testOldEndPointVariableReadWhenNewOneEmpty()
+    {
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '='));
+        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame(self::testOldEnvVarEndPoint, $engine->baseURL);
+    }
+
+    /**
+     * Test that the new environment variable wins when both are set.
+     */
+    public function testNewEndPointVariableWinsWhenBothSet()
+    {
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . self::testEnvVarEndPoint));
+        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame(self::testEnvVarEndPoint, $engine->baseURL);
+    }
+
+    /**
+     * Test that the default end point is used when neither environment
+     * variable is set.
+     */
+    public function testDefaultEndPointWhenNeitherVariableSet()
+    {
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE));
+        $this->assertTrue(putenv(self::oldEndPointVariable));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame(Constants::BASE_URL_DEFAULT, $engine->baseURL);
+    }
+
+    /**
+     * Test that the constant for the old environment variable is still
+     * there under its old name with its old value, marked deprecated and
+     * naming the constant that replaces it.
+     */
+    public function testOldEndPointConstantKept()
+    {
+        $this->assertSame('_51DEGREES_CLOUD_ENDPOINT', Constants::CLOUD_ENDPOINT_VARIABLE);
+        $this->assertSame(self::oldEndPointVariable, Constants::FOD_CLOUD_API_URL);
+
+        $comment = (string) (new \ReflectionClassConstant(
+            Constants::class,
+            'FOD_CLOUD_API_URL'
+        ))->getDocComment();
+        $this->assertStringContainsString('@deprecated', $comment);
+        $this->assertStringContainsString('CLOUD_ENDPOINT_VARIABLE', $comment);
+    }
+
+    /**
+     * Test that an engine which took its end point from the old
+     * environment variable says so once, as a warning, through the logger
+     * of the pipeline it is added to.
+     */
+    public function testOldEndPointVariableLoggedOnce()
+    {
+        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+        $logger = self::memoryLogger();
+        (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
+        (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
+
+        $this->assertSame(['warning'], $logger->levels);
+        $this->assertStringContainsString(self::oldEndPointVariable, $logger->messages[0]);
+        $this->assertStringContainsString('deprecated', $logger->messages[0]);
+        $this->assertStringContainsString(Constants::CLOUD_ENDPOINT_VARIABLE, $logger->messages[0]);
+    }
+
+    /**
+     * Test that nothing is logged about the old environment variable when
+     * the end point did not come from it.
+     *
+     * @dataProvider provider_testOldEndPointVariableNotLogged
+     */
+    #[DataProvider('provider_testOldEndPointVariableNotLogged')]
+    public function testOldEndPointVariableNotLogged(?string $new, ?string $old, ?string $setting)
+    {
+        if ($new !== null) {
+            $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . $new));
+        }
+        if ($old !== null) {
+            $this->assertTrue(putenv(self::oldEndPointVariable . '=' . $old));
+        }
+        $settings = [
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ];
+        if ($setting !== null) {
+            $settings['cloudEndPoint'] = $setting;
+        }
+
+        $logger = self::memoryLogger();
+        (new PipelineBuilder())
+            ->add(new CloudRequestEngine($settings))
+            ->addLogger($logger)
+            ->build();
+
+        $this->assertSame([], $logger->messages);
+    }
+
+    // Data Provider for testOldEndPointVariableNotLogged, each case being
+    // the new variable, the old variable and the cloudEndPoint setting,
+    // with null for one that is not set.
+    public static function provider_testOldEndPointVariableNotLogged()
+    {
+        return [
+            'both variables set' => [self::testEnvVarEndPoint, self::testOldEnvVarEndPoint, null],
+            'only the new variable set' => [self::testEnvVarEndPoint, null, null],
+            'neither variable set' => [null, null, null],
+            'the old variable set beside the setting' => [null, self::testOldEnvVarEndPoint, self::testEndPoint],
+        ];
     }
 
     /**
@@ -214,7 +375,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         }
 
         $result = $engine->getContent($data);
-        $this->assertSame($expectedValue, $result['user-agent']);
+        $this->assertSame($expectedValue, $result['User-Agent']);
     }
 
     // Data Provider for testGetContent_warnings
@@ -278,7 +439,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
             $data->evidence->set($key, $value);
         }
 
-        $this->assertSame($expectedValue, @$engine->getContent($data)['user-agent']);
+        $this->assertSame($expectedValue, @$engine->getContent($data)['User-Agent']);
 
         // register handler for user-level errors generated by trigger_error()
         set_error_handler(function ($errno, $errstr) {
@@ -343,7 +504,7 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         }
 
         $result = $engine->getContent($data);
-        $this->assertSame($expectedValue, $result['user-agent']);
+        $this->assertSame($expectedValue, $result['User-Agent']);
     }
 
     /**
@@ -437,15 +598,239 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
 
         $result = $engine->getContent($data);
 
-        $this->assertSame(['51d_profileids' => '12345'], $result);
+        $this->assertSame(['51D_ProfileIds' => '12345'], $result);
     }
 
     /**
+     * The engine sends only the Evidence the cloud accepts, never
+     * 'resource', 'license', 'licence' or 'values' from Evidence, as the
+     * Processing section of cloud-request-engine.md says. The body's
+     * 'resource' is the configured Resource Key, and other Evidence is sent
+     * with the usual precedence.
+     */
+    public function testEvidenceNeverSuppliesResourceLicenseOrValues()
+    {
+        $sent = [];
+        $keys = '["query.resource","query.license","query.licence","query.values",' .
+            '"header.resource","cookie.license","query.other",' .
+            '"header.other","cookie.cookie-only"]';
+        $client = $this->createMock(HttpClient::class);
+        $client->method('makeCloudRequest')->willReturnCallback(
+            function () use (&$sent, $keys) {
+                $args = func_get_args();
+                if (strpos($args[1], 'evidencekeys') !== false) {
+                    return $keys;
+                }
+                if (strpos($args[1], 'resource_key.json') !== false) {
+                    $sent[] = ['url' => $args[1], 'content' => $args[2]];
+                }
+
+                return CloudRequestEngineTests::getResponse(...$args);
+            }
+        );
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $client
+        ]);
+
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        $data->evidence->set('query.Resource', 'evidence_resource');
+        $data->evidence->set('query.LICENSE', 'evidence_license');
+        $data->evidence->set('query.Licence', 'evidence_licence');
+        $data->evidence->set('query.Values', 'evidence_values');
+        $data->evidence->set('header.resource', 'header_resource');
+        $data->evidence->set('cookie.License', 'cookie_license');
+        $data->evidence->set('query.other', 'query_other');
+        $data->evidence->set('header.other', 'header_other');
+        $data->evidence->set('cookie.cookie-only', 'cookie_only');
+        $data->process();
+
+        $this->assertCount(1, $sent);
+        $this->assertStringEndsWith(
+            CloudRequestEngineTests::resourceKey . '.json?',
+            $sent[0]['url']
+        );
+        parse_str($sent[0]['content'], $fields);
+        $this->assertSame('query_other', $fields['other']);
+        $this->assertSame('cookie_only', $fields['cookie-only']);
+        $this->assertSame(CloudRequestEngineTests::resourceKey, $fields['resource']);
+        foreach (['license', 'licence', 'values'] as $name) {
+            $this->assertArrayNotHasKey($name, $fields);
+        }
+        $this->assertStringNotContainsString('evidence_', $sent[0]['content']);
+        $this->assertStringNotContainsString('header_resource', $sent[0]['content']);
+        $this->assertStringNotContainsString('cookie_license', $sent[0]['content']);
+    }
+
+    /**
+     * evidence.md lists query, header, cookie, server, fiftyone and location
+     * from highest to lowest precedence, and ranks any other prefix
+     * alphabetically after them. Each pair of prefixes gives one name, set
+     * higher first so the order set cannot decide it, and the higher
+     * prefix's value is the one sent.
+     */
+    public function testGetContent_eachPrefixWinsOverEveryLaterOne()
+    {
+        $order = ['query', 'header', 'cookie', 'server', 'fiftyone',
+            'location', 'apple', 'zebra'];
+        $evidence = [];
+        foreach ($order as $i => $higher) {
+            foreach (array_slice($order, $i + 1) as $lower) {
+                $name = "n-{$higher}-{$lower}";
+                $evidence[] = ["{$higher}.{$name}", $higher];
+                $evidence[] = ["{$lower}.{$name}", $lower];
+            }
+        }
+
+        $result = $this->precedenceContent($evidence);
+
+        $wrong = [];
+        foreach ($order as $i => $higher) {
+            foreach (array_slice($order, $i + 1) as $lower) {
+                $name = "n-{$higher}-{$lower}";
+                $sent = $result[$name] ?? null;
+                if ($sent !== $higher) {
+                    $wrong[] = "{$name} sent " . var_export($sent, true);
+                }
+            }
+        }
+        $this->assertSame([], $wrong);
+    }
+
+    /**
+     * Evidence keys ignore letter case, so Location ranks as location and
+     * SERVER as server.
+     */
+    public function testGetContent_aPrefixRanksTheSameInAnyLetterCase()
+    {
+        $result = $this->precedenceContent([
+            ['fiftyone.b', 'fiftyone'],
+            ['Location.b', 'location'],
+            ['SERVER.c', 'server'],
+            ['Location.c', 'location']
+        ]);
+
+        $this->assertSame('fiftyone', $result['b']);
+        $this->assertSame('server', $result['c']);
+    }
+
+    /**
+     * Other prefixes rank alphabetically by the prefix, so ab comes before
+     * ab-c, although the key ab-c.n sorts before ab.n because a hyphen
+     * sorts before a dot.
+     */
+    public function testGetContent_otherPrefixesRankByThePrefixAlone()
+    {
+        $result = $this->precedenceContent([
+            ['ab.n', 'ab'],
+            ['ab-c.n', 'ab-c']
+        ]);
+
+        $this->assertSame('ab', $result['n']);
+    }
+
+    /**
+     * The name is sent in the letter case of the Evidence key, as .NET,
+     * Java, Node and Python send it, rather than lower-cased.
+     */
+    public function testGetContent_theNameKeepsTheLetterCaseGiven()
+    {
+        $result = $this->precedenceContent([
+            ['cookie.51D_Experiment', 'b'],
+            ['header.Sec-CH-UA-Platform', 'Windows']
+        ]);
+
+        $this->assertSame('b', $result['51D_Experiment'] ?? null);
+        $this->assertSame('Windows', $result['Sec-CH-UA-Platform'] ?? null);
+        $this->assertArrayNotHasKey('51d_experiment', $result);
+        $this->assertArrayNotHasKey('sec-ch-ua-platform', $result);
+    }
+
+    /**
+     * Evidence keys ignore letter case, so header.User-Agent and
+     * query.user-agent name the same value. The name is sent once, spelled
+     * as the winning key spells it.
+     */
+    public function testGetContent_oneNameInTwoLetterCasesIsSentOnce()
+    {
+        $result = $this->precedenceContent([
+            ['header.User-Agent', 'from the header'],
+            ['query.user-agent', 'from the query'],
+            ['server.X-Thing', 'from the server'],
+            ['fiftyone.x-thing', 'from fiftyone']
+        ]);
+
+        $names = array_values(array_filter(
+            array_keys($result),
+            function ($name): bool {
+                return in_array(
+                    strtolower((string) $name),
+                    ['user-agent', 'x-thing'],
+                    true
+                );
+            }
+        ));
+        sort($names);
+        $this->assertSame(['X-Thing', 'user-agent'], $names);
+        $this->assertSame('from the query', $result['user-agent']);
+        $this->assertSame('from the server', $result['X-Thing']);
+    }
+
+    /**
+     * Unsets both environment variables before and after each test, so
+     * that neither is left over from another test or taken from the
+     * environment the tests run in.
+     *
+     * @before
      * @after
      */
+    #[Before]
     #[After]
-    protected function tearDowniCloudEndPoint()
+    protected function clearEndPointVariables()
     {
-        $this->assertTrue(putenv(Constants::FOD_CLOUD_API_URL));
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE));
+        $this->assertTrue(putenv(self::oldEndPointVariable));
+    }
+
+    /**
+     * A logger that keeps the level and the message of every entry.
+     */
+    private static function memoryLogger(): Logger
+    {
+        return new class ('trace') extends Logger {
+            /** @var array<string> */
+            public array $levels = [];
+
+            /** @var array<string> */
+            public array $messages = [];
+
+            public function logInternal(array $log): void
+            {
+                $this->levels[] = $log['level'];
+                $this->messages[] = $log['message'];
+            }
+        };
+    }
+
+    /**
+     * The content the engine builds for the evidence given, with the
+     * conflict warnings it raises silenced.
+     *
+     * @param array<array{string, string}> $evidence keys and values, set in
+     * order
+     * @return array<string, int|string>
+     */
+    private function precedenceContent(array $evidence): array
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        foreach ($evidence as [$key, $value]) {
+            $data->evidence->set($key, $value);
+        }
+
+        return @$engine->getContent($data);
     }
 }

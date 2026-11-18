@@ -37,7 +37,9 @@ class TestPipeline
     {
         $this->logger = new MemoryLogger('info');
         $this->flowElement1 = new ExampleFlowElement1();
-        $this->pipeline = (new PipelineBuilder())
+        $this->pipeline = (new PipelineBuilder([
+            'suppressProcessExceptions' => $suppressException,
+        ]))
             ->add($this->flowElement1)
             ->add(new ErrorFlowData())
             ->add(new StopFlowData())
@@ -45,7 +47,6 @@ class TestPipeline
             ->addLogger($this->logger)
             ->build();
         $this->pipeline->log('info', 'test');
-        $this->pipeline->suppressProcessExceptions = $suppressException;
         $this->flowData = $this->pipeline->createFlowData();
         $this->flowData->evidence->set('header.user-agent', 'test');
         $this->flowData->evidence->set('some.other-evidence', 'test');

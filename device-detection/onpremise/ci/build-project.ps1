@@ -27,9 +27,19 @@ FiftyOneDegreesHashEngine.data_file = "$PWD/assets/TAC-HashV41.hash"
 FiftyOneDegreesHashEngine.allow_unmatched = false
 "@ | Out-File $RepoName/php.ini
 
-# This script only runs in nightly-pr-to-main workdflow, where we should use
-# development versions of dependencies
-$env:COMPOSER = "composer.json"
+# The pipeline packages come from this checkout rather than Packagist, so the
+# tests run with the pipeline code they are released with. A copy of
+# composer.json gets the path repositories, and the published one is left as
+# it is.
+$composer = Get-Content -Raw $RepoName/composer.json | ConvertFrom-Json -AsHashtable
+$composer['repositories'] = @(foreach ($name in 'core', 'engines') {
+    @{ type = 'path'; url = "../../pipeline/$name"; options = @{ symlink = $true;
+        versions = @{ "51degrees/fiftyone.pipeline.$name" = '4.x-dev' } } }
+})
+$composer['minimum-stability'] = 'dev'
+$composer['prefer-stable'] = $true
+$composer | ConvertTo-Json -Depth 20 | Set-Content $RepoName/composer.ci.json
+$env:COMPOSER = "composer.ci.json"
 
 ./php/build-project.ps1 -RepoName $RepoName
 

@@ -4,15 +4,18 @@ param (
     [bool]$DryRun = $false
 )
 $ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
 
-Write-Host "Downloading latest javascript-templates..."
-Invoke-WebRequest "https://github.com/$OrgName/javascript-templates/archive/refs/heads/main.zip" -OutFile javascript-templates.zip
+# The templates come from the javascript-templates submodule at the
+# repository root. The package keeps a committed copy because Packagist serves
+# GitHub's archive of a tag, which leaves a submodule empty. The submodule
+# moves to the head of javascript-templates first, so the copy and the commit
+# it came from change in the same pull request.
+$root = Join-Path $RepoName '../..'
+$source = Join-Path $root 'javascript-templates'
 
-Write-Host "Extracting the archive..."
-Expand-Archive javascript-templates.zip -DestinationPath .
+Write-Host "Moving javascript-templates to the head of its default branch..."
+git -C $root submodule update --init --remote javascript-templates
 
-Write-Host "Updating the package directory..."
-Move-Item -Path javascript-templates-main/*.mustache -Destination "$RepoName/javascript-templates" -Force
-
-Write-Host "Cleaning up..."
-Remove-Item -Recurse -Force javascript-templates.zip, javascript-templates-main
+Write-Host "Copying the templates into the package directory..."
+Copy-Item -Path (Join-Path $source '*.mustache') -Destination "$RepoName/javascript-templates" -Force

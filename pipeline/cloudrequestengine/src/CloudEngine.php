@@ -26,7 +26,10 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\cloudrequestengine;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\engines\CloudEngineBase;
@@ -36,11 +39,18 @@ use fiftyone\pipeline\engines\CloudEngineBase;
  * It requires the 51Degrees cloudRequestEngine to be placed in a
  *  pipeline before it. It takes that raw JSON response and
  * parses it to extract the device part.
- * It also uses this data to generate a list of properties and an evidence key filter.
+ * It also uses this data to generate a list of properties. It reads no
+ * Evidence, so it accepts none.
  */
 class CloudEngine extends CloudEngineBase
 {
     public string $dataKey = 'CloudEngineBase'; // This should be overridden
+
+    /**
+     * The Property types, in lower case, whose values are shapes in
+     * well-known text (WKT).
+     */
+    private const WKT_TYPES = ['wkt', 'wktstring', 'wkb', 'wkbr'];
 
     /**
      * @var array<string, array<string, mixed>>
@@ -48,38 +58,107 @@ class CloudEngine extends CloudEngineBase
     public array $aspectProperties;
 
     /**
-     * Callback called when an engine is added to a pipeline.
+     * Whether the missing product has been logged for this engine.
+     */
+    private bool $missingProductLogged = false;
+
+    /**
+     * Callback called when an engine is added to a pipeline. The engine
+     * takes its properties from the Cloud Request Engine, which normally
+     * has them once it is built, and logs a missing product then. Where it
+     * has none yet, processInternal does both on first use.
      *
-     * @throws \Exception
+     * @throws \Exception when the pipeline has no Cloud Request Engine
      */
     public function onRegistration(Pipeline $pipeline): void
     {
-        if (isset($pipeline->flowElementsList['cloud'])) {
+        $cloudRequestEngine = self::cloudRequestEngine($pipeline);
+        if ($cloudRequestEngine !== null) {
+            if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
+                $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
+            } elseif (
+                $cloudRequestEngine instanceof CloudRequestEngine &&
+                $cloudRequestEngine->propertiesLoaded()
+            ) {
+                $this->logMissingProductIn($pipeline);
+            }
+
             return;
         }
 
         throw new \Exception(Constants::CLOUDREQUESTENGINE_EXCEPTION_MESSAGE);
     }
 
+    /**
+     * The Cloud Request Engine in a pipeline, found by its Data Key, or by
+     * the deprecated key for an element still registered under that one.
+     * Its data is read by its own Data Key, so neither logs a deprecation.
+     */
+    protected static function cloudRequestEngine(Pipeline $pipeline): ?FlowElement
+    {
+        return $pipeline->flowElementsList[Constants::DATA_KEY]
+            ?? $pipeline->flowElementsList[Constants::DEPRECATED_DATA_KEY]
+            ?? null;
+    }
+
+    /**
+     * The raw JSON response the Cloud Request Engine got for the FlowData.
+     *
+     * @return mixed
+     * @throws \Exception when the FlowData holds no response
+     */
+    protected static function cloudResponse(FlowData $flowData)
+    {
+        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+
+        return CloudRequestData::jsonResponseOf($flowData->get(
+            $cloudRequestEngine->dataKey ?? Constants::DATA_KEY
+        ));
+    }
+
+    /**
+     * A cloud engine reads only the Cloud Request Engine's response, so it
+     * accepts no Evidence.
+     */
+    public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
+    {
+        return new BasicListEvidenceKeyFilter([]);
+    }
+
     public function processInternal(FlowData $flowData): void
     {
-        if (isset($flowData->pipeline->flowElementsList['cloud']->flowElementProperties[$this->dataKey])) {
+        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+        if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
             // set up properties list for the element from data in the CloudRequestEngine
-            $this->properties = $flowData->pipeline->flowElementsList['cloud']->flowElementProperties[$this->dataKey];
+            $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
         }
 
-        $cloudData = $flowData->get('cloud')->get('cloud');
+        if ($this->setDataForFailedRequest($flowData)) {
+            return;
+        }
+
+        $cloudData = self::cloudResponse($flowData);
+
+        $this->logMissingProduct($flowData);
 
         if ($cloudData) {
             $cloudData = json_decode($cloudData, true);
 
             $result = [];
 
+            // A response with no portion for this engine gives empty data,
+            // and is not an error.
+            if (!isset($cloudData[$this->dataKey]) || !is_array($cloudData[$this->dataKey])) {
+                $flowData->setElementData(new AspectDataDictionary($this, $result));
+
+                return;
+            }
+
             foreach ($cloudData[$this->dataKey] as $key => $value) {
                 if (isset($cloudData[$this->dataKey][$key . 'nullreason'])) {
                     $result[$key] = new AspectPropertyValue($cloudData[$this->dataKey][$key . 'nullreason']);
                 } else {
-                    $result[$key] = new AspectPropertyValue(null, $value);
+                    $result[$key] = new AspectPropertyValue(null, $this->wktText((string) $key, $value));
                 }
             }
 
@@ -87,5 +166,87 @@ class CloudEngine extends CloudEngineBase
 
             $flowData->setElementData($data);
         }
+    }
+
+    /**
+     * The text of a shape in well-known text (WKT), which the cloud service
+     * gives as an object with one member, value, holding the text, so that
+     * the value is the text the on-premise Engine gives. Any other value is
+     * given as it is.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private function wktText(string $key, $value)
+    {
+        $property = $this->properties[strtolower($key)] ?? [];
+        $type = $property['type'] ?? $property['Type'] ?? null;
+        if (!is_string($type) || !in_array(strtolower($type), self::WKT_TYPES, true)) {
+            return $value;
+        }
+
+        if (is_array($value) && array_keys($value) === ['value'] && is_string($value['value'])) {
+            return $value['value'];
+        }
+
+        return $value;
+    }
+
+    /**
+     * Log once, at warning level, when the products the Cloud Request Engine
+     * found hold nothing for this engine's Data Key. A Resource Key with no
+     * product for the engine is not an error. Call this after reading the
+     * Cloud Request Engine's Element Data, because the products are found
+     * before that data is set.
+     */
+    protected function logMissingProduct(FlowData $flowData): void
+    {
+        $this->logMissingProductIn($flowData->pipeline);
+    }
+
+    private function logMissingProductIn(Pipeline $pipeline): void
+    {
+        $products = self::cloudRequestEngine($pipeline)->flowElementProperties ?? [];
+        if ($this->missingProductLogged || isset($products[$this->dataKey])) {
+            return;
+        }
+
+        $this->missingProductLogged = true;
+        $pipeline->log('warning', sprintf(
+            "The Resource Key includes no product for '%s', so the engine gives no data.",
+            $this->dataKey
+        ));
+    }
+
+    /**
+     * Where the Cloud Request Engine's request for the FlowData failed, so
+     * that it has an error and no response, sets Element Data with no
+     * values whose every property gives the CloudRequestFailed reason, and
+     * returns true. The Cloud Request Engine's error stays the FlowData's
+     * error.
+     */
+    protected function setDataForFailedRequest(FlowData $flowData): bool
+    {
+        $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+        if (
+            $cloudRequestEngine === null ||
+            isset($flowData->data[$cloudRequestEngine->dataKey]) ||
+            !isset($flowData->errors[$cloudRequestEngine->dataKey])
+        ) {
+            return false;
+        }
+
+        $flowData->setElementData(new CloudRequestFailedData($this));
+
+        return true;
+    }
+
+    /**
+     * Element Data set for a failed cloud request is not cached, so that
+     * the next request with the same Evidence asks the cloud service again.
+     */
+    protected function holdsValueForOneRequest(ElementData $data): bool
+    {
+        return $data instanceof CloudRequestFailedData;
     }
 }

@@ -40,22 +40,53 @@ use fiftyone\pipeline\ipintelligence\translation\CountryCodeTranslationEngine;
  */
 class TranslationConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-translationconsoleonpremise.php&utm_term=enterprise-data-file';
+
+    // The properties the country lists are built from, which only the
+    // Enterprise data file has.
+    private const COUNTRY_PROPERTIES = [
+        'CountryCodesGeographical',
+        'CountryCodesPopulation'
+    ];
+
     /**
      * Build the on-premise pipeline (IP intelligence + the two translation
      * engines) and analyse the example IP addresses.
      *
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
+        // The engine the extension built when PHP started, from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $engine = new IpIntelligenceOnPremise();
+        if (ExampleUtils::lacksEnterpriseProperties(
+            $engine,
+            'Listing the countries an IP address is most likely in',
+            self::COUNTRY_PROPERTIES,
+            $output,
+            self::CONTACT_US
+        )) {
+            $engine->close();
+
+            return;
+        }
         $pipeline = (new PipelineBuilder([]))
-            ->add(new IpIntelligenceOnPremise(['dataFile' => $dataFile, 'performanceProfile' => 'MaxPerformance']))
+            ->add($engine)
             ->add(new CountryCodeTranslationEngine())
             ->add(new CountriesTranslationEngine())
             ->build();
 
-        foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
-            $this->analyse($pipeline, $evidence, $output);
+        // The pipeline is closed in the finally block, which releases the
+        // native data it holds.
+        try {
+            foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
+                $this->analyse($pipeline, $evidence, $output);
+            }
+        } finally {
+            $pipeline->close();
         }
     }
 
@@ -69,17 +100,24 @@ class TranslationConsoleOnPremise
      */
     public function analyse(Pipeline $pipeline, array $evidence, $output): void
     {
+        // The FlowData is closed in the finally block, which releases the
+        // results of the lookup straight away, rather than when the garbage
+        // collector next runs.
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->setArray($evidence);
-        $result = $flowData->process();
+        try {
+            $flowData->evidence->setArray($evidence);
+            $result = $flowData->process();
 
-        $translated = $result->countrynamestranslated;
-        $geo = $translated->get('countrycodesgeographicalall');
-        $pop = $translated->get('countrycodespopulationall');
+            $translated = $result->countrynamestranslated;
+            $geo = $translated->get('countrycodesgeographicalall');
+            $pop = $translated->get('countrycodespopulationall');
 
-        fwrite($output, 'Input: ' . json_encode($evidence) . "\n");
-        fwrite($output, "\tCountryCodesGeographicalAll: " . $this->codesLine($geo) . "\n");
-        fwrite($output, "\tCountryCodesPopulationAll: " . $this->codesLine($pop) . "\n\n");
+            fwrite($output, 'Input: ' . json_encode($evidence) . "\n");
+            fwrite($output, "\tCountryCodesGeographicalAll: " . $this->codesLine($geo) . "\n");
+            fwrite($output, "\tCountryCodesPopulationAll: " . $this->codesLine($pop) . "\n\n");
+        } finally {
+            $flowData->close();
+        }
     }
 
     private function codesLine($apv): string

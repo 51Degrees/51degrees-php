@@ -32,7 +32,23 @@ namespace fiftyone\pipeline\ipintelligence\tests\classes;
  */
 class Constants
 {
+    // The environment variables the tests read a resource key and a data
+    // file from.
+    public const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
+    public const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
+
+    /**
+     * Read for the resource key when RESOURCE_KEY_VARIABLE is not set.
+     *
+     * @deprecated use {@see Constants::RESOURCE_KEY_VARIABLE}
+     */
     public const RESOURCE_KEY_ENV_VAR = 'resource_key';
+
+    /**
+     * Read for the data file when IPI_PATH_VARIABLE is not set.
+     *
+     * @deprecated use {@see Constants::IPI_PATH_VARIABLE}
+     */
     public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = 'IPINTELLIGENCEDATAFILE';
 
     public const IPV4_ADDRESS = '185.28.167.78';

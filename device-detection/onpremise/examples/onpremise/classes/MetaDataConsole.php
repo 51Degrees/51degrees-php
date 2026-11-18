@@ -28,11 +28,15 @@ use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 
 class MetaDataConsole
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-metadataconsole.php&utm_term=enterprise-data-file';
+
     /**
      * In this example, we use the DeviceDetectionPipelineBuilder
      * and configure it in code. For more information about
      * pipelines in general see the documentation at
-     * https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-metadataconsole.php&utm_term=run.
+     * https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-metadataconsole.php&utm_term=run.
      *
      * @param \fiftyone\pipeline\core\Logger $logger
      */
@@ -48,6 +52,10 @@ class MetaDataConsole
         $this->outputEvidenceKeyDetails($engine, $output);
         $this->outputProperties($engine, $output);
         ExampleUtils::checkDataFile($engine, $logger);
+        if (ExampleUtils::isLiteDataFile($engine)) {
+            $output('');
+            $output(ExampleUtils::getEnterpriseOffer(self::CONTACT_US));
+        }
     }
 
     private function outputEvidenceKeyDetails($engine, callable $output)

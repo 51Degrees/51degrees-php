@@ -38,27 +38,41 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
  *  - the device detection Hash engine (51degrees/fiftyone.devicedetection
  *    on-premise package and its FiftyOneDegreesHashEngine extension, with its
  *    data file configured via php.ini), and
- *  - the IP intelligence engine (FiftyOneDegreesIpIntelligenceEngine extension)
- *    with an .ipi data file.
+ *  - the IP intelligence engine (FiftyOneDegreesIpIntelligenceEngine
+ *    extension, with its data file configured via php.ini).
+ *
+ * Each extension builds its engine once, when PHP starts, so no request
+ * loads either data file.
  */
 class MixedConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-mixedconsoleonpremise.php&utm_term=enterprise-data-file';
+
     public const DEVICE_DETECTION_ONPREMISE_CLASS =
-        'fiftyone\\pipeline\\devicedetection\\DeviceDetectionOnPremise';
+        ExampleUtils::DEVICE_DETECTION_ONPREMISE_CLASS;
 
     /**
      * @param resource $output
      * @throws \Exception when the device detection on-premise engine is not
      *   available in the environment.
      */
-    public function run(string $ipDataFile, $output): void
+    public function run($output): void
     {
         $ddClass = self::DEVICE_DETECTION_ONPREMISE_CLASS;
-        if (!class_exists($ddClass)) {
+        if (!ExampleUtils::findDeviceDetectionOnPremise()) {
             throw new \Exception(
                 'The device detection on-premise package is not installed. Install ' .
                 '51degrees/fiftyone.devicedetection (on-premise) and build its native ' .
                 'extension to run the mixed on-premise example.'
+            );
+        }
+        if (!extension_loaded('FiftyOneDegreesHashEngine')) {
+            throw new \Exception(
+                'The FiftyOneDegreesHashEngine extension is not loaded. ' .
+                'device-detection/onpremise/OnPremise.md says how to build and ' .
+                'enable it.'
             );
         }
 
@@ -66,18 +80,33 @@ class MixedConsoleOnPremise
         // FiftyOneDegreesHashEngine.data_file php.ini setting.
         $deviceEngine = new $ddClass();
 
-        $ipEngine = new IpIntelligenceOnPremise([
-            'dataFile' => $ipDataFile,
-            'performanceProfile' => 'MaxPerformance'
-        ]);
+        // The IP intelligence engine reads its data file from the
+        // FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting.
+        $ipEngine = new IpIntelligenceOnPremise();
 
         $pipeline = (new PipelineBuilder([]))
             ->add($deviceEngine)
             ->add($ipEngine)
             ->build();
 
-        foreach (ExampleConstants::MIXED_EVIDENCE_VALUES as $evidence) {
-            $this->analyseEvidence($evidence, $pipeline, $output);
+        // The pipeline is closed in the finally block, which releases the
+        // native data it holds.
+        try {
+            $needsEnterprise = false;
+            foreach (ExampleConstants::MIXED_EVIDENCE_VALUES as $evidence) {
+                $needsEnterprise = $this->analyseEvidence(
+                    $evidence,
+                    $pipeline,
+                    $deviceEngine,
+                    $ipEngine,
+                    $output
+                ) || $needsEnterprise;
+            }
+            if ($needsEnterprise) {
+                fwrite($output, ExampleUtils::getEnterpriseNote(self::CONTACT_US) . "\n");
+            }
+        } finally {
+            $pipeline->close();
         }
     }
 
@@ -85,28 +114,47 @@ class MixedConsoleOnPremise
      * @param array<string, string> $evidence
      * @param resource $output
      */
-    private function analyseEvidence(array $evidence, $pipeline, $output): void
-    {
+    private function analyseEvidence(
+        array $evidence,
+        $pipeline,
+        $deviceEngine,
+        $ipEngine,
+        $output
+    ): bool {
+        // The FlowData is closed in the finally block, which releases the
+        // results of the lookup straight away, rather than when the garbage
+        // collector next runs.
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->setArray($evidence);
-        $result = $flowData->process();
+        try {
+            $flowData->evidence->setArray($evidence);
+            $result = $flowData->process();
 
-        fwrite($output, "Input values:\n");
-        foreach ($evidence as $key => $value) {
-            fwrite($output, sprintf("\t%s: %s\n", $key, $value));
-        }
+            fwrite($output, "Input values:\n");
+            foreach ($evidence as $key => $value) {
+                fwrite($output, sprintf("\t%s: %s\n", $key, $value));
+            }
 
-        fwrite($output, "Device Detection Results:\n");
-        $device = $result->device;
-        foreach (ExampleConstants::DEVICE_OUTPUT_PROPERTIES as $name) {
-            ExampleUtils::outputProperty($device, $name, $output);
-        }
+            fwrite($output, "Device Detection Results:\n");
+            $device = $result->device;
+            $needsEnterprise = false;
+            foreach (ExampleConstants::DEVICE_OUTPUT_PROPERTIES as $name) {
+                $needsEnterprise =
+                    ExampleUtils::outputEnterpriseProperty($deviceEngine, $device, $name, $output) ||
+                    $needsEnterprise;
+            }
 
-        fwrite($output, "IP Intelligence Results:\n");
-        $ip = $result->ip;
-        foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
-            ExampleUtils::outputProperty($ip, $name, $output);
+            fwrite($output, "IP Intelligence Results:\n");
+            $ip = $result->ip;
+            foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
+                $needsEnterprise =
+                    ExampleUtils::outputEnterpriseProperty($ipEngine, $ip, $name, $output) ||
+                    $needsEnterprise;
+            }
+            fwrite($output, "\n");
+
+            return $needsEnterprise;
+        } finally {
+            $flowData->close();
         }
-        fwrite($output, "\n");
     }
 }

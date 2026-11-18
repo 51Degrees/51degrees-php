@@ -54,6 +54,10 @@
  * We don't know for sure. The reason given is:
  * The results contained a null profile for the component which the required property belongs to.
  * ```
+ *
+ * Each lookup also shows the Hardware Vendor, which only the Enterprise data
+ * file has. With the free Lite data file the example says it needs the
+ * Enterprise data file and gives a link to ask for a copy.
  */
 
 // First we include the deviceDetectionPipelineBuilder
@@ -62,6 +66,13 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
+use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
+
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesHashEngine.data_file php.ini setting. Without it,
+// the example runs again in a PHP started with a data file, the free Lite
+// file unless another is named, downloaded when it is missing.
+ExampleUtils::startWithEngine($argv ?? []);
 
 $device = new DeviceDetectionOnPremise();
 
@@ -74,44 +85,74 @@ $pipeline = $pipeline->add($device)->build();
 
 function failuretomatch_checkifmobile($pipeline, $userAgent = '')
 {
-    // We create the flowData object that is used to add evidence to and read data from
+    // We create the flowData object that is used to add evidence to and read data from.
+    // It is closed in the finally block, which releases the results of the
+    // detection straight away.
     $flowData = $pipeline->createFlowData();
+    try {
+        // Add the User-Agent as evidence
 
-    // Add the User-Agent as evidence
+        $flowData->evidence->set('header.user-agent', $userAgent);
 
-    $flowData->evidence->set('header.user-agent', $userAgent);
+        // Now we process the flowData
+        $result = $flowData->process();
 
-    // Now we process the flowData
-    $result = $flowData->process();
+        // First we check if the property we're looking for has a meaningful result
 
-    // First we check if the property we're looking for has a meaningful result
+        echo "Does User-Agent '<b>" . $userAgent . "</b>' represent a mobile device?:";
+        echo "</br>\n";
 
-    echo "Does User-Agent '<b>" . $userAgent . "</b>' represent a mobile device?:";
-    echo "</br>\n";
-
-    if ($result->device->ismobile->hasValue) {
-        if ($result->device->ismobile->value) {
-            echo 'Yes';
+        if ($result->device->ismobile->hasValue) {
+            if ($result->device->ismobile->value) {
+                echo 'Yes';
+            } else {
+                echo 'No';
+            }
         } else {
-            echo 'No';
+            echo "We don't know for sure. The reason given is:";
+            echo "</br>\n";
+            // If it doesn't have a meaningful result, we echo out the reason why
+            // it wasn't meaningful
+            echo $result->device->ismobile->noValueMessage;
+            echo "</br>\n";
         }
-    } else {
-        echo "We don't know for sure. The reason given is:";
-        echo "</br>\n";
-        // If it doesn't have a meaningful result, we echo out the reason why
-        // it wasn't meaningful
-        echo $result->device->ismobile->noValueMessage;
-        echo "</br>\n";
-    }
 
-    echo "</br>\n";
-    echo "</br>\n";
+        // HardwareVendor is only in the Enterprise data file. The value is
+        // read only when the data file in use has the property.
+        echo "</br>\n";
+        echo 'Hardware Vendor: ' . ExampleUtils::getEnterpriseValue(
+            $pipeline->getElement('device'),
+            $result->device,
+            'hardwarevendor'
+        );
+
+        echo "</br>\n";
+        echo "</br>\n";
+    } finally {
+        $flowData->close();
+    }
 }
 
-// Some example User-Agents to test
+// Some example User-Agents to test. The pipeline is closed in the finally
+// block once they have been.
 
-$iPhoneUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114';
-failuretomatch_checkifmobile($pipeline, $iPhoneUA);
+try {
+    $iPhoneUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114';
+    failuretomatch_checkifmobile($pipeline, $iPhoneUA);
 
-$badUserAgent = 'nonsense ua...';
-failuretomatch_checkifmobile($pipeline, $badUserAgent);
+    $badUserAgent = 'nonsense ua...';
+    failuretomatch_checkifmobile($pipeline, $badUserAgent);
+
+    if (!ExampleUtils::hasProperty($device, 'hardwarevendor')) {
+        echo ExampleUtils::getEnterpriseNote(ExampleUtils::getTaggedLink(
+            'contact-us',
+            __FILE__,
+            'enterprise-data-file'
+        ));
+        echo "</br>\n";
+    }
+} finally {
+    $pipeline->close();
+}
+
+ExampleUtils::printFindOutMore(__FILE__);

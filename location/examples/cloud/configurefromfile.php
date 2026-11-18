@@ -31,11 +31,15 @@
 * The resource key is used as short-hand to store the particular set of
 * properties you are interested in as well as any associated license keys
 * that entitle you to increased request limits and/or paid-for properties.
-* You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-configurefromfile.php&utm_term=header). 
+* You can create a resource key using the 51Degrees [configuration page](https://51degrees.com/configure/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-configurefromfile.php&utm_term=header). 
 * 
 * This example uses the 'Country' property, which is pre-populated 
 * when creating a key using the link above.
 * 
+* Put the key in the configuration file in place of !!YOUR_RESOURCE_KEY!!,
+* or set the _51DEGREES_RESOURCE_KEY environment variable to it, which is
+* used in place of the key in the file.
+*
 * The configuration file used here is:
 *
 * ```
@@ -66,6 +70,8 @@
 require(__DIR__ . "/../../vendor/autoload.php");
 
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 
 $builder = new PipelineBuilder();
 
@@ -74,21 +80,37 @@ $configFile = __DIR__ . "/pipeline.json";
 // Check if config file exists
 if (!file_exists($configFile)) {
     echo "Config file not found at " . $configFile;
+    Constants::printFindOutMore(__FILE__);
     return;
 }
 
-// Check if config file resource key has been filled in
-$configFileJSON = json_decode(file_get_contents($configFile), true);
+$config = json_decode(file_get_contents($configFile), true);
 
-$resourceKey = $configFileJSON["PipelineOptions"]["Elements"][0]["BuildParameters"]["resourceKey"];
+// A key in the environment variable is used in place of the one in the
+// configuration file.
+$resourceKey = EnvironmentVariable::read(
+    Constants::RESOURCE_KEY_VARIABLE,
+    Constants::RESOURCE_KEY_ENV_VAR,
+    "!!YOUR_RESOURCE_KEY!!"
+);
+if ($resourceKey !== '') {
+    $config["PipelineOptions"]["Elements"][0]["BuildParameters"]["resourceKey"] = $resourceKey;
+}
+
+// Check if a resource key has been given
+$resourceKey = $config["PipelineOptions"]["Elements"][0]["BuildParameters"]["resourceKey"];
 if (substr($resourceKey, 0, 2) === "!!") {
-    echo "You need to create a resource key at " .
-    "https://configure.51degrees.com/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-configurefromfile.php&utm_term=resource-key-required and paste it into " . 
-    "your config file, replacing !!YOUR_RESOURCE_KEY!!.";
+    echo "No resource key specified in the environment variable \"" .
+        Constants::RESOURCE_KEY_VARIABLE . "\" or the configuration file.\n" .
+        "Create a resource key at " .
+        "https://51degrees.com/configure/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-configurefromfile.php&utm_term=resource-key-required\n" .
+        "Then set the environment variable to it, or paste it into the " .
+        "configuration file in place of !!YOUR_RESOURCE_KEY!!.\n";
+    Constants::printFindOutMore(__FILE__);
     return;
 }
 
-$pipeline = $builder->buildFromConfig($configFile);
+$pipeline = $builder->buildFromConfig($config);
 
 $flowData = $pipeline->createFlowData();
 
@@ -113,3 +135,5 @@ if ($country->hasValue) {
     // Echo out why the value isn't meaningful
     echo $country->noValueMessage;
 }
+
+Constants::printFindOutMore(__FILE__);

@@ -25,8 +25,38 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\cloudrequestengine;
 
+use fiftyone\pipeline\core\LicenseKey;
+
 class HttpClient
 {
+    private float $timeoutSeconds = Constants::TIMEOUT_SECONDS_DEFAULT;
+
+    /**
+     * Sets the timeout of each request, in seconds. A request the cloud
+     * service has not answered by then fails as one that could not be made.
+     *
+     * @throws \InvalidArgumentException when the timeout is not greater
+     *   than 0, which curl would read as no timeout at all
+     */
+    public function setTimeoutSeconds(float $timeoutSeconds): void
+    {
+        if (!($timeoutSeconds > 0)) {
+            throw new \InvalidArgumentException(sprintf(
+                Constants::MESSAGE_TIMEOUT_NOT_POSITIVE,
+                var_export($timeoutSeconds, true)
+            ));
+        }
+        $this->timeoutSeconds = $timeoutSeconds;
+    }
+
+    /**
+     * The timeout of each request, in seconds.
+     */
+    public function getTimeoutSeconds(): float
+    {
+        return $this->timeoutSeconds;
+    }
+
     /**
      * Internal helper method to make a cloud request
      * uses CURL if available, falls back to file_get_contents.
@@ -50,7 +80,8 @@ class HttpClient
                     'method' => $type,
                     'ignore_errors' => true,
                     'header' => $headerText,
-                    'content' => $content
+                    'content' => $content,
+                    'timeout' => $this->timeoutSeconds
                 ]
             ]);
 
@@ -65,11 +96,11 @@ class HttpClient
                 // caller heard nothing about the connection.
                 $error = error_get_last();
 
-                throw new CloudRequestException(sprintf(
+                throw new CloudRequestException(LicenseKey::maskQuery(sprintf(
                     Constants::MESSAGE_REQUEST_FAILED,
                     $url,
                     $error['message'] ?? 'the reason was not reported'
-                ));
+                )));
             }
 
             $statusCode = $this->getHttpCode($http_response_header);
@@ -82,6 +113,10 @@ class HttpClient
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_HEADER, true);
+        // The whole request, connecting included, stops at the timeout.
+        // Without signals, a timeout below one second works too.
+        curl_setopt($ch, CURLOPT_NOSIGNAL, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT_MS, (int) ceil($this->timeoutSeconds * 1000));
         if (!empty($originHeader)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 $headerText
@@ -107,11 +142,11 @@ class HttpClient
             $error = curl_error($ch);
             curl_close($ch);
 
-            throw new CloudRequestException(sprintf(
+            throw new CloudRequestException(LicenseKey::maskQuery(sprintf(
                 Constants::MESSAGE_REQUEST_FAILED,
                 $url,
                 $error === '' ? 'the reason was not reported' : $error
-            ));
+            )));
         }
 
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -172,12 +207,18 @@ class HttpClient
     private function validateResponse(string $cloudResponse, int $httpStatusCode, array $httpResponseHeaders, string $url): void
     {
         $message = null;
+        $errors = [];
+        $warnings = [];
 
         if ($cloudResponse) {
             $json = json_decode($cloudResponse, true);
+            if (is_array($json)) {
+                $errors = self::entries($json, 'errors');
+                $warnings = self::entries($json, 'warnings');
+            }
 
-            if (isset($json['errors']) && count($json['errors'])) {
-                $message = implode(',', $json['errors']);
+            if (count($errors) > 0) {
+                $message = implode(',', $errors);
             } elseif ($httpStatusCode !== 200) {
                 // If there were no errors returned but the response code was non
                 // success then throw an exception.
@@ -193,9 +234,40 @@ class HttpClient
         if (isset($message)) {
             // Get the response headers.
             $responseHeaders = $this->parseHeaders($httpResponseHeaders);
-            $cloudError = sprintf(Constants::EXCEPTION_CLOUD_ERROR, $message);
+            $cloudError = LicenseKey::maskQuery(
+                sprintf(Constants::EXCEPTION_CLOUD_ERROR, $message)
+            );
 
-            throw new CloudRequestException($cloudError, $httpStatusCode, $responseHeaders);
+            throw new CloudRequestException(
+                $cloudError,
+                $httpStatusCode,
+                $responseHeaders,
+                array_map([LicenseKey::class, 'maskQuery'], $errors),
+                array_map([LicenseKey::class, 'maskQuery'], $warnings)
+            );
         }
+    }
+
+    /**
+     * The entries of an array in the response as text, or none where the
+     * response has no such array.
+     *
+     * @param array<mixed> $json The decoded response
+     * @return array<string>
+     */
+    private static function entries(array $json, string $name): array
+    {
+        if (!isset($json[$name]) || !is_array($json[$name])) {
+            return [];
+        }
+
+        $entries = [];
+        foreach ($json[$name] as $entry) {
+            $entries[] = is_scalar($entry)
+                ? (string) $entry
+                : (string) json_encode($entry);
+        }
+
+        return $entries;
     }
 }

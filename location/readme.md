@@ -3,9 +3,9 @@
 
 # 51Degrees Geo-Location Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-geo-location-engines "Data rewards the curious") **Pipeline API**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **Pipeline API**
 
-[Developer Documentation](https://51degrees.com/location-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-geo-location-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=51degrees-geo-location-engines "developer documentation")
 
 ## Introduction
 
@@ -34,7 +34,7 @@ Make sure to select the latest version from [Composer.][composer]
 #### Configuration Options
 
  - String ``type`` - The name of the type of geolocation service to use.
- - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=configuration-options).
+ - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://51degrees.com/configure?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=configuration-options).
  - Array ``restrictedProperties`` - The properties to populate values for in the result (all are populated by default).
 
 ## Examples
@@ -48,7 +48,7 @@ Examples can be found in the `examples` folder. See below for a list of examples
 |combiningservices.php|This example uses geo-location alongside device detection to determine the country and device.|Cloud|
 |webIntegration.php|This example demonstrates how to integrate the geo-location solution into a website.|Cloud|
 
-Ensure the `resource_key` environment variable is set to your resource key prior to running the example scripts.
+Ensure the `_51DEGREES_RESOURCE_KEY` environment variable is set to your resource key prior to running the example scripts.
 
 To run the examples, go to the `examples` directory and run:
 
@@ -72,5 +72,12 @@ To run the tests, then call:
 
 For complete documentation on the Pipeline API and associated engines, see the [51Degrees documentation site][Documentation].
 
-[Documentation]: https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=project-documentation
+[Documentation]: https://51degrees.com/documentation/index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=project-documentation
 [composer]: https://packagist.org/packages/51degrees/fiftyone.geolocation
+
+## Find out more
+
+- [Geolocation](https://51degrees.com/geolocation?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-geolocation)
+- [Reverse geocoding documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-documentation)
+- [Pricing](https://51degrees.com/pricing?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=find-out-more-pricing)
+- https://github.com/51Degrees/51degrees-php

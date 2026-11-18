@@ -19,6 +19,12 @@
     ],
     "license": "EUPL-1.2",
     "type": "library",
+    "homepage": "https://51degrees.com/geolocation?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=homepage",
+    "support":
+    {
+        "source": "https://github.com/51Degrees/51degrees-php",
+        "docs": "https://51degrees.com/documentation/_reverse_geocoding__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=documentation"
+    },
     "autoload":
     {
         "psr-4":

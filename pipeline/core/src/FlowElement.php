@@ -49,6 +49,15 @@ class FlowElement
     public array $pipelines = [];
 
     /**
+     * Data Keys the element had before. Pipeline::getElement and
+     * FlowData::get still answer to each, logging once that it is
+     * deprecated, so code that names an old key keeps working.
+     *
+     * @var array<string>
+     */
+    public array $deprecatedDataKeys = [];
+
+    /**
      * A default dummy constructor is needed for there are classes inheriting this
      * class deeper than 1-level of inheritance and calling parent::__construct() in their
      * explicit constructors. Unfortunately intermediates do not define their own __construct()
@@ -68,12 +77,13 @@ class FlowElement
     }
 
     /**
-     * Function for getting the FlowElement's EvidenceKeyFilter
-     * Used by the filterEvidence method.
+     * The Evidence this element accepts. An element overrides this to name
+     * the Evidence that can change its results. One that does not accepts no
+     * Evidence, so it never widens what the Pipeline keeps.
      */
     public function getEvidenceKeyFilter(): EvidenceKeyFilter
     {
-        return new EvidenceKeyFilter();
+        return new BasicListEvidenceKeyFilter([]);
     }
 
     /**

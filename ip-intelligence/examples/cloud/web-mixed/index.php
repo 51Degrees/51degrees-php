@@ -9,6 +9,16 @@
  *
  * If a copy of the EUPL was not distributed with this file, You can obtain
  * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
 /*
@@ -35,6 +45,7 @@ $resourceKey = ExampleUtils::getResourceKey();
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 $error = null;
+$errorLink = null;
 $dd = [];
 $ipi = [];
 $evidence = [];
@@ -57,7 +68,8 @@ function apvStr($data, string $key): string
 }
 
 if (!$resourceKey) {
-    $error = 'No resource key configured. Set the resource_key environment variable before starting the server. It must be authorised for both device detection and IP intelligence.';
+    $error = 'No resource key configured. Set the _51DEGREES_RESOURCE_KEY environment variable before starting the server. It must be authorised for both device detection and IP intelligence.';
+    $errorLink = 'https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=resource-key-required';
 } else {
     try {
         $builder = new DeviceDetectionPipelineBuilder([
@@ -80,22 +92,24 @@ if (!$resourceKey) {
         // request came from.
         $flowData->evidence->setFromWebRequest();
         $flowData->evidence->set('query.client-ip', $ip);
-        $result = $flowData->process();
 
-        // Ask the browser for the User-Agent Client Hints detection uses.
-        Utils::setResponseHeader($flowData);
-
+        // The script and its callback. Utils processes the flow data itself
+        // and sets the cache headers, so a browser revalidating its copy
+        // gets a 304 without any processing.
         if ($path === '/51Degrees.core.js') {
-            header('Content-Type: application/x-javascript');
-            echo $flowData->javascriptbuilder->javascript;
+            Utils::javascriptResponse($flowData)->send();
             exit;
         }
 
         if ($path === '/json') {
-            header('Content-Type: application/json');
-            echo json_encode($flowData->jsonbundler->json);
+            Utils::jsonResponse($flowData)->send();
             exit;
         }
+
+        $result = $flowData->process();
+
+        // Ask the browser for the User-Agent Client Hints detection uses.
+        Utils::setResponseHeader($flowData);
 
         $device = $result->device;
         $dd = [
@@ -193,7 +207,7 @@ foreach ($evidence as $k => $v) {
         </p>
 
         <?php if ($error): ?>
-            <div class="c-eg-alert"><?= h($error) ?></div>
+            <div class="c-eg-alert"><?= h($error) ?><?php if ($errorLink !== null): ?> <a href="<?= h($errorLink) ?>">Create a resource key</a>.<?php endif; ?></div>
         <?php else: ?>
         <div id="content">
             <form method="get" action="" class="c-eg-form">
@@ -247,17 +261,13 @@ foreach ($evidence as $k => $v) {
         </div>
         <?php endif; ?>
 
-        <h3 class="c-eg-page__heading">Find out more</h3>
-        <ul>
-            <li><a href="https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-device-detection">Device detection</a></li>
-            <li><a href="https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-ip-intelligence">IP intelligence</a></li>
-            <li><a href="https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-resource-keys">Resource keys</a></li>
-            <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-web-mixed-index.php&utm_term=find-out-more-pricing">Pricing</a></li>
-            <li>IP intelligence engine: <a href="https://github.com/51Degrees/51degrees-cxx">https://github.com/51Degrees/51degrees-cxx</a></li>
-            <li>Device detection for PHP: <a href="https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud">https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud</a></li>
-        </ul>
+        <?= ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
+    <?php
+    // With no results the script has nothing to refine and answers with an
+    // error status, so the page only asks for it when there are results.
+    if (!$error): ?>
     <!--
         51Degrees.core.js carries the results as JSON, gathers evidence in the
         browser, posts it to /json and raises the 'complete' event with the
@@ -271,5 +281,6 @@ foreach ($evidence as $k => $v) {
             fodExamples.bindDeviceCallback({ targetId: "content" });
         };
     </script>
+    <?php endif; ?>
 </body>
 </html>

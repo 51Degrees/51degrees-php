@@ -34,28 +34,52 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
  */
 class OfflineProcessingConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-offlineprocessingconsoleonpremise.php&utm_term=enterprise-data-file';
+
     /**
      * @param array<string> $ipAddresses
      * @param resource $output
      */
-    public function run(string $dataFile, array $ipAddresses, $output): void
+    public function run(array $ipAddresses, $output): void
     {
-        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
-        ]))->build();
+        // The engine is the one the extension built when PHP started, from
+        // the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini setting,
+        // so the pipeline takes no settings.
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder())->build();
 
-        foreach ($ipAddresses as $ipAddress) {
-            $flowData = $pipeline->createFlowData();
-            $flowData->evidence->set('query.client-ip', $ipAddress);
-            $result = $flowData->process();
+        // The pipeline is closed in the finally block, which releases the
+        // native data it holds.
+        try {
+            $engine = $pipeline->getElement('ip');
+            $needsEnterprise = false;
+            foreach ($ipAddresses as $ipAddress) {
+                // Each FlowData is closed in its finally block, which
+                // releases the results of the lookup straight away, rather
+                // than when the garbage collector next runs.
+                $flowData = $pipeline->createFlowData();
+                try {
+                    $flowData->evidence->set('query.client-ip', $ipAddress);
+                    $result = $flowData->process();
 
-            $ip = $result->ip;
-            fwrite($output, "---\n");
-            fwrite($output, sprintf("query.client-ip: %s\n", $ipAddress));
-            foreach (['RegisteredName', 'Country', 'CountryCode'] as $name) {
-                ExampleUtils::outputProperty($ip, $name, $output);
+                    $ip = $result->ip;
+                    fwrite($output, "---\n");
+                    fwrite($output, sprintf("query.client-ip: %s\n", $ipAddress));
+                    foreach (['RegisteredName', 'Country', 'CountryCode'] as $name) {
+                        $needsEnterprise =
+                            ExampleUtils::outputEnterpriseProperty($engine, $ip, $name, $output) ||
+                            $needsEnterprise;
+                    }
+                } finally {
+                    $flowData->close();
+                }
             }
+            if ($needsEnterprise) {
+                fwrite($output, '# ' . ExampleUtils::getEnterpriseNote(self::CONTACT_US) . "\n");
+            }
+        } finally {
+            $pipeline->close();
         }
     }
 }

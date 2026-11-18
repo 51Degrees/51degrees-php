@@ -16,20 +16,22 @@ try {
     New-Item -ItemType Directory -Force -Path cxx | Out-Null
     Copy-Item -Recurse -Path "$PSScriptRoot/../../cxx/src" -Destination cxx/src -ErrorAction Stop
 
-    # Generate the SWIG wrapper (requires SWIG 4.1+ on PATH).
-    New-Item -ItemType Directory -Force -Path src/php8 | Out-Null
-    swig -c++ -php -module FiftyOneDegreesIpIntelligenceEngine -outdir src/php8 -o src/php8/ipi_wrap.cxx ipi-php.i || $(throw "swig failed")
-
+    # The build compiles the committed wrapper, which configure copies from
+    # src/php8. A wrapper from another SWIG would join the Device Detection
+    # extension's SWIG type table in a PHP that loads both, which crashes PHP.
     phpize || $(throw "phpize failed")
     ./configure --enable-FiftyOneDegreesIpIntelligenceEngine || $(throw "configure failed")
-    Copy-Item -Path src/php8/* -Destination . -Force
     make "-j$([Environment]::ProcessorCount)" || $(throw "make failed")
 } finally {
     Pop-Location
 }
 
+# The extension builds its engine once, when PHP starts, from the free Lite
+# data file that fetch-assets links into the package's assets folder, as
+# OnPremise.md says to set it up. The examples use that engine.
 @"
 extension = "$PWD/$RepoName/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so"
+FiftyOneDegreesIpIntelligenceEngine.data_file = "$PWD/$RepoName/assets/51Degrees-LiteIpiV41.ipi"
 "@ | Out-File $RepoName/php.ini
 
 # composer.json resolves 51degrees/fiftyone.pipeline.translation through a path
@@ -42,7 +44,19 @@ if (-not (Test-Path $translationPath)) {
     git clone --depth 1 "https://github.com/$OrgName/$TranslationRepoName" $translationPath || $(throw "failed to clone $OrgName/$TranslationRepoName")
 }
 
-$env:COMPOSER = "composer.json"
+# The pipeline packages come from this checkout rather than Packagist, so the
+# tests run with the pipeline code they are released with. A copy of
+# composer.json gets the path repositories, and the published one is left as
+# it is.
+$composer = Get-Content -Raw $RepoName/composer.json | ConvertFrom-Json -AsHashtable
+$composer['repositories'] = @(foreach ($name in 'core', 'engines', 'cloudrequestengine') {
+    @{ type = 'path'; url = "../pipeline/$name"; options = @{ symlink = $true;
+        versions = @{ "51degrees/fiftyone.pipeline.$name" = '4.x-dev' } } }
+}) + @($composer['repositories'])
+$composer['minimum-stability'] = 'dev'
+$composer['prefer-stable'] = $true
+$composer | ConvertTo-Json -Depth 20 | Set-Content $RepoName/composer.ci.json
+$env:COMPOSER = "composer.ci.json"
 ./php/build-project.ps1 -RepoName $RepoName
 
 exit $LASTEXITCODE

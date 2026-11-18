@@ -3,6 +3,8 @@
 
 # 51Degrees Pipeline 51Did (PHP)
 
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious")
+
 Strongly typed PHP reader for the 51Did (51Degrees Identifier) returned by the
 51Degrees Cloud service, and a client for the cloud's 51Did endpoints so a
 server never hand-writes HTTP or key handling. Mirrors the .NET `FiftyOne.Did`
@@ -100,8 +102,9 @@ answers with no address.
 
 Bits 4 and 5 of the flags byte say which payload layout the identifier
 follows, and this package reads version 0. A payload naming version 1, 2 or
-3 is refused with `FodIdParseStatus::UnsupportedPayloadVersion`, and the
-raising readers name the version they found in the message.
+3 is refused with `FodIdParseStatus::UnsupportedPayloadVersion`, however
+short it is after the flags byte, and the raising readers name the version
+they found in the message.
 
 No field is read under the layout this package knows once the version says
 otherwise. A later version exists precisely because a field moved, so
@@ -163,8 +166,10 @@ use fiftyone\pipeline\did\IdType;
 // A value from outside may be anything at all, so reading answers rather
 // than raising. Either base64 alphabet is accepted, standard as the cloud
 // issues it or URL-safe as a page puts it in a link, with or without
-// padding, and surrounding whitespace such as a trailing newline is
-// ignored. A null, an empty string or an array is reported, not raised.
+// padding, and white space around it such as a trailing newline is
+// ignored. A value with white space inside it, or with characters from
+// both alphabets, is refused. A null, an empty string or an array is
+// reported, not raised.
 $result = FodId::tryFromBase64($_GET['51did'] ?? null);
 if (!$result->ok) {
     // $result->status names the reason and is safe to log.
@@ -194,6 +199,14 @@ $urlSafe  = $fodId->asBase64Url();    // for a URL, no padding
 `FodId::fromBase64()`, `FodId::fromByteArray()`, `FodId::fromOwid()` and the
 constructor remain and raise for the same inputs the `try` factories
 report, so code written against them keeps working.
+
+A `FodId` can be serialized, for example into a session. The serialized
+form holds only the envelope's bytes, and `unserialize()` reads them again
+with the same checks, raising `OwidException` or `InvalidArgumentException`
+as `FodId::fromByteArray()` does, so an unserialized 51Did is made by
+reading a complete envelope. A string written by an earlier release still
+reads, and only the envelope is taken from it, never the fields stored
+beside it. A clone is the same identifier, read from the same envelope.
 
 ## What the identifier says it may be used for
 
@@ -258,17 +271,17 @@ things the payload can get wrong are this package's own
 | Status | From | Meaning |
 | --- | --- | --- |
 | `Parsed` | OWID | A 51Did in a sound envelope. Says nothing about the signature |
-| `MissingInput` | OWID | Nothing was given, being null, an empty string or whitespace only |
+| `MissingInput` | OWID | Nothing was given, being null, an empty string or white space only |
 | `InvalidInputType` | OWID | Not a string, for example the array PHP builds when a query parameter repeats with brackets |
-| `InvalidBase64` | OWID | The text is not base64, so there are no bytes to read |
+| `InvalidBase64` | OWID | The text is not base64 in one alphabet, so there are no bytes to read. White space inside the text, and characters from both alphabets, report this |
 | `UnsupportedVersion` | OWID | The first byte names an envelope version the library does not know |
 | `UnexpectedEnd` | OWID | The bytes stop part way through a field, before the payload length was read |
 | `InvalidDomainEncoding` | OWID | The creator domain has no terminator within the length a domain name can hold |
 | `ByteCountMismatch` | OWID | The declared payload length disagrees with the bytes present, whichever way they fall short |
 | `AbsentNode` | OWID | The marker for an absent OWID, a single zero byte, which is well formed and is not an identifier |
-| `PayloadTooShort` | this package | The payload holds fewer than the 5 header bytes, so the type cannot be read |
+| `PayloadTooShort` | this package | The payload is empty, or names payload version 0 and holds fewer than the 5 header bytes, so the type cannot be read |
 | `InvalidTypePayloadLength` | this package | The header names a type whose match key the payload is too short to hold, being 16 bytes after the header for Random and 32 for Probabilistic or HashedEmail |
-| `UnsupportedPayloadVersion` | this package | Bits 4 and 5 of the flags byte name a payload layout version other than 0, so no field is read |
+| `UnsupportedPayloadVersion` | this package | Bits 4 and 5 of the flags byte name a payload layout version other than 0, so no field is read, however short the payload is |
 | `NoUsage` | this package | Bits 0 to 2 of the flags byte are all clear, so the identifier states no usage. The cloud never writes that, so the identifier is damaged or forged |
 
 Both enums are string backed with the cross language name of the status,
@@ -352,7 +365,7 @@ key (for `idproblic`) or across all callers (for `idprobglobal`).
 the cloud. Build one at start-up with the page's resource key, the
 account's licence key (server side only, needed to redeem where the
 account holds licence keys) and, optionally, the API base. When the base
-is not given the client reads `FOD_CLOUD_API_URL`, the same variable the
+is not given the client reads `_51DEGREES_CLOUD_ENDPOINT`, the same variable the
 cloud request engine honours, and falls back to
 `https://cloud.51degrees.com/api/v4/`. A value with or without a trailing
 slash is accepted. Credentials never travel in a URL. The key list and
@@ -455,6 +468,10 @@ the creating service recorded no value for it, so the identifier says
 nothing about it. A `NotRecorded` factor is left out of the overall result,
 so `ContextOutcome::Verified` can arrive beside factors that are
 `NotRecorded`, and the factors then say how many the verdict rests on.
+A factor word is read without regard to case, so `Verified` reads as
+`FactorOutcome::Verified`, and a word the package does not know reads as
+`FactorOutcome::Mismatch`. `toArray()` gives each factor back as the
+package's lower case word.
 
 `verify()` and `redeem()` also take the identifier as a string, in either
 alphabet. The client reads the string with `FodId::tryFromBase64()` first
@@ -495,8 +512,8 @@ vendor/bin/phpunit
 ```
 
 The `Live` suite calls the cloud and is skipped unless
-`_51DEGREES_RESOURCE_KEY` (or the legacy `RESOURCE_KEY`) is set, with
-`_51DEGREES_LICENSE_KEY` and `FOD_CLOUD_API_URL` read as the demo reads
+`_51DEGREES_RESOURCE_KEY` is set, with
+`_51DEGREES_LICENSE_KEY` and `_51DEGREES_CLOUD_ENDPOINT` read as the demo reads
 them. Each live test costs uses against the subscription behind the key.
 
 ## Creator context demo
@@ -507,7 +524,7 @@ The demo under `examples/creator-context-web/` shows the flow against the
 cloud from a real browser, which is the only place the check makes sense,
 since a program verifying its own connection checks itself against
 itself. The demo's server uses `DidClient` from this package, so run
-`composer install` at the repository root first.
+`composer install` in this package's folder first.
 
 ### What the demo shows
 
@@ -614,13 +631,13 @@ carrying any other.
 
 | Variable | Meaning |
 | --- | --- |
-| `_51DEGREES_RESOURCE_KEY` | Required. The resource key of your account, public by nature. The legacy `RESOURCE_KEY` is read when the aligned name is not set |
-| `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, server side only. The legacy `LICENSE_KEY` is read when the aligned name is not set. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
-| `FOD_CLOUD_API_URL` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than `cloud.51degrees.com` would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons. This is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
+| `_51DEGREES_RESOURCE_KEY` | Required. The resource key of your account, public by nature |
+| `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, server side only. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
+| `_51DEGREES_CLOUD_ENDPOINT` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than `cloud.51degrees.com` would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons. This is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
 
 ### How to run
 
-Run `composer install` at the repository root once, then from the
+Run `composer install` in this package's folder once, then from its
 `examples/creator-context-web` folder start the built-in server and open
 `http://localhost:5100/` in a browser. The port is the `php -S` argument.
 
@@ -664,3 +681,10 @@ the same context and may still verify.
 The `examples-main.min.css` vendored beside `page.html` is the 51Degrees
 examples design system build and is refreshed by common-ci's
 `update-example-assets` step.
+
+## Find out more
+
+- [51Did](https://51degrees.com/developers/51did?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.did&utm_term=find-out-more-51did)
+- [51Did documentation](https://51degrees.com/documentation/_identifiers_51_did.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.did&utm_term=find-out-more-documentation)
+- [51Did inspector](https://51degrees.com/developers/51did-inspector?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.pipeline.did&utm_term=find-out-more-51did-inspector)
+- https://github.com/51Degrees/51degrees-php

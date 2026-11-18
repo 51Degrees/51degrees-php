@@ -28,17 +28,60 @@ namespace fiftyone\pipeline\ipintelligence\examples\classes;
 class ExampleConstants
 {
     // Environment variable holding the cloud resource key.
+    public const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
+
+    /**
+     * Environment variable read for the cloud resource key when
+     * RESOURCE_KEY_VARIABLE is not set or is empty.
+     *
+     * @deprecated use {@see ExampleConstants::RESOURCE_KEY_VARIABLE}
+     */
     public const CLOUD_RESOURCE_KEY_ENV_VAR = 'resource_key';
 
     // Environment variable holding the path to an on-premise .ipi data file.
+    public const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
+
+    /**
+     * Environment variable read for the data file when IPI_PATH_VARIABLE
+     * is not set or is empty.
+     *
+     * @deprecated use {@see ExampleConstants::IPI_PATH_VARIABLE}
+     */
     public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = 'IPINTELLIGENCEDATAFILE';
 
+    // The free Lite data file, as the data repository names it. The examples
+    // download it into cxx/data/ip-intelligence when no other file is found.
+    public const LITE_DATA_FILE_NAME = '51Degrees-LiteV41.ipi';
+
+    // The free ASN data file, as the data repository names it. It has only
+    // the ASN properties and is far smaller than the Lite file, so the
+    // performance example, which reads one property, downloads it instead.
+    public const ASN_DATA_FILE_NAME = '51Degrees-IPIV4AsnIpiV41.ipi';
+
+    // Environment variable holding the path to a Device Detection .hash data
+    // file, which the mixed examples read when PHP built no Device Detection
+    // engine.
+    public const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
+
+    // The free Device Detection data file, as the data repository names it.
+    // The mixed examples download it into cxx/data/device-detection when PHP
+    // built no Device Detection engine and no other file is named.
+    public const DD_LITE_DATA_FILE_NAME = '51Degrees-LiteV4.1.hash';
+
     // The default on-premise data file names searched for, in priority order.
+    // The Asn file is left out, because it has only the Asn and AsnName
+    // properties and the examples are written for the Lite or Enterprise file.
     public const IPI_DATA_FILE_NAMES = [
         '51Degrees-EnterpriseIpiV41.ipi',
         '51Degrees-LiteIpiV41.ipi',
-        '51Degrees-IPIV4AsnIpiV41.ipi'
+        self::LITE_DATA_FILE_NAME
     ];
+
+    // Sent with each download of a data file, so that downloads can be
+    // counted by where they come from. It is left out inside GitHub Actions,
+    // where the data repository's script names the build instead, so that
+    // test runs are not counted as people using the examples.
+    public const DATA_DOWNLOAD_SOURCE = 'examples-51degrees-php';
 
     // Evidence (IP addresses) used by the getting started examples. These
     // match the values used by ip-intelligence-dotnet-examples.

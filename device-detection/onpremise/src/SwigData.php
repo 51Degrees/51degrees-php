@@ -28,6 +28,12 @@ use fiftyone\pipeline\engines\AspectData;
 
 class SwigData extends AspectData
 {
+    /**
+     * The names of the C library's match methods, in the order of its
+     * fiftyoneDegreesHashMatchMethod values, which getMethod returns.
+     */
+    private const MATCH_METHODS = ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'];
+
     private $result;
 
     public function __construct($engine, $result)
@@ -37,19 +43,43 @@ class SwigData extends AspectData
         parent::__construct(...func_get_args());
     }
 
+    /**
+     * Release the native results, which keep the engine's data in memory
+     * while they are held, even after the data has been refreshed. Values
+     * already read are unaffected, and reading a property afterwards throws
+     * an exception. Closing the FlowData closes its results.
+     */
+    public function close(): void
+    {
+        $this->result = null;
+    }
+
+    /**
+     * Get a property value, once the results are known to be open.
+     * Checked here, because AspectData::get turns an exception from
+     * getInternal into a missing property message.
+     * @throws \Exception
+     */
+    public function get(string $key)
+    {
+        if ($this->result === null) {
+            throw new \Exception(Messages::RESULTS_CLOSED);
+        }
+
+        return parent::get($key);
+    }
+
     public function __isset($key)
     {
-        return isset($this->flowElement->properties[strtolower($key)]);
+        return $this->flowElement->findProperty($key) !== null;
     }
 
     public function getInternal($key)
     {
-        $key = strtolower($key);
+        $property = $this->flowElement->findProperty($key);
 
-        if (isset($this->flowElement->properties[$key])) {
-            $property = $this->flowElement->properties[$key];
-
-            if ($property['category'] == 'DeviceMetrics') {
+        if ($property !== null) {
+            if ($property['category'] === DeviceDetectionOnPremise::METRICS_CATEGORY) {
                 switch ($property['name']) {
                     case 'MatchedNodes':
                         $result = new AspectPropertyValue(
@@ -76,10 +106,15 @@ class SwigData extends AspectData
                         );
                         break;
                     case 'UserAgents':
+                        // Each matched User-Agent once, as more than one
+                        // result can give the same one.
                         $useragents = [];
                         $count = $this->result->getUserAgents();
                         for ($i = 0; $i < $count; ++$i) {
-                            $useragents[] = $this->result->getUserAgent($i);
+                            $useragent = $this->result->getUserAgent($i);
+                            if (!in_array($useragent, $useragents, true)) {
+                                $useragents[] = $useragent;
+                            }
                         }
                         $result = new AspectPropertyValue(
                             null,
@@ -89,7 +124,7 @@ class SwigData extends AspectData
                     case 'Method':
                         $result = new AspectPropertyValue(
                             null,
-                            $this->result->getDifference()
+                            self::MATCH_METHODS[$this->result->getMethod()] ?? 'NONE'
                         );
                         break;
                     case 'Iterations':

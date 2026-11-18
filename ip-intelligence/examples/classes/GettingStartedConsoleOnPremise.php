@@ -29,22 +29,40 @@ use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 
 /**
  * Getting started (on-premise) example. Looks up IP intelligence data for a
- * set of IP addresses using a local .ipi data file.
+ * set of IP addresses with the engine the extension builds once, when PHP
+ * starts, from the FiftyOneDegreesIpIntelligenceEngine.data_file php.ini
+ * setting.
  */
 class GettingStartedConsoleOnPremise
 {
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-gettingstartedconsoleonpremise.php&utm_term=enterprise-data-file';
+
     /**
      * @param resource $output
      */
-    public function run(string $dataFile, $output): void
+    public function run($output): void
     {
-        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
-            'dataFile' => $dataFile,
-            'performanceProfile' => 'MaxPerformance'
-        ]))->build();
+        // The engine is the one the extension built when PHP started, so
+        // the pipeline takes no settings and no request loads the data file.
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder())->build();
 
-        foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
-            $this->analyseEvidence($evidence, $pipeline, $output);
+        // The pipeline is closed in the finally block, which releases the
+        // native data it holds.
+        try {
+            $engine = $pipeline->getElement('ip');
+            $needsEnterprise = false;
+            foreach (ExampleConstants::EVIDENCE_VALUES as $evidence) {
+                $needsEnterprise =
+                    $this->analyseEvidence($evidence, $pipeline, $engine, $output) ||
+                    $needsEnterprise;
+            }
+            if ($needsEnterprise) {
+                fwrite($output, ExampleUtils::getEnterpriseNote(self::CONTACT_US) . "\n");
+            }
+        } finally {
+            $pipeline->close();
         }
     }
 
@@ -52,22 +70,34 @@ class GettingStartedConsoleOnPremise
      * @param array<string, string> $evidence
      * @param resource $output
      */
-    private function analyseEvidence(array $evidence, $pipeline, $output): void
+    private function analyseEvidence(array $evidence, $pipeline, $engine, $output): bool
     {
+        // The FlowData is closed in the finally block, which releases the
+        // results of the lookup straight away, rather than when the garbage
+        // collector next runs.
         $flowData = $pipeline->createFlowData();
-        $flowData->evidence->setArray($evidence);
-        $result = $flowData->process();
+        try {
+            $flowData->evidence->setArray($evidence);
+            $result = $flowData->process();
 
-        fwrite($output, "Input values:\n");
-        foreach ($evidence as $key => $value) {
-            fwrite($output, sprintf("\t%s: %s\n", $key, $value));
-        }
+            fwrite($output, "Input values:\n");
+            foreach ($evidence as $key => $value) {
+                fwrite($output, sprintf("\t%s: %s\n", $key, $value));
+            }
 
-        fwrite($output, "Results:\n");
-        $ip = $result->ip;
-        foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
-            ExampleUtils::outputProperty($ip, $name, $output);
+            fwrite($output, "Results:\n");
+            $ip = $result->ip;
+            $needsEnterprise = false;
+            foreach (ExampleConstants::OUTPUT_PROPERTIES as $name) {
+                $needsEnterprise =
+                    ExampleUtils::outputEnterpriseProperty($engine, $ip, $name, $output) ||
+                    $needsEnterprise;
+            }
+            fwrite($output, "\n");
+
+            return $needsEnterprise;
+        } finally {
+            $flowData->close();
         }
-        fwrite($output, "\n");
     }
 }

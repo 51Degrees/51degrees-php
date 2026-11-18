@@ -10,5 +10,18 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
     exit 0
 }
 
-$assets = "TAC-HashV41.hash", "20000 User Agents.csv"
+# The TAC data file needs a device detection licence or the address of a
+# copy. Without either, as in a build with no secrets, only the free assets
+# are fetched, and ci/run-unit-tests.ps1 runs the tests that need no TAC file.
+$assets = @("20000 User Agents.csv", "51Degrees-LiteV4.1.hash")
+if ($DeviceDetection -or $DeviceDetectionUrl) {
+    $assets = @("TAC-HashV41.hash") + $assets
+} else {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Device Detection Licence::No device detection licence was given, so the TAC data file was not fetched."
+}
 ./steps/fetch-assets.ps1 -DeviceDetection:$DeviceDetection -DeviceDetectionUrl:$DeviceDetectionUrl -Assets $assets
+
+# The tests that run the examples with the free Lite data file look for it in
+# the data repository, where a fresh clone downloads it, so the asset is
+# linked there rather than downloaded again.
+New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/51Degrees-LiteV4.1.hash" -Path "$PSScriptRoot/../../../cxx/data/device-detection/51Degrees-LiteV4.1.hash" | Out-Null

@@ -1,8 +1,8 @@
 # 51Degrees PHP Device Detection On-Premise
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-device-detection-on-premise "Data rewards the curious") **PHP Pipeline API**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-php/main/.github/images/logo-160.png "Data rewards the curious") **PHP Pipeline API**
 
-[Developer Documentation](https://51degrees.com/device-detection-php/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=51degrees-php-device-detection-on-premise "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=51degrees-php-device-detection-on-premise "developer documentation")
 
 ## Introduction
 This project contains the on-premise version of 51Degrees Device Detection for the Pipeline API.
@@ -11,29 +11,30 @@ When using on-premise device detection engines in the PHP pipeline, the appropri
 
 ## Dependencies
 
-For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies) page.
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=dependencies) page shows 
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies) page shows 
 the PHP versions that we currently test against. The software may run fine against other versions, 
 but additional caution should be applied.
 
 ### Data file
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' sub-module of 'cxx', which has 
-a significantly reduced set of properties. To obtain a file with a more complete set of device 
-properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=data-file). 
-If you want to use the lite file, you will need to install [GitLFS](https://git-lfs.github.com/):
+The 'data' sub-module of 'cxx' has a script that downloads a free, 'lite' file. That file has
+a significantly reduced set of properties. The Enterprise data file has every device property,
+and the examples show the properties it adds as needing it.
+[Contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=data-file) for a copy.
+To download the lite file into 'cxx/data/device-detection', run this from the root of the repository:
 
 ```
-sudo apt-get install git-lfs
-git lfs install
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ```
 
-Then, navigate to 'cxx/device-detection-data' at the root of the repository and execute:
-
-```
-git lfs pull
-```
+On Windows, run `cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash` in PowerShell instead.
+Then set `FiftyOneDegreesHashEngine.data_file` in php.ini to that file, as
+[Configuration](#configuration) describes. The engine loads the file when PHP starts. When the
+setting names no file, or a file the engine cannot be built from, PHP still starts, with no
+engine, and `DeviceDetectionOnPremise` refuses with a message naming the setting. A file named
+by the setting that is missing or cannot be loaded also gives a warning when PHP starts, with
+the reason.
 
 ## Install
 
@@ -74,37 +75,26 @@ then be added to the active php.ini file.
 
 ### Regenerating swig wrapper files.
 
-**Note** - this step should not normally need to be performed outside 51Degrees. 
-We include the instructions here for the rare case where it is necessary.
-
-If the SWIG wrapper files need to be regenerated due to new code in the 'cxx'
- submodule, add `SWIG=1` to the `./configure` step. Note that for backwards compatibility with
- PHP 5, SWIG 3.0.12 is used for the pregenerated files in this repository. Newer versions of
- SWIG can be used, provided the extension is being built only for PHP 7.
-
-Currently, The generation of SWIG wrapper files is using a specific revision of SWIG and is done
-using the following steps:
-
-Checkout and install SWIG:
+The wrapper files in `on-premise/src/php8` are generated from
+`on-premise/hash-php.i` and are never edited by hand. When `hash-php.i` or the
+`cxx` submodule changes, install SWIG 4.5.1, the version that generated the
+committed files and the IP Intelligence wrapper, and run this from the root of
+the repository with the `cxx` submodule checked out.
 
 ```
-git clone https://github.com/swig/swig.git
+git clone --depth 1 --branch v4.5.1 https://github.com/swig/swig.git
 cd swig
-git checkout fd96627b2fc65353c03b160efd60fdce864d386c
 ./autogen.sh
 ./configure
 make
 sudo make install
+cd ..
+sh device-detection/onpremise/on-premise/generate-wrapper.sh
 ```
 
-Generate wrapper files:
-
-```
-$:~/device-detection-php-onpremise
-cd on-premise
-phpize
-swig -v -c++ -php7 -module FiftyOneDegreesHashEngine -outdir src/php8 -o src/php8/hash_wrap.cxx hash-php.i
-```
+Commit the changed `hash_wrap.cxx` and `php_FiftyOneDegreesHashEngine.h`. The
+`PHP wrapper check` workflow runs the same script with `--check` and fails when
+the committed files differ from what it generates.
 
 ### Windows 
 
@@ -136,11 +126,23 @@ path to where you have stored your 51Degrees data file.
 | `performance_profile` | `string` | PHP on premise can only run with the in-memory `MaxPerformance` profile, because it is the only profile that is safe under a process manager such as `Apache MPM` or `php-fpm`. See [Running Under Process Manager](#running-under-process-manager). Leave this unset or set it to `MaxPerformance`. Configuring any other value raises an exception explaining that in-memory is the only supported configuration. | `MaxPerformance` (enforced) |
 | `difference` | `int` | The difference value to allow when matching (`-1` to disable). | `0` |
 | `drift` | `int` | The drift to allow when matching (`-1` to disable). | `0` |
-| `use_predictive_graph` | `string` | True if the predictive optimized graph should be used for processing. | `true` |
-| `use_performance_graph` | `string` | True if the performance optimized graph should be used for processing. | `false` |
+| `allow_unmatched` | on or off | On if evidence that cannot be matched should give the values of the default profile for each component, rather than no values. | off |
+| `use_predictive_graph` | on or off | On if the predictive optimized graph should be used for processing. | on |
+| `use_performance_graph` | on or off | On if the performance optimized graph should be used for processing. | off |
 | `concurrency` | `int` | Maximum number of potential concurrent threads that the engine will be used with. We recommend that this should not be set higher than the number of CPUs available on your machine and this should never be set to be less than or equal to 0. `NOTE`: If a value which is less than or equal to 0 is specified, default value will be used. | `10` |
-| `update_matched_useragent` | `string` | True if the detection should record the matched characters from the target User-Agent. | `true` |
-| `max_matched_useragent_length` | `int` | Number of characters to consider in the matched User-Agent. Ignored if `update_matched_useragent` is false. | `500` |
+| `update_matched_useragent` | on or off | On if the detection should record the matched characters from the target User-Agent. | on |
+| `max_matched_useragent_length` | `int` | Number of characters to consider in the matched User-Agent. Ignored if `update_matched_useragent` is off. | `500` |
+
+The on or off settings are read the way PHP reads its own. `on`, `yes` and
+`true` in any case, and a number other than `0`, are on, written with or
+without quotes, so `FiftyOneDegreesHashEngine.use_performance_graph = true`
+turns the performance graph on. Anything else, an empty value included, is
+off. A setting left out of php.ini keeps the default in the table.
+
+The engine needs at least one of the two graphs. Turning `use_predictive_graph`
+off without turning `use_performance_graph` on leaves PHP with no engine, and
+PHP gives a warning when it starts, beginning "No device detection engine was
+built from" and giving the reason.
 
 ### Running Under Process Manager
 
@@ -152,46 +154,69 @@ While this is an issue in multi-processing environment, it is not a problem in m
 
 #### Apache MPM
 
-When running under Apache MPM, only `prefork` mode is supported, since `dl()` call is required to load Device Detection engine module and it is not supported under multi-threading environment which `worker` and `event` mode does.
+When running under Apache MPM, only `prefork` mode is supported, because the engine is built in memory when PHP starts and each worker is forked from that process. The extension is enabled in `php.ini` as described above.
 
 #### Refresh Internal Data
 
-To reload the data file, *refreshData()* needs to be called as described in this [example](https://51degrees.com/documentation/_examples__device_detection__data_file_updates__manual.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme.md&utm_term=refresh-internal-data) . Thus, unless a reload is performed in the main process and all child processes, the data will not be updated. There is not a proven solution to do so yet, so we recommend a full server restart to be performed instead.
+To reload the data file, *refreshData()* needs to be called as described in this [example](https://51degrees.com/documentation/_device_detection__data_file_updates.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=refresh-internal-data) . Thus, unless a reload is performed in the main process and all child processes, the data will not be updated. There is not a proven solution to do so yet, so we recommend a full server restart to be performed instead.
 
 ## Examples
 
-Before running the examples, the configuration for the native module MUST be
-added to the php.ini file. See [Configuration](#configuration).
+The examples need the extension, built as [Install](#install) describes and loaded from php.ini
+or with `-d extension=...`. A console example runs with no data file setting. It takes the data
+file its first argument names, then the one the `_51DEGREES_DD_PATH` environment variable names,
+then the free Lite file in `cxx/data/device-detection`, which it downloads with the data
+repository's script when it is missing. It then runs again in a PHP started with that file, and
+says so on standard error with the command. Set `FiftyOneDegreesHashEngine.data_file` in php.ini,
+as [Configuration](#configuration) describes, so that PHP builds the engine once when it starts.
+A web example cannot start PHP again, so start it with the launcher, `examples/onpremise/serve.php`,
+which finds the data file in the same way and starts the PHP built-in server on port 3000 with it,
+as below. A data file or a port can follow the example's name. A web example started some other
+way with no data file setting answers with a page giving the launcher command and the setting.
+
+The gettingStartedWeb example uses the data file named by the `_51DEGREES_DD_PATH`
+environment variable in place of the php.ini one, when it is set. If that is a
+free file in `cxx/data` that has not been downloaded yet, the example runs the
+download script for it first.
 
 To run the examples, you will need PHP and composer installed.
-Once these are available, install the dependencies required by the examples. 
-Navigate to the repository root and execute:
+Once these are available, install the dependencies required by the examples.
+The examples load the `vendor/autoload.php` of this package, which the
+`composer install` at the repository root does not create, so navigate to
+`device-detection/onpremise` and execute:
 
 ```
 composer install
 ```
 
-This will create the vendor directory containing autoload.php. 
-Now navigate to the examples directory and start a PHP server with the relevant file. For example:
+This will create the vendor directory containing autoload.php.
+Now, still in `device-detection/onpremise`, start a web example with the launcher. For example:
 
 ```
-php -S localhost:3000 gettingStartedWeb.php
+php examples/onpremise/serve.php gettingStartedWeb.php
 ```
 
 This will start a local web server listening on port 3000. 
 Open your web browser and browse to http://localhost:3000/ to see the example in action.
+Run a console example from the same folder, for example
+`php examples/onpremise/gettingStartedConsole.php`. Every example ends with a
+"Find out more" section that lists where to go next.
 
 The table below describes the examples that are available.
 
 | Example                                | Description |
 |----------------------------------------|-------------|
 | gettingStartedConsole                  | How to use the 51Degrees on-premise device detection API to determine details about a device based on its User-Agent and User-Agent Client Hints HTTP header values. |
-| gettingStartedWeb                      | How to use the 51Degrees Cloud service to determine details about a device as part of a simple ASP.NET website. |
+| gettingStartedWeb                      | How to use on-premise device detection to determine details about a device as part of a simple PHP website. |
 | metadataConsole                        | How to access the meta-data that relates to the device detection algorithm. |
 | manualDataUpdate                       | How to update the device detection data file when a new one is available. |
 | matchMetrics                           | Demonstrate the metrics that supply information such as confidence in the result. |
 | failureToMatch                         | Demonstrates the functionality available when device detection is unable to identify the details of the device. |
 | userAgentClientHints-Web               | Legacy example. Retained for the associated automated tests. See GettingStarted-Web instead. |
+
+With php.ini naming the free Lite data file, the examples show each property only the Enterprise
+data file has, such as HardwareVendor, HardwareName and DeviceType, as needing it, and give a
+link to contact us about a copy.
 
 ## Tests
 
@@ -253,3 +278,11 @@ then the dependency changed to:
 ```
 "51degrees/fiftyone.pipeline.core": "*"
 ```
+
+## Find out more
+
+- [Device Detection](https://51degrees.com/device-detection?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-device-detection)
+- [Device Detection documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-documentation)
+- [Pricing](https://51degrees.com/pricing?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=find-out-more-pricing)
+- https://github.com/51Degrees/51degrees-php
+- https://github.com/51Degrees/51degrees-cxx

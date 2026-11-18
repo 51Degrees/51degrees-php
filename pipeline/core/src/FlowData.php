@@ -46,6 +46,9 @@ class FlowData
     public bool $processed = false;
 
     /**
+     * The errors of processing by key, each the one error under its key or
+     * an AggregateException holding every error under it.
+     *
      * @var array<string, \Throwable>
      */
     public array $errors = [];
@@ -108,6 +111,26 @@ class FlowData
     }
 
     /**
+     * Release the native resources held by the element data in this
+     * FlowData, such as the results of an on-premise engine, which keep the
+     * engine's data in memory until they are released. Call it in a finally
+     * block once the FlowData is finished with, so that this happens
+     * straight away rather than when the garbage collector next runs.
+     *
+     * Only element data with a close method of its own is closed, so element
+     * data that needs no cleanup, such as an entry in a results cache, is
+     * left alone. Values already read are unaffected.
+     */
+    public function close(): void
+    {
+        foreach ($this->data as $elementData) {
+            if (method_exists($elementData, 'close')) {
+                $elementData->close();
+            }
+        }
+    }
+
+    /**
      * Retrieve data by FlowElement object.
      */
     public function getFromElement(FlowElement $flowElement): ElementData
@@ -116,17 +139,32 @@ class FlowData
     }
 
     /**
-     * Retrieve data by FlowElement key.
+     * Retrieve data by FlowElement key, compared ignoring case as every
+     * string key is, or by a deprecated Data Key the element had before,
+     * which is logged once.
      *
      * @throws \Exception
      */
     public function get(string $flowElementKey): ElementData
     {
-        if (!isset($this->data[$flowElementKey])) {
-            throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
+        if (isset($this->data[$flowElementKey])) {
+            return $this->data[$flowElementKey];
         }
 
-        return $this->data[$flowElementKey];
+        foreach ($this->data as $key => $data) {
+            if (strcasecmp((string) $key, $flowElementKey) === 0) {
+                return $data;
+            }
+        }
+
+        // A deprecated Data Key gives the data under the key that replaced
+        // it.
+        $currentKey = $this->pipeline->currentDataKey($flowElementKey);
+        if (isset($this->data[$currentKey])) {
+            return $this->data[$currentKey];
+        }
+
+        throw new \Exception(sprintf(Messages::NO_ELEMENT_DATA, $flowElementKey, join(',', array_keys($this->data))));
     }
 
     /**
@@ -138,11 +176,23 @@ class FlowData
     }
 
     /**
-     * Set error (should be keyed by FlowElement dataKey).
+     * Set error (should be keyed by FlowElement dataKey). Every error is
+     * kept. A second error under a key makes the entry an
+     * AggregateException that holds each error under the key in order.
      */
     public function setError(string $key, \Throwable $error): void
     {
-        $this->errors[$key] = $error;
+        $existing = $this->errors[$key] ?? null;
+        if ($existing === null) {
+            $this->errors[$key] = $error;
+        } else {
+            $this->errors[$key] = new AggregateException(array_merge(
+                $existing instanceof AggregateException
+                    ? $existing->errors
+                    : [$existing],
+                [$error]
+            ));
+        }
 
         $logMessage = 'Error occurred during processing';
 

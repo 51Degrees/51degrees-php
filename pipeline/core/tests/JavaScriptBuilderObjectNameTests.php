@@ -57,6 +57,43 @@ class ObjectNameTestLogger extends Logger
  */
 class JavaScriptBuilderObjectNameTests extends TestCase
 {
+    /**
+     * The names the specification refuses that are not reserved words of
+     * the language, being eval, arguments, and the properties of the
+     * browser's Window object that a top level var cannot replace or that
+     * navigate the page away.
+     */
+    private const REFUSED_NAMES = [
+        'eval', 'arguments', 'window', 'document', 'top', 'name', 'status',
+        'history', 'navigator', 'closed', 'location', 'frameElement',
+        'isSecureContext', 'crossOriginIsolated', 'trustedTypes', 'crypto',
+        'indexedDB', 'localStorage', 'sessionStorage', 'caches',
+        'cookieStore', 'speechSynthesis', 'styleMedia', 'crashReport',
+        'credentialless', 'customElements', 'documentPictureInPicture',
+        'fence', 'launchQueue', 'originAgentCluster'
+    ];
+
+    /**
+     * Window properties that a top level var can replace, so the names stay
+     * allowed, and near misses of refused names.
+     */
+    private const ALLOWED_NAMES = [
+        'self', 'frames', 'parent', 'opener', 'length', 'windows', 'Window',
+        'cachesX'
+    ];
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    private static function rows(array $names): array
+    {
+        $rows = [];
+        foreach ($names as $name) {
+            $rows[$name] = [$name];
+        }
+        return $rows;
+    }
+
     private static function render(
         array $settings,
         array $evidence,
@@ -239,7 +276,12 @@ class JavaScriptBuilderObjectNameTests extends TestCase
             'NaN' => ['NaN', false],
             'undefined' => ['undefined', false],
             'constructor name' => ['fiftyoneDegreesManager', false]
-        ];
+        ] + array_map(
+            function ($row) {
+                return [$row[0], false];
+            },
+            self::rows(self::REFUSED_NAMES)
+        );
     }
 
     /**
@@ -324,7 +366,7 @@ class JavaScriptBuilderObjectNameTests extends TestCase
             'trailing new line' => ["fod\n"],
             'not ASCII' => ["caf\u{e9}"],
             'not a string' => [5]
-        ];
+        ] + self::rows(self::REFUSED_NAMES);
     }
 
     /**
@@ -346,7 +388,38 @@ class JavaScriptBuilderObjectNameTests extends TestCase
             'underscore' => ['_fod'],
             'dollar' => ['$fod9'],
             'contains a reserved word' => ['classy']
-        ];
+        ] + self::rows(self::ALLOWED_NAMES);
+    }
+
+    public static function provider_allowedName(): array
+    {
+        return self::rows(self::ALLOWED_NAMES);
+    }
+
+    /**
+     * A name the specification allows is declared when the page request asks
+     * for it, with no warning, and the script parses.
+     * @dataProvider provider_allowedName
+     */
+    #[DataProvider('provider_allowedName')]
+    public function testAllowedWindowNameFromEvidenceIsUsed(string $name): void
+    {
+        $logger = new ObjectNameTestLogger('warning');
+        $script = self::render(
+            ['minify' => false],
+            [Constants::EVIDENCE_OBJECT_NAME => $name],
+            $logger
+        );
+
+        $this->assertUsesName($script, $name);
+        $this->assertParses($script);
+        $this->assertSame([], array_values(array_filter(
+            $logger->entries,
+            function ($entry) {
+                return $entry['level'] === 'warning' &&
+                    strpos($entry['message'], Constants::EVIDENCE_OBJECT_NAME) !== false;
+            }
+        )));
     }
 
     /**

@@ -15,8 +15,15 @@ dnl objects (wrapper, C++ and C) must be compiled with the same settings, so
 dnl this extension cannot share compiled common objects with device detection,
 dnl which builds common without these defines.
 COMMON_DEFINES="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -DFIFTYONE_DEGREES_REDUCED_FILE=1 -D_FILE_OFFSET_BITS=64"
-CFLAGS="$CFLAGS $COMMON_DEFINES -std=gnu11 -Wall -Wno-strict-prototypes -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
-CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES -std=gnu++17 -fpermissive -Wall -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
+dnl
+dnl Every symbol but get_module, which the SWIG wrapper marks as exported, is
+dnl hidden. The device detection extension holds common's functions under the
+dnl same names, and a PHP that loads extensions without RTLD_DEEPBIND, as
+dnl PHP 8.5 on Linux does, would otherwise bind this extension's calls to the
+dnl other extension's copy.
+VISIBILITY="-fvisibility=hidden"
+CFLAGS="$CFLAGS $COMMON_DEFINES $VISIBILITY -std=gnu11 -Wall -Wno-strict-prototypes -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
+CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES $VISIBILITY -std=gnu++17 -Wall -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac
@@ -44,34 +51,10 @@ if test "$PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE" = "yes"; then
 
   AC_CONFIG_COMMANDS_PRE(mkdir -p src/php$PHP_MAJOR_VERSION)
 
-  AC_MSG_CHECKING(SWIG version)
-  if test -n "$SWIG"; then
-    SWIG_VERSION=`swig -version | grep -Po '(?<=SWIG Version )[[^ ]]+' 2>/dev/null`
-    SWIG_MAJOR_VERSION=`echo $SWIG_VERSION | sed -e 's/\([[0-9]]*\)\.\([[0-9]]*\)\.\([[0-9]]*\).*/\1/g' 2>/dev/null`
-    SWIG_MINOR_VERSION=`echo $SWIG_VERSION | sed -e 's/\([[0-9]]*\)\.\([[0-9]]*\)\.\([[0-9]]*\).*/\2/g' 2>/dev/null`
-    AC_MSG_RESULT([$SWIG_MAJOR_VERSION].[$SWIG_MINOR_VERSION])
+  dnl The SWIG wrapper in src/php$PHP_MAJOR_VERSION is committed and is not
+  dnl regenerated here, so every build compiles the same wrapper.
+  dnl on-premise/generate-wrapper.sh regenerates it.
 
-    if [[ "$PHP_MAJOR_VERSION" -ge 8 ]] && ([[ "$SWIG_MAJOR_VERSION" -ne 4 ]] || [[ "$SWIG_MINOR_VERSION" -lt 1 ]]); then
-      AC_MSG_ERROR(swig version 4.1.0 or higher is required for PHP 8 and above)
-    fi
-
-    if [[ "$PHP_MAJOR_VERSION" -lt 7 ]] && [[ "$SWIG_MAJOR_VERSION" -gt 3 ]]; then
-      AC_MSG_ERROR(swig version 3.x.x or lower is required for PHP versions earlier than 7 e.g. PHP 5)
-    fi
-
-    if [[ "$SWIG_MAJOR_VERSION" -eq 3 ]]; then
-      SWIGIPI="swig -c++ -php$PHP_MAJOR_VERSION -module FiftyOneDegreesIpIntelligenceEngine -outdir src/php$PHP_MAJOR_VERSION -o src/php$PHP_MAJOR_VERSION/ipi_wrap.cxx ipi-php.i"
-    else
-      if [[ "$SWIG_MAJOR_VERSION" -eq 4 ]]; then
-        SWIGIPI="swig -c++ -php -module FiftyOneDegreesIpIntelligenceEngine -outdir src/php$PHP_MAJOR_VERSION -o src/php$PHP_MAJOR_VERSION/ipi_wrap.cxx ipi-php.i"
-      else
-        AC_MSG_ERROR(invalid swig version $SWIG_MAJOR_VERSION, swig version 3 and 4 are supported)
-      fi
-    fi
-
-    AC_MSG_NOTICE(generating SWIG wrapper)
-    AC_CONFIG_COMMANDS_PRE($SWIGIPI)
-  fi
   AC_CONFIG_COMMANDS_PRE(cp src/php$PHP_MAJOR_VERSION/* .)
 
   PHP_NEW_EXTENSION(FiftyOneDegreesIpIntelligenceEngine, ipi_wrap.cxx cxx/src/ipi/*.c cxx/src/ipi/*.cpp cxx/src/common/*.c cxx/src/common/*.cpp cxx/src/ipi/graph/*.c, $ext_shared, ,,"yes")

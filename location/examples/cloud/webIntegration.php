@@ -32,27 +32,33 @@
 
 require(__DIR__ . "/../../vendor/autoload.php");
 
+use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 
 // Check if there is a resource key in the environment variable and use
 // it if there is one. (This is used for automated testing)
-if (isset($_ENV[Constants::RESOURCE_KEY_ENV_VAR])) {
-    $resourceKey = $_ENV[Constants::RESOURCE_KEY_ENV_VAR];
-} else {
+$resourceKey = EnvironmentVariable::read(
+    Constants::RESOURCE_KEY_VARIABLE,
+    Constants::RESOURCE_KEY_ENV_VAR,
+    "!!YOUR_RESOURCE_KEY!!"
+);
+if ($resourceKey === '') {
     $resourceKey = "!!YOUR_RESOURCE_KEY!!";
 }
 
 if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
-    $message .= '"' . Constants::RESOURCE_KEY_ENV_VAR . '"' . '<br/>';
-    $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://configure.51degrees.com/v399y42f?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-webintegration.php&utm_term=resource-key-required' . '<br/>';
+    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . '<br/>';
+    $message .= 'Create a resource key with the properties required by this example ';
+    $message .= 'at https://51degrees.com/configure/v399y42f?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-webintegration.php&utm_term=resource-key-required' . '<br/>';
     $message .= 'Once complete, populate the environment variable ';
     $message .= 'mentioned at the start of this message with the key.' . '<br/>';
     $message .= "Make sure to include the Country, State, County, Town and ";
     $message .= "JavaScript properties as they are used by this example.<br />";
     echo $message;
+    Constants::printFindOutMore(__FILE__);
 
     return;
 }
@@ -73,18 +79,10 @@ $builder = new GeoLocationPipelineBuilder(array(
     "javascriptBuilderSettings" => $javascriptBuilderSettings
 ));
 
-// To stop having to construct the pipeline
-// and re-make cloud API requests used during construction on every page load,
-// we recommend caching the serialized pipeline to a database or disk.
-// Below we are using PHP's serialize and writing to a file if it doesn't exist
-
-$serializedPipelineFile = __DIR__ . "web_integration_pipeline.pipeline";
-if(!file_exists($serializedPipelineFile)){
-    $pipeline = $builder->build();
-    file_put_contents($serializedPipelineFile, serialize($pipeline));
-} else {
-    $pipeline = unserialize(file_get_contents($serializedPipelineFile));
-}
+// PHP keeps nothing from one request to the next, so the pipeline is built
+// for each request. A pipeline saved to a file and read back would keep the
+// resource key it was built with.
+$pipeline = $builder->build();
 
 // We create the flowData object that is used to add evidence to and read
 // data from
@@ -93,19 +91,19 @@ $flowData = $pipeline->createFlowData();
 // We set headers, cookies and more information from the web request
 $flowData->evidence->setFromWebRequest();
 
-// Now we process the flowData
-$result = $flowData->process();
-
 // Following the JavaScript bundler settings where we created an endpoint called
-// ?json, we now use this endpoint (if called) to send back JSON to the client side
+// ?json, we now use this endpoint (if called) to send back JSON to the client side.
+// Utils processes the flowData itself and sets the cache headers, so a
+// revalidation with a matching ETag is answered without any processing.
 
 if (isset($_GET["json"])) {
-    header('Content-Type: application/json');
+    Utils::jsonResponse($flowData)->send();
 
-    echo json_encode($flowData->jsonbundler->json);
-    
     return;
 }
+
+// Now we process the flowData
+$result = $flowData->process();
 
 // In the standard call we check if the required properties exist
 $properties = $pipeline->getElement("location")->getProperties();
@@ -115,6 +113,7 @@ if (!isset($properties["country"]) || !isset($properties["state"]) ||
   !isset($properties["javascript"])) {
     echo "Make sure to include the Country, State, County, Town and " .
         "JavaScript properties as they are used by this example.\n<br />";
+    Constants::printFindOutMore(__FILE__);
     return;
 }
 
@@ -257,3 +256,4 @@ in the JSON endpoint provided data
        }, 'location');
     }
  </script>
+<?php Constants::printFindOutMore(__FILE__); ?>

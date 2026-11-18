@@ -1,6 +1,6 @@
 {
     "name": "51degrees/fiftyone.ipintelligence",
-    "description": "IP intelligence engines for the 51Degrees Pipeline API. Identify the country, region, network and approximate location of an IP address, both via the 51Degrees cloud service and on-premise using a local data file.",
+    "description": "IP Intelligence and IP geolocation for PHP, built on the 51Degrees Pipeline API. Finds an IP address's likely location (country, region, town, and coordinates), connection type, and network, using the 51Degrees cloud service or a data file on your server. An alternative to MaxMind and IPinfo.",
     "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=composer.json&utm_term=homepage",
     "keywords":
     [
@@ -11,7 +11,13 @@
         "country",
         "asn",
         "network",
-        "51degrees"
+        "51degrees",
+        "ip-intelligence",
+        "ip-geolocation",
+        "ip-lookup",
+        "ip-to-country",
+        "maxmind",
+        "ipinfo"
     ],
     "authors":
     [
@@ -22,6 +28,11 @@
     ],
     "license": "EUPL-1.2",
     "type": "library",
+    "support":
+    {
+        "source": "https://github.com/51Degrees/51degrees-php",
+        "docs": "https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=documentation"
+    },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "repositories":
@@ -35,9 +46,9 @@
     "require":
     {
         "php": ">=8.0",
-        "51degrees/fiftyone.pipeline.core": "4.*",
+        "51degrees/fiftyone.pipeline.core": "^4.5.206",
         "51degrees/fiftyone.pipeline.engines": "4.*",
-        "51degrees/fiftyone.pipeline.cloudrequestengine": "4.*",
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "^4.5.208",
         "51degrees/fiftyone.pipeline.translation": "*"
     },
     "require-dev":

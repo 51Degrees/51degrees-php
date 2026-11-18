@@ -25,17 +25,23 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @requires OS Linux
  */
+#[RequiresOperatingSystem('Linux')]
 class ExampleWebTests extends TestCase
 {
     public static $process;
 
     public static function setUpBeforeClass(): void
     {
+        foreach (self::pipelineFiles() as $stale) {
+            unlink($stale);
+        }
+
         // start server
         self::$process = new Process('php -S localhost:3000 examples/cloud/gettingStartedWeb.php');
         self::$process->start();
@@ -75,6 +81,8 @@ class ExampleWebTests extends TestCase
         // An id of all zeros means nothing was matched, so check for a real one.
         $this->assertSame(1, preg_match('/[0-9]+-[0-9]+-[0-9]+-[0-9]+/', $data, $deviceId));
         $this->assertNotSame('0-0-0-0', $deviceId[0]);
+        // The page ends with the links to find out more.
+        $this->assertStringContainsString('<div id="find-out-more">', $data);
     }
 
     /**
@@ -102,6 +110,94 @@ class ExampleWebTests extends TestCase
         // the client side. The HTML page is not returned, so has no head element.
         $this->assertStringContainsString('window.fod', $data);
         $this->assertStringNotContainsString('<head', $data);
+    }
+
+    /**
+     * The script carries a weak ETag, and a browser revalidating with it
+     * gets a 304 with the same ETag, as the cache header detail of the web
+     * integration specification and RFC 9110 section 13.1.2 ask.
+     */
+    public function testClientSideJavaScriptRevalidates()
+    {
+        $headers = Constants::UA_HEADER . Constants::CHROME_UA . "\r\n";
+
+        $first = self::getHeaders(Constants::URL . '51Degrees.core.js', $headers);
+        $this->assertSame(200, $first['response_code']);
+        $this->assertSame('max-age=1800, private', $first['Cache-Control']);
+        $this->assertMatchesRegularExpression('/^W\/"[0-9a-f]{32}"$/', $first['ETag']);
+
+        $again = self::getHeaders(
+            Constants::URL . '51Degrees.core.js',
+            $headers . 'If-None-Match: ' . $first['ETag'] . "\r\n"
+        );
+        $this->assertSame(304, $again['response_code']);
+        $this->assertSame($first['ETag'], $again['ETag']);
+        // A 304 has no content, so it carries no PHP default Content-Type.
+        $this->assertArrayNotHasKey(
+            'content-type',
+            array_change_key_case($again, CASE_LOWER)
+        );
+    }
+
+    /**
+     * The headers of the response to a GET, whatever its status.
+     *
+     * @param string $url
+     * @param string $headers
+     * @return array
+     */
+    private static function getHeaders($url, $headers)
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => $headers,
+                'ignore_errors' => true
+            ]
+        ]);
+        @file_get_contents($url, false, $context);
+
+        return self::parseHeaders($http_response_header);
+    }
+
+    /**
+     * The page builds its pipeline for each request and keeps no copy of it
+     * in a file, because a pipeline read back from a file keeps the resource
+     * key it was built with.
+     */
+    public function testGettingStartedWebLeavesNoPipelineBehind()
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => Constants::UA_HEADER . Constants::CHROME_UA . "\r\n"
+            ]
+        ]);
+
+        $data = @file_get_contents(Constants::URL, false, $context);
+
+        $this->assertNotFalse($data, 'The page did not answer.');
+        $this->assertSame([], self::pipelineFiles());
+    }
+
+    /**
+     * Every serialized pipeline file in the examples folder, in the folders
+     * below it, and beside it, as a name built without a separator lands
+     * beside its folder rather than in it.
+     *
+     * @return string[]
+     */
+    private static function pipelineFiles(): array
+    {
+        $examples = __DIR__ . '/../examples';
+        $found = array_merge(
+            (array) glob($examples . '/*.pipeline'),
+            (array) glob($examples . '/*/*.pipeline'),
+            (array) glob($examples . '/*/*/*.pipeline'),
+            (array) glob(dirname($examples) . '/*.pipeline')
+        );
+
+        return array_values(array_filter($found, 'is_file'));
     }
 
     /**

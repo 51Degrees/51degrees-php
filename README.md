@@ -16,7 +16,7 @@ cd 51degrees-php
 composer install
 ```
 
-Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install). For cloud use, [create a Resource Key](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install).
+Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install). For cloud use, [create a Resource Key](https://51degrees.com/configure/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install).
 
 Created from `pipeline-php-core`, `pipeline-php-engines`, `pipeline-php-cloudrequestengine`, `pipeline-php-did`, `device-detection-php`, `device-detection-php-onpremise`, and `location-php`, this repository continues their work.
 
@@ -24,8 +24,8 @@ The folder table and product guides below show where to find usage examples and 
 
 Our PHP packages use the Pipeline API, which combines data services in one processing flow. The packages are grouped by product: `pipeline`,
 `device-detection`, `location` and `ip-intelligence`. Each package keeps its
-own `composer.json`, `readme.md` and license, and is still published to
-Composer as a separate package.
+own `composer.json` and `readme.md`, and is still published to Composer as
+a separate package.
 
 ## Directory map
 
@@ -36,6 +36,7 @@ Composer as a separate package.
 | [pipeline/cloudrequestengine](pipeline/cloudrequestengine) | `51degrees/fiftyone.pipeline.cloudrequestengine` | pipeline-php-cloudrequestengine | Cloud request engine for 51Degrees Pipeline API. Used to send requests to the 51Degrees cloud service. |
 | [pipeline/did](pipeline/did) | `51degrees/fiftyone.pipeline.did` | pipeline-php-did | Strongly typed reader for the 51Did (51Degrees Identifier) returned by the 51Degrees Cloud service, and a client for the cloud's 51Did endpoints. |
 | [pipeline/translation](pipeline/translation) | `51degrees/fiftyone.pipeline.translation` | None | Generic translation engine for the 51Degrees Pipeline API. |
+| [pipeline/derivedproperty](pipeline/derivedproperty) | `51degrees/fiftyone.pipeline.derivedproperty` | None | Derived property element for the 51Degrees Pipeline API. Computes properties such as HumanConfidence and IsGdpr from the properties other elements have produced. |
 | [device-detection/cloud](device-detection/cloud) | `51degrees/fiftyone.devicedetection` | device-detection-php | Device detection engines for the 51Degrees Pipeline API. Identify devices, operating systems, browsers, and crawlers from HTTP headers. |
 | [device-detection/onpremise](device-detection/onpremise) | `51degrees/fiftyone.devicedetection` | None | On-premise Device Detection engines for PHP built for the 51Degrees Pipeline API. Parse HTTP headers locally. |
 | [location](location) | `51degrees/fiftyone.geolocation` | location-php | Geolocation engines for 51Degrees Pipeline API. Perform reverse geocoding using longitude and latitude to populate postal addresses. |
@@ -50,8 +51,10 @@ Composer path repository.
 | Path | Contents |
 | --- | --- |
 | The package directories above | One Composer package each, published to its mirror as it is |
-| `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code and the data file submodules |
+| `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code, and the [data](https://github.com/51Degrees/data) repository as its `data` submodule |
 | `pipeline/did/owid-php` | Submodule of [owid-php](https://github.com/SWAN-community/owid-php), the OWID library `pipeline/did` uses |
+| `javascript-templates` | Submodule of [javascript-templates](https://github.com/51Degrees/javascript-templates), the source of the template `pipeline/core` serves. The package commits a copy in `pipeline/core/javascript-templates`, because Packagist serves an archive of the tag and an archive has no submodules. `pipeline/core/ci/update-packages.ps1` refreshes the copy, and the JavaScript templates check fails when the copy differs from the submodule |
+| `derived-properties` | Submodule of [derived-properties](https://github.com/51Degrees/derived-properties), the derived property scripts, their format and the cases every language runs. `pipeline/derivedproperty` commits a copy of its `scripts` folder for the same reason, `pipeline/derivedproperty/ci/update-packages.ps1` refreshes the copy, and the package's tests fail when the copy differs from the submodule |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 | `.github/workflows` | The CI workflows, and the ones that keep the mirrors up to date |
 | `composer.json` | The development install for the whole repository. It is never published |
@@ -70,6 +73,8 @@ The `require` sections of the package `composer.json` files give this order:
   and engines.
 - `pipeline/did` requires no other 51Degrees package. It requires the OWID
   library from the `owid-php` submodule.
+- `pipeline/derivedproperty` requires core, and reads YAML with
+  [symfony/yaml](https://github.com/symfony/yaml).
 
 ## Versions and releases
 
@@ -97,9 +102,9 @@ and in `ci/packages.ps1`.
 A version tag must be on `main` and above every version on the mirrors, or
 the workflows refuse it and tag nothing.
 
-`pipeline/translation`, `device-detection/onpremise` and
-`ip-intelligence` have no mirror, so they are not released to Packagist
-from here.
+`pipeline/translation`, `pipeline/derivedproperty`,
+`device-detection/onpremise` and `ip-intelligence` have no mirror, so they
+are not released to Packagist from here.
 
 ## Getting the code
 
@@ -114,9 +119,23 @@ package resolves to its directory in this repository, not to a copy from
 Packagist. A change in `pipeline/core` is seen at once by every package
 that uses it.
 
-The data files in `cxx/device-detection-data` are stored with
-[Git LFS](https://git-lfs.github.com/). Run `git lfs pull` in that folder to
-fetch them.
+The free data files go in `cxx/data`, which is the
+[data](https://github.com/51Degrees/data) repository. Each one is listed there
+as a `<file>.link` holding the address the file is downloaded from, and the
+repository's scripts save the file beside its link. From the root of the
+repository, download the Device Detection and IP Intelligence Lite files with
+
+```bash
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
+```
+
+or with `cxx/data/get-data-files.ps1` and the same names in PowerShell. With
+no names, the scripts download every file. The IP Intelligence examples
+download the Lite file themselves when they find no data file.
+
+Git leaves the folder of a removed submodule on disk. When `cxx` no longer
+includes its old `device-detection-data` and `ip-intelligence-data`
+submodules, delete those two folders from `cxx` in an existing clone.
 
 ## Tests
 
@@ -133,8 +152,6 @@ cd pipeline/core
 Each package's `phpunit.xml` names its test suites. Some packages differ:
 
 - `location` has only an `Integration` suite.
-- `pipeline/translation` has a `Translation` suite and no `tests`
-  directory.
 - `device-detection/onpremise` is not in the root `composer.json`. The
   root autoloader maps its namespace to `device-detection/cloud`.
 
@@ -174,6 +191,9 @@ each is built and tested.
 Open issues and pull requests in this repository only. Do not open them on the
 mirrors.
 
+Pull requests go to the `rc` branch, not `main`. When a release is wanted, one
+pull request merges `rc` into `main`.
+
 Do not edit a package's `composer.json` or `ci/` directory to make the
 monorepo work. CI publishes each package directory to its mirror as it is.
 Put monorepo glue in root files only, for example the root `composer.json`.
@@ -200,7 +220,9 @@ a file back through the import.
 ## License
 
 The packages are licensed under the European Union Public Licence 1.2
-(EUPL-1.2). Each package directory has its own `LICENSE` file.
+(EUPL-1.2), whose text is in [LICENSE](LICENSE), with the two additional
+terms stated in the header of every source file. Each package's
+`composer.json` declares `EUPL-1.2`, which is what Packagist shows.
 
 ## Find out more
 

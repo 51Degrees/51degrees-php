@@ -95,9 +95,10 @@ class CloudResponse extends CloudRequestEngineTestsBase
     }
 
     /**
-     * Verify that getEngineProperties() can be called directly
-     * (without processInternal()) and that it both returns the
-     * expected engines and populates $engine->flowElementProperties.
+     * Verify that the engine asks for its properties when it is built, and
+     * that getEngineProperties() can be called directly (without
+     * processInternal()) and both returns the expected engines and
+     * populates $engine->flowElementProperties.
      */
     public function testGetEnginePropertiesEager()
     {
@@ -106,8 +107,8 @@ class CloudResponse extends CloudRequestEngineTestsBase
             'httpClient' => $this->mockHttp()
         ]);
 
-        // flowElementProperties should be empty before any call
-        $this->assertEmpty($engine->flowElementProperties);
+        // The properties are there once the engine is built.
+        $this->assertEquals(2, count($engine->flowElementProperties));
 
         $result = $engine->getEngineProperties();
 
@@ -139,6 +140,7 @@ class CloudResponse extends CloudRequestEngineTestsBase
 
         try {
             $engine->process($this->createMock(FlowData::class));
+            $this->fail('No CloudRequestException was thrown.');
         } catch (CloudRequestException $exception) {
             $this->assertStringContainsString(CloudResponse::invalidKey, $exception->getMessage());
         }
@@ -163,6 +165,7 @@ class CloudResponse extends CloudRequestEngineTestsBase
 
         try {
             $engine->process($this->createMock(FlowData::class));
+            $this->fail('No CloudRequestException was thrown.');
         } catch (CloudRequestException $exception) {
             $this->assertStringContainsString(CloudResponse::noDataKeyMessageComplete, $exception->getMessage());
         }

@@ -46,9 +46,19 @@ class FlowDataThreadsDocsTests extends TestCase
 
     public function testEveryWebExampleSaysAndShowsItsFlowDataIsForOneRequest(): void
     {
-        $examples = self::webExamples(dirname(__DIR__, 3));
+        // In the repository with every product, every product's examples.
+        // In this package on its own, as its mirror holds it, its examples.
+        $root = dirname(__DIR__, 3);
+        $tops = ['pipeline', 'device-detection', 'ip-intelligence', 'location'];
+        $all = true;
+        foreach ($tops as $top) {
+            $all = $all && is_dir($root . '/' . $top);
+        }
+        $examples = $all
+            ? self::webExamples($root, $tops)
+            : self::webExamples(dirname(__DIR__), ['examples']);
 
-        $this->assertGreaterThan(5, count($examples));
+        $this->assertGreaterThan($all ? 5 : 1, count($examples));
         foreach ($examples as $example) {
             $text = (string) file_get_contents($example);
             $this->assertStringContainsString(self::SENTENCE, $text, $example);
@@ -62,14 +72,17 @@ class FlowDataThreadsDocsTests extends TestCase
     }
 
     /**
-     * Every example that reads a web request and creates a Flow Data.
+     * Every example that reads a web request and creates a Flow Data. An
+     * example reads the request through the web integration or straight
+     * from the superglobals PHP fills for each request.
      *
+     * @param array<int, string> $tops
      * @return array<int, string>
      */
-    private static function webExamples(string $root): array
+    private static function webExamples(string $root, array $tops): array
     {
         $found = [];
-        foreach (['pipeline', 'device-detection', 'ip-intelligence', 'location'] as $top) {
+        foreach ($tops as $top) {
             $files = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($root . '/' . $top, \FilesystemIterator::SKIP_DOTS)
             );
@@ -81,8 +94,9 @@ class FlowDataThreadsDocsTests extends TestCase
                     continue;
                 }
                 $text = (string) file_get_contents($path);
-                if (strpos($text, 'setFromWebRequest(') !== false &&
-                    strpos($text, 'createFlowData()') !== false) {
+                $readsRequest = strpos($text, 'setFromWebRequest(') !== false ||
+                    preg_match('/\$_(SERVER|GET|POST|COOKIE|REQUEST)\b/', $text) === 1;
+                if ($readsRequest && strpos($text, 'createFlowData()') !== false) {
                     $found[] = $path;
                 }
             }

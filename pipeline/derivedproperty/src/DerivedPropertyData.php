@@ -50,8 +50,16 @@ class DerivedPropertyData extends ElementDataDictionary
         parent::__construct($flowElement, []);
     }
 
+    /**
+     * Sets the value of a derived property. Only the derived property
+     * elements write the data, while they process, so this throws once
+     * they have finished.
+     *
+     * @throws \Exception once the elements that write the data have finished
+     */
     public function setValue(string $name, AspectPropertyValue $value): void
     {
+        $this->checkWritesNotFinished($name);
         $key = strtolower($name);
         $this->contents[$key] = $value;
         $this->names[$key] = $name;

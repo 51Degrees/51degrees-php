@@ -33,8 +33,10 @@ namespace fiftyone\pipeline\core;
  *
  * @property \fiftyone\pipeline\core\JsonBundlerElement $jsonbundler
  * @property array<string, \fiftyone\pipeline\core\ElementData> $data
- * Deprecated. The ElementData by data key, made from the list each time it
- * is read.
+ * Deprecated. Use tryGet() or listElementData() instead. The ElementData by
+ * data key, made from the list each time it is read.
+ * @property array<string, \Throwable> $errors The errors of processing by
+ * key, a copy each time it is read.
  */
 class FlowData
 {
@@ -56,11 +58,14 @@ class FlowData
 
     /**
      * The errors of processing by key, each the one error under its key or
-     * an AggregateException holding every error under it.
+     * an AggregateException holding every error under it. It is read as
+     * the public errors property, which gives a copy, so changing one entry
+     * of that copy changes nothing and PHP raises a notice. Setting the
+     * whole property throws once processing has finished.
      *
      * @var array<string, \Throwable>
      */
-    public array $errors = [];
+    private array $errors = [];
 
     /**
      * Constructor for FlowData.
@@ -81,20 +86,33 @@ class FlowData
         if ($flowElementKey === 'data') {
             return $this->dataByKey();
         }
+        if ($flowElementKey === 'errors') {
+            return $this->errors;
+        }
 
         return $this->get($flowElementKey);
     }
 
     /**
      * Sets the deprecated data array, which replaces every ElementData with
-     * the array's, in its order.
+     * the array's, in its order, or the errors. Either adds to the FlowData,
+     * so it throws once processing has finished.
      *
      * @param string $name the property name
      * @param mixed $value the value
+     * @throws \Exception once processing has finished
      */
     public function __set(string $name, $value): void
     {
+        if ($name === 'errors') {
+            $this->checkNotFinished('errors');
+            $this->errors = $value;
+
+            return;
+        }
+
         if ($name === 'data' && is_array($value)) {
+            $this->checkNotFinished('ElementData');
             $this->elementDataHead = null;
             foreach ($value as $key => $data) {
                 $this->addNode((string) $key, $data);
@@ -107,13 +125,14 @@ class FlowData
     }
 
     /**
-     * Whether the deprecated data array or an ElementData is there.
+     * Whether the deprecated data array, the errors or an ElementData is
+     * there.
      *
      * @param string $name the property name
      */
     public function __isset(string $name): bool
     {
-        return $name === 'data' || $this->tryGet($name) !== null;
+        return $name === 'data' || $name === 'errors' || $this->tryGet($name) !== null;
     }
 
     /**

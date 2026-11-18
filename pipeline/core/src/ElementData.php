@@ -39,16 +39,31 @@ class ElementData
      */
     private bool $writesFinished = false;
 
+    /**
+     * The properties set through the data by name. They are kept here, not
+     * as properties of the object, so that every write, the first or a
+     * later one, goes through __set.
+     *
+     * @var array<string, mixed>
+     */
+    private array $properties = [];
+
     public function __construct(FlowElement $flowElement)
     {
         $this->flowElement = $flowElement;
     }
 
     /**
+     * A property set through the data, or else the value of that name.
+     *
      * @return mixed
      */
     public function __get(string $key)
     {
+        if (array_key_exists($key, $this->properties)) {
+            return $this->properties[$key];
+        }
+
         return $this->get($key);
     }
 
@@ -62,6 +77,43 @@ class ElementData
      */
     public function __set(string $key, $value): void
     {
+        $this->checkWritesNotFinished($key);
+        $this->properties[$key] = $value;
+    }
+
+    /**
+     * Whether a property was set through the data. It has no types, so
+     * subclasses that answer for their own values keep their signatures.
+     *
+     * @param string $key
+     * @return bool
+     */
+    public function __isset($key)
+    {
+        return isset($this->properties[$key]);
+    }
+
+    /**
+     * Removes a property set through the data, which is a write, so it
+     * throws once the FlowElements that write the data have finished.
+     *
+     * @throws \Exception once the FlowElements that write it have finished
+     */
+    public function __unset(string $key): void
+    {
+        $this->checkWritesNotFinished($key);
+        unset($this->properties[$key]);
+    }
+
+    /**
+     * Throws once the FlowElements that write the data have finished. Every
+     * method that writes the data calls this first.
+     *
+     * @param string $key the name being written, for the message
+     * @throws \Exception once the FlowElements that write it have finished
+     */
+    protected function checkWritesNotFinished(string $key): void
+    {
         if ($this->writesFinished) {
             throw new \Exception(sprintf(
                 Messages::ELEMENT_DATA_FINISHED,
@@ -69,12 +121,14 @@ class ElementData
                 $this->flowElement->dataKey
             ));
         }
-        $this->{$key} = $value;
     }
 
     /**
      * Records whether the FlowElements that write the data have finished.
      * The FlowData calls this as each FlowElement starts and finishes.
+     *
+     * @internal Only the FlowData calls this. Calling it from anywhere else
+     * can open finished data for writing again.
      */
     public function setWritesFinished(bool $finished): void
     {

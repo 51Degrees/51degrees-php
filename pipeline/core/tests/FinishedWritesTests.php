@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\ElementDataDictionary;
+use fiftyone\pipeline\core\EvidenceKeyFilter;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Logger;
@@ -42,7 +43,11 @@ class AddingElement extends FlowElement
     {
         parent::__construct();
         $this->dataKey = $dataKey;
-        $this->evidenceKeyFilter = new BasicListEvidenceKeyFilter(['header.user-agent']);
+    }
+
+    public function getEvidenceKeyFilter(): EvidenceKeyFilter
+    {
+        return new BasicListEvidenceKeyFilter(['header.user-agent']);
     }
 
     public function processInternal(FlowData $flowData): void

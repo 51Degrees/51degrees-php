@@ -154,6 +154,10 @@ The reason enforcement is needed is that, in other profiles such as `Balanced`, 
 
 When running under Apache MPM, only `prefork` mode is supported, because the engine is built in memory when PHP starts and each worker is forked from that process. The extension is enabled in `php.ini` as described above.
 
+#### Thread-safe PHP
+
+The extension needs a non-thread-safe (NTS) PHP, which is what Apache `prefork` with mod_php and php-fpm use. A thread-safe (ZTS) PHP, which mod_php needs under the Apache `worker` or `event` MPM, would share the engine between the threads of one process, so building the extension against one stops with an error that names the supported setups. `php -v` shows `NTS` or `ZTS` after the version.
+
 #### Refresh Internal Data
 
 To reload the data file, *refreshData()* needs to be called as described in this [example](https://51degrees.com/documentation/_device_detection__data_file_updates.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=refresh-internal-data) . Thus, unless a reload is performed in the main process and all child processes, the data will not be updated. There is not a proven solution to do so yet, so we recommend a full server restart to be performed instead.

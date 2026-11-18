@@ -5,7 +5,6 @@
       <file>tests/JavaScriptBuilderPerformanceTests.php</file>
     </testsuite>
     <testsuite name="Unit">
-      <file>tests/FlowDataThreadsDocsTests.php</file>
       <file>tests/CoreTests.php</file>
       <file>tests/MultiPipelineElementTests.php</file>
       <file>tests/PipelineImmutableTests.php</file>
@@ -44,6 +43,7 @@
       <file>tests/RequestLineEvidenceTests.php</file>
       <file>tests/RequestLineDecisionTests.php</file>
       <file>tests/AspectPropertyValueTests.php</file>
+      <file>tests/FlowDataThreadsDocsTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

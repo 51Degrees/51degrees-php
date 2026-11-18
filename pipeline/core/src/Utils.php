@@ -193,8 +193,9 @@ class Utils
 
     /**
      * The data of the element under the key, or null when that element
-     * failed during processing, where FlowData::get() gives a
-     * FailedElementData whose Properties have no value.
+     * recorded an error in the FlowData's errors during processing. The
+     * errors are read here, before FlowData::get(), which throws for an
+     * element that failed and added no data.
      *
      * @throws \Exception When no element in the Pipeline has the key, as
      *   FlowData::get() does
@@ -203,9 +204,12 @@ class Utils
         FlowData $flowData,
         string $key
     ): ?ElementData {
-        $data = $flowData->get($key);
+        $element = $flowData->pipeline->getElement($key);
+        if (isset($flowData->errors[$element->dataKey])) {
+            return null;
+        }
 
-        return $data instanceof FailedElementData ? null : $data;
+        return $flowData->get($key);
     }
 
     /**

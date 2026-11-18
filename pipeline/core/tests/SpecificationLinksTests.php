@@ -34,7 +34,6 @@ use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\Evidence;
 use fiftyone\pipeline\core\EvidenceKeyFilter;
-use fiftyone\pipeline\core\FailedElementData;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\HttpRequest;
@@ -74,7 +73,6 @@ class SpecificationLinksTests extends TestCase
         ElementDataDictionary::class => 'conceptual-overview.md#element-data',
         Evidence::class => 'features/evidence.md',
         EvidenceKeyFilter::class => 'features/advertize-accepted-evidence.md',
-        FailedElementData::class => 'features/exception-handling.md#flow-data-and-derived-accessors',
         FlowData::class => 'conceptual-overview.md#flow-data',
         FlowElement::class => 'conceptual-overview.md#flow-element',
         HttpRequest::class => 'features/web-integration.md#populating-evidence',

@@ -39,13 +39,6 @@ class Messages
     public const NO_ELEMENT_DATA_NULL = "There is no element data for '%s' against this flow data.'";
 
     /**
-     * The reason a Property of an element that failed during processing has
-     * no value. This takes the property name, then the element's Data Key,
-     * which is also the key of its error in the FlowData's errors.
-     */
-    public const ELEMENT_FAILED = "There is no value for '%s' because the element '%2\$s' failed during processing. Its error is in the FlowData's errors under '%2\$s'.";
-
-    /**
      * Logged once when a deprecated Data Key is used. This takes the
      * deprecated key, then the key that replaces it.
      */

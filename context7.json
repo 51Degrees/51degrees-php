@@ -21,6 +21,7 @@
     "javascript-templates",
     "derived-properties",
     "pipeline/did/owid-php",
+    "device-detection/onpremise/dev",
     "archive",
     "archived",
     "old",

@@ -36,11 +36,20 @@ class ReadOnlyOnPremiseTests extends OnPremiseTestCase
 {
     public function testIpIntelligenceOnPremiseElementDataIsReadOnlyOnceProcessed(): void
     {
-        $flowData = (new PipelineBuilder())->add(self::buildEngine())->build()->createFlowData();
-        $flowData->evidence->set('query.client-ip-51d', '8.8.8.8');
-        $flowData->process();
+        $pipeline = (new PipelineBuilder())->add(self::buildEngine())->build();
+        try {
+            $flowData = $pipeline->createFlowData();
+            try {
+                $flowData->evidence->set('query.client-ip-51d', '8.8.8.8');
+                $flowData->process();
 
-        $this->expectExceptionMessage('has finished processing');
-        $flowData->ip->probe = 1;
+                $this->expectExceptionMessage('has finished processing');
+                $flowData->ip->probe = 1;
+            } finally {
+                $flowData->close();
+            }
+        } finally {
+            $pipeline->close();
+        }
     }
 }

@@ -47,35 +47,52 @@ class ReadOnlyTests extends TestCase
             'resourceKey' => 'mock_resource_key',
             'httpClient' => new MockHttpClient()
         ]))->build();
-        $flowData = $pipeline->createFlowData();
-        $flowData->evidence->set('query.client-ip-51d', Constants::IPV4_ADDRESS);
-        $flowData->process();
+        try {
+            $flowData = $pipeline->createFlowData();
+            try {
+                $flowData->evidence->set('query.client-ip-51d', Constants::IPV4_ADDRESS);
+                $flowData->process();
 
-        $this->expectExceptionMessage('has finished processing');
-        $flowData->ip->probe = 1;
+                $this->expectExceptionMessage('has finished processing');
+                $flowData->ip->probe = 1;
+            } finally {
+                $flowData->close();
+            }
+        } finally {
+            $pipeline->close();
+        }
     }
 
     public function testTheTranslationEnginesElementDataIsReadOnlyOnceProcessed(): void
     {
         $codes = new CountryCodeTranslationEngine();
         $names = new CountriesTranslationEngine();
-        $flowData = (new PipelineBuilder([]))
+        $pipeline = (new PipelineBuilder([]))
             ->add(new MockIpEngine(
                 [['value' => 'GB', 'rawweighting' => 1]],
                 [['value' => 'GB', 'rawweighting' => 1]]
             ))
             ->add($codes)
             ->add($names)
-            ->build()->createFlowData();
-        $flowData->process();
-
-        foreach (array_unique([$codes->dataKey, $names->dataKey]) as $key) {
+            ->build();
+        try {
+            $flowData = $pipeline->createFlowData();
             try {
-                $flowData->get($key)->probe = 1;
-                $this->fail("A write to the $key data did not throw.");
-            } catch (\Exception $e) {
-                $this->assertStringContainsString('has finished processing', $e->getMessage(), $key);
+                $flowData->process();
+
+                foreach (array_unique([$codes->dataKey, $names->dataKey]) as $key) {
+                    try {
+                        $flowData->get($key)->probe = 1;
+                        $this->fail("A write to the $key data did not throw.");
+                    } catch (\Exception $e) {
+                        $this->assertStringContainsString('has finished processing', $e->getMessage(), $key);
+                    }
+                }
+            } finally {
+                $flowData->close();
             }
+        } finally {
+            $pipeline->close();
         }
     }
 }

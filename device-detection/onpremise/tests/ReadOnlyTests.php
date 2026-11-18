@@ -38,12 +38,20 @@ class ReadOnlyTests extends TestCase
     public function testDeviceDetectionOnPremiseElementDataIsReadOnlyOnceProcessed(): void
     {
         $pipeline = (new PipelineBuilder())->add(new DeviceDetectionOnPremise())->build();
-        $flowData = $pipeline->createFlowData();
-        $flowData->evidence->set('header.user-agent', 'Mozilla/5.0 (iPhone)');
-        $flowData->process();
+        try {
+            $flowData = $pipeline->createFlowData();
+            try {
+                $flowData->evidence->set('header.user-agent', 'Mozilla/5.0 (iPhone)');
+                $flowData->process();
 
-        $this->assertNotNull($flowData->device->ismobile);
-        $this->expectExceptionMessage('has finished processing');
-        $flowData->device->probe = 1;
+                $this->assertNotNull($flowData->device->ismobile);
+                $this->expectExceptionMessage('has finished processing');
+                $flowData->device->probe = 1;
+            } finally {
+                $flowData->close();
+            }
+        } finally {
+            $pipeline->close();
+        }
     }
 }

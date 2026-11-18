@@ -141,6 +141,14 @@ class Pipeline
     private int $propertyListUpdates = 0;
 
     /**
+     * Whether an element accepts a request line key, which
+     * acceptsRequestLine() decides the first time it is asked and keeps,
+     * so a request reads one boolean rather than asking every element.
+     * Null until then.
+     */
+    private ?bool $acceptsRequestLine = null;
+
+    /**
      * Pipeline constructor.
      *
      * @param array<\fiftyone\pipeline\core\FlowElement> $flowElements List of FlowElements
@@ -310,6 +318,52 @@ class Pipeline
         };
 
         return $filter;
+    }
+
+    /**
+     * Whether an element in the Pipeline accepts any of the request line
+     * keys, being Evidence::REQUEST_METHOD_KEY, REQUEST_PATH_KEY and
+     * REQUEST_QUERY_KEY. Evidence::setFromWebRequest adds the three only
+     * when it does.
+     *
+     * The answer depends only on the Pipeline, so the elements are asked
+     * once, the first time a request needs the answer, and every later
+     * request reads the answer kept here. Asking every element about the
+     * three keys on every request made each detection slower. An element
+     * that starts to accept a request line key after the first request,
+     * as a Cloud Request Engine could if the cloud service listed one and
+     * the list could not be fetched until then, is seen by a Pipeline
+     * built after that.
+     */
+    public function acceptsRequestLine(): bool
+    {
+        if ($this->acceptsRequestLine === null) {
+            $this->acceptsRequestLine = $this->anyElementAccepts([
+                Evidence::REQUEST_METHOD_KEY,
+                Evidence::REQUEST_PATH_KEY,
+                Evidence::REQUEST_QUERY_KEY,
+            ]);
+        }
+
+        return $this->acceptsRequestLine;
+    }
+
+    /**
+     * Whether any element accepts any of the keys.
+     *
+     * @param array<string> $keys
+     */
+    private function anyElementAccepts(array $keys): bool
+    {
+        foreach ($this->flowElements as $flowElement) {
+            foreach ($keys as $key) {
+                if ($flowElement->filterEvidenceKey($key)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

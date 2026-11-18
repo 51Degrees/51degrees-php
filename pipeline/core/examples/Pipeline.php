@@ -71,6 +71,10 @@ $pipeline = (new PipelineBuilder())
 
 // We create FlowData which we will add evidence to
 
+// A Flow Data is for this one request. PHP runs each request on one
+// thread, so nothing else uses it at the same time. A Flow Data
+// must not be used by two threads at once, so never keep one for
+// another request or hand it to another thread.
 $flowData = $pipeline->createFlowData();
 
 $flowData->evidence->set('header.user-agent', 'test');

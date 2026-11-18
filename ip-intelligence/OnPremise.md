@@ -102,6 +102,14 @@ name, so they all keep working when the Device Detection extension is not
 loaded. When it is loaded, the names both extensions have are its classes,
 so use the `FiftyOneDegreesIpi` names.
 
+## Results and threads
+
+The results of a lookup, and the `SwigData` that reads values from them, are
+not safe to use from several threads at once. Reading a value writes into the
+native results, and neither the extension nor `SwigData` takes a lock. The
+caller is responsible for thread-safe access, so code that shares results
+between threads coordinates that itself.
+
 ## Running under a process manager
 
 The engine the extension builds when PHP starts, from the `data_file` setting

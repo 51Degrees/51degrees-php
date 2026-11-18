@@ -150,8 +150,6 @@ When a `PHP` program is run under a process manager such as `Apache MPM`, `php-f
 
 The reason enforcement is needed is that, in other profiles such as `Balanced`, `BalancedTemp`, `LowMemory` or `Default`, only a part of the data file is loaded into memory so from time to time, calls to read data from disk are required. These calls use file handles from a file handle pool which was designed to optimise the performance. However, this pool was created when the Device Detection engine module is loaded in the main process, so when the process manager spawns child processes in response to incoming requests by forking the main process, this pool is copied to the child processes, causing the file handles to be shared. When multiple processes call to load data from file using shared file handles, problems can occur such as the file position being changed unwantedly by another child process. For this reason the engine always uses `MaxPerformance`, where no call to the data file is required.
 
-While this is an issue in multi-processing environment, it is not a problem in multi-threading environment as the file handles are not shared and are managed by the file handle pool.
-
 #### Apache MPM
 
 When running under Apache MPM, only `prefork` mode is supported, because the engine is built in memory when PHP starts and each worker is forked from that process. The extension is enabled in `php.ini` as described above.
@@ -159,6 +157,10 @@ When running under Apache MPM, only `prefork` mode is supported, because the eng
 #### Refresh Internal Data
 
 To reload the data file, *refreshData()* needs to be called as described in this [example](https://51degrees.com/documentation/_device_detection__data_file_updates.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=refresh-internal-data) . Thus, unless a reload is performed in the main process and all child processes, the data will not be updated. There is not a proven solution to do so yet, so we recommend a full server restart to be performed instead.
+
+#### Results and threads
+
+The results of a detection, and the `SwigData` that reads values from them, are not safe to use from several threads at once. Reading a value writes into the native results, and neither the extension nor `SwigData` takes a lock. The caller is responsible for thread-safe access, so code that shares results between threads coordinates that itself.
 
 ## Examples
 

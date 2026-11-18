@@ -55,4 +55,27 @@ class ReadOnlyTests extends TestCase
         $this->expectExceptionMessage('has finished processing');
         $flowData->get('derived')->probe = 1;
     }
+
+    public function testSetValueThrowsOnceTheDerivedPropertyElementHasFinished(): void
+    {
+        $flowData = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+        ]))
+            ->add(new StubSourceElement('src', ['N' => 1], ['N']))
+            ->add((new DerivedPropertyElementBuilder())->addScript('Demo', self::DEMO)->build())
+            ->build()->createFlowData();
+        $flowData->process();
+        $data = $flowData->get('derived');
+
+        $thrown = null;
+        try {
+            $data->setValue('Demo', new AspectPropertyValue(null, 'after'));
+        } catch (\Exception $e) {
+            $thrown = $e;
+        }
+        $this->assertNotNull($thrown, 'setValue after processing did not throw.');
+        $this->assertStringContainsString('has finished processing', $thrown->getMessage());
+        $this->assertSame('yes', $data->get('Demo')->value);
+    }
 }

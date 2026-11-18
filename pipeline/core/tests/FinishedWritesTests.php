@@ -184,6 +184,112 @@ class FinishedWritesTests extends TestCase
         $data->after = true;
     }
 
+    public function testElementDataThrowsOnASecondWriteToAPropertyOnceFinished(): void
+    {
+        $flowData = self::processed([
+            new AddingElement('shared'),
+            new WritingElement('shared', 'shared'),
+        ]);
+
+        $this->assertWriteThrows(function () use ($flowData) {
+            $flowData->get('shared')->written = 'after';
+        }, self::ELEMENT_FINISHED);
+        $this->assertSame('shared', $flowData->get('shared')->written);
+    }
+
+    public function testSettingTheDataArrayOfAFinishedFlowDataThrows(): void
+    {
+        $element = new AddingElement('first');
+        $flowData = self::processed([$element]);
+
+        $this->assertWriteThrows(function () use ($flowData, $element) {
+            $flowData->data = ['other' => new ElementDataDictionary($element, [])];
+        }, self::FINISHED);
+        $this->assertSame(['first'], array_keys($flowData->data));
+    }
+
+    public function testSettingTheErrorsOfAFinishedFlowDataThrows(): void
+    {
+        $flowData = self::processed([new AddingElement('first')]);
+
+        $this->assertWriteThrows(function () use ($flowData) {
+            $flowData->errors = ['late' => new \Exception('late')];
+        }, self::FINISHED);
+        $this->assertSame([], $flowData->errors);
+    }
+
+    public function testChangingAnErrorOfAFinishedFlowDataHasNoEffect(): void
+    {
+        $flowData = self::processed([new AddingElement('first')]);
+
+        $notices = self::notices(function () use ($flowData) {
+            $flowData->errors['late'] = new \Exception('late');
+        });
+        $this->assertSame([], $flowData->errors);
+        $this->assertCount(1, $notices);
+        $this->assertStringContainsString('has no effect', $notices[0]);
+    }
+
+    public function testSettingTheContentsOfFinishedElementDataThrows(): void
+    {
+        $flowData = self::processed([new AddingElement('first')]);
+
+        $this->assertWriteThrows(function () use ($flowData) {
+            $flowData->get('first')->contents = ['value' => 'after'];
+        }, self::ELEMENT_FINISHED);
+        $this->assertSame(['value' => 'first'], $flowData->get('first')->contents);
+    }
+
+    public function testChangingAValueInTheContentsOfFinishedElementDataHasNoEffect(): void
+    {
+        $flowData = self::processed([new AddingElement('first')]);
+
+        $notices = self::notices(function () use ($flowData) {
+            $flowData->get('first')->contents['value'] = 'after';
+        });
+        $this->assertSame(['value' => 'first'], $flowData->get('first')->contents);
+        $this->assertCount(1, $notices);
+        $this->assertStringContainsString('has no effect', $notices[0]);
+    }
+
+    /**
+     * Expects the write to throw an exception whose message holds the text.
+     */
+    private function assertWriteThrows(callable $write, string $message): void
+    {
+        $thrown = null;
+        try {
+            $write();
+        } catch (\Exception $e) {
+            $thrown = $e;
+        }
+        $this->assertNotNull($thrown, 'The write did not throw.');
+        $this->assertStringContainsString($message, $thrown->getMessage());
+    }
+
+    /**
+     * The messages of the notices and warnings PHP raises while the action
+     * runs.
+     *
+     * @return array<int, string>
+     */
+    private static function notices(callable $action): array
+    {
+        $messages = [];
+        set_error_handler(function (int $level, string $message) use (&$messages) {
+            $messages[] = $message;
+
+            return true;
+        });
+        try {
+            $action();
+        } finally {
+            restore_error_handler();
+        }
+
+        return $messages;
+    }
+
     private static function pipeline(array $elements): Pipeline
     {
         return new Pipeline($elements, [

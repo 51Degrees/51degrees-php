@@ -52,6 +52,8 @@ class SetHeaderElement extends FlowElement
      * Pipelines with different elements. Each is kept with the Pipeline's
      * count of property list updates when it was worked out, and is worked
      * out again when an element of that Pipeline has updated its list since.
+     * The element holds each Pipeline it has processed for as long as the
+     * element lives, so share an element only between long-lived Pipelines.
      */
     private ?\SplObjectStorage $setHeaderProperties = null;
 

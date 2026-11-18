@@ -84,6 +84,28 @@ class JavaScriptBuilderPerformanceTests extends TestCase
 
     private const NANOSECONDS_PER_MILLISECOND = 1000000;
 
+    /**
+     * Debugger and coverage extensions slow the code they watch, so a time
+     * taken with one loaded measures them rather than the code.
+     */
+    private const INSTRUMENTING_EXTENSIONS = ['xdebug', 'pcov'];
+
+    /**
+     * Skips each timing when an instrumenting extension is loaded, naming
+     * the extension, so that the limit is only checked against the code.
+     */
+    protected function setUp(): void
+    {
+        foreach (self::INSTRUMENTING_EXTENSIONS as $extension) {
+            if (extension_loaded($extension)) {
+                $this->markTestSkipped(
+                    "The $extension extension is loaded, so this time " .
+                    'would measure the instrumentation, not the code.'
+                );
+            }
+        }
+    }
+
     public function testMinificationCostIsWithinTheLimit()
     {
         $minified = self::pipeline(true);
@@ -131,6 +153,49 @@ class JavaScriptBuilderPerformanceTests extends TestCase
             self::REQUESTS_PER_ROUND,
             $minifiedBytes,
             $plainBytes
+        );
+        fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
+
+        $this->assertLessThanOrEqual(
+            self::MAX_MINIFICATION_MILLISECONDS,
+            $cost,
+            $summary
+        );
+    }
+
+    /**
+     * A builder keeps the templates it has minified for its own life, so a
+     * Pipeline built for every request, as a PHP web page often builds it,
+     * minifies the whole template in its first request. This times that
+     * first request, on a new minifying Pipeline and a new plain one in
+     * each round, and checks the median cost against the same limit.
+     */
+    public function testFirstRequestCostIsWithinTheLimit()
+    {
+        // One of each first, so that loading the classes and the template
+        // file is not counted.
+        self::millisecondsPerRequest(self::pipeline(true), 1);
+        self::millisecondsPerRequest(self::pipeline(false), 1);
+
+        $costs = [];
+        for ($round = 0; $round < self::ROUNDS; $round++) {
+            $minified = self::pipeline(true);
+            $plain = self::pipeline(false);
+            $costs[] = self::millisecondsPerRequest($minified, 1) -
+                self::millisecondsPerRequest($plain, 1);
+        }
+
+        $cost = self::median($costs);
+        $summary = sprintf(
+            'JavaScript Builder minification on PHP %s, %s, first request ' .
+            'on a new Pipeline: cost %.3f ms (lowest %.3f, highest %.3f) ' .
+            'over %d rounds.',
+            PHP_VERSION,
+            PHP_OS_FAMILY,
+            $cost,
+            min($costs),
+            max($costs),
+            self::ROUNDS
         );
         fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
 

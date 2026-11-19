@@ -134,6 +134,13 @@ class Pipeline
     private array $propertyDatabase;
 
     /**
+     * How many times an element of the Pipeline has updated its property
+     * list. An element that keeps what it worked out from the properties of
+     * the Pipeline's elements works it out again when this has changed.
+     */
+    private int $propertyListUpdates = 0;
+
+    /**
      * Whether an element accepts a request line key, which
      * acceptsRequestLine() decides the first time it is asked and keeps,
      * so a request reads one boolean rather than asking every element.
@@ -446,6 +453,8 @@ class Pipeline
      */
     public function updatePropertyDatabaseForFlowElement(FlowElement $flowElement): void
     {
+        ++$this->propertyListUpdates;
+
         // Before its first read there is no database, and the read builds
         // it from the properties the elements have then.
         if (!$this->hasPropertyDatabase()) {
@@ -453,6 +462,16 @@ class Pipeline
         }
 
         $this->addToPropertyDatabase($flowElement);
+    }
+
+    /**
+     * How many times an element of the Pipeline has updated its property
+     * list, so that an element keeping what it worked out from those
+     * properties knows when to work it out again.
+     */
+    public function getPropertyListUpdates(): int
+    {
+        return $this->propertyListUpdates;
     }
 
     /**

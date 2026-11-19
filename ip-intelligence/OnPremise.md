@@ -102,6 +102,14 @@ name, so they all keep working when the Device Detection extension is not
 loaded. When it is loaded, the names both extensions have are its classes,
 so use the `FiftyOneDegreesIpi` names.
 
+## Results and threads
+
+The results of a lookup, and the `SwigData` that reads values from them, are
+not safe to use from several threads at once. Reading a value writes into the
+native results, and neither the extension nor `SwigData` takes a lock. The
+caller is responsible for thread-safe access, so code that shares results
+between threads coordinates that itself.
+
 ## Running under a process manager
 
 The engine the extension builds when PHP starts, from the `data_file` setting
@@ -125,6 +133,13 @@ constructed, with its own file handles and any `performanceProfile`. Under a
 web server PHP constructs the class in every request, so the data file would
 be loaded in every request, and under any SAPI other than `cli` the setting
 is refused with an exception. Use the engine built when PHP starts instead.
+
+The extension needs a non-thread-safe (NTS) PHP, which is what Apache MPM
+prefork with mod_php and php-fpm use. A thread-safe (ZTS) PHP, which mod_php
+needs under the Apache `worker` or `event` MPM, would share the engine between
+the threads of one process, so building the extension against one stops with
+an error that names the supported setups. `php -v` shows `NTS` or `ZTS` after
+the version.
 
 ## Data file
 

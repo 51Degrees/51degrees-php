@@ -155,7 +155,7 @@ class DerivedPropertyElement extends FlowElement
     {
         // Another derived property element earlier in the pipeline shares
         // the element data, as the properties of both are under `derived`.
-        $data = $flowData->data[self::DATA_KEY] ?? null;
+        $data = $flowData->tryGet(self::DATA_KEY);
         if (!($data instanceof DerivedPropertyData)) {
             $data = new DerivedPropertyData($this);
             $flowData->setElementData($data);
@@ -588,16 +588,7 @@ class DerivedPropertyElement extends FlowElement
      */
     private static function elementData(FlowData $flowData, string $key): ?ElementData
     {
-        if (isset($flowData->data[$key])) {
-            return $flowData->data[$key];
-        }
-        foreach ($flowData->data as $dataKey => $data) {
-            if (strcasecmp((string) $dataKey, $key) === 0) {
-                return $data;
-            }
-        }
-
-        return null;
+        return $flowData->tryGet($key);
     }
 
     /**

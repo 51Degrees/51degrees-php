@@ -40,9 +40,9 @@ jobs:
           path: common-ci
           persist-credentials: false
 
-      - name: Test the release plan filter
+      - name: Test the release plan filter and the publish
         shell: pwsh
-        run: Invoke-Pester -Path ./ci/release-plan-filter.Tests.ps1 -CI
+        run: Invoke-Pester -Path ./ci/release-plan-filter.Tests.ps1, ./ci/publish-package.Tests.ps1 -CI
 
       - name: Show the release plan
         shell: pwsh

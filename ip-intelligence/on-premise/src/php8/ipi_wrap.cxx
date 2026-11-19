@@ -1313,6 +1313,11 @@ template <typename T> T SwigValueInit() {
 
 
 
+#ifdef ZTS
+#error "The 51Degrees IP intelligence extension needs a non-thread-safe (NTS) PHP, and this PHP is thread-safe (ZTS). Build it for Apache with the prefork MPM and mod_php, or for php-fpm, with a non-thread-safe PHP."
+#endif
+
+
 #include "cxx/src/ipi/EngineIpi.hpp"
 
 using namespace FiftyoneDegrees::Common;
@@ -26814,7 +26819,21 @@ SWIG_php_minit {
         } else {
             ipi_engine_properties = new RequiredPropertiesConfig();
         }
-        ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        try {
+            ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        }
+        catch (const std::exception &e) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names. %s",
+                filePath, e.what());
+        }
+        catch (...) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names.",
+                filePath);
+        }
     }
 
   /* oinit subsection */

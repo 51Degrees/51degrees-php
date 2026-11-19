@@ -151,6 +151,7 @@ class ExampleUtils
                 'The FiftyOneDegreesIpIntelligenceEngine extension is not ' .
                 'loaded. OnPremise.md says how to build and enable it.'
             );
+            self::printFindOutMore(self::exampleFile());
             exit(1);
         }
 
@@ -178,6 +179,7 @@ class ExampleUtils
                     'no data file was found. Set ' . self::DATA_FILE_SETTING .
                     ' in php.ini to the path of an .ipi data file.'
                 );
+                self::printFindOutMore(self::exampleFile());
                 exit(1);
             }
             if ($configured !== '' && realpath($configured) === realpath($path)) {
@@ -187,6 +189,7 @@ class ExampleUtils
                     "No IP intelligence engine was built from {$path}, which " .
                     self::DATA_FILE_SETTING . ' names.'
                 );
+                self::printFindOutMore(self::exampleFile());
                 exit(1);
             }
             $engines[] = 'IP intelligence';
@@ -214,6 +217,7 @@ class ExampleUtils
                 "No {$missing} engine was built when PHP started. Set " .
                 implode(' and ', $set) . ", or run\n{$command}"
             );
+            self::printFindOutMore(self::exampleFile());
             exit(1);
         }
         $one = count($settings) === 1;
@@ -247,6 +251,7 @@ class ExampleUtils
                 'The ' . self::DD_EXTENSION . ' extension is not loaded. The ' .
                 'Device Detection on-premise readme says how to build it.'
             );
+            self::printFindOutMore(self::exampleFile());
             exit(1);
         }
         if (\FiftyOneDegreesHashEngine::engine_get() !== null) {
@@ -259,6 +264,7 @@ class ExampleUtils
             : self::DD_DATA . '/' . ExampleConstants::DD_LITE_DATA_FILE_NAME;
         if (!self::downloadMissingDataFile($path)) {
             self::writeError("There is no Device Detection data file at {$path}.");
+            self::printFindOutMore(self::exampleFile());
             exit(1);
         }
         $path = (string) realpath($path);
@@ -268,6 +274,7 @@ class ExampleUtils
                 "No device detection engine was built from {$path}, which " .
                 self::DD_DATA_FILE_SETTING . ' names.'
             );
+            self::printFindOutMore(self::exampleFile());
             exit(1);
         }
 
@@ -753,6 +760,20 @@ class ExampleUtils
         return "<div id=\"find-out-more\">\n" .
             "    <h3 class=\"c-eg-page__heading\">Find out more</h3>\n" .
             "    <ul>\n{$items}    </ul>\n</div>\n";
+    }
+
+    /**
+     * The example's own file, which is the script PHP was started with, so
+     * that a message written before the example can run carries the links
+     * for that example.
+     */
+    private static function exampleFile(): string
+    {
+        $file = isset($_SERVER['SCRIPT_FILENAME'])
+            ? (string) $_SERVER['SCRIPT_FILENAME']
+            : '';
+
+        return $file === '' ? __FILE__ : $file;
     }
 
     /**

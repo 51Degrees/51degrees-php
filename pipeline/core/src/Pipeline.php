@@ -134,6 +134,21 @@ class Pipeline
     private array $propertyDatabase;
 
     /**
+     * How many times an element of the Pipeline has updated its property
+     * list. An element that keeps what it worked out from the properties of
+     * the Pipeline's elements works it out again when this has changed.
+     */
+    private int $propertyListUpdates = 0;
+
+    /**
+     * Whether an element accepts a request line key, which
+     * acceptsRequestLine() decides the first time it is asked and keeps,
+     * so a request reads one boolean rather than asking every element.
+     * Null until then.
+     */
+    private ?bool $acceptsRequestLine = null;
+
+    /**
      * Pipeline constructor.
      *
      * @param array<\fiftyone\pipeline\core\FlowElement> $flowElements List of FlowElements
@@ -306,6 +321,52 @@ class Pipeline
     }
 
     /**
+     * Whether an element in the Pipeline accepts any of the request line
+     * keys, being Evidence::REQUEST_METHOD_KEY, REQUEST_PATH_KEY and
+     * REQUEST_QUERY_KEY. Evidence::setFromWebRequest adds the three only
+     * when it does.
+     *
+     * The answer depends only on the Pipeline, so the elements are asked
+     * once, the first time a request needs the answer, and every later
+     * request reads the answer kept here. Asking every element about the
+     * three keys on every request made each detection slower. An element
+     * that starts to accept a request line key after the first request,
+     * as a Cloud Request Engine could if the cloud service listed one and
+     * the list could not be fetched until then, is seen by a Pipeline
+     * built after that.
+     */
+    public function acceptsRequestLine(): bool
+    {
+        if ($this->acceptsRequestLine === null) {
+            $this->acceptsRequestLine = $this->anyElementAccepts([
+                Evidence::REQUEST_METHOD_KEY,
+                Evidence::REQUEST_PATH_KEY,
+                Evidence::REQUEST_QUERY_KEY,
+            ]);
+        }
+
+        return $this->acceptsRequestLine;
+    }
+
+    /**
+     * Whether any element accepts any of the keys.
+     *
+     * @param array<string> $keys
+     */
+    private function anyElementAccepts(array $keys): bool
+    {
+        foreach ($this->flowElements as $flowElement) {
+            foreach ($keys as $key) {
+                if ($flowElement->filterEvidenceKey($key)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Get a FlowElement by its Data Key, compared ignoring case as every
      * string key is, after the exact key. As in FlowData::get, an element's
      * own Data Key comes before a deprecated Data Key, which is logged once.
@@ -392,6 +453,8 @@ class Pipeline
      */
     public function updatePropertyDatabaseForFlowElement(FlowElement $flowElement): void
     {
+        ++$this->propertyListUpdates;
+
         // Before its first read there is no database, and the read builds
         // it from the properties the elements have then.
         if (!$this->hasPropertyDatabase()) {
@@ -399,6 +462,16 @@ class Pipeline
         }
 
         $this->addToPropertyDatabase($flowElement);
+    }
+
+    /**
+     * How many times an element of the Pipeline has updated its property
+     * list, so that an element keeping what it worked out from those
+     * properties knows when to work it out again.
+     */
+    public function getPropertyListUpdates(): int
+    {
+        return $this->propertyListUpdates;
     }
 
     /**

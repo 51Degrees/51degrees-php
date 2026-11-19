@@ -20,6 +20,17 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+// The engine is built once, when PHP starts, and is supported only where PHP
+// serves each request from a process forked after that, as Apache with the
+// prefork MPM and php-fpm do. A thread-safe (ZTS) PHP would share the engine
+// between threads instead, so the build stops here. The wrapper includes
+// php.h first, which defines ZTS for a thread-safe PHP.
+%{
+#ifdef ZTS
+#error "The 51Degrees device detection extension needs a non-thread-safe (NTS) PHP, and this PHP is thread-safe (ZTS). Build it for Apache with the prefork MPM and mod_php, or for php-fpm, with a non-thread-safe PHP."
+#endif
+%}
+
 %include "cxx/src/dd/hash/hash.i"
 
 // Add a void constructor. This is not to be used, but a workaround for a bug

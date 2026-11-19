@@ -167,8 +167,10 @@ class PipelineBuilder
      * the element. An add method is called once for each item of a list,
      * whether a JSON list or a string of items separated by commas, as the
      * configuration files of every language write a list of strings, and
-     * an item that is itself a list gives the method's arguments. A
-     * parameter the builder has no method for is refused.
+     * an item that is itself a list gives the method's arguments. A string
+     * is always split at its commas, so an item that holds a comma is
+     * written in a JSON list, such as ["a,b"]. A parameter the builder has
+     * no method for is refused.
      *
      * The configured elements are then built into a Pipeline as build()
      * builds added ones, so the web integration elements the switches ask

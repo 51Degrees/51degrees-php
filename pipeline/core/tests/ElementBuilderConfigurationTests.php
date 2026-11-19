@@ -120,6 +120,27 @@ class ElementBuilderConfigurationTests extends TestCase
         );
     }
 
+    /**
+     * A string is always split at its commas, so buildFromConfig()'s comment
+     * says an item that holds a comma is written in a JSON list.
+     */
+    public function testAnItemThatHoldsACommaIsWrittenInAJsonList(): void
+    {
+        $pipeline = (new PipelineBuilder())->buildFromConfig([
+            'PipelineOptions' => [
+                'Elements' => [[
+                    'BuilderName' => ConfiguredElementBuilder::class,
+                    'BuildParameters' => ['Name' => ['first, second']]
+                ]]
+            ]
+        ]);
+
+        $this->assertSame(
+            ['first, second'],
+            $pipeline->getElement('configured')->names
+        );
+    }
+
     public function testABuilderNamedWithoutParametersBuildsWithItsDefaults(): void
     {
         $pipeline = (new PipelineBuilder())->buildFromConfig([

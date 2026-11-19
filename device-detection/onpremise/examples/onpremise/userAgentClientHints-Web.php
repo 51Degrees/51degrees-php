@@ -99,6 +99,10 @@ $builder = new PipelineBuilder(['suppressProcessExceptions' => true]);
 
 $pipeline = $builder->add($device)->build();
 
+// A Flow Data is for this one request. PHP runs each request on one
+// thread, so nothing else uses it at the same time. A Flow Data
+// must not be used by two threads at once, so never keep one for
+// another request or hand it to another thread.
 // We create the flowData object that is used to add evidence to and read data from.
 // It is closed, with the pipeline, in the finally block at the end of the
 // page, which releases the results of the detection straight away.

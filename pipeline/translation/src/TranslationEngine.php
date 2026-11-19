@@ -202,7 +202,7 @@ class TranslationEngine extends Engine
         // so the values of one earlier in the Pipeline are kept, and a value
         // of the same name is replaced. The data is set again rather than
         // changed, so a result an engine put in its cache stays as it was.
-        $shared = $flowData->data[$this->dataKey] ?? null;
+        $shared = $flowData->tryGet($this->dataKey);
         if ($shared instanceof AspectDataDictionary && $shared->flowElement instanceof self) {
             $result = array_replace($shared->asDictionary(), $result);
         }

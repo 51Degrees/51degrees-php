@@ -261,7 +261,7 @@ class CloudEngine extends CloudEngineBase
         $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
         if (
             $cloudRequestEngine === null ||
-            isset($flowData->data[$cloudRequestEngine->dataKey]) ||
+            $flowData->tryGet($cloudRequestEngine->dataKey) !== null ||
             !isset($flowData->errors[$cloudRequestEngine->dataKey])
         ) {
             return false;

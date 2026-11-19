@@ -1,0 +1,28 @@
+name: Temporary build of 459730a6 on tmp/tracy-php-174-green
+
+on:
+  push:
+    branches:
+      - 'tmp/tracy-php-174-green'
+
+jobs:
+  Build:
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
+    with:
+      repo-name: 51degrees-php
+      org-name: 51Degrees
+      branch: tmp/tracy-php-174-green
+      prs: ''
+      build-without-pull-requests: true
+      dryrun: true
+      cache-assets: true
+      build-test-timeout-minutes: 300
+      skip-compare-performance: true
+      common-ci-ref: tmp/no-macos
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
+      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
+      CsvUrl: ${{ secrets.CSV_URL }}
+      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}

@@ -85,6 +85,10 @@ Requests for the client-side JavaScript and JSON need a Flow Data that has not b
 answer those with `Utils::javascriptResponse()` and `Utils::jsonResponse()`, as the device
 detection Getting Started web examples do.
 
+## Flow Data and threads
+
+A Flow Data holds the Evidence and the results of one request. PHP runs each request on one thread, so nothing else can reach a Flow Data while a request uses it, and this package offers no parallel processing. A Flow Data must not be used by two threads at once, so create one for each request, process it once, and never keep it for another request or hand it to another thread. A Flow Data takes no lock, so code that shares one between threads is responsible for any locking. The web examples create a Flow Data for each request, as `$pipeline->createFlowData()` in each one shows.
+
 ## Tests
 To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:
 ```

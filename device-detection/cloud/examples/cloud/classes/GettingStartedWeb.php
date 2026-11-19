@@ -126,6 +126,10 @@ class GettingStartedWeb
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
         if ($path === '/51Degrees.core.js' || $path === '/json') {
+            // A Flow Data is for this one request. PHP runs each request on one
+            // thread, so nothing else uses it at the same time. A Flow Data
+            // must not be used by two threads at once, so never keep one for
+            // another request or hand it to another thread.
             // Create the flowdata object, and add any information from the
             // request (headers, cookies and additional client side provided
             // information).

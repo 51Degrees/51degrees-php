@@ -158,6 +158,41 @@ class WebRequestFlowDataTests extends TestCase
     }
 
     /**
+     * The next call to processWebRequest() closes the Flow Data it replaces,
+     * and getFlowData() then gives the new one. So getFlowData()'s comment
+     * and the readme's web section say that these methods suit a PHP that
+     * handles one request at a time in each process or thread, and that a
+     * runtime that interleaves requests passes on the Flow Data
+     * processWebRequest() returns instead.
+     */
+    public function testTheWebDocumentationSaysTheseMethodsSuitOneRequestAtATime(): void
+    {
+        $phrases = [
+            'one request at a time in each process or thread',
+            'interleaves requests',
+            'passes on the flow data that'
+        ];
+
+        $utils = (string)file_get_contents(__DIR__ . '/../src/Utils.php');
+        $doc = strtolower($this->words(
+            $this->docAbove($utils, 'public static function getFlowData(')
+        ));
+        $section = strtolower($this->words($this->webSection()));
+        foreach ($phrases as $phrase) {
+            $this->assertStringContainsString(
+                $phrase,
+                $doc,
+                'getFlowData() says ' . $phrase
+            );
+            $this->assertStringContainsString(
+                $phrase,
+                $section,
+                'The readme says ' . $phrase
+            );
+        }
+    }
+
+    /**
      * The Flow Data a call replaces is closed after the new one is kept, so
      * an error from closing it still leaves the new one to be read.
      */

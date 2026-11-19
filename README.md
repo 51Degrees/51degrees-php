@@ -174,6 +174,9 @@ phpize
 make
 ```
 
+Both extensions need a non-thread-safe (NTS) PHP, and the build stops with an
+error against a thread-safe (ZTS) one.
+
 The package [readme](device-detection/onpremise/readme.md) lists the build
 requirements and how to install the extension.
 

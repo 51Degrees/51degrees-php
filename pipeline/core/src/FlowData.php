@@ -31,6 +31,11 @@ namespace fiftyone\pipeline\core;
  * It passes evidence to FlowElements in the Pipeline
  * These elements can return ElementData or populate an errors object.
  *
+ * A FlowData is not safe to use from several threads at once. It holds
+ * the evidence and results of one request and takes no lock. The caller is
+ * responsible for any locking, so a caller that shares a FlowData between
+ * threads coordinates that itself.
+ *
  * @property \fiftyone\pipeline\core\JsonBundlerElement $jsonbundler
  */
 class FlowData

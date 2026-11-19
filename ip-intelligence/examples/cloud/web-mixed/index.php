@@ -85,6 +85,10 @@ if (!$resourceKey) {
         $builder->add(new IpIntelligenceCloud());
         $pipeline = $builder->build();
 
+        // A Flow Data is for this one request. PHP runs each request on one
+        // thread, so nothing else uses it at the same time. A Flow Data
+        // must not be used by two threads at once, so never keep one for
+        // another request or hand it to another thread.
         $flowData = $pipeline->createFlowData();
         // Headers, cookies, the query string and the form fields the
         // client-side script posts. The address to look up is query

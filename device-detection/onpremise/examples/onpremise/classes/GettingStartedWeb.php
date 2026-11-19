@@ -63,6 +63,10 @@ class GettingStartedWeb
             return;
         }
 
+        // A Flow Data is for this one request. PHP runs each request on one
+        // thread, so nothing else uses it at the same time. A Flow Data
+        // must not be used by two threads at once, so never keep one for
+        // another request or hand it to another thread.
         // Create the flowdata object. It is closed in the finally block, once
         // the response has been written, which releases the results of the
         // detection straight away.

@@ -130,23 +130,89 @@ class WebRequestFlowDataTests extends TestCase
     }
 
     /**
+     * In a PHP that serves one request after another, as a worker does, the
+     * kept Flow Data stays until the next call to processWebRequest()
+     * replaces it. So a request there that has not called it reads the
+     * previous request's Flow Data, and getFlowData()'s comment and the
+     * readme's web section say so rather than that it is null.
+     */
+    public function testARequestThatHasNotProcessedReadsThePreviousRequestsFlowData(): void
+    {
+        $previous = Utils::processWebRequest($this->pipeline(), self::SERVER, [], []);
+
+        // The next request, which answers without calling processWebRequest().
+        $this->assertSame($previous, Utils::getFlowData());
+
+        $phrase = "the previous request's flow data";
+
+        $utils = (string)file_get_contents(__DIR__ . '/../src/Utils.php');
+        $doc = strtolower($this->words(
+            $this->docAbove($utils, 'public static function getFlowData(')
+        ));
+        $this->assertStringContainsString($phrase, $doc);
+        $this->assertStringNotContainsString('not been called in this request', $doc);
+
+        $section = strtolower($this->words($this->webSection()));
+        $this->assertStringContainsString($phrase, $section);
+        $this->assertStringNotContainsString('never kept for another request', $section);
+    }
+
+    /**
+     * The Flow Data a call replaces is closed after the new one is kept, so
+     * an error from closing it still leaves the new one to be read.
+     */
+    public function testTheNewFlowDataIsKeptWhenClosingTheOneItReplacesThrows(): void
+    {
+        $element = $this->closingElement(true);
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false
+        ]))->add($element)->build();
+
+        $replaced = Utils::processWebRequest($pipeline, self::SERVER, [], []);
+
+        try {
+            Utils::processWebRequest(
+                $pipeline,
+                ['HTTP_USER_AGENT' => 'Another'] + self::SERVER,
+                [],
+                []
+            );
+            $this->fail('The error from closing the replaced Flow Data is thrown');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('close failed', $e->getMessage());
+        } finally {
+            // The Flow Data still kept is closed by a later test or at
+            // shutdown, which must not throw.
+            $element->closeThrows = false;
+        }
+
+        $this->assertNotSame($replaced, Utils::getFlowData());
+        $this->assertSame(
+            'Another',
+            Utils::getFlowData()->evidence->get('header.user-agent')
+        );
+    }
+
+    /**
      * Web integration documentation MUST say that a Flow Data cannot be used
      * by two threads at once, and MUST show it, so the readme's web section
      * says it, its example says it just above the line that creates the Flow
-     * Data, and so does processWebRequest()'s own comment.
+     * Data, and so does processWebRequest()'s own comment. Code comments and
+     * documentation MUST also say that the caller is responsible for any
+     * locking, so each of those says that too.
      */
     public function testTheWebDocumentationSaysAFlowDataIsUsedByOneThread(): void
     {
         $phrase = 'must not be used by two threads at once';
+        $locking = 'the caller is responsible for any locking';
 
-        $readme = (string)file_get_contents(__DIR__ . '/../readme.md');
-        $start = strpos($readme, '## Web applications');
-        $this->assertNotFalse($start, 'The readme has a Web applications section');
-        $end = strpos($readme, "\n## ", $start + 1);
-        $section = $end === false
-            ? substr($readme, $start)
-            : substr($readme, $start, $end - $start);
+        $section = $this->webSection();
         $this->assertStringContainsString($phrase, $this->words($section));
+        $this->assertStringContainsString(
+            $locking,
+            strtolower($this->words($section))
+        );
 
         // The comment lines just above the line that creates the Flow Data.
         $lines = explode("\n", str_replace("\r", '', $section));
@@ -164,13 +230,43 @@ class WebRequestFlowDataTests extends TestCase
             $this->words(implode(' ', $comment)),
             'The example says it just above the line that creates the Flow Data'
         );
+        $this->assertStringContainsString(
+            $locking,
+            strtolower($this->words(implode(' ', $comment))),
+            'The example says who locks just above the line that creates the Flow Data'
+        );
 
         $utils = (string)file_get_contents(__DIR__ . '/../src/Utils.php');
-        $method = strpos($utils, 'public static function processWebRequest(');
-        $this->assertNotFalse($method);
-        $doc = substr($utils, 0, $method);
-        $doc = substr($doc, (int)strrpos($doc, '/**'));
+        $doc = $this->docAbove($utils, 'public static function processWebRequest(');
         $this->assertStringContainsString($phrase, $this->words($doc));
+        $this->assertStringContainsString($locking, strtolower($this->words($doc)));
+    }
+
+    /**
+     * The readme's Web applications section.
+     */
+    private function webSection(): string
+    {
+        $readme = (string)file_get_contents(__DIR__ . '/../readme.md');
+        $start = strpos($readme, '## Web applications');
+        $this->assertNotFalse($start, 'The readme has a Web applications section');
+        $end = strpos($readme, "\n## ", $start + 1);
+
+        return $end === false
+            ? substr($readme, $start)
+            : substr($readme, $start, $end - $start);
+    }
+
+    /**
+     * The doc comment just above a line of the source.
+     */
+    private function docAbove(string $source, string $line): string
+    {
+        $at = strpos($source, $line);
+        $this->assertNotFalse($at, $line . ' is in the source');
+        $doc = substr($source, 0, $at);
+
+        return substr($doc, (int)strrpos($doc, '/**'));
     }
 
     /**
@@ -188,10 +284,18 @@ class WebRequestFlowDataTests extends TestCase
      * An element whose element data has a close method of its own, as the
      * results of an on-premise engine have.
      */
-    private function closingElement(): FlowElement
+    private function closingElement(bool $closeThrows = false): FlowElement
     {
-        return new class() extends FlowElement {
+        return new class($closeThrows) extends FlowElement {
             public string $dataKey = 'closing';
+
+            public bool $closeThrows;
+
+            public function __construct(bool $closeThrows)
+            {
+                parent::__construct();
+                $this->closeThrows = $closeThrows;
+            }
 
             public function processInternal($flowData): void
             {
@@ -201,6 +305,9 @@ class WebRequestFlowDataTests extends TestCase
                     public function close(): void
                     {
                         $this->closed = true;
+                        if ($this->flowElement->closeThrows) {
+                            throw new \RuntimeException('close failed');
+                        }
                     }
                 });
             }

@@ -16,6 +16,7 @@ jobs:
       build-without-pull-requests: true
       dryrun: true
       cache-assets: true
+      fail-fast: false
       build-test-timeout-minutes: 300
       skip-compare-performance: true
       common-ci-ref: tmp/no-macos

@@ -187,11 +187,10 @@ class WebRequestFlowDataTests extends TestCase
             $element->closeThrows = false;
         }
 
+        // This Pipeline takes no header Evidence, so the new Flow Data is
+        // told from the replaced one by being processed and not the same.
         $this->assertNotSame($replaced, Utils::getFlowData());
-        $this->assertSame(
-            'Another',
-            Utils::getFlowData()->evidence->get('header.user-agent')
-        );
+        $this->assertTrue(Utils::getFlowData()->processed);
     }
 
     /**

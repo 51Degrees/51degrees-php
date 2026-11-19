@@ -56,6 +56,10 @@ $geolocationPipeline = new GeoLocationPipelineBuilder($params);
 
 $geolocationPipeline = $geolocationPipeline->build();
 
+// A Flow Data is for this one request. PHP runs each request on one
+// thread, so nothing else uses it at the same time. A Flow Data
+// must not be used by two threads at once, so never keep one for
+// another request or hand it to another thread.
 $flowData = $geolocationPipeline->createFlowData();
 
 $flowData->evidence->setFromWebRequest();

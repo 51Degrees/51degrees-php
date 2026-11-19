@@ -52,6 +52,10 @@ and on our [website](https://51degrees.com/documentation/_device_detection__exam
 | CloudEngine                            | In [pipeline/cloudrequestengine](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/cloudrequestengine). Demonstrates a cloud engine, which gives the star sign for a date of birth from a remote service. |
 | DerivedProperty                        | In [pipeline/derivedproperty](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/derivedproperty). Demonstrates the derived property element, which computes properties from properties other elements have produced. |
 
+## Flow Data and threads
+
+A Flow Data holds the Evidence and the results of one request. PHP runs each request on one thread, so nothing else can reach a Flow Data while a request uses it, and this package offers no parallel processing. A Flow Data must not be used by two threads at once, so create one for each request, process it once, and never keep it for another request or hand it to another thread. A Flow Data takes no lock, so code that shares one between threads is responsible for any locking. The web examples create a Flow Data for each request, as `$pipeline->createFlowData()` in each one shows.
+
 ## Tests
 To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:
 ```

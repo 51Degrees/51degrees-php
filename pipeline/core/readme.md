@@ -65,6 +65,12 @@ call. So a request there that has not called `Utils::processWebRequest()` gets t
 request's Flow Data from `Utils::getFlowData()`. Call `Utils::processWebRequest()` first in every
 request that reads it.
 
+So these methods suit a PHP that handles one request at a time in each process or thread. In a
+runtime that interleaves requests in one thread, such as one that runs them as coroutines, the next
+request's call to `Utils::processWebRequest()` closes and replaces the Flow Data an earlier request
+may still use. Code there passes on the Flow Data that `Utils::processWebRequest()` returns instead
+of reading it from `Utils::getFlowData()`.
+
 A Flow Data holds the Evidence and results of one request. PHP runs each request on one thread,
 and a Flow Data must not be used by two threads at once. The caller is responsible for any
 locking, so code that hands a Flow Data to another thread coordinates that itself.

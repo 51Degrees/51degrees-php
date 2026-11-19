@@ -166,6 +166,13 @@ class Utils
      * that has not called processWebRequest() gets the previous request's
      * Flow Data. Call processWebRequest() first in every request that reads
      * it.
+     *
+     * So these methods suit a PHP that handles one request at a time in each
+     * process or thread. In a runtime that interleaves requests in one
+     * thread, such as one that runs them as coroutines, the next request's
+     * call to processWebRequest() closes and replaces the Flow Data an
+     * earlier request may still use. Code there passes on the Flow Data that
+     * processWebRequest() returns instead of reading it here.
      */
     public static function getFlowData(): ?FlowData
     {

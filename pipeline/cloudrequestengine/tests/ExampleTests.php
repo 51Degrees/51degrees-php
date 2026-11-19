@@ -36,9 +36,7 @@ class ExampleTests extends TestCase
     // example must not need them, so they are left out of its run.
     private const SETTINGS = [
         '_51DEGREES_RESOURCE_KEY',
-        'resource_key',
-        '_51DEGREES_CLOUD_ENDPOINT',
-        'FOD_CLOUD_API_URL'
+        '_51DEGREES_CLOUD_ENDPOINT'
     ];
 
     /**

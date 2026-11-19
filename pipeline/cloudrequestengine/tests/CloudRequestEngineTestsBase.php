@@ -94,8 +94,8 @@ class CloudRequestEngineTestsBase extends TestCase
     public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
     /**
-     * The environment variable read for the resource key when
-     * RESOURCE_KEY_ENV_VAR is not set.
+     * The old environment variable name for the resource key. It is no
+     * longer read.
      *
      * @deprecated use {@see CloudRequestEngineTestsBase::RESOURCE_KEY_ENV_VAR}
      */

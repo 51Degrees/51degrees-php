@@ -27,8 +27,8 @@ class Constants
 {
     // Resource key environment variables follow the 51Degrees convention,
     // which is that every one of them starts with
-    // '_51DEGREES_RESOURCE_KEY'. The name each one replaced is still read,
-    // as a deprecated name, when the variable is not set.
+    // '_51DEGREES_RESOURCE_KEY'. The names they replaced are no longer
+    // read.
     public const RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
     public const PLATFORM_ENV_VAR = '_51DEGREES_RESOURCE_KEY_ACCEPTCH_PLATFORM';
     public const HARDWARE_ENV_VAR = '_51DEGREES_RESOURCE_KEY_ACCEPTCH_HARDWARE';
@@ -51,8 +51,8 @@ class Constants
     public const LEGACY_NO_ACCEPTCH_ENV_VAR = 'AcceptChNoneKey';
 
     /**
-     * Pairs each variable with the deprecated name it replaced, so a
-     * lookup can read that name without every test knowing both.
+     * Pairs each variable with the deprecated name it replaced, which is
+     * no longer read.
      *
      * @deprecated use the variable names, which are the keys
      */

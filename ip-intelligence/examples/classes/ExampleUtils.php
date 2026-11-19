@@ -293,8 +293,7 @@ class ExampleUtils
             return $args[0];
         }
         $env = EnvironmentVariable::read(
-            ExampleConstants::IPI_PATH_VARIABLE,
-            ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            ExampleConstants::IPI_PATH_VARIABLE
         );
 
         return $env !== '' && file_exists($env) ? $env : null;
@@ -352,7 +351,6 @@ class ExampleUtils
 
         $key = EnvironmentVariable::read(
             ExampleConstants::RESOURCE_KEY_VARIABLE,
-            ExampleConstants::CLOUD_RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
 
@@ -378,8 +376,7 @@ class ExampleUtils
         }
 
         $env = EnvironmentVariable::read(
-            ExampleConstants::IPI_PATH_VARIABLE,
-            ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            ExampleConstants::IPI_PATH_VARIABLE
         );
         if ($env && file_exists($env)) {
             return $env;

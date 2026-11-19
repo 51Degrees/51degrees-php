@@ -65,7 +65,6 @@ use fiftyone\pipeline\devicedetection\DeviceDetectionCloud;
 // it if there is one. (This is used for automated testing)
 $resourceKey = EnvironmentVariable::read(
     Constants::RESOURCE_KEY_VARIABLE,
-    Constants::RESOURCE_KEY_ENV_VAR,
     "!!YOUR_RESOURCE_KEY!!"
 );
 if ($resourceKey === '') {

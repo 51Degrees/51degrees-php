@@ -150,10 +150,11 @@ class GettingStartedWeb
         }
 
         // Create the flowdata object, add the evidence from the request and
-        // process it. Utils keeps the processed flowdata for the rest of the
-        // request, so any other part of the application can read the results
-        // with Utils::getFlowData() without being handed it. The flowdata is for
-        // this request alone and must not be used by two threads at once.
+        // process it. Utils keeps the processed flowdata, so any other part of
+        // the application handling this request can read the results with
+        // Utils::getFlowData() without being handed it. The flowdata must not
+        // be used by two threads at once. The caller is responsible for any
+        // locking.
         $flowdata = Utils::processWebRequest($pipeline);
 
         // Some browsers require that extra HTTP headers are explicitly

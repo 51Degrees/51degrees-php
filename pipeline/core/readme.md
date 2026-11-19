@@ -56,20 +56,24 @@ and on our [website](https://51degrees.com/documentation/_device_detection__exam
 
 `Utils::processWebRequest($pipeline)` handles a page request in one call. It creates a Flow Data,
 adds the request's headers, cookies, query and form parameters as Evidence, and processes it.
-The processed Flow Data is kept for the rest of the request, so any other part of the application
-reads the results with `Utils::getFlowData()` without being handed it. It is closed when PHP
-finishes the request, or when the next request's call replaces it in a PHP that serves one request
-after another.
+The processed Flow Data is kept, so any other part of the application reads the results with
+`Utils::getFlowData()` without being handed it. It is closed when PHP finishes the request, or
+when the next request's call replaces it in a PHP that serves one request after another.
+
+A PHP that serves one request after another, as a worker does, keeps the Flow Data until that next
+call. So a request there that has not called `Utils::processWebRequest()` gets the previous
+request's Flow Data from `Utils::getFlowData()`. Call `Utils::processWebRequest()` first in every
+request that reads it.
 
 A Flow Data holds the Evidence and results of one request. PHP runs each request on one thread,
-and a Flow Data must not be used by two threads at once, so it is never kept for another request
-or handed to another thread.
+and a Flow Data must not be used by two threads at once. The caller is responsible for any
+locking, so code that hands a Flow Data to another thread coordinates that itself.
 
 ```php
 use fiftyone\pipeline\core\Utils;
 
-// Where the request is handled. This Flow Data is for this request alone and must not be used
-// by two threads at once.
+// Where the request is handled. This Flow Data must not be used by two threads at once. The
+// caller is responsible for any locking.
 $flowData = Utils::processWebRequest($pipeline);
 Utils::setResponseHeader($flowData);
 

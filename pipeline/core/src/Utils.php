@@ -78,9 +78,10 @@ class Utils
     private const OWS = " \t";
 
     /**
-     * The Flow Data of the web request being handled, kept by
-     * processWebRequest(). PHP builds its state afresh for every request, so
-     * this lasts as long as the request does.
+     * The Flow Data the last call to processWebRequest() kept. A PHP that
+     * builds its state afresh for every request starts each one without it.
+     * A PHP that serves one request after another, as a worker does, keeps
+     * it until the next call replaces it.
      */
     private static ?FlowData $requestFlowData = null;
 
@@ -94,13 +95,17 @@ class Utils
      * Handle a web request with the Pipeline. A Flow Data is created, the
      * request's Evidence is added to it with
      * Evidence::setFromWebRequest(), and it is processed. The processed
-     * Flow Data is then kept for the rest of the request, where any other
-     * part of the application reads it with getFlowData() without being
-     * handed it. It is closed when PHP finishes the request, or when a
-     * later call replaces it, as in a PHP that serves one request after
-     * another. A Flow Data must not be used by two threads at once, so the
-     * one kept here is for this request alone and is never handed to another
-     * thread.
+     * Flow Data is then kept, where any other part of the application
+     * reads it with getFlowData() without being handed it. It is closed
+     * when PHP finishes the request, or when a later call replaces it, as
+     * in a PHP that serves one request after another. There it is kept
+     * until that later call, so see getFlowData() for a request that does
+     * not call this.
+     *
+     * A Flow Data is not safe to use from several threads at once, and
+     * must not be used by two threads at once. The caller is responsible
+     * for any locking, so code that hands the Flow Data to another thread
+     * coordinates that itself.
      *
      * Requests for the client-side JavaScript and JSON need a Flow Data
      * that has not been processed, so answer those with
@@ -127,13 +132,13 @@ class Utils
 
         // A PHP that serves one request after another, as a worker does,
         // keeps this state between them, so the Flow Data this one replaces
-        // is closed now rather than when that PHP stops.
-        if (self::$requestFlowData !== null) {
-            self::$requestFlowData->close();
-        }
+        // is closed here rather than when that PHP stops.
+        $replaced = self::$requestFlowData;
 
         // Kept before processing, so that a Pipeline that throws still
-        // leaves the request's Flow Data, with its errors, to be read.
+        // leaves the request's Flow Data, with its errors, to be read. Kept
+        // before the replaced one is closed too, so an error from closing it
+        // still leaves this one to be read.
         self::$requestFlowData = $flowData;
         if (!self::$closeAtShutdown) {
             self::$closeAtShutdown = true;
@@ -144,12 +149,23 @@ class Utils
             });
         }
 
-        return $flowData->process();
+        try {
+            return $flowData->process();
+        } finally {
+            if ($replaced !== null) {
+                $replaced->close();
+            }
+        }
     }
 
     /**
-     * The Flow Data processWebRequest() processed for the web request being
-     * handled, or null when it has not been called in this request.
+     * The Flow Data the last call to processWebRequest() processed, or null
+     * when there has been none. A PHP that builds its state afresh for every
+     * request starts each one with none. A PHP that serves one request after
+     * another, as a worker does, keeps it between them, so a request there
+     * that has not called processWebRequest() gets the previous request's
+     * Flow Data. Call processWebRequest() first in every request that reads
+     * it.
      */
     public static function getFlowData(): ?FlowData
     {

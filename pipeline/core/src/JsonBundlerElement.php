@@ -77,8 +77,11 @@ class JsonBundlerElement extends FlowElement
 
     /**
      * What the JSON needs from the Property metadata of the elements of each
-     * Pipeline the bundler is in, worked out once for each Pipeline, because
-     * an element can be in Pipelines with different elements.
+     * Pipeline the bundler is in, worked out for each Pipeline, because an
+     * element can be in Pipelines with different elements. Each is kept with
+     * the Pipeline's count of property list updates when it was worked out,
+     * and is worked out again when an element of that Pipeline has updated
+     * its list since.
      */
     private ?\SplObjectStorage $propertyCaches = null;
 
@@ -146,10 +149,14 @@ class JsonBundlerElement extends FlowElement
             'javascriptProperties' => []
         ];
 
+        // The cache of a Pipeline with an element that has updated its
+        // property list since the cache was made is made again.
         $this->propertyCaches = $this->propertyCaches ?? new \SplObjectStorage();
         $pipeline = $flowData->pipeline;
-        $propertyCacheSet = isset($this->propertyCaches[$pipeline]);
-        $pipelineCache = $propertyCacheSet ? $this->propertyCaches[$pipeline] : [];
+        $updates = $pipeline->getPropertyListUpdates();
+        $propertyCacheSet = isset($this->propertyCaches[$pipeline])
+            && $this->propertyCaches[$pipeline]['updates'] === $updates;
+        $pipelineCache = $propertyCacheSet ? $this->propertyCaches[$pipeline]['elements'] : [];
 
         foreach ($flowData->pipeline->flowElements as $flowElement) {
             if (in_array($flowElement->dataKey, self::EXCLUDED_DATA_KEYS, true)) {
@@ -277,7 +284,10 @@ class JsonBundlerElement extends FlowElement
         }
 
         if (!$propertyCacheSet) {
-            $this->propertyCaches[$pipeline] = $pipelineCache;
+            $this->propertyCaches[$pipeline] = [
+                'updates' => $updates,
+                'elements' => $pipelineCache
+            ];
         }
 
         $data = new ElementDataDictionary($this, ['json' => $output]);

@@ -49,11 +49,13 @@ class SetHeaderElement extends FlowElement
     ];
 
     /**
-     * The SetHeader Properties of the elements of each Pipeline the element
-     * is in, as getSetHeaderPropertiesPipeline gives them, worked out for
-     * each Pipeline because an element can be in Pipelines with different
-     * elements. A Pipeline whose elements have none yet, such as a cloud
-     * engine before it has its Properties, is worked out again.
+     * The SetHeader properties of the elements of each Pipeline the element
+     * is in, worked out for each Pipeline, because an element can be in
+     * Pipelines with different elements. Each is kept with the Pipeline's
+     * count of property list updates when it was worked out, and is worked
+     * out again when an element of that Pipeline has updated its list since.
+     * The element holds each Pipeline it has processed for as long as the
+     * element lives, so share an element only between long-lived Pipelines.
      */
     private ?\SplObjectStorage $setHeaderProperties = null;
 
@@ -71,15 +73,25 @@ class SetHeaderElement extends FlowElement
      */
     public function processInternal(FlowData $flowData): void
     {
-        $pipeline = $flowData->pipeline;
         $this->setHeaderProperties = $this->setHeaderProperties ?? new \SplObjectStorage();
-        $setHeaderProperties = isset($this->setHeaderProperties[$pipeline])
-            ? $this->setHeaderProperties[$pipeline]
-            : [];
-        if (empty($setHeaderProperties)) {
-            $setHeaderProperties = $this->getSetHeaderPropertiesPipeline($pipeline);
-            $this->setHeaderProperties[$pipeline] = $setHeaderProperties;
+        $pipeline = $flowData->pipeline;
+
+        $updates = $pipeline->getPropertyListUpdates();
+
+        // A Pipeline whose elements had no SetHeader property yet is looked
+        // at again, as an element can learn its properties later, and so is
+        // one with an element that has updated its property list since.
+        if (!isset($this->setHeaderProperties[$pipeline])
+            || empty($this->setHeaderProperties[$pipeline]['properties'])
+            || $this->setHeaderProperties[$pipeline]['updates'] !== $updates) {
+            $this->setHeaderProperties[$pipeline] = [
+                'updates' => $updates,
+                'properties' => $this->getSetHeaderPropertiesPipeline($pipeline)
+            ];
         }
+
+        /** @var array<string, array<int, mixed>> $setHeaderProperties */
+        $setHeaderProperties = $this->setHeaderProperties[$pipeline]['properties'];
 
         $responseHeaders = $this->getResponseHeaderValue($flowData, $setHeaderProperties);
 

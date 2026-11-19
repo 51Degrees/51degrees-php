@@ -103,6 +103,112 @@ class SharedHeaderElement extends FlowElement
 }
 
 /**
+ * An element with a SetHeader property, which asks for the Accept-CH hints
+ * of the browser.
+ */
+class SharedSetHeaderBrowserElement extends FlowElement
+{
+    public string $dataKey = 'browserhints';
+
+    public array $properties = [
+        'setheaderbrowseraccept-ch' => [
+            'name' => 'SetHeaderBrowserAccept-CH',
+            'type' => 'string'
+        ],
+    ];
+
+    public function processInternal(FlowData $flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'setheaderbrowseraccept-ch' => new AspectPropertyValue(null, 'Sec-CH-UA'),
+        ]));
+    }
+}
+
+/**
+ * An element with a SetHeader property, which asks for the Accept-CH hints
+ * of the hardware.
+ */
+class SharedSetHeaderHardwareElement extends FlowElement
+{
+    public string $dataKey = 'hardwarehints';
+
+    public array $properties = [
+        'setheaderhardwareaccept-ch' => [
+            'name' => 'SetHeaderHardwareAccept-CH',
+            'type' => 'string'
+        ],
+    ];
+
+    public function processInternal(FlowData $flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'setheaderhardwareaccept-ch' => new AspectPropertyValue(null, 'Sec-CH-UA-Model'),
+        ]));
+    }
+}
+
+/**
+ * An element whose script Property is marked for delayed execution only
+ * once it learns so later, when it updates its property list.
+ */
+class SharedBundlerLearningElement extends FlowElement
+{
+    public string $dataKey = 'learning';
+
+    public array $properties = [
+        'Script' => ['type' => 'javascript'],
+    ];
+
+    public function learnDelayedExecution(): void
+    {
+        $this->properties['Script']['delayexecution'] = true;
+        $this->updatePropertyList();
+    }
+
+    public function processInternal(FlowData $flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'Script' => new AspectPropertyValue(null, 'void 0;'),
+        ]));
+    }
+}
+
+/**
+ * An element that asks for the Accept-CH hints of the browser, and that
+ * learns later that it also asks for those of the hardware, so it updates
+ * its property list, as an element that learns its properties later does.
+ */
+class SharedSetHeaderLearningElement extends FlowElement
+{
+    public string $dataKey = 'learninghints';
+
+    public array $properties = [
+        'setheaderbrowseraccept-ch' => [
+            'name' => 'SetHeaderBrowserAccept-CH',
+            'type' => 'string'
+        ],
+    ];
+
+    public function learnHardwareHints(): void
+    {
+        $this->properties['setheaderhardwareaccept-ch'] = [
+            'name' => 'SetHeaderHardwareAccept-CH',
+            'type' => 'string'
+        ];
+        $this->updatePropertyList();
+    }
+
+    public function processInternal(FlowData $flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'setheaderbrowseraccept-ch' => new AspectPropertyValue(null, 'Sec-CH-UA'),
+            'setheaderhardwareaccept-ch' => new AspectPropertyValue(null, 'Sec-CH-UA-Model'),
+        ]));
+    }
+}
+
+/**
  * One JSON Bundler, or one Set Headers Element, added to two Pipelines
  * keeps what it learns about the elements of each Pipeline apart, as
  * multi-pipeline-elements.md in the Pipeline specification asks.
@@ -231,5 +337,106 @@ class MultiPipelineElementTests extends TestCase
         $this->assertArrayNotHasKey('second', $firstJson);
         $this->assertArrayNotHasKey('first', $secondJson);
         $this->assertTrue($secondJson['second']['scriptdelayexecution']);
+    }
+
+    /**
+     * What the JSON keeps for a Pipeline is worked out from the properties
+     * its elements have now, so an element that updates its property list
+     * is written by its new metadata, in its own Pipeline only.
+     */
+    public function testAPipelineGetsTheJsonOfPropertiesAnElementLearnsLater()
+    {
+        $bundler = new JsonBundlerElement();
+        $learning = new SharedBundlerLearningElement();
+        $first = new Pipeline([
+            new SequenceElement(),
+            $learning,
+            $bundler
+        ], []);
+        $second = new Pipeline([
+            new SequenceElement(),
+            new SharedBundlerFirstElement(),
+            $bundler
+        ], []);
+
+        $firstBefore = self::json($first);
+        self::json($second);
+        $learning->learnDelayedExecution();
+        $firstAfter = self::json($first);
+        $secondAfter = self::json($second);
+
+        $this->assertArrayNotHasKey('scriptdelayexecution', $firstBefore['learning']);
+        $this->assertTrue($firstAfter['learning']['scriptdelayexecution']);
+        $this->assertSame('one', $secondAfter['first']['value']);
+        $this->assertArrayNotHasKey('learning', $secondAfter);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function responseHeaders(Pipeline $pipeline): array
+    {
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->process();
+
+            return $flowData->get('set-headers')->get('responseheaderdictionary');
+        } finally {
+            $flowData->close();
+        }
+    }
+
+    public function testEachPipelineGetsTheHeadersOfItsOwnElements()
+    {
+        $setHeaders = new SetHeaderElement();
+        $first = new Pipeline([
+            new SequenceElement(),
+            new SharedSetHeaderBrowserElement(),
+            $setHeaders
+        ], []);
+        $second = new Pipeline([
+            new SequenceElement(),
+            new SharedSetHeaderHardwareElement(),
+            $setHeaders
+        ], []);
+
+        $firstHeaders = self::responseHeaders($first);
+        $secondHeaders = self::responseHeaders($second);
+        $firstAgain = self::responseHeaders($first);
+
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $firstHeaders);
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA-Model'], $secondHeaders);
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $firstAgain);
+    }
+
+    /**
+     * The SetHeader properties kept for a Pipeline are the ones its elements
+     * have now, so an element that updates its property list is given the
+     * headers of its new properties, in its own Pipeline only.
+     */
+    public function testAPipelineGetsTheHeadersOfPropertiesAnElementLearnsLater()
+    {
+        $setHeaders = new SetHeaderElement();
+        $learning = new SharedSetHeaderLearningElement();
+        $first = new Pipeline([
+            new SequenceElement(),
+            $learning,
+            $setHeaders
+        ], []);
+        $second = new Pipeline([
+            new SequenceElement(),
+            new SharedSetHeaderBrowserElement(),
+            $setHeaders
+        ], []);
+
+        $firstBefore = self::responseHeaders($first);
+        self::responseHeaders($second);
+        $learning->learnHardwareHints();
+        $firstAfter = self::responseHeaders($first);
+        $secondAfter = self::responseHeaders($second);
+
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $firstBefore);
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA,Sec-CH-UA-Model'], $firstAfter);
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $secondAfter);
     }
 }

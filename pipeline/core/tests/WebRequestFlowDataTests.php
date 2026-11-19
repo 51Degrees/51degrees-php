@@ -130,6 +130,61 @@ class WebRequestFlowDataTests extends TestCase
     }
 
     /**
+     * Web integration documentation MUST say that a Flow Data cannot be used
+     * by two threads at once, and MUST show it, so the readme's web section
+     * says it, its example says it just above the line that creates the Flow
+     * Data, and so does processWebRequest()'s own comment.
+     */
+    public function testTheWebDocumentationSaysAFlowDataIsUsedByOneThread(): void
+    {
+        $phrase = 'must not be used by two threads at once';
+
+        $readme = (string)file_get_contents(__DIR__ . '/../readme.md');
+        $start = strpos($readme, '## Web applications');
+        $this->assertNotFalse($start, 'The readme has a Web applications section');
+        $end = strpos($readme, "\n## ", $start + 1);
+        $section = $end === false
+            ? substr($readme, $start)
+            : substr($readme, $start, $end - $start);
+        $this->assertStringContainsString($phrase, $this->words($section));
+
+        // The comment lines just above the line that creates the Flow Data.
+        $lines = explode("\n", str_replace("\r", '', $section));
+        $comment = [];
+        foreach ($lines as $line) {
+            if (strpos($line, '= Utils::processWebRequest(') !== false) {
+                break;
+            }
+            $comment = strpos(ltrim($line), '//') === 0
+                ? array_merge($comment, [ltrim($line, " /")])
+                : [];
+        }
+        $this->assertStringContainsString(
+            $phrase,
+            $this->words(implode(' ', $comment)),
+            'The example says it just above the line that creates the Flow Data'
+        );
+
+        $utils = (string)file_get_contents(__DIR__ . '/../src/Utils.php');
+        $method = strpos($utils, 'public static function processWebRequest(');
+        $this->assertNotFalse($method);
+        $doc = substr($utils, 0, $method);
+        $doc = substr($doc, (int)strrpos($doc, '/**'));
+        $this->assertStringContainsString($phrase, $this->words($doc));
+    }
+
+    /**
+     * The text with comment markers and line breaks made single spaces, so a
+     * phrase wrapped over two lines is still found.
+     */
+    private function words(string $text): string
+    {
+        $text = (string)preg_replace('/\R[ \t]*(\*(?!\/)|\/\/)/', ' ', $text);
+
+        return (string)preg_replace('/\s+/', ' ', $text);
+    }
+
+    /**
      * An element whose element data has a close method of its own, as the
      * results of an on-premise engine have.
      */

@@ -1313,6 +1313,11 @@ template <typename T> T SwigValueInit() {
 
 
 
+#ifdef ZTS
+#error "The 51Degrees IP intelligence extension needs a non-thread-safe (NTS) PHP, and this PHP is thread-safe (ZTS). Build it for Apache with the prefork MPM and mod_php, or for php-fpm, with a non-thread-safe PHP."
+#endif
+
+
 #include "cxx/src/ipi/EngineIpi.hpp"
 
 using namespace FiftyoneDegrees::Common;

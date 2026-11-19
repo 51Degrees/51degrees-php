@@ -28,9 +28,18 @@ use fiftyone\pipeline\core\ProvidesValuesAsString;
 use fiftyone\pipeline\engines\AspectData;
 
 /**
+ * Extension of AspectData that reads each property from the results the
+ * SWIG wrapper of the on-premise device detection engine gives.
+ *
  * The data file holds every value as a string, which the native results
  * parse into the type the property declares. get() gives the parsed value
  * and getValueAsString() the string as stored.
+ *
+ * SwigData, and the native results it holds, is not safe to use from
+ * several threads at once, because reading a value writes into the native
+ * results, and SwigData takes no lock. The caller is responsible for
+ * thread-safe access, so a caller that shares an instance between threads
+ * coordinates that itself.
  */
 class SwigData extends AspectData implements ProvidesValuesAsString
 {

@@ -12,6 +12,8 @@
       <file>tests/ExampleTests.php</file>
       <file>tests/JavaScriptBundlerTests.php</file>
       <file>tests/JavaScriptBuilderMinifyTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyChoicesTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyOnceTests.php</file>
       <file>tests/JsonBundlerListTests.php</file>
       <file>tests/JavaScriptBuilderParametersTests.php</file>
       <file>tests/JavaScriptBuilderObjectNameTests.php</file>
@@ -41,6 +43,7 @@
       <file>tests/LicenseKeyTests.php</file>
       <file>tests/JsonBundlerNullTests.php</file>
       <file>tests/RequestLineEvidenceTests.php</file>
+      <file>tests/RequestLineDecisionTests.php</file>
       <file>tests/AspectPropertyValueTests.php</file>
       <file>tests/LogTargetTests.php</file>
     </testsuite>

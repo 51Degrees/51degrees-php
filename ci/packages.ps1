@@ -197,6 +197,153 @@ function Get-PublishedComposerJson {
     return $published
 }
 
+# The highest "<Name>/<version>" tag here, or with -Merged the highest on or
+# before HEAD, or $null.
+function Get-PackageTagVersion ([string]$RepoName, [string]$Name, [switch]$Merged) {
+    $arguments = @('-C', $RepoName, 'for-each-ref', '--format=%(refname:strip=2)')
+    if ($Merged -eq $true) {
+        $arguments += '--merged=HEAD'
+    }
+    $arguments += "refs/tags/$Name/"
+    $versions = foreach ($ref in (& git @arguments)) {
+        $text = $ref.Substring($Name.Length + 1)
+        if ($text -match '^\d+\.\d+\.\d+$') {
+            [version]$text
+        }
+    }
+    return $versions | Sort-Object | Select-Object -Last 1
+}
+
+# The version of each package a package requires, by Name, as its published
+# composer.json requires it: the newest tagged on or before HEAD. Missing
+# names those with no such tag.
+function Get-RequiredVersions ([string]$RepoName, $Package) {
+    $versions = @{}
+    $missing = @()
+    foreach ($name in @($Package.DependsOn)) {
+        $required = Get-PackageTagVersion $RepoName $name -Merged
+        if ($null -eq $required) {
+            $missing += $name
+        } else {
+            $versions[$name] = "$required"
+        }
+    }
+    return [pscustomobject]@{ Versions = $versions; Missing = $missing }
+}
+
+# The commit a package's mirror is tagged with for $Version released from
+# HEAD. It is the git subtree split of the package's folder, or where the
+# published composer.json differs from the package's own, a commit on top of
+# the split that changes only that file. That commit is made from fixed names
+# and the date of HEAD, so the same HEAD always gives the same commit, and
+# ci/publish-package.ps1 and ci/mirror-tags.ps1 make the same one. Needs the
+# grafts of ci/prepare-split.sh. $Work is a folder for temporary files.
+function New-PublishedCommit {
+    param (
+        [Parameter(Mandatory)][string]$RepoName,
+        [Parameter(Mandatory)]$Package,
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][hashtable]$Versions,
+        [Parameter(Mandatory)][string]$Work
+    )
+    $published = Get-PublishedComposerJson -RepoName $RepoName -Package $Package `
+        -Versions $Versions
+    $original = Get-Content -Raw (Join-Path $RepoName $Package.Path 'composer.json')
+
+    $errors = Join-Path $Work 'split.err'
+    try {
+        $split = git -C $RepoName subtree split --prefix="$($Package.Path)" 2>$errors
+    } catch {
+        Get-Content $errors | Write-Host
+        throw
+    }
+    if ($published -ceq $original) {
+        return [pscustomobject]@{ Split = $split; Commit = $split; Published = $published }
+    }
+
+    $file = Join-Path $Work "$($Package.Name).json"
+    [IO.File]::WriteAllText($file, $published)
+    $blob = git -C $RepoName hash-object -w --no-filters -- $file
+    $mode = (git -C $RepoName ls-tree $split -- composer.json) -split '\s+' |
+        Select-Object -First 1
+    $env:GIT_INDEX_FILE = Join-Path $Work "$($Package.Name).index"
+    try {
+        git -C $RepoName read-tree $split
+        git -C $RepoName update-index --cacheinfo "$mode,$blob,composer.json"
+        $tree = git -C $RepoName write-tree
+    } finally {
+        Remove-Item env:GIT_INDEX_FILE
+    }
+    $head = git -C $RepoName rev-parse HEAD
+    $date = "$(git -C $RepoName log -1 --format=%ct HEAD) +0000"
+    $identity = @{
+        GIT_AUTHOR_NAME = 'Automation51D'; GIT_AUTHOR_EMAIL = '51DCI@51Degrees.com'
+        GIT_AUTHOR_DATE = $date; GIT_COMMITTER_NAME = 'Automation51D'
+        GIT_COMMITTER_EMAIL = '51DCI@51Degrees.com'; GIT_COMMITTER_DATE = $date
+    }
+    foreach ($key in $identity.Keys) {
+        Set-Item "env:$key" $identity[$key]
+    }
+    try {
+        $commit = git -C $RepoName commit-tree $tree -p $split `
+            -m "Release $($Package.Name) $Version" `
+            -m "$($Package.Path) at $head, requiring the other 51Degrees packages at the versions released with it."
+    } finally {
+        foreach ($key in $identity.Keys) {
+            Remove-Item "env:$key"
+        }
+    }
+    return [pscustomobject]@{ Split = $split; Commit = $commit; Published = $published }
+}
+
+# Writes the zip a package's GitHub release attaches for $Version released
+# from HEAD, and returns its path. A GitHub release attaches exactly the files
+# the registry serves for that version. Packagist serves GitHub's archive of
+# the commit tagged on the package's mirror, so this is git archive of that
+# commit, the one New-PublishedCommit gives, or for a package whose mirror tag
+# is assembled, of the tree its ci/assemble-package.sh writes, which is the
+# tree .github/workflows/did-publish.yml tags. GitHub names the archive's one
+# folder after the mirror commit, which for an assembled package is made only
+# when did-publish.yml runs, so every zip names it "<mirror>-<version>"
+# instead. The files in it are the same. $Work is a folder for temporary files.
+function New-ReleaseArchive {
+    param (
+        [Parameter(Mandatory)][string]$RepoName,
+        [Parameter(Mandatory)]$Package,
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][string]$Work
+    )
+    if (-not $Package.Mirror) {
+        throw "$($Package.Name) has no mirror, so it has no published commit to zip"
+    }
+    $name = "$($Package.Mirror)-$Version"
+    $file = Join-Path $Work "$name.zip"
+    if ($Package.Assembled -eq $true) {
+        # Forward slashes, which bash reads on every platform.
+        $out = (Join-Path $Work "$($Package.Name)-assembled") -replace '\\', '/'
+        $script = "$($RepoName -replace '\\', '/')/$($Package.Path)/ci/assemble-package.sh"
+        & bash $script $out | Write-Host
+        $gitDir = git -C $RepoName rev-parse --absolute-git-dir
+        $env:GIT_INDEX_FILE = Join-Path $Work "$($Package.Name)-assembled.index"
+        try {
+            git --git-dir=$gitDir --work-tree=$out -C $out add -A -f .
+            $tree = git --git-dir=$gitDir write-tree
+        } finally {
+            Remove-Item env:GIT_INDEX_FILE
+        }
+        git -C $RepoName archive --format=zip --prefix="$name/" -o $file $tree
+    } else {
+        $required = Get-RequiredVersions $RepoName $Package
+        if ($required.Missing) {
+            throw "$($Package.Name) requires $($required.Missing -join ', '), with no version tag on or before HEAD"
+        }
+        $published = New-PublishedCommit -RepoName $RepoName -Package $Package `
+            -Version $Version -Versions $required.Versions -Work $Work
+        git -C $RepoName archive --format=zip --prefix="$name/" -o $file $published.Commit
+    }
+    return $file
+}
+
 # The PHP version of this leg, read from the php on the PATH rather than from
 # the options, because the version the runner really has is what the
 # packages run on. $null when there is no php, as in the job that prefetches

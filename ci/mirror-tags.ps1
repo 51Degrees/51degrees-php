@@ -33,23 +33,6 @@ $PSNativeCommandUseErrorActionPreference = $true
 
 $VersionPattern = '^\d+\.\d+\.\d+$'
 
-# The highest "<Name>/<version>" tag here, or with -Merged the highest on or
-# before HEAD, or $null.
-function Get-HighestVersion([string]$Name, [switch]$Merged) {
-    $arguments = @('-C', $RepoName, 'for-each-ref', '--format=%(refname:strip=2)')
-    if ($Merged -eq $true) {
-        $arguments += '--merged=HEAD'
-    }
-    $arguments += "refs/tags/$Name/"
-    $versions = foreach ($ref in (& git @arguments)) {
-        $text = $ref.Substring($Name.Length + 1)
-        if ($text -match $VersionPattern) {
-            [version]$text
-        }
-    }
-    return $versions | Sort-Object | Select-Object -Last 1
-}
-
 function Get-MirrorUrl([string]$Mirror) {
     if ($env:MIRROR_PUSH_TOKEN) {
         return "https://x-access-token:$($env:MIRROR_PUSH_TOKEN)@github.com/$Owner/$Mirror.git"
@@ -109,75 +92,26 @@ foreach ($package in $Packages) {
 
     # A tag pushed by hand is a path into Packagist that the publish's checks
     # do not see, and a published version cannot be taken back.
-    $highest = Get-HighestVersion $package.Name
+    $highest = Get-PackageTagVersion $RepoName $package.Name
     if ($highest -ne [version]$version) {
         Write-Output "::error::$($tags[0]) is not the highest version of $($package.Name) here, which is $highest"
         $failed = $true
         continue
     }
 
-    $versions = @{}
-    $missing = @()
-    foreach ($name in $package.DependsOn) {
-        $required = Get-HighestVersion $name -Merged
-        if ($null -eq $required) {
-            $missing += $name
-        } else {
-            $versions[$name] = "$required"
-        }
-    }
-    if ($missing) {
-        Write-Output "::error::$($package.Name) requires $($missing -join ', '), with no version tag on or before $head"
+    $required = Get-RequiredVersions $RepoName $package
+    if ($required.Missing) {
+        Write-Output "::error::$($package.Name) requires $($required.Missing -join ', '), with no version tag on or before $head"
         $failed = $true
         continue
     }
-    $published = Get-PublishedComposerJson -RepoName $RepoName -Package $package `
-        -Versions $versions
-    $original = Get-Content -Raw (Join-Path $RepoName $package.Path 'composer.json')
-
-    $errors = Join-Path $work 'split.err'
-    try {
-        $split = git -C $RepoName subtree split --prefix="$($package.Path)" 2>$errors
-    } catch {
-        Get-Content $errors | Write-Output
-        throw
-    }
-    if ($published -ceq $original) {
-        $commit = $split
-    } else {
-        $file = Join-Path $work "$($package.Name).json"
-        [IO.File]::WriteAllText($file, $published)
-        $blob = git -C $RepoName hash-object -w --no-filters -- $file
-        $mode = (git -C $RepoName ls-tree $split -- composer.json) -split '\s+' |
-            Select-Object -First 1
-        $env:GIT_INDEX_FILE = Join-Path $work "$($package.Name).index"
-        try {
-            git -C $RepoName read-tree $split
-            git -C $RepoName update-index --cacheinfo "$mode,$blob,composer.json"
-            $tree = git -C $RepoName write-tree
-        } finally {
-            Remove-Item env:GIT_INDEX_FILE
-        }
-        # Fixed names and the date of the tagged commit, so that the same tag
-        # always gives the same commit.
-        $date = "$(git -C $RepoName log -1 --format=%ct HEAD) +0000"
-        $identity = @{
-            GIT_AUTHOR_NAME = 'Automation51D'; GIT_AUTHOR_EMAIL = '51DCI@51Degrees.com'
-            GIT_AUTHOR_DATE = $date; GIT_COMMITTER_NAME = 'Automation51D'
-            GIT_COMMITTER_EMAIL = '51DCI@51Degrees.com'; GIT_COMMITTER_DATE = $date
-        }
-        foreach ($key in $identity.Keys) {
-            Set-Item "env:$key" $identity[$key]
-        }
-        try {
-            $commit = git -C $RepoName commit-tree $tree -p $split `
-                -m "Release $($package.Name) $version" `
-                -m "$($package.Path) at $head, requiring the other 51Degrees packages at the versions released with it."
-        } finally {
-            foreach ($key in $identity.Keys) {
-                Remove-Item "env:$key"
-            }
-        }
+    # The same commit ci/publish-package.ps1 zipped for the GitHub release.
+    $made = New-PublishedCommit -RepoName $RepoName -Package $package `
+        -Version $version -Versions $required.Versions -Work $work
+    $split = $made.Split
+    $commit = $made.Commit
+    $published = $made.Published
+    if ($commit -ne $split) {
         git -C $RepoName --no-pager diff $split $commit | Write-Output
     }
     $require = @(($published | ConvertFrom-Json).require.PSObject.Properties |

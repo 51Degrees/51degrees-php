@@ -107,7 +107,9 @@ are now read-only mirrors, and turns each version tag on a mirror, such as
    mirror.
 2. The nightly publish works out which packages changed since their last
    release, and tags `main` here with each one's next version, one tag at a
-   time, in the order of their dependencies.
+   time, in the order of their dependencies. It makes a GitHub release for
+   each tag, which attaches a zip of the commit the mirror is tagged with,
+   the file Packagist serves for that version.
 3. Each tag starts `mirror.yml` again, which puts the version on the split of
    each released directory, on its mirror. A package that requires other
    packages here is published with those requirements raised to the versions

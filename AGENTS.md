@@ -358,8 +358,10 @@ package's `Ignore` list leaves out its development files, being `phpunit.xml`,
 and `ci/`, apart from `pipeline/did/ci`, which builds that package. The
 Release plan workflow (`.github/workflows/release-plan.yml`) runs the
 filter's tests and prints the plan a release of the commit would publish, on
-every pull request. Run the tests locally with
-`Invoke-Pester ci/release-plan-filter.Tests.ps1`. Each tag starts
+every pull request. It also runs the tests of the publish, which check that each GitHub release
+attaches the zip Packagist serves, in the call that creates it. Run the tests
+locally with
+`Invoke-Pester ci/release-plan-filter.Tests.ps1, ci/publish-package.Tests.ps1`. Each tag starts
 `mirror.yml`, which runs `ci/mirror-tags.ps1` to put `<version>` on the
 package's mirror, or `did-publish.yml` for `pipeline/did`. The publish makes
 every release tag, so do not push one by hand, and never move the major or

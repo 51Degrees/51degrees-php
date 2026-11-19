@@ -98,7 +98,9 @@ class Utils
      * part of the application reads it with getFlowData() without being
      * handed it. It is closed when PHP finishes the request, or when a
      * later call replaces it, as in a PHP that serves one request after
-     * another.
+     * another. A Flow Data must not be used by two threads at once, so the
+     * one kept here is for this request alone and is never handed to another
+     * thread.
      *
      * Requests for the client-side JavaScript and JSON need a Flow Data
      * that has not been processed, so answer those with

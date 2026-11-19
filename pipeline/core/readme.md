@@ -61,10 +61,15 @@ reads the results with `Utils::getFlowData()` without being handed it. It is clo
 finishes the request, or when the next request's call replaces it in a PHP that serves one request
 after another.
 
+A Flow Data holds the Evidence and results of one request. PHP runs each request on one thread,
+and a Flow Data must not be used by two threads at once, so it is never kept for another request
+or handed to another thread.
+
 ```php
 use fiftyone\pipeline\core\Utils;
 
-// Where the request is handled.
+// Where the request is handled. This Flow Data is for this request alone and must not be used
+// by two threads at once.
 $flowData = Utils::processWebRequest($pipeline);
 Utils::setResponseHeader($flowData);
 

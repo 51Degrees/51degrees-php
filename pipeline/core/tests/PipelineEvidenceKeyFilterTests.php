@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
+use fiftyone\pipeline\core\EvidenceKeyFilter;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\SequenceElement;
@@ -164,6 +165,34 @@ class PipelineEvidenceKeyFilterTests extends TestCase
             $flowData->evidence->getAll(),
             $pipeline->getEvidenceKeyFilter()->filterEvidence($evidence)
         );
+    }
+
+    /**
+     * The filter is always needed and does not change once the Pipeline is
+     * built, so the Pipeline builds it when it is built and every call gives
+     * that same filter, rather than a new one on each call.
+     */
+    public function testTheFilterIsBuiltWithThePipelineAndKept()
+    {
+        $pipeline = $this->pipelineOf([
+            new ListedEvidenceElement(['header.user-agent']),
+        ]);
+
+        // Read before any call, so the filter must come from the build.
+        $kept = (function () {
+            return $this->evidenceKeyFilter ?? null;
+        })->call($pipeline);
+        $this->assertInstanceOf(
+            EvidenceKeyFilter::class,
+            $kept,
+            'The Pipeline has no filter once it is built'
+        );
+
+        $first = $pipeline->getEvidenceKeyFilter();
+        $this->assertSame($kept, $first);
+        $this->assertSame($first, $pipeline->getEvidenceKeyFilter());
+        $this->assertTrue($first->filterEvidenceKey('header.user-agent'));
+        $this->assertFalse($first->filterEvidenceKey('header.x-test'));
     }
 
     /**

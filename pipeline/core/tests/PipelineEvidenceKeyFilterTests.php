@@ -196,6 +196,65 @@ class PipelineEvidenceKeyFilterTests extends TestCase
     }
 
     /**
+     * The Evidence and the request line decision ask the Pipeline's filter,
+     * so the Pipeline decides what it accepts in one place.
+     */
+    public function testEvidenceAndTheRequestLineAskThePipelineFilter()
+    {
+        $pipeline = $this->pipelineOf([
+            new ListedEvidenceElement(['header.user-agent']),
+        ]);
+        $asked = [];
+        $spy = new EvidenceKeyFilter();
+        $spy->filterEvidenceKey = function (string $key) use (&$asked): bool {
+            $asked[] = $key;
+
+            return true;
+        };
+        (function () use ($spy) {
+            $this->evidenceKeyFilter = $spy;
+        })->call($pipeline);
+
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->set('header.x-test', 'test');
+
+        $this->assertContains('header.x-test', $asked);
+        $this->assertSame(
+            ['header.x-test' => 'test'],
+            $flowData->evidence->getAll()
+        );
+
+        $this->assertTrue($pipeline->acceptsRequestLine());
+        $this->assertNotEmpty(array_diff($asked, ['header.x-test']));
+    }
+
+    /**
+     * Every caller shares the Pipeline's filter, so it cannot be given a
+     * filter function of its own, which would also stop a session cache
+     * serializing data that refers to the Pipeline.
+     */
+    public function testTheSharedFilterCannotBeGivenAFunction()
+    {
+        $pipeline = $this->pipelineOf([
+            new ListedEvidenceElement(['header.user-agent']),
+        ]);
+        $filter = $pipeline->getEvidenceKeyFilter();
+
+        $refused = false;
+        try {
+            $filter->filterEvidenceKey = function (string $key): bool {
+                return false;
+            };
+        } catch (\Exception $e) {
+            $refused = strpos($e->getMessage(), 'filterEvidenceKey') !== false;
+        }
+        $this->assertTrue($refused, 'The Pipeline filter took a filter function');
+
+        $this->assertTrue($filter->filterEvidenceKey('header.user-agent'));
+        $this->assertIsString(serialize($pipeline));
+    }
+
+    /**
      * @param array<FlowElement> $elements
      */
     private function pipelineOf(array $elements): Pipeline

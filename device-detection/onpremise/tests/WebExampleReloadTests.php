@@ -161,7 +161,6 @@ class WebExampleReloadTests extends TestCase
         ));
         $log = $this->folder . '/server.txt';
         $environment = getenv();
-        unset($environment[ExampleUtils::DATA_FILE_ENV_VAR]);
         $environment[ExampleUtils::DD_PATH_VARIABLE] = $dataFile;
         $port = $this->freePort();
         $server = proc_open(

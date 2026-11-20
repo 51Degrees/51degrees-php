@@ -22,6 +22,7 @@
       <file>tests/JsonBundlerWktTests.php</file>
       <file>tests/EnableCookiesTests.php</file>
       <file>tests/FlowDataTests.php</file>
+      <file>tests/ElementDataListTests.php</file>
       <file>tests/FlowDataErrorsTests.php</file>
       <file>tests/DeprecatedDataKeyTests.php</file>
       <file>tests/CloseTests.php</file>
@@ -50,6 +51,8 @@
       <file>tests/SettingDefaultsTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
       <file>tests/ThrowsDocumentedTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
+      <file>tests/FlowDataThreadsDocsTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

@@ -116,6 +116,14 @@ class Pipeline
      */
     private array $deprecatedDataKeysLogged = [];
 
+    /**
+     * The position of each data key in Pipeline order, by which a FlowData
+     * lists its ElementData.
+     *
+     * @var array<string, int>
+     */
+    private array $dataKeyPositions = [];
+
     private Logger $logger;
 
     /**
@@ -181,6 +189,12 @@ class Pipeline
         $this->autoCloseElements = (bool) ($settings['autoCloseElements'] ?? self::DEFAULTS['autoCloseElements']);
 
         $this->flowElements = $flowElements;
+
+        foreach (array_values($flowElements) as $index => $flowElement) {
+            if (!isset($this->dataKeyPositions[$flowElement->dataKey])) {
+                $this->dataKeyPositions[$flowElement->dataKey] = $index;
+            }
+        }
 
         foreach ($flowElements as $flowElement) {
             // An element's own Data Key takes the place of another
@@ -421,6 +435,15 @@ class Pipeline
                 $this->deprecatedDataKeys
             )))
         ));
+    }
+
+    /**
+     * The position of a data key in Pipeline order, being the order the
+     * FlowElements were added, or null for a key no FlowElement has.
+     */
+    public function dataKeyPosition(string $key): ?int
+    {
+        return $this->dataKeyPositions[$key] ?? null;
     }
 
     /**

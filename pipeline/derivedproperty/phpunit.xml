@@ -13,6 +13,7 @@
       <file>tests/ExampleTests.php</file>
       <file>tests/SpecificationLinksTests.php</file>
       <file>tests/ThrowsDocumentedTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

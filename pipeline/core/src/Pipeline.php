@@ -157,6 +157,13 @@ class Pipeline
     private ?bool $acceptsRequestLine = null;
 
     /**
+     * The Evidence the Pipeline accepts, which getEvidenceKeyFilter gives.
+     * It is always needed and the elements it asks do not change once the
+     * Pipeline is built, so the constructor builds it once.
+     */
+    private EvidenceKeyFilter $evidenceKeyFilter;
+
+    /**
      * Pipeline constructor.
      *
      * @param array<\fiftyone\pipeline\core\FlowElement> $flowElements List of FlowElements
@@ -194,6 +201,17 @@ class Pipeline
 
             $flowElement->onRegistration($this);
         }
+
+        $this->evidenceKeyFilter = new EvidenceKeyFilter();
+        $this->evidenceKeyFilter->filterEvidenceKey = function (string $key): bool {
+            foreach ($this->flowElements as $flowElement) {
+                if ($flowElement->filterEvidenceKey($key)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
     }
 
     /**
@@ -317,21 +335,13 @@ class Pipeline
      * of its FlowElements accepts, in any letter case. Each element is asked
      * when a key is checked, so the filter follows an element whose accepted
      * Evidence changes, as it does when an engine's data is refreshed.
+     *
+     * The filter is built once, when the Pipeline is built, and every call
+     * gives that same filter.
      */
     public function getEvidenceKeyFilter(): EvidenceKeyFilter
     {
-        $filter = new EvidenceKeyFilter();
-        $filter->filterEvidenceKey = function (string $key): bool {
-            foreach ($this->flowElements as $flowElement) {
-                if ($flowElement->filterEvidenceKey($key)) {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-
-        return $filter;
+        return $this->evidenceKeyFilter;
     }
 
     /**

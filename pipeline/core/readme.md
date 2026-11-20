@@ -31,10 +31,10 @@ This will create the vendor directory containing autoload.php. Now navigate to t
 directory and start a PHP server with the relevant file. For example:
 
 ```
-php -S localhost:3000 CustomFlowElement.php
+php -S localhost:5151 CustomFlowElement.php
 ```
 
-This will start a local web server listening on port 3000. Open your web browser and browse to http://localhost:3000/ to see the example in action.
+This will start a local web server listening on port 5151. Open your web browser and browse to http://localhost:5151/ to see the example in action.
 
 `Pipeline.php` writes to the console, so run it with `php Pipeline.php` from the same directory.
 

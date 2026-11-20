@@ -113,8 +113,8 @@ it downloads the file.
 
 A web example cannot start PHP again, so start it with the launcher, which
 finds the data file in the same way and starts the PHP built-in server on
-port 3000 with it, passing on the `-d extension=...` it was given. Open
-http://localhost:3000/ and stop the server with Ctrl+C.
+port 5151 with it, passing on the `-d extension=...` it was given. Open
+http://localhost:5151/ and stop the server with Ctrl+C.
 
 ```bash
 php -d extension="$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so" examples/onpremise/serve.php gettingStartedWeb.php
@@ -160,7 +160,7 @@ cd ..
 
 Start the IP Intelligence web example from the repository root with its
 launcher, which finds the data file as the next paragraph says and starts
-the PHP built-in server on port 3000 with it. Open http://localhost:3000/.
+the PHP built-in server on port 5151 with it. Open http://localhost:5151/.
 
 ```bash
 php -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web
@@ -205,7 +205,7 @@ PHP's own command line, as on macOS, the new PHP is started without the
 Start the mixed web page from the repository root with the launcher, loading
 only the two extensions. The launcher finds both data files, downloading the
 free Lite files when they are missing, and starts the PHP built-in server on
-port 3000 with them. Open http://localhost:3000/.
+port 5151 with them. Open http://localhost:5151/.
 
 ```bash
 php -d extension="$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so" -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web-mixed

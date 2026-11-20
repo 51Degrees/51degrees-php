@@ -159,7 +159,7 @@ class AstrologyFlowElement extends FlowElement
 // Add some callback settings for the page to make a request with extra evidence from the client side
 // in this case the same url with an extra query string.
 $javascriptBuilderSettings = [
-    'host' => 'localhost:3000',
+    'host' => 'localhost:5151',
     'protocol' => 'http',
     'endpoint' => '/?json'
 ];

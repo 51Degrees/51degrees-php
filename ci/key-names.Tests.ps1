@@ -1,0 +1,215 @@
+# Tests that the CI scripts read their keys only under the _51DEGREES_ names.
+#
+# The workflows pass their secrets to common-ci with 'secrets: inherit', and
+# common-ci puts the keys into the environment under those names before any
+# script of this repository runs. So no script here is handed a key under an
+# old name such as TestResourceKey, DeviceDetection or IpIntelligenceUrl, and
+# one that waits for it skips its tests or its data file for good.
+#
+# Each package script is copied into the test drive at its path in the
+# repository, and run there with a stand-in for the shared step it calls, so
+# that nothing in the checkout is touched.
+
+BeforeDiscovery {
+    # The scripts that fetch the data files.
+    $FetchScripts = @(
+        'ci/fetch-assets.ps1'
+        'device-detection/cloud/ci/fetch-assets.ps1'
+        'device-detection/onpremise/ci/fetch-assets.ps1'
+        'ip-intelligence/ci/fetch-assets.ps1'
+    )
+}
+
+BeforeAll {
+    $script:Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+
+    # The parameters the old secrets came in by.
+    $script:OldParameters = @(
+        'DeviceDetection', 'DeviceDetectionUrl', 'CsvUrl',
+        'IpIntelligence', 'IpIntelligenceUrl'
+    )
+
+    # Copies one script into a new folder at its path in the repository,
+    # with a stand-in for the shared step at steps/fetch-assets.ps1 and for
+    # php/run-integration-tests.ps1 in the folder it runs from. The stand-ins
+    # write what they were called with to calls.json and create each asset
+    # asked for. Returns the folder it runs from.
+    function New-Sandbox([string]$Script) {
+        $sandbox = Join-Path $TestDrive ([Guid]::NewGuid())
+        $copy = Join-Path $sandbox 'repo' $Script
+        New-Item -ItemType Directory (Split-Path $copy) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $script:Root $Script) $copy
+        $work = New-Item -ItemType Directory (Join-Path $sandbox 'work')
+        New-Item -ItemType Directory (Join-Path $work 'steps'),
+            (Join-Path $work 'php') | Out-Null
+        Set-Content -LiteralPath (Join-Path $work 'steps' 'fetch-assets.ps1') -Value @'
+param([Parameter(ValueFromRemainingArguments)]$Rest)
+$call = @{ Script = 'fetch-assets'; Arguments = @($Rest | ForEach-Object { $_ } | ForEach-Object { "$_" }) }
+$call | ConvertTo-Json | Set-Content calls.json
+New-Item -ItemType Directory assets -Force | Out-Null
+'@
+        Set-Content -LiteralPath (Join-Path $work 'php' 'run-integration-tests.ps1') -Value @'
+param([string]$RepoName)
+$names = @(Get-ChildItem Env: | Where-Object Name -like '_51DEGREES_*' |
+    ForEach-Object Name)
+@{ Script = 'php'; Names = $names } | ConvertTo-Json | Set-Content calls.json
+$global:LASTEXITCODE = 0
+'@
+        return @{ Work = $work.FullName; Copy = $copy }
+    }
+
+    # Runs a copied script from its sandbox and returns its output and what
+    # the stand-in it called was given. A failure after that call, such as a
+    # symbolic link the runner may not make, is kept as output rather than
+    # thrown, because what is tested is what the script asked for.
+    function Invoke-Sandboxed($Sandbox, [hashtable]$Parameters = @{}) {
+        Push-Location $Sandbox.Work
+        try {
+            # Only the parameters the script takes are passed, as common-ci
+            # passes its options.
+            $accepted = (Get-Command $Sandbox.Copy).Parameters
+            $Parameters = $Parameters.Clone()
+            @($Parameters.PSBase.Keys) | Where-Object { !$accepted.ContainsKey($_) } |
+                ForEach-Object { $Parameters.Remove($_) }
+            $lines = [Collections.Generic.List[string]]::new()
+            try {
+                & $Sandbox.Copy @Parameters *>&1 | ForEach-Object { $lines.Add("$_") }
+            } catch {
+                $lines.Add("Failed: $_")
+            }
+            $output = $lines -join "`n"
+            $calls = Join-Path $Sandbox.Work 'calls.json'
+            $call = if (Test-Path $calls) {
+                Get-Content -Raw $calls | ConvertFrom-Json
+            }
+            return @{ Output = $output; Call = $call }
+        } finally {
+            Pop-Location
+        }
+    }
+
+    # Saves and clears every _51DEGREES_ variable, so that each test sets
+    # only the ones it needs.
+    function Save-KeyVariables {
+        $script:Saved = @(Get-ChildItem Env: | Where-Object Name -like '_51DEGREES_*')
+        $script:Saved | ForEach-Object { Remove-Item -LiteralPath "Env:$($_.Name)" }
+    }
+
+    function Restore-KeyVariables {
+        Get-ChildItem Env: | Where-Object Name -like '_51DEGREES_*' |
+            ForEach-Object { Remove-Item -LiteralPath "Env:$($_.Name)" }
+        $script:Saved | ForEach-Object {
+            Set-Item -LiteralPath "Env:$($_.Name)" -Value $_.Value
+        }
+    }
+}
+
+Describe 'Fetching the data files' {
+    BeforeEach { Save-KeyVariables; $env:GITHUB_JOB = 'Test' }
+    AfterEach { Restore-KeyVariables; Remove-Item Env:GITHUB_JOB -ErrorAction Ignore }
+
+    It '<_> takes no old key or address parameter' -ForEach $FetchScripts {
+        $parameters = (Get-Command (Join-Path $script:Root $_)).Parameters.Keys
+        foreach ($old in $script:OldParameters) {
+            $parameters | Should -Not -Contain $old
+        }
+    }
+
+    It '<Script> asks for <Asset> when _51DEGREES_LICENSE_KEY is set' -ForEach @(
+        @{ Script = 'device-detection/cloud/ci/fetch-assets.ps1'; Asset = '51Degrees.csv' }
+        @{ Script = 'device-detection/onpremise/ci/fetch-assets.ps1'; Asset = 'TAC-HashV41.hash' }
+        @{ Script = 'ip-intelligence/ci/fetch-assets.ps1'; Asset = '51Degrees-EnterpriseIpiV41.ipi' }
+    ) {
+        $env:_51DEGREES_LICENSE_KEY = 'license-for-the-test'
+        $result = Invoke-Sandboxed (New-Sandbox $Script)
+        $result.Call.Arguments | Should -Contain $Asset
+        foreach ($old in $script:OldParameters) {
+            $result.Call.Arguments | Should -Not -Contain "-${old}:"
+        }
+        # The key reaches the shared step through the environment, never
+        # as an argument.
+        $result.Call.Arguments | Should -Not -Contain 'license-for-the-test'
+    }
+
+    It '<Script> names _51DEGREES_LICENSE_KEY and leaves out <Asset> without it' -ForEach @(
+        @{ Script = 'device-detection/cloud/ci/fetch-assets.ps1'; Asset = '51Degrees.csv' }
+        @{ Script = 'device-detection/onpremise/ci/fetch-assets.ps1'; Asset = 'TAC-HashV41.hash' }
+        @{ Script = 'ip-intelligence/ci/fetch-assets.ps1'; Asset = '51Degrees-EnterpriseIpiV41.ipi' }
+    ) {
+        $result = Invoke-Sandboxed (New-Sandbox $Script)
+        $result.Output | Should -Match '_51DEGREES_LICENSE_KEY'
+        @($result.Call.Arguments) | Should -Not -Contain $Asset
+    }
+}
+
+Describe 'Running the integration tests' {
+    BeforeEach { Save-KeyVariables }
+    AfterEach { Restore-KeyVariables }
+
+    # Each package whose integration tests need a resource key.
+    It '<_> runs them with _51DEGREES_RESOURCE_KEY and no old key' -ForEach @(
+        'device-detection/cloud/ci/run-integration-tests.ps1'
+        'location/ci/run-integration-tests.ps1'
+        'pipeline/cloudrequestengine/ci/run-integration-tests.ps1'
+    ) {
+        $env:_51DEGREES_RESOURCE_KEY = 'resource-key-for-the-test'
+        $sandbox = New-Sandbox $_
+        # The device detection tests also need the CSV file.
+        New-Item -ItemType Directory (Join-Path $sandbox.Work 'pkg' 'tests') -Force | Out-Null
+        Set-Content (Join-Path $sandbox.Work 'pkg' 'tests' '51Degrees.csv') 'csv'
+        $result = Invoke-Sandboxed $sandbox @{
+            RepoName = 'pkg'; Keys = @{}; SeleniumContract = $false
+        }
+        $result.Call.Script | Should -Be 'php' -Because $result.Output
+        $result.Call.Names | Should -Contain '_51DEGREES_RESOURCE_KEY'
+        @($result.Call.Names | Where-Object { $_ -like '*ACCEPTCH*' }) |
+            Should -BeNullOrEmpty
+    }
+
+    It '<_> names _51DEGREES_RESOURCE_KEY and skips without it' -ForEach @(
+        'device-detection/cloud/ci/run-integration-tests.ps1'
+        'location/ci/run-integration-tests.ps1'
+        'pipeline/cloudrequestengine/ci/run-integration-tests.ps1'
+    ) {
+        $sandbox = New-Sandbox $_
+        $result = Invoke-Sandboxed $sandbox @{
+            RepoName = 'pkg'; Keys = @{ TestResourceKey = 'old-name' }; SeleniumContract = $false
+        }
+        $result.Output | Should -Match '_51DEGREES_RESOURCE_KEY'
+        $result.Call | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Old key names' {
+    # The names the old secrets and options had, and the header keys the
+    # Accept-CH tests used before they asked for one property each with the
+    # license key.
+    BeforeAll {
+        $script:OldNames = 'TestResourceKey|_51DEGREES_RESOURCE_KEY_ACCEPTCH_|' +
+            'AcceptCh(Platform|Hardware|Browser|None)Key|IPI_DATA_FILE_URL|' +
+            'CSV_URL|DEVICE_DETECTION_(KEY|URL)|SUPER_RESOURCE_KEY|' +
+            '\$(DeviceDetection|DeviceDetectionUrl|CsvUrl|IpIntelligence|IpIntelligenceUrl)\b|' +
+            'vars\._51DEGREES_'
+        # This file, and the tests of the variable name check, which name old
+        # names on purpose.
+        $own = 'ci/key-names.Tests.ps1', 'ci/check-environment-variable-names.Tests.ps1'
+        $script:Files = @(& git -C $script:Root -c core.quotePath=false ls-files |
+            Where-Object {
+                $_ -notin $own -and (
+                    $_ -like '.github/workflows/*' -or $_ -match '(^|/)ci/' -or
+                    $_ -like 'device-detection/cloud/tests/*' -or
+                    $_ -like 'device-detection/cloud/phpunit.xml')
+            })
+    }
+
+    It 'are not read, set or documented by the CI or the cloud tests' {
+        $found = foreach ($file in $script:Files) {
+            $path = Join-Path $script:Root $file
+            if (Test-Path -LiteralPath $path -PathType Leaf) {
+                Select-String -LiteralPath $path -Pattern $script:OldNames -CaseSensitive |
+                    ForEach-Object { "${file}:$($_.LineNumber): $($_.Line.Trim())" }
+            }
+        }
+        $found | Should -BeNullOrEmpty
+    }
+}

@@ -41,7 +41,7 @@ class ResourceKeys
     public const PLACEHOLDER = '!!YOUR_RESOURCE_KEY!!';
 
     /**
-     * Get the value of a resource key variable, or null when it is not set.
+     * Get the value of a key variable, or null when it is not set.
      *
      * @param string $name One of the Constants::*_ENV_VAR names
      * @return null|string
@@ -58,12 +58,12 @@ class ResourceKeys
     }
 
     /**
-     * The message shown when a resource key is missing, naming the variable
-     * the test was looking for.
+     * The message shown when a key is missing, naming the variable the test
+     * was looking for.
      */
     public static function missingMessage(string $name): string
     {
-        return "No resource key found. Set the environment variable " .
+        return "No key found. Set the environment variable " .
             "'" . $name . "'. Create a resource key for free at " .
             'https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=tests-classes-resourcekeys.php&utm_term=resource-key-required';
     }

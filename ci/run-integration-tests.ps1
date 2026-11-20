@@ -1,7 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [hashtable]$Keys = @{},
     # False, from select-options.ps1, on every entry of a pull request but
     # one, so the browser contract runs once.
     [bool]$SeleniumContract = $true
@@ -29,8 +28,9 @@ if ($SeleniumContract) {
 Write-CheckoutComposer -RepoName $RepoName -Package 'device-detection/cloud' `
     -Pipeline 'core', 'engines', 'cloudrequestengine'
 
+# The packages read their keys from the environment, where common-ci puts
+# them under their _51DEGREES_ names before this runs.
 Invoke-PackageScript -RepoName $RepoName -Script run-integration-tests -Parameters @{
-    Keys = $Keys
     SeleniumContract = $SeleniumContract
 } -Environment @{ 'device-detection/cloud' = @{ COMPOSER = 'composer.ci.json' } }
 

@@ -1,28 +1,22 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [hashtable]$Keys,
     # False, from select-options.ps1, on every entry of a pull request but
     # one, so the browser contract runs once.
     [bool]$SeleniumContract = $true
 )
 
-if (!$Keys.TestResourceKey) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::No resource key was provided, so integration tests will not run."
+# common-ci puts the keys into the environment under their _51DEGREES_ names
+# before this runs: _51DEGREES_RESOURCE_KEY filled from the organization
+# secret _51DEGREES_RESOURCE_KEY_BESPOKE, and _51DEGREES_LICENSE_KEY_BESPOKE,
+# which the Accept-CH tests ask for one property at a time with.
+if (!$env:_51DEGREES_RESOURCE_KEY) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::_51DEGREES_RESOURCE_KEY is not set, so integration tests will not run."
     return
 } elseif (!(Test-Path $RepoName/tests/51Degrees.csv)) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No CSV File::CSV file wasn't found, so integration tests will not run."
     return
 }
-
-# Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_PLATFORM = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_HARDWARE = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_BROWSER = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_NONE = $Keys.TestResourceKey
 
 ./php/run-integration-tests.ps1 -RepoName $RepoName
 $status = $LASTEXITCODE
@@ -39,7 +33,6 @@ try {
     try {
         composer install --working-dir=..
         $env:PORT = 8096
-        $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
         $env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
         $example = php -S "localhost:$env:PORT" cloud/gettingStartedWeb.php 2>&1 &
     } finally { Pop-Location }
@@ -62,7 +55,8 @@ try {
     }
 
     $env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-    $env:PAID_RESOURCE_KEY = $Keys.TestResourceKey
+    # The contract tests read the key under this name.
+    $env:PAID_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY
     $env:EXAMPLE_URL = "http://localhost:$env:PORT"
     $env:EXAMPLE_LANG = 'php'
     # Normal verbosity prints each test's time, passed or failed.

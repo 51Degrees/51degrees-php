@@ -366,17 +366,15 @@ class Pipeline
     }
 
     /**
-     * Whether any element accepts any of the keys.
+     * Whether the Pipeline's filter accepts any of the keys.
      *
      * @param array<string> $keys
      */
     private function anyElementAccepts(array $keys): bool
     {
-        foreach ($this->flowElements as $flowElement) {
-            foreach ($keys as $key) {
-                if ($flowElement->filterEvidenceKey($key)) {
-                    return true;
-                }
+        foreach ($keys as $key) {
+            if ($this->evidenceKeyFilter->filterEvidenceKey($key)) {
+                return true;
             }
         }
 

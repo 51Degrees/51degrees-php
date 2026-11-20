@@ -37,7 +37,7 @@ namespace fiftyone\pipeline\core;
  *
  * @internal Built only by Pipeline
  */
-class PipelineEvidenceKeyFilter extends EvidenceKeyFilter
+final class PipelineEvidenceKeyFilter extends EvidenceKeyFilter
 {
     /**
      * @var array<\fiftyone\pipeline\core\FlowElement>
@@ -51,6 +51,19 @@ class PipelineEvidenceKeyFilter extends EvidenceKeyFilter
     public function __construct(array $flowElements)
     {
         $this->flowElements = $flowElements;
+    }
+
+    /**
+     * Refuses a filter function. Every caller shares this filter, so a
+     * function set by one would change it for all of them, and a closure
+     * would stop the Pipeline being serialized.
+     *
+     * @param mixed $value
+     * @throws \Exception
+     */
+    public function __set(string $name, $value): void
+    {
+        throw new \Exception(sprintf(Messages::PIPELINE_IMMUTABLE, $name));
     }
 
     /**

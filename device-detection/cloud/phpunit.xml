@@ -25,6 +25,7 @@
       <file>tests/WebExampleFlowDataTests.php</file>
       <file>tests/HardwareProfileDataTests.php</file>
       <file>tests/PublishedPackageTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/ExampleTests.php</file>

@@ -313,7 +313,9 @@ $streamingHandles = openDataFileHandles($dataFile);
 $streamingCorruption = 0;
 $streamingStuck = 0;
 $streamingRounds = 0;
-while ($streamingCorruption < 1 && $streamingRounds < STREAMING_ROUNDS) {
+// A killed worker already fails the test, so a round with one is not repeated.
+// Otherwise a stuck worker could hold the job for STREAMING_ROUNDS time limits.
+while ($streamingCorruption < 1 && $streamingStuck === 0 && $streamingRounds < STREAMING_ROUNDS) {
     $streamingCorruption += runForkedWorkers($streaming, $userAgents, $streamingStuck);
     $streamingRounds++;
 }
@@ -347,7 +349,7 @@ if ($inMemoryHandles > 0) {
 }
 // The corruption checks work on every platform and are the core proof.
 if ($streamingCorruption < 1) {
-    $failures[] = 'expected the streaming profile to corrupt under fork, but no corruption was observed in ' . STREAMING_ROUNDS . ' rounds';
+    $failures[] = 'expected the streaming profile to corrupt under fork, but no corruption was observed in ' . $streamingRounds . ' round(s)';
 }
 if ($inMemoryCorruption !== 0) {
     $failures[] = "expected the in-memory profile to be fork-safe, but observed {$inMemoryCorruption} corruption events";

@@ -159,7 +159,9 @@ class Pipeline
     /**
      * The Evidence the Pipeline accepts, which getEvidenceKeyFilter gives.
      * It is always needed and the elements it asks do not change once the
-     * Pipeline is built, so the constructor builds it once.
+     * Pipeline is built, so the constructor builds it once. It holds no
+     * closure, so the Pipeline can still be serialized, as a session cache
+     * does through an element's data.
      */
     private EvidenceKeyFilter $evidenceKeyFilter;
 
@@ -202,16 +204,7 @@ class Pipeline
             $flowElement->onRegistration($this);
         }
 
-        $this->evidenceKeyFilter = new EvidenceKeyFilter();
-        $this->evidenceKeyFilter->filterEvidenceKey = function (string $key): bool {
-            foreach ($this->flowElements as $flowElement) {
-                if ($flowElement->filterEvidenceKey($key)) {
-                    return true;
-                }
-            }
-
-            return false;
-        };
+        $this->evidenceKeyFilter = new PipelineEvidenceKeyFilter($this->flowElements);
     }
 
     /**

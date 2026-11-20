@@ -24,6 +24,7 @@
       <file>tests/CloudRequestFailedTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/ExampleTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/CloudRequestTests.php</file>

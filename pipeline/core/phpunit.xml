@@ -46,6 +46,7 @@
       <file>tests/RequestLineEvidenceTests.php</file>
       <file>tests/RequestLineDecisionTests.php</file>
       <file>tests/AspectPropertyValueTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
       <file>tests/FlowDataThreadsDocsTests.php</file>
     </testsuite>
   </testsuites>

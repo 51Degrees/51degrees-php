@@ -12,7 +12,7 @@ on:
 
 jobs:
   Monthly_Copyright_Update:
-    uses: 51Degrees/common-ci/.github/workflows/monthly-copyright-update.yml@main
+    uses: 51Degrees/common-ci/.github/workflows/monthly-copyright-update.yml@6f756057e5252a27df60d7722dc036f5bebd4369
     with:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}

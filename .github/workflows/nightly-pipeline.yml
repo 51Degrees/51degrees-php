@@ -22,7 +22,7 @@ jobs:
   # it runs first and has the runners before the pull request builds do.
   Publish:
     name: Nightly Publish
-    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
+    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@6f756057e5252a27df60d7722dc036f5bebd4369
     with:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
@@ -33,7 +33,7 @@ jobs:
 
   SubmoduleUpdate:
     name: Nightly Submodule Update
-    uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@main
+    uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@6f756057e5252a27df60d7722dc036f5bebd4369
     with:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
@@ -44,7 +44,7 @@ jobs:
     if: ${{ !cancelled() }}
     needs: SubmoduleUpdate
     name: Nightly Package Update
-    uses: 51Degrees/common-ci/.github/workflows/nightly-package-update.yml@main
+    uses: 51Degrees/common-ci/.github/workflows/nightly-package-update.yml@6f756057e5252a27df60d7722dc036f5bebd4369
     with:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
@@ -55,7 +55,7 @@ jobs:
     if: ${{ !cancelled() }}
     needs: [Publish, SubmoduleUpdate, PackageUpdate]
     name: Nightly Pull Requests
-    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@6f756057e5252a27df60d7722dc036f5bebd4369
     with:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}

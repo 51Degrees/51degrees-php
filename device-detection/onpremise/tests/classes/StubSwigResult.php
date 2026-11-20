@@ -65,19 +65,32 @@ class StubSwigResult
     private array $userAgents;
 
     /**
+     * The string the data holds for a property, which getValueAsString
+     * gives where the property has one, as the native results give the
+     * stored string whatever type the property declares.
+     *
+     * @var array<string, StubSwigValue>
+     */
+    private array $storedStrings;
+
+    /**
      * @param array<string, StubSwigValue> $values keyed by property name
      * @param null|array<string> $requiredProperties build-time names in index
      *   order, defaulting to the value keys
      * @param array<string> $userAgents the matched User-Agent of each result
+     * @param array<string, StubSwigValue> $storedStrings the stored string of
+     *   a property keyed by its name, where it differs from its value
      */
     public function __construct(
         array $values,
         ?array $requiredProperties = null,
-        array $userAgents = []
+        array $userAgents = [],
+        array $storedStrings = []
     ) {
         $this->values = $values;
         $this->requiredProperties = $requiredProperties ?? array_keys($values);
         $this->userAgents = $userAgents;
+        $this->storedStrings = $storedStrings;
     }
 
     /**
@@ -93,7 +106,13 @@ class StubSwigResult
      */
     public function getValueAsString($key): StubSwigValue
     {
-        return $this->read($key);
+        $value = $this->read($key);
+        $name = is_int($key) ? $this->getPropertyName($key) : $key;
+        if ($value->hasValue() && isset($this->storedStrings[$name])) {
+            return $this->storedStrings[$name];
+        }
+
+        return $value;
     }
 
     /**

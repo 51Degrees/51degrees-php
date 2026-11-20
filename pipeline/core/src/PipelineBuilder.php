@@ -176,6 +176,8 @@ class PipelineBuilder
             $config = $fileOrConfig;
         }
 
+        $this->useConfiguredLogger($config['PipelineOptions']['Logging'] ?? null);
+
         $built = [];
 
         try {
@@ -199,6 +201,37 @@ class PipelineBuilder
 
             throw $e;
         }
+    }
+
+    /**
+     * Uses the logger the configuration's PipelineOptions.Logging section
+     * gives, being the minimum Level and the File, or stream, the entries
+     * are written to, so that logging is set without changing code. A
+     * logger the application added in code is kept.
+     *
+     * @param mixed $logging
+     */
+    private function useConfiguredLogger($logging): void
+    {
+        if (!is_array($logging) || isset($this->settings['logger'])) {
+            return;
+        }
+
+        // The names are read ignoring case.
+        $settings = [];
+        $level = null;
+        foreach ($logging as $name => $value) {
+            if (!is_string($value)) {
+                continue;
+            }
+            if (strcasecmp((string) $name, 'File') === 0) {
+                $settings[Logger::FILE_SETTING] = $value;
+            } elseif (strcasecmp((string) $name, 'Level') === 0) {
+                $level = $value;
+            }
+        }
+
+        $this->settings['logger'] = new Logger($level, $settings);
     }
 
     /**

@@ -6,6 +6,7 @@
       <file>tests/MetaDataTests.php</file>
       <file>tests/ExampleSettingsTests.php</file>
       <file>tests/SwigDataReadTests.php</file>
+      <file>tests/StoredStringTests.php</file>
       <file>tests/EvidenceMapTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
       <file>tests/DataModelTests.php</file>
@@ -35,6 +36,7 @@
       <file>tests/MetaDataTests.php</file>
       <file>tests/ExampleSettingsTests.php</file>
       <file>tests/SwigDataReadTests.php</file>
+      <file>tests/StoredStringTests.php</file>
       <file>tests/EvidenceMapTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>

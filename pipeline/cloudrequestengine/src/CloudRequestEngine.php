@@ -99,6 +99,8 @@ class CloudRequestEngine extends Engine
     private ?\Throwable $evidenceKeysFailure = null;
     // Set once the accessible properties have been obtained.
     private bool $propertiesLoaded = false;
+    // Set while the last request for the accessible properties failed.
+    private bool $propertiesRequestFailed = false;
     private HttpClient $httpClient;
 
     /**
@@ -251,6 +253,15 @@ class CloudRequestEngine extends Engine
     public function propertiesLoaded(): bool
     {
         return $this->propertiesLoaded;
+    }
+
+    /**
+     * Whether the accessible properties have not been obtained because the
+     * last request for them failed.
+     */
+    public function propertiesRequestFailed(): bool
+    {
+        return !$this->propertiesLoaded && $this->propertiesRequestFailed;
     }
 
     /**
@@ -541,6 +552,29 @@ class CloudRequestEngine extends Engine
      */
     public function getEngineProperties(): array
     {
+        try {
+            $flowElementProperties = $this->requestEngineProperties();
+        } catch (\Throwable $e) {
+            $this->propertiesRequestFailed = true;
+
+            throw $e;
+        }
+
+        $this->flowElementProperties = $flowElementProperties;
+        $this->propertiesLoaded = true;
+        $this->propertiesRequestFailed = false;
+
+        return $flowElementProperties;
+    }
+
+    /**
+     * Asks the cloud service for the accessible properties, keyed by Data
+     * Key and then by lower case property name.
+     *
+     * @return array<string, array<string, array<string, bool|string>>>
+     */
+    private function requestEngineProperties(): array
+    {
         // Get properties for all engines. A license key goes in the body of
         // a POST rather than in the URL, so it stays out of anything that
         // names the URL. A resource key on its own goes in the query string.
@@ -577,9 +611,6 @@ class CloudRequestEngine extends Engine
                 $flowElementProperties[$dataKey][strtolower($meta['name'])] = $meta;
             }
         }
-
-        $this->flowElementProperties = $flowElementProperties;
-        $this->propertiesLoaded = true;
 
         return $flowElementProperties;
     }

@@ -198,6 +198,16 @@ class DeviceDetectionOnPremise extends Engine
     }
 
     /**
+     * The tier of the data file in use, such as Lite or Enterprise, which a
+     * missing property message compares with the data files the property
+     * is present in.
+     */
+    public function getDataSourceTier(): string
+    {
+        return $this->engine->getProduct();
+    }
+
+    /**
      * The Evidence keys the data file in use accepts, as the engine gives
      * them, in lower case.
      */

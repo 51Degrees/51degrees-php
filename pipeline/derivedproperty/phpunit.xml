@@ -12,6 +12,7 @@
       <file>tests/PipelineCheckTests.php</file>
       <file>tests/ScriptTests.php</file>
       <file>tests/ExampleTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

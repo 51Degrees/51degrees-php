@@ -28,6 +28,19 @@
  */
 
 /*
+ * The engine is built once, when PHP starts, and is supported only where PHP
+ * serves each request from a process forked after that, as Apache with the
+ * prefork MPM and php-fpm do. A thread-safe (ZTS) PHP would share the engine
+ * between threads instead, so the build stops here. The wrapper includes
+ * php.h first, which defines ZTS for a thread-safe PHP.
+ */
+%{
+#ifdef ZTS
+#error "The 51Degrees IP intelligence extension needs a non-thread-safe (NTS) PHP, and this PHP is thread-safe (ZTS). Build it for Apache with the prefork MPM and mod_php, or for php-fpm, with a non-thread-safe PHP."
+#endif
+%}
+
+/*
  * A weighted list's get returns a copy of the weighted value, which the PHP
  * object owns. SWIG would return a reference into the list, and a list that
  * is itself a returned value, as in $w->getValue()->get(0)->getValue(), is

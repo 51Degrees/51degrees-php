@@ -208,6 +208,32 @@ class FinishedWritesTests extends TestCase
         $this->assertSame(['first'], array_keys($flowData->data));
     }
 
+    public function testSettingAnyOtherPropertyOfAFinishedFlowDataThrows(): void
+    {
+        $element = new AddingElement('first');
+        $flowData = self::processed([$element]);
+        $first = $flowData->get('first');
+
+        // A property named as a data key would be read in place of the
+        // ElementData under that key.
+        $this->assertWriteThrows(function () use ($flowData, $element) {
+            $flowData->first = new ElementDataDictionary($element, ['value' => 'after']);
+        }, self::FINISHED);
+        $this->assertSame($first, $flowData->first);
+
+        $this->assertWriteThrows(function () use ($flowData, $element) {
+            $flowData->other = new ElementDataDictionary($element, []);
+        }, self::FINISHED);
+        $this->assertFalse(isset($flowData->other));
+
+        // A value that is not an array would be read in place of the data
+        // array.
+        $this->assertWriteThrows(function () use ($flowData) {
+            $flowData->data = 'after';
+        }, self::FINISHED);
+        $this->assertSame(['first'], array_keys($flowData->data));
+    }
+
     public function testSettingTheErrorsOfAFinishedFlowDataThrows(): void
     {
         $flowData = self::processed([new AddingElement('first')]);

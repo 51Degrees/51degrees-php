@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 $_SERVER['REMOTE_ADDR'] = '0.0.0.0';
 $_SERVER['REQUEST_URI'] = 'http://localhost';
 
+use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\GettingStartedConsole;
@@ -40,6 +41,14 @@ use PHPUnit\Framework\TestCase;
 
 class ExampleTests extends TestCase
 {
+    /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
     // Text that shows an example printed a programming fault rather than a
     // result. An example that reaches any of these is broken, however
     // little of the data the resource key is entitled to.
@@ -61,6 +70,7 @@ class ExampleTests extends TestCase
             $logger = new Logger('info');
             $config = json_decode(file_get_contents(__DIR__ . '/../examples/cloud/gettingStartedConsole.json'), true);
             ExampleUtils::setResourceKeyInConfig($config, $key);
+            $this->setCloudTimeoutInConfig($config);
             (new GettingStartedConsole())->run($config, $logger, $record);
         });
 
@@ -76,6 +86,7 @@ class ExampleTests extends TestCase
             $logger = new Logger('info');
             $config = json_decode(file_get_contents(__DIR__ . '/../examples/cloud/tacLookupConsole.json'), true);
             ExampleUtils::setResourceKeyInConfig($config, $key);
+            $this->setCloudTimeoutInConfig($config);
             (new TacLookupConsole())->run($config, $logger, $record);
         });
 
@@ -112,6 +123,21 @@ class ExampleTests extends TestCase
         });
 
         $this->assertNotEmpty($output);
+    }
+
+    /**
+     * Gives the Cloud Request Engine in an example's configuration the
+     * timeout the tests use, which the configuration file leaves out.
+     *
+     * @param array $config The decoded configuration file
+     */
+    private function setCloudTimeoutInConfig(array &$config): void
+    {
+        foreach ($config['PipelineOptions']['Elements'] as &$element) {
+            if ($element['BuilderName'] === CloudRequestEngine::class) {
+                $element['BuildParameters']['timeoutSeconds'] = self::CLOUD_TIMEOUT_SECONDS;
+            }
+        }
     }
 
     /**

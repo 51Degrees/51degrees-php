@@ -49,6 +49,12 @@ class ExampleTests extends TestCase
      */
     private const CLOUD_TIMEOUT_SECONDS = 30;
 
+    /**
+     * A timeout no request to the cloud service can meet, so a test can see
+     * that an example passes the timeout it is given on.
+     */
+    private const TIMEOUT_NO_REQUEST_MEETS = 0.001;
+
     // Text that shows an example printed a programming fault rather than a
     // result. An example that reaches any of these is broken, however
     // little of the data the resource key is entitled to.
@@ -103,7 +109,13 @@ class ExampleTests extends TestCase
 
         $output = $this->runExample(function ($record) use ($key) {
             $logger = new Logger('info');
-            (new NativeModelLookupConsole())->run($key, $logger, $record);
+            (new NativeModelLookupConsole())->run(
+                $key,
+                $logger,
+                $record,
+                '',
+                self::CLOUD_TIMEOUT_SECONDS
+            );
         });
 
         $this->assertStringContainsString(
@@ -113,16 +125,58 @@ class ExampleTests extends TestCase
         $this->assertDeviceLinesAreMeaningful($output);
     }
 
+    /**
+     * The native model example passes the timeout it is given on to the
+     * Cloud Request Engine. A timeout no request can meet makes it fail.
+     */
+    public function testNativeModelLookupConsoleUsesTheTimeoutItIsGiven()
+    {
+        $key = $this->getResourceKey();
+
+        $this->expectException(\Exception::class);
+
+        (new NativeModelLookupConsole())->run(
+            $key,
+            new Logger('info'),
+            static function ($line) {},
+            '',
+            self::TIMEOUT_NO_REQUEST_MEETS
+        );
+    }
+
     public function testMetadataConsole()
     {
         $key = $this->getResourceKey();
 
         $output = $this->runExample(function ($record) use ($key) {
             $logger = new Logger('info');
-            (new MetaDataConsole())->run($key, $logger, $record);
+            (new MetaDataConsole())->run(
+                $key,
+                $logger,
+                $record,
+                self::CLOUD_TIMEOUT_SECONDS
+            );
         });
 
         $this->assertNotEmpty($output);
+    }
+
+    /**
+     * The metadata example passes the timeout it is given on to the Cloud
+     * Request Engine. A timeout no request can meet makes it fail.
+     */
+    public function testMetadataConsoleUsesTheTimeoutItIsGiven()
+    {
+        $key = $this->getResourceKey();
+
+        $this->expectException(\Exception::class);
+
+        (new MetaDataConsole())->run(
+            $key,
+            new Logger('info'),
+            static function ($line) {},
+            self::TIMEOUT_NO_REQUEST_MEETS
+        );
     }
 
     /**

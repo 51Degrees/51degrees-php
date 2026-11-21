@@ -27,28 +27,16 @@ class Constants
 {
     // Resource key environment variables follow the 51Degrees convention,
     // which is that every one of them starts with
-    // '_51DEGREES_RESOURCE_KEY'. The name each one replaced is still read,
-    // as a deprecated name, when the variable is not set.
+    // '_51DEGREES_RESOURCE_KEY'. The name it replaced is still read, as a
+    // deprecated name, when the variable is not set.
     public const RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
-    public const PLATFORM_ENV_VAR = '_51DEGREES_RESOURCE_KEY_ACCEPTCH_PLATFORM';
-    public const HARDWARE_ENV_VAR = '_51DEGREES_RESOURCE_KEY_ACCEPTCH_HARDWARE';
-    public const BROWSER_ENV_VAR = '_51DEGREES_RESOURCE_KEY_ACCEPTCH_BROWSER';
-    public const NO_ACCEPTCH_ENV_VAR = '_51DEGREES_RESOURCE_KEY_ACCEPTCH_NONE';
+
+    // The license key the Accept-CH tests ask the cloud for one property at
+    // a time with. It has no deprecated name.
+    public const LICENSE_ENV_VAR = '_51DEGREES_LICENSE_KEY_BESPOKE';
 
     /** @deprecated use {@see Constants::RESOURCE_ENV_VAR} */
     public const LEGACY_RESOURCE_ENV_VAR = 'resource_key';
-
-    /** @deprecated use {@see Constants::PLATFORM_ENV_VAR} */
-    public const LEGACY_PLATFORM_ENV_VAR = 'AcceptChPlatformKey';
-
-    /** @deprecated use {@see Constants::HARDWARE_ENV_VAR} */
-    public const LEGACY_HARDWARE_ENV_VAR = 'AcceptChHardwareKey';
-
-    /** @deprecated use {@see Constants::BROWSER_ENV_VAR} */
-    public const LEGACY_BROWSER_ENV_VAR = 'AcceptChBrowserKey';
-
-    /** @deprecated use {@see Constants::NO_ACCEPTCH_ENV_VAR} */
-    public const LEGACY_NO_ACCEPTCH_ENV_VAR = 'AcceptChNoneKey';
 
     /**
      * Pairs each variable with the deprecated name it replaced, so a
@@ -57,12 +45,18 @@ class Constants
      * @deprecated use the variable names, which are the keys
      */
     public const LEGACY_ENV_VARS = [
-        self::RESOURCE_ENV_VAR => self::LEGACY_RESOURCE_ENV_VAR,
-        self::PLATFORM_ENV_VAR => self::LEGACY_PLATFORM_ENV_VAR,
-        self::HARDWARE_ENV_VAR => self::LEGACY_HARDWARE_ENV_VAR,
-        self::BROWSER_ENV_VAR => self::LEGACY_BROWSER_ENV_VAR,
-        self::NO_ACCEPTCH_ENV_VAR => self::LEGACY_NO_ACCEPTCH_ENV_VAR
+        self::RESOURCE_ENV_VAR => self::LEGACY_RESOURCE_ENV_VAR
     ];
+
+    // The property each Accept-CH case asks for with the license key, named
+    // with its component, as the cloud service needs. Each SetHeader
+    // property asks for the client hints of its own component.
+    public const BROWSER_PROPERTY = 'device.SetHeaderBrowserAccept-CH';
+    public const HARDWARE_PROPERTY = 'device.SetHeaderHardwareAccept-CH';
+    public const PLATFORM_PROPERTY = 'device.SetHeaderPlatformAccept-CH';
+    // A property that needs no client hint, so asking for it alone gives no
+    // Accept-CH header.
+    public const NO_ACCEPTCH_PROPERTY = 'device.IsMobile';
 
     public const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             . 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36';
@@ -84,5 +78,9 @@ class Constants
     public const EMPTY_ACCEPT_CH = [];
 
     public const URL = 'http://localhost:3000/';
+    // The server that asks the cloud with the license key and the property
+    // named in its query string.
+    public const LICENSE_URL = 'http://localhost:3001/';
+    public const PROPERTY_QUERY_PARAM = 'property';
     public const UA_HEADER = 'User-Agent: ';
 }

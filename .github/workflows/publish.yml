@@ -21,10 +21,4 @@ jobs:
       dryrun: ${{ inputs.dryrun || false }}
       allow-version-bump: ${{ inputs.allow-version-bump || false }}
       cache-assets: true
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      CsvUrl: ${{ secrets.CSV_URL }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+    secrets: inherit

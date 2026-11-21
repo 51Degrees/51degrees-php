@@ -1,11 +1,3 @@
-param (
-    # The prefetch_assets action calls this with the workflow secrets and nothing
-    # else, so every parameter must be optional and named after a secret. A
-    # mandatory one makes PowerShell prompt and fails the Configure job.
-    [string]$IpIntelligenceUrl,
-    [string]$DeviceDetection,
-    [string]$DeviceDetectionUrl
-)
 $ErrorActionPreference = 'Stop'
 
 # PreBuild is a job from the nightly-publish-main workflow
@@ -14,9 +6,15 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
     exit 0
 }
 
+# The Enterprise data file comes from the Distributor, as IPIV41
+# IPIV4Enterprise, with the data license key, which common-ci puts into the
+# environment as _51DEGREES_LICENSE_KEY before this runs. Without it, as in a
+# build with no secrets, only the free files are fetched.
 $assets = @('51Degrees-LiteIpiV41.ipi')
-if ($IpIntelligenceUrl) {
+if ($env:_51DEGREES_LICENSE_KEY) {
     $assets += '51Degrees-EnterpriseIpiV41.ipi'
+} else {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Data License::_51DEGREES_LICENSE_KEY is not set, so the Enterprise data file was not fetched."
 }
 
 # Every free file the examples look for, by its asset name, with the name the
@@ -28,7 +26,7 @@ $freeFiles = [ordered]@{
 }
 
 $fetch = @($assets) + @($freeFiles.Keys | Where-Object { $_ -notin $assets })
-./steps/fetch-assets.ps1 -IpIntelligenceUrl:$IpIntelligenceUrl -Assets $fetch
+./steps/fetch-assets.ps1 -Assets $fetch
 
 # The tests look for the data file under the repository, but the shared step
 # fetches into ./assets at the workspace root. Link rather than copy - the

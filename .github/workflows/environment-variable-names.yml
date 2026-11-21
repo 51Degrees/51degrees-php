@@ -28,3 +28,9 @@ jobs:
       - name: Check the names
         shell: pwsh
         run: ./ci/check-environment-variable-names.ps1
+
+      # The CI scripts read their keys only under the _51DEGREES_ names, which
+      # common-ci puts into the environment, and no old key name is left.
+      - name: Test the key names the CI reads
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/key-names.Tests.ps1 -CI

@@ -1,16 +1,15 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [hashtable]$Keys
+    [string]$RepoName
 )
 
-if (!$Keys.TestResourceKey) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::No resource key was provided, so integration tests will not run."
+# common-ci puts the resource key into the environment as
+# _51DEGREES_RESOURCE_KEY before this runs, filled from the organization
+# secret _51DEGREES_RESOURCE_KEY_BESPOKE.
+if (!$env:_51DEGREES_RESOURCE_KEY) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::_51DEGREES_RESOURCE_KEY is not set, so integration tests will not run."
     return
 }
-
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
 
 ./php/run-integration-tests.ps1 -RepoName $RepoName
 

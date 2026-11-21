@@ -25,7 +25,7 @@
  * The star sign service that CloudEngine.php calls, run by PHP's built-in
  * web server as the example does.
  *
- *     php -S 127.0.0.1:8000 StarSignService.php
+ *     php -S 127.0.0.1:5151 StarSignService.php
  *
  * It answers the three requests a Cloud Request Engine makes, in the shape
  * the 51Degrees cloud service answers them.

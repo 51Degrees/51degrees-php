@@ -43,11 +43,11 @@ class ExampleWebTests extends TestCase
         }
 
         // start server
-        self::$process = new Process('php -S localhost:3000 examples/cloud/gettingStartedWeb.php');
+        self::$process = new Process('php -S localhost:5151 examples/cloud/gettingStartedWeb.php');
         self::$process->start();
         sleep(5);
         if (self::$process->status()) {
-            shell_exec('lsof -i tcp:3000 1>/dev/null 2>&1');
+            shell_exec('lsof -i tcp:5151 1>/dev/null 2>&1');
             echo "Getting Started Web example has started running.\n";
         } else {
             throw new \Exception("Could not start the Getting Started Web example. \n");

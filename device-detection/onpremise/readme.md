@@ -176,7 +176,7 @@ repository's script when it is missing. It then runs again in a PHP started with
 says so on standard error with the command. Set `FiftyOneDegreesHashEngine.data_file` in php.ini,
 as [Configuration](#configuration) describes, so that PHP builds the engine once when it starts.
 A web example cannot start PHP again, so start it with the launcher, `examples/onpremise/serve.php`,
-which finds the data file in the same way and starts the PHP built-in server on port 3000 with it,
+which finds the data file in the same way and starts the PHP built-in server on port 5151 with it,
 as below. A data file or a port can follow the example's name. A web example started some other
 way with no data file setting answers with a page giving the launcher command and the setting.
 
@@ -202,8 +202,8 @@ Now, still in `device-detection/onpremise`, start a web example with the launche
 php examples/onpremise/serve.php gettingStartedWeb.php
 ```
 
-This will start a local web server listening on port 3000. 
-Open your web browser and browse to http://localhost:3000/ to see the example in action.
+This will start a local web server listening on port 5151. 
+Open your web browser and browse to http://localhost:5151/ to see the example in action.
 Run a console example from the same folder, for example
 `php examples/onpremise/gettingStartedConsole.php`. Every example ends with a
 "Find out more" section that lists where to go next.

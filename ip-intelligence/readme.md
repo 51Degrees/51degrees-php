@@ -160,8 +160,8 @@ throughout, so with a free data file they say which and stop.
 
 A web example cannot start PHP again, so start it with the launcher,
 `examples/onpremise/serve.php`, which finds the data file in the same way and
-starts the PHP built-in server on port 3000 with it. Run this from the root
-of the repository, and open http://localhost:3000/.
+starts the PHP built-in server on port 5151 with it. Run this from the root
+of the repository, and open http://localhost:5151/.
 
 ```bash
 php ip-intelligence/examples/onpremise/serve.php web

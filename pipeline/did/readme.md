@@ -639,10 +639,10 @@ carrying any other.
 
 Run `composer install` in this package's folder once, then from its
 `examples/creator-context-web` folder start the built-in server and open
-`http://localhost:5100/` in a browser. The port is the `php -S` argument.
+`http://localhost:5151/` in a browser. The port is the `php -S` argument.
 
 ```bash
-php -S localhost:5100 server.php
+php -S localhost:5151 server.php
 ```
 
 To demonstrate across two devices, serve on an address both can reach and

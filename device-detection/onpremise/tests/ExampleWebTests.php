@@ -39,7 +39,7 @@ class ExampleWebTests extends TestCase
     public static function setUpBeforeClass(): void
     {
         // start server
-        self::$process = new Process('php -S localhost:3000 examples/onpremise/gettingStartedWeb.php');
+        self::$process = new Process('php -S localhost:5151 examples/onpremise/gettingStartedWeb.php');
         self::$process->start();
         if (self::$process->status()) {
             sleep(1);

@@ -11,6 +11,8 @@
   <testsuites>
     <!-- Runs everywhere: no native extension, data file or network needed. -->
     <testsuite name="Unit">
+      <file>tests/ReadOnlyOnPremiseTests.php</file>
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/SwigDataTests.php</file>
       <file>tests/WeightedValuesJsonTests.php</file>
       <file>tests/CloudOnPremiseValuesTests.php</file>

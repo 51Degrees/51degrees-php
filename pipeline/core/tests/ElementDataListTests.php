@@ -124,9 +124,12 @@ class ElementDataListTests extends TestCase
         $this->assertSame(['first', 'second'], array_keys($flowData->data));
         $this->assertTrue(isset($flowData->data['second']));
 
-        $flowData->data = ['only' => new ElementDataDictionary($element, ['name' => 'only'])];
-        $this->assertSame('only', $flowData->get('only')->get('name'));
-        $this->assertSame(['only'], array_keys($flowData->data));
+        // A processed FlowData is read only, so the array is set on one that
+        // has not been processed.
+        $unprocessed = $flowData->pipeline->createFlowData();
+        $unprocessed->data = ['only' => new ElementDataDictionary($element, ['name' => 'only'])];
+        $this->assertSame('only', $unprocessed->get('only')->get('name'));
+        $this->assertSame(['only'], array_keys($unprocessed->data));
     }
 
     /**

@@ -4,6 +4,7 @@
          colors="true">
   <testsuites>
     <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/TranslationEngineConfigTests.php</file>
       <file>tests/TranslationEvidenceCaseTests.php</file>
       <file>tests/TranslationEngineBuilderTests.php</file>

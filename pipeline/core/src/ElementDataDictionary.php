@@ -33,9 +33,15 @@ namespace fiftyone\pipeline\core;
 class ElementDataDictionary extends ElementData
 {
     /**
+     * The values by name. It can still be read as the public contents
+     * property, which gives a copy, so changing one value of that copy
+     * changes nothing and PHP raises a notice. Setting the whole property
+     * is a write, which throws once the FlowElements that write the data
+     * have finished.
+     *
      * @var array<string, mixed>
      */
-    public array $contents;
+    protected array $contents;
 
     /**
      * Constructor for element data dictionary.
@@ -47,6 +53,50 @@ class ElementDataDictionary extends ElementData
         $this->contents = $contents;
 
         parent::__construct($flowElement);
+    }
+
+    /**
+     * The contents, or else as for ElementData.
+     *
+     * @return mixed
+     */
+    public function __get(string $key)
+    {
+        if ($key === 'contents') {
+            return $this->contents;
+        }
+
+        return parent::__get($key);
+    }
+
+    /**
+     * Sets the contents, or else as for ElementData. Either is a write, so
+     * it throws once the FlowElements that write the data have finished.
+     *
+     * @param mixed $value
+     * @throws \Exception once the FlowElements that write it have finished
+     */
+    public function __set(string $key, $value): void
+    {
+        if ($key === 'contents') {
+            $this->checkWritesNotFinished($key);
+            $this->contents = $value;
+
+            return;
+        }
+
+        parent::__set($key, $value);
+    }
+
+    /**
+     * Whether the contents, or a property set through the data, is there.
+     *
+     * @param string $key
+     * @return bool
+     */
+    public function __isset($key)
+    {
+        return $key === 'contents' || parent::__isset($key);
     }
 
     /**

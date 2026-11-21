@@ -116,6 +116,8 @@ class Evidence
      */
     public function set(string $key, $value): void
     {
+        $this->flowData->checkNotFinished('evidence');
+
         $keep = false;
 
         foreach ($this->flowData->pipeline->flowElements as $flowElement) {

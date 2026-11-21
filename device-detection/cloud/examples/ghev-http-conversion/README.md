@@ -24,7 +24,7 @@ Run it with `php ghev-to-http.php`. It needs no resource key and no network.
 
 - **Note 1**: `Sec-CH-UA-Arch`, `Sec-CH-UA-Bitness`, `Sec-CH-UA-Model`, `Sec-CH-UA-Platform`, `Sec-CH-UA-Platform-Version` headers
 are of type `sf-string` according to the [WICG spec](https://wicg.github.io/ua-client-hints/#sec-ch-ua-arch). This means the values
-must be enclosed in quotes (except when the value is empty).
+must be enclosed in quotes, so an empty value, such as the model of a desktop browser, is sent as `""`.
 
 - **Note 2**: the `Sec-CH-UA` and `Sec-CH-UA-Full-Version-List` are list headers so a single space after the comma is added. The `sf-list` 
 mentions it is an OWS (optional whitespace), but we found it widely practiced in the industry and it also improves readability of the header.
@@ -94,7 +94,7 @@ Sec-CH-UA-Arch: "x86"
 Sec-CH-UA-Bitness: "64"
 Sec-CH-UA-Full-Version-List: "Chromium";v="116.0.5845.187", "Not)A;Brand";v="24.0.0.0", "Google Chrome";v="116.0.5845.187"
 Sec-CH-UA-Mobile: ?0
-Sec-CH-UA-Model: 
+Sec-CH-UA-Model: ""
 Sec-CH-UA-Platform: "macOS"
 Sec-CH-UA-Platform-Version: "13.5.2"
 ```

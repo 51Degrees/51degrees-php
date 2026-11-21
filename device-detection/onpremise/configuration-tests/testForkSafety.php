@@ -66,6 +66,10 @@ const ITERATIONS = 40;  // passes over the User-Agent list per worker
 // round is repeated until corruption is seen, up to this many times.
 const STREAMING_ROUNDS = 6;
 const CRASH_WEIGHT = 250; // a worker killed by a signal is the strongest possible corruption signal
+// A round of workers normally ends in well under a minute. A worker still
+// running after this many seconds is stuck, so it is killed and counted
+// rather than left to hold the job until the workflow's own time limit.
+const WORKER_TIME_LIMIT = 300;
 
 function fail(string $message, int $code = 2): void
 {
@@ -202,8 +206,13 @@ function detectionWorker(EngineHashSwig $engine, array $userAgents): int
  * run them concurrently, and total the corruption they observe. The parent does
  * not detect, so that a worker crash (a signal) is contained and reported
  * rather than taking the whole test down.
+ *
+ * Each worker is waited for until WORKER_TIME_LIMIT seconds after the round
+ * started. A worker still running then is killed and added to $stuck, which
+ * fails the test, since a corrupt read must end in a wrong answer, an
+ * exception or a crash, never in a worker that does not end.
  */
-function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
+function runForkedWorkers(EngineHashSwig $engine, array $userAgents, int &$stuck): int
 {
     $pids = [];
     for ($i = 0; $i < CHILDREN; $i++) {
@@ -219,8 +228,27 @@ function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
     }
 
     $total = 0;
+    $deadline = microtime(true) + WORKER_TIME_LIMIT;
     foreach ($pids as $pid) {
-        pcntl_waitpid($pid, $status);
+        $status = 0;
+        while (($waited = pcntl_waitpid($pid, $status, WNOHANG)) === 0) {
+            if (microtime(true) >= $deadline) {
+                break;
+            }
+            usleep(100000);
+        }
+        if ($waited === 0) {
+            // Still running at the time limit, so kill it and collect it.
+            fwrite(STDERR, "testForkSafety: worker {$pid} was still running after " .
+                WORKER_TIME_LIMIT . " seconds and was killed\n");
+            killWorker($pid);
+            pcntl_waitpid($pid, $status);
+            $stuck++;
+            continue;
+        }
+        if ($waited === -1) {
+            fail("pcntl_waitpid failed for worker {$pid}");
+        }
         if (pcntl_wifexited($status)) {
             $total += pcntl_wexitstatus($status);
         } elseif (pcntl_wifsignaled($status)) {
@@ -231,6 +259,19 @@ function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
     return $total;
 }
 
+/**
+ * Kill a worker that has not ended. posix_kill is used where the posix
+ * extension is loaded, and the kill command otherwise.
+ */
+function killWorker(int $pid): void
+{
+    if (function_exists('posix_kill')) {
+        posix_kill($pid, SIGKILL);
+    } else {
+        exec('kill -9 ' . $pid);
+    }
+}
+
 echo "Fork-safety reproduction (issue #38)\n";
 echo 'Data file: ' . $dataFile . "\n";
 echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterations: ' . ITERATIONS . "\n\n";
@@ -239,24 +280,28 @@ echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterat
 $streaming = buildEngine($dataFile, 'Balanced');
 $streamingHandles = openDataFileHandles($dataFile);
 $streamingCorruption = 0;
+$streamingStuck = 0;
 $streamingRounds = 0;
 while ($streamingCorruption < 1 && $streamingRounds < STREAMING_ROUNDS) {
-    $streamingCorruption += runForkedWorkers($streaming, $userAgents);
+    $streamingCorruption += runForkedWorkers($streaming, $userAgents, $streamingStuck);
     $streamingRounds++;
 }
 echo "Streaming (Balanced):\n";
 echo '  open data-file handles: ' . handlesLabel($streamingHandles) . "\n";
-echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s))\n\n";
+echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s))\n";
+echo "  workers killed at the time limit: {$streamingStuck}\n\n";
 unset($streaming);
 gc_collect_cycles();
 
 // --- In-memory (MaxPerformance) profile: expected to be safe across a fork ---
 $inMemory = buildEngine($dataFile, 'MaxPerformance');
 $inMemoryHandles = openDataFileHandles($dataFile);
-$inMemoryCorruption = runForkedWorkers($inMemory, $userAgents);
+$inMemoryStuck = 0;
+$inMemoryCorruption = runForkedWorkers($inMemory, $userAgents, $inMemoryStuck);
 echo "In memory (MaxPerformance):\n";
 echo '  open data-file handles: ' . handlesLabel($inMemoryHandles) . "\n";
-echo "  corruption events across fork: {$inMemoryCorruption}\n\n";
+echo "  corruption events across fork: {$inMemoryCorruption}\n";
+echo "  workers killed at the time limit: {$inMemoryStuck}\n\n";
 unset($inMemory);
 gc_collect_cycles();
 
@@ -275,6 +320,14 @@ if ($streamingCorruption < 1) {
 }
 if ($inMemoryCorruption !== 0) {
     $failures[] = "expected the in-memory profile to be fork-safe, but observed {$inMemoryCorruption} corruption events";
+}
+// A worker that did not end is a defect in either profile: a corrupt read
+// must give a wrong answer, an exception or a crash, which are counted above.
+if ($streamingStuck > 0) {
+    $failures[] = "{$streamingStuck} streaming worker(s) did not end within " . WORKER_TIME_LIMIT . ' seconds and were killed';
+}
+if ($inMemoryStuck > 0) {
+    $failures[] = "{$inMemoryStuck} in-memory worker(s) did not end within " . WORKER_TIME_LIMIT . ' seconds and were killed';
 }
 
 if (count($failures) > 0) {

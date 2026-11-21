@@ -76,7 +76,7 @@ class Constants
     public const BROWSER_ACCEPT_CH = ['SEC-CH-UA'];
     public const EMPTY_ACCEPT_CH = [];
 
-    public const URL = 'http://localhost:3000/';
+    public const URL = 'http://localhost:5151/';
     // The server that asks the cloud with the license key and the property
     // named in its query string.
     public const LICENSE_URL = 'http://localhost:3001/';

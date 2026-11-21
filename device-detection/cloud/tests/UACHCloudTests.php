@@ -55,7 +55,7 @@ class UACHCloudTests extends TestCase
     public static function setUpBeforeClass(): void
     {
         self::$process = self::start(
-            'php -S localhost:3000 examples/cloud/userAgentClientHints-Web.php',
+            'php -S localhost:5151 examples/cloud/userAgentClientHints-Web.php',
             'User Agent Client Hints-Cloud Web example'
         );
         if (ResourceKeys::find(Constants::LICENSE_ENV_VAR) !== null) {

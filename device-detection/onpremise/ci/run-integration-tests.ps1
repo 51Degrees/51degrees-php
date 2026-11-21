@@ -33,7 +33,7 @@ $env:PHP_INI_SCAN_DIR = "$sep$PWD/$RepoName"
 [Environment]::SetEnvironmentVariable('_51DEGREES_DD_PATH', $dataFile)
 
 # 8096 is the port the cloud example uses in the cloud repository's CI, and
-# the unit and configuration tests use 3000 and 3002, so use another one.
+# the unit and configuration tests use 5151 and 3002, so use another one.
 $port = 8097
 $example = $null
 

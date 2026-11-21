@@ -28,7 +28,7 @@
  *
  *   php serve.php <example> [data file] [port]
  *
- * <example> is web or web-mixed, and the port is 3000 unless another is
+ * <example> is web or web-mixed, and the port is 5151 unless another is
  * given. The IP Intelligence data file is found as the console examples
  * find it (getDataFile in examples/classes/ExampleUtils.php), the free Lite
  * file downloaded when there is none. With nothing named and an engine PHP
@@ -54,7 +54,7 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 // The web examples, each a folder served as the document root.
 const SERVE_EXAMPLES = ['web', 'web-mixed'];
 
-const SERVE_DEFAULT_PORT = 3000;
+const SERVE_DEFAULT_PORT = 5151;
 
 /**
  * The options PHP was started with before this script, where the system

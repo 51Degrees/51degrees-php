@@ -51,10 +51,10 @@ class UACHHashTests extends TestCase
         $propertiesShell = escapeshellarg((string) $properties);
 
         // start server
-        self::$process = new Process("php -dFiftyOneDegreesHashEngine.required_properties={$propertiesShell} -S localhost:3000 examples/onpremise/userAgentClientHints-Web.php");
+        self::$process = new Process("php -dFiftyOneDegreesHashEngine.required_properties={$propertiesShell} -S localhost:5151 examples/onpremise/userAgentClientHints-Web.php");
         self::$process->start();
         if (self::$process->status()) {
-            shell_exec('lsof -i tcp:3000 1>/dev/null 2>&1');
+            shell_exec('lsof -i tcp:5151 1>/dev/null 2>&1');
             sleep(1);
             echo "User Agent Client Hints On-Premise Web example has started running.\n";
         } else {

@@ -29,7 +29,7 @@
  *   php serve.php <example> [data file] [port]
  *
  * <example> is gettingStartedWeb.php or userAgentClientHints-Web.php, and
- * the port is 3000 unless another is given. The data file is the one named
+ * the port is 5151 unless another is given. The data file is the one named
  * here, then the one the _51DEGREES_DD_PATH environment variable names,
  * then the free Lite file in cxx/data/device-detection, downloaded when it
  * is missing. With none of those named and an engine PHP built from
@@ -50,7 +50,7 @@ use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 // The web examples, each the router script of its server.
 const SERVE_EXAMPLES = ['gettingStartedWeb.php', 'userAgentClientHints-Web.php'];
 
-const SERVE_DEFAULT_PORT = 3000;
+const SERVE_DEFAULT_PORT = 5151;
 
 /**
  * The options PHP was started with before this script, where the system

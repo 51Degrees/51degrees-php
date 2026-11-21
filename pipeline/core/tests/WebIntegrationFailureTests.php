@@ -29,6 +29,8 @@ use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\Utils;
+use fiftyone\pipeline\core\tests\classes\FailingJavascriptBuilderElement;
+use fiftyone\pipeline\core\tests\classes\FailingJsonBundlerElement;
 use fiftyone\pipeline\core\tests\classes\UnreachableElement;
 use PHPUnit\Framework\TestCase;
 
@@ -41,6 +43,9 @@ use PHPUnit\Framework\TestCase;
  */
 class WebIntegrationFailureTests extends TestCase
 {
+    private const SERVER_START_SECONDS = 30;
+    private const SERVER_TRY_MICROSECONDS = 250000;
+
     private static function pipeline(): Pipeline
     {
         return (new PipelineBuilder([
@@ -122,5 +127,187 @@ class WebIntegrationFailureTests extends TestCase
         $decoded = json_decode($json->body, true);
         $this->assertIsArray($decoded);
         $this->assertArrayHasKey('javascriptProperties', $decoded);
+    }
+
+    /**
+     * When the Set Headers Element itself failed, no response header is
+     * set from it and setting the headers does not throw, so neither the
+     * element's missing value message nor an error reaches the browser.
+     * PHP from the command line sends no headers, so the request is served
+     * by PHP's built-in web server.
+     */
+    public function testNoResponseHeaderIsSetWhenTheSetHeadersElementFailed(): void
+    {
+        [$headers, $body] = $this->serve('failed');
+
+        $this->assertSame('DONE', $body);
+        $names = self::headerNames($headers);
+        $this->assertNotContains('accept-ch', $names);
+        $this->assertNotContains('novaluemessage', $names);
+        $this->assertNotContains('hasvalue', $names);
+    }
+
+    /**
+     * The same request with a working Set Headers Element sets the header,
+     * which shows that the server answers with the headers the script sets.
+     */
+    public function testTheResponseHeaderIsSetWhenTheSetHeadersElementWorked(): void
+    {
+        [$headers, $body] = $this->serve('working');
+
+        $this->assertSame('DONE', $body);
+        $this->assertContains('Accept-CH: Sec-CH-UA', $headers);
+    }
+
+    /**
+     * When the JSON Bundler Element failed, the JSON is an empty object,
+     * which the client-side JavaScript reads as no properties, and the
+     * response is not kept by the browser.
+     */
+    public function testTheJsonIsAnEmptyObjectWhenTheJsonBundlerFailed(): void
+    {
+        $pipeline = (new PipelineBuilder(['suppressProcessExceptions' => true]))
+            ->add(new FailingJsonBundlerElement())
+            ->build();
+
+        $server = self::server('POST');
+        $json = Utils::jsonResponse(self::flowData($pipeline, $server), $server);
+
+        $this->assertSame(200, $json->status);
+        $this->assertSame('{}', $json->body);
+        $this->assertSame('private, no-cache', $json->headers['Cache-Control']);
+        $this->assertArrayNotHasKey('ETag', $json->headers);
+    }
+
+    /**
+     * When the JavaScript Builder Element failed, the script is empty,
+     * which a browser runs without an error, and the response is not kept
+     * by the browser.
+     */
+    public function testTheJavaScriptIsEmptyWhenTheJavaScriptBuilderFailed(): void
+    {
+        $pipeline = (new PipelineBuilder(['suppressProcessExceptions' => true]))
+            ->add(new FailingJavascriptBuilderElement([
+                'endpoint' => '/json',
+                'minify' => false
+            ]))
+            ->build();
+
+        $server = self::server('GET');
+        $script = Utils::javascriptResponse(
+            self::flowData($pipeline, $server),
+            $server
+        );
+
+        $this->assertSame(200, $script->status);
+        $this->assertSame('', $script->body);
+        $this->assertSame('private, no-cache', $script->headers['Cache-Control']);
+        $this->assertArrayNotHasKey('ETag', $script->headers);
+    }
+
+    /**
+     * Serves scripts/set-response-header.php with PHP's built-in web server
+     * and requests it with the element query value given. PHP's own
+     * messages, such as the deprecation notices Mustache gives on PHP 8.4
+     * and later, go to the server's log rather than the body, so the body
+     * is what the script writes whatever the php.ini of the machine says.
+     *
+     * @return array{0: array<int, string>, 1: string} The response header
+     * lines and the body
+     */
+    private function serve(string $element): array
+    {
+        $port = $this->freePort();
+        $log = (string) tempnam(sys_get_temp_dir(), 'set-header');
+        $server = proc_open(
+            [
+                PHP_BINARY,
+                '-d',
+                'display_errors=0',
+                '-d',
+                'log_errors=1',
+                '-S',
+                "127.0.0.1:{$port}",
+                'set-response-header.php'
+            ],
+            [0 => ['pipe', 'r'], 1 => ['file', $log, 'w'], 2 => ['file', $log, 'a']],
+            $pipes,
+            __DIR__ . '/scripts'
+        );
+        $this->assertIsResource($server);
+        fclose($pipes[0]);
+        try {
+            $response = $this->request($server, $port, $element);
+        } finally {
+            proc_terminate($server);
+            proc_close($server);
+            $printed = (string) file_get_contents($log);
+            unlink($log);
+        }
+        $this->assertNotNull($response, "The server did not answer:\n" . $printed);
+
+        return $response;
+    }
+
+    /**
+     * A port nothing is listening on.
+     */
+    private function freePort(): int
+    {
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertIsResource($socket);
+        $name = (string) stream_socket_get_name($socket, false);
+        fclose($socket);
+
+        return (int) substr($name, strrpos($name, ':') + 1);
+    }
+
+    /**
+     * The response, waiting for the server to start, or null where it
+     * stops or does not answer in time.
+     *
+     * @param resource $server
+     * @return null|array{0: array<int, string>, 1: string}
+     */
+    private function request($server, int $port, string $element): ?array
+    {
+        $context = stream_context_create(['http' => [
+            'ignore_errors' => true,
+            'timeout' => self::SERVER_START_SECONDS
+        ]]);
+        $url = "http://127.0.0.1:{$port}/?element={$element}";
+        $deadline = microtime(true) + self::SERVER_START_SECONDS;
+        while (microtime(true) < $deadline && proc_get_status($server)['running']) {
+            $stream = @fopen($url, 'r', false, $context);
+            if ($stream !== false) {
+                $headers = stream_get_meta_data($stream)['wrapper_data'];
+                $body = (string) stream_get_contents($stream);
+                fclose($stream);
+
+                return [array_map('strval', (array) $headers), $body];
+            }
+            usleep(self::SERVER_TRY_MICROSECONDS);
+        }
+
+        return null;
+    }
+
+    /**
+     * The lower case name of each header line, leaving out the status line.
+     *
+     * @param array<int, string> $headers
+     * @return array<int, string>
+     */
+    private static function headerNames(array $headers): array
+    {
+        $names = [];
+        foreach ($headers as $line) {
+            $colon = strpos($line, ':');
+            if ($colon !== false) {
+                $names[] = strtolower(trim(substr($line, 0, $colon)));
+            }
+        }
+
+        return $names;
     }
 }

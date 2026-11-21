@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\core;
  * Every error kept under one key of FlowData::$errors, in the order each was
  * added. The message holds each error's message on a line of its own, and
  * the previous exception is the first error.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/exception-handling.md
  */
 class AggregateException extends \Exception
 {

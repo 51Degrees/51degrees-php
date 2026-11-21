@@ -27,6 +27,7 @@ use fiftyone\pipeline\engines\CloudEngineBase;
 use fiftyone\pipeline\engines\Engine;
 use fiftyone\pipeline\engines\MissingPropertyMessages;
 use fiftyone\pipeline\engines\MissingPropertyService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class MissingPropertyTests extends TestCase
@@ -437,6 +438,121 @@ class MissingPropertyTests extends TestCase
         $this->assertSame(
             self::PREFIX . 'The reason for this is unknown. Please check that '
             . 'the aspect and property name are correct.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    // ----- PR-18: pipeline-specification/features/properties.md line 143 at
+    // 51Degrees/specifications dbaf099c: "An implementation SHOULD decide
+    // the reason in this order, using the first that applies." -----
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function dataTierKeys(): array
+    {
+        return [
+            'Device Detection on-premise' => ['dataFiles'],
+            'IP Intelligence on-premise' => ['datafiles'],
+        ];
+    }
+
+    /**
+     * Step 3.1: the data tiers where a property is present are read from
+     * the metadata the on-premise engines give, which names them dataFiles
+     * in Device Detection and datafiles in IP Intelligence, so an engine
+     * whose data file tier is not among them gives DataFileUpgradeRequired.
+     *
+     * @dataProvider dataTierKeys
+     */
+    #[DataProvider('dataTierKeys')]
+    public function testTheOnPremiseEnginesDataTiersGiveDataFileUpgradeRequired(string $key)
+    {
+        $engine = $this->engine(Engine::class, [
+            'testproperty' => [
+                'name' => 'testProperty',
+                $key => ['Premium', 'Enterprise'],
+                'available' => true
+            ]
+        ], 'Lite');
+
+        $this->assertSame(
+            self::PREFIX . 'This is because your license or data file does '
+            . 'not include this property. It is available with the '
+            . 'Premium,Enterprise license/data for the ' . get_class($engine)
+            . '. To upgrade, see https://51degrees.com/pricing.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * Step 3.1: an engine whose data file tier is among the property's data
+     * tiers, however either is spelt, does not need an upgrade, so a
+     * property that is not available is excluded.
+     */
+    public function testATierAmongThePropertysTiersIsNotAnUpgrade()
+    {
+        $engine = $this->engine(Engine::class, [
+            'testproperty' => [
+                'name' => 'testProperty',
+                'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+                'available' => false
+            ]
+        ], 'LITE');
+
+        $this->assertSame(
+            self::PREFIX . 'This is because the property has been excluded '
+            . 'when configuring the engine.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * Step 3.2: a cloud engine that has not loaded its property metadata,
+     * and whose request for the property list did not fail, gives Unknown
+     * rather than saying the resource key includes no product.
+     */
+    public function testACloudEngineWithNoMetadataLoadedGivesUnknown()
+    {
+        $engine = $this->engine(CloudEngineBase::class, []);
+        $engine->propertyMetadataLoaded = false;
+
+        $this->assertSame(
+            self::PREFIX . 'The reason for this is unknown. Please check that '
+            . 'the aspect and property name are correct.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * Step 3.2: a cloud engine that has not loaded its property metadata
+     * because its request for the property list failed gives
+     * CloudRequestFailed.
+     */
+    public function testACloudEngineWhosePropertyListRequestFailedGivesCloudRequestFailed()
+    {
+        $engine = $this->engine(CloudEngineBase::class, []);
+        $engine->propertyMetadataLoaded = false;
+        $engine->propertyListRequestFailed = true;
+
+        $this->assertSame(
+            self::PREFIX . 'This is because an upstream cloud request '
+            . 'failed, so no data was available to populate the property.',
+            self::messageFor($engine, 'testProperty')
+        );
+    }
+
+    /**
+     * Step 3.2: a cloud engine that has loaded metadata listing no
+     * properties still gives ProductNotAccessibleWithResourceKey.
+     */
+    public function testACloudEngineWithLoadedEmptyMetadataGivesProductNotAccessible()
+    {
+        $engine = $this->engine(CloudEngineBase::class, []);
+        $engine->propertyMetadataLoaded = true;
+
+        $this->assertStringContainsString(
+            "your resource key does not include access to any properties under 'testElement'",
             self::messageFor($engine, 'testProperty')
         );
     }

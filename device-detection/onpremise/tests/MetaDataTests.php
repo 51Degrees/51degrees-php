@@ -109,6 +109,8 @@ class MetaDataTests extends TestCase
             'nativeValues' => $metaData->getValues()->getSize(),
             'propertyComponents' => $components,
             'metrics' => array_slice($engine->getProperties(), -7),
+            'tier' => $engine->getDataSourceTier(),
+            'product' => FiftyOneDegreesHashEngine::engine_get()->getProduct(),
         ], JSON_INVALID_UTF8_SUBSTITUTE);
         PHP;
 
@@ -186,6 +188,24 @@ class MetaDataTests extends TestCase
         $this->assertSame(
             ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'],
             $metrics['method']['values']
+        );
+    }
+
+    /**
+     * Step 3.1 of "Deciding the reason" in the pipeline specification's
+     * properties.md compares the engine's data file tier with each
+     * property's data tiers where present. So the engine gives the tier of
+     * the data file it was built from, under one of the names the metadata
+     * uses for the tiers, rather than Unknown.
+     */
+    public function testTheDataSourceTierIsTheDataFilesTier(): void
+    {
+        $printed = $this->read();
+
+        $this->assertSame($printed['product'], $printed['tier']);
+        $this->assertContains(
+            $printed['tier'],
+            $printed['metrics']['matchednodes']['dataFiles']
         );
     }
 

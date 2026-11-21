@@ -68,6 +68,12 @@ class CloudEngine extends CloudEngineBase
     public array $aspectProperties;
 
     /**
+     * False until the engine is added to a pipeline whose Cloud Request
+     * Engine has read the property list.
+     */
+    public bool $propertyMetadataLoaded = false;
+
+    /**
      * Whether the missing product has been logged for this engine.
      */
     private bool $missingProductLogged = false;
@@ -84,6 +90,7 @@ class CloudEngine extends CloudEngineBase
     {
         $cloudRequestEngine = self::cloudRequestEngine($pipeline);
         if ($cloudRequestEngine !== null) {
+            $this->readMetadataState($cloudRequestEngine);
             if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
                 $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];
             } elseif (
@@ -97,6 +104,27 @@ class CloudEngine extends CloudEngineBase
         }
 
         throw new \Exception(Constants::CLOUDREQUESTENGINE_EXCEPTION_MESSAGE);
+    }
+
+    /**
+     * Whether this engine has its property metadata, which it has once the
+     * Cloud Request Engine has read the property list, and whether the
+     * request for the list failed, as the missing property reasons need.
+     * Until the engine is added to a pipeline it has read no list. An
+     * engine whose product is in the list has its metadata however the list
+     * was read.
+     */
+    protected function readMetadataState(FlowElement $cloudRequestEngine): void
+    {
+        $listed = isset($cloudRequestEngine->flowElementProperties[$this->dataKey]);
+        if ($cloudRequestEngine instanceof CloudRequestEngine) {
+            $this->propertyMetadataLoaded = $listed || $cloudRequestEngine->propertiesLoaded();
+            $this->propertyListRequestFailed = !$this->propertyMetadataLoaded &&
+                $cloudRequestEngine->propertiesRequestFailed();
+        } else {
+            $this->propertyMetadataLoaded = true;
+            $this->propertyListRequestFailed = false;
+        }
     }
 
     /**
@@ -138,6 +166,9 @@ class CloudEngine extends CloudEngineBase
     public function processInternal(FlowData $flowData): void
     {
         $cloudRequestEngine = self::cloudRequestEngine($flowData->pipeline);
+        if ($cloudRequestEngine !== null) {
+            $this->readMetadataState($cloudRequestEngine);
+        }
         if (isset($cloudRequestEngine->flowElementProperties[$this->dataKey])) {
             // set up properties list for the element from data in the CloudRequestEngine
             $this->properties = $cloudRequestEngine->flowElementProperties[$this->dataKey];

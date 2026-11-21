@@ -63,6 +63,15 @@ class Messages
         'the FlowData.';
 
     /**
+     * The no value message of getValueAsString for a match metric whose
+     * type is not a string. The placeholder is the property's name.
+     */
+    public const METRIC_NOT_STORED =
+        "'%s' is a match metric worked out for each request, not a value " .
+        'the data file stores as a string, so it has no stored string. ' .
+        'Read it with get().';
+
+    /**
      * Error message thrown when the extension is not loaded.
      */
     public const EXTENSION_NOT_LOADED =

@@ -100,8 +100,9 @@ class FlowData
 
     /**
      * Sets the deprecated data array, which replaces every ElementData with
-     * the array's, in its order, or the errors. Either adds to the FlowData,
-     * so it throws once processing has finished.
+     * the array's, in its order, or the errors, or any other property that
+     * is not declared. Each adds to the FlowData, so it throws once
+     * processing has finished.
      *
      * @param string $name the property name
      * @param mixed $value the value
@@ -126,6 +127,10 @@ class FlowData
             return;
         }
 
+        // Any other name becomes a property of the object, which is then
+        // read in place of the ElementData under that key, so it is a write
+        // to the FlowData too.
+        $this->checkNotFinished("the property '" . $name . "'");
         $this->{$name} = $value;
     }
 

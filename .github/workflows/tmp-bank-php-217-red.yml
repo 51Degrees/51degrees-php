@@ -1,0 +1,152 @@
+name: Temporary red, green and timing run of pull request 217
+
+# Throwaway. The first job sets the package's default cloud timeout to a
+# thousandth of a second and runs the cloud example tests that pull request
+# 217 changes, once on its base and once on its head, and prints which tests
+# failed. The second job times the same tests on the head with the real
+# default left alone, on each runner system.
+
+on:
+  push:
+    branches:
+      - 'tmp/bank-php-217-red'
+
+permissions:
+  contents: read
+
+jobs:
+  timeout:
+    name: ${{ matrix.where }} with a thousandth of a second default
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - where: the base b6c79237
+            ref: b6c792374bacb0fe249d525bea63fe28fe1b5186
+          - where: the head 540fec78
+            ref: 540fec78723b4e01d7ddf41d8c4f28a24fd859fe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install from the root composer.json, and the IP Intelligence package in its own folder, as CI does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+          $composer = Get-Content -Raw ip-intelligence/composer.json | ConvertFrom-Json -AsHashtable
+          $composer['repositories'] = @(foreach ($name in 'core', 'engines', 'cloudrequestengine') {
+            @{ type = 'path'; url = "../pipeline/$name"; options = @{ symlink = $true;
+              versions = @{ "51degrees/fiftyone.pipeline.$name" = '4.x-dev' } } }
+          }) + @($composer['repositories'])
+          $composer['minimum-stability'] = 'dev'
+          $composer['prefer-stable'] = $true
+          $composer | ConvertTo-Json -Depth 20 | Set-Content ip-intelligence/composer.ci.json
+          Push-Location ip-intelligence
+          $env:COMPOSER = 'composer.ci.json'
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Pop-Location
+      - name: Set the default timeout to a thousandth of a second
+        shell: bash
+        run: |
+          sed -i 's/TIMEOUT_SECONDS_DEFAULT = 2.0;/TIMEOUT_SECONDS_DEFAULT = 0.001;/' \
+            pipeline/cloudrequestengine/src/Constants.php
+          grep -n 'TIMEOUT_SECONDS_DEFAULT' pipeline/cloudrequestengine/src/Constants.php
+      - name: Which cloud example tests fail
+        shell: bash
+        env:
+          _51DEGREES_RESOURCE_KEY: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+        run: |
+          check() {
+            echo "::group::$1 $3"
+            out=$( (cd "$1" && php $2 --no-configuration --bootstrap vendor/autoload.php $3) 2>&1 || true )
+            echo "$out"
+            echo "::endgroup::"
+            summary=$(echo "$out" | grep -E '^(OK|Tests:)' | tail -1)
+            echo "RESULT $1 $3: $summary"
+            echo "$out" | grep -E '^[0-9]+\) ' | sed 's/^[0-9]*) /RESULT failed /' || true
+          }
+          check device-detection/cloud "$GITHUB_WORKSPACE/vendor/bin/phpunit" tests/ExampleTests.php
+          check ip-intelligence vendor/bin/phpunit "--filter testCloudMixed tests/ExampleTests.php"
+  timing:
+    name: How long each cloud example test takes, ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 540fec78723b4e01d7ddf41d8c4f28a24fd859fe
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install from the root composer.json, and the IP Intelligence package in its own folder, as CI does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+          $composer = Get-Content -Raw ip-intelligence/composer.json | ConvertFrom-Json -AsHashtable
+          $composer['repositories'] = @(foreach ($name in 'core', 'engines', 'cloudrequestengine') {
+            @{ type = 'path'; url = "../pipeline/$name"; options = @{ symlink = $true;
+              versions = @{ "51degrees/fiftyone.pipeline.$name" = '4.x-dev' } } }
+          }) + @($composer['repositories'])
+          $composer['minimum-stability'] = 'dev'
+          $composer['prefer-stable'] = $true
+          $composer | ConvertTo-Json -Depth 20 | Set-Content ip-intelligence/composer.ci.json
+          Push-Location ip-intelligence
+          $env:COMPOSER = 'composer.ci.json'
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Pop-Location
+      - name: Time each cloud example test
+        shell: bash
+        env:
+          _51DEGREES_RESOURCE_KEY: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/junit"
+          echo "::group::device-detection/cloud/tests/ExampleTests.php"
+          (cd device-detection/cloud &&
+            php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+              --bootstrap vendor/autoload.php \
+              --log-junit "$GITHUB_WORKSPACE/junit/dd-ExampleTests.xml" \
+              tests/ExampleTests.php) || true
+          echo "::endgroup::"
+          echo "::group::ip-intelligence/tests/ExampleTests.php testCloudMixed"
+          (cd ip-intelligence &&
+            php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php \
+              --log-junit "$GITHUB_WORKSPACE/junit/ipi-ExampleTests.xml" \
+              --filter testCloudMixed tests/ExampleTests.php) || true
+          echo "::endgroup::"
+          php -r '
+            $rows = [];
+            foreach (glob($argv[1] . "/*.xml") as $file) {
+                $xml = simplexml_load_file($file);
+                foreach ($xml->xpath("//testcase") as $case) {
+                    $state = isset($case->skipped) ? "skipped" : ((isset($case->failure) || isset($case->error)) ? "failed" : "passed");
+                    $rows[] = [(float) $case["time"], $case["class"] . "::" . $case["name"], $state];
+                }
+            }
+            usort($rows, fn ($a, $b) => $b[0] <=> $a[0]);
+            foreach ($rows as [$t, $n, $s]) { printf("TIME %.3f %s %s\n", $t, $s, $n); }
+            $passed = array_values(array_filter($rows, fn ($r) => $r[2] === "passed"));
+            if ($passed) { printf("SLOWEST PASSED %.3f %s\n", $passed[0][0], $passed[0][1]); }
+          ' "$GITHUB_WORKSPACE/junit"

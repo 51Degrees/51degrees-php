@@ -219,7 +219,7 @@ class Constants
 
     // The timeout of a request to the cloud service unless the
     // timeoutSeconds setting gives one.
-    public const TIMEOUT_SECONDS_DEFAULT = 2.0;
+    public const TIMEOUT_SECONDS_DEFAULT = 0.001;
 
     // Refused as a timeout, with the value given, by the engine when it is
     // built and by HttpClient::setTimeoutSeconds.

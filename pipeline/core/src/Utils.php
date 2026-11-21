@@ -85,6 +85,108 @@ class Utils
     private const OWS = " \t";
 
     /**
+     * The Flow Data the last call to processWebRequest() kept. A PHP that
+     * builds its state afresh for every request starts each one without it.
+     * A PHP that serves one request after another, as a worker does, keeps
+     * it until the next call replaces it.
+     */
+    private static ?FlowData $requestFlowData = null;
+
+    /**
+     * Whether the Flow Data of the request is closed when PHP finishes the
+     * request.
+     */
+    private static bool $closeAtShutdown = false;
+
+    /**
+     * Handle a web request with the Pipeline. A Flow Data is created, the
+     * request's Evidence is added to it with
+     * Evidence::setFromWebRequest(), and it is processed. The processed
+     * Flow Data is then kept, where any other part of the application
+     * reads it with getFlowData() without being handed it. It is closed
+     * when PHP finishes the request, or when a later call replaces it, as
+     * in a PHP that serves one request after another. There it is kept
+     * until that later call, so see getFlowData() for a request that does
+     * not call this.
+     *
+     * A Flow Data is not safe to use from several threads at once, and
+     * must not be used by two threads at once. The caller is responsible
+     * for any locking, so code that hands the Flow Data to another thread
+     * coordinates that itself.
+     *
+     * Requests for the client-side JavaScript and JSON need a Flow Data
+     * that has not been processed, so answer those with
+     * javascriptResponse() and jsonResponse() instead.
+     *
+     * @param \fiftyone\pipeline\core\Pipeline $pipeline The Pipeline, built
+     * once for the request
+     * @param null|array<string, string> $server The request's server values,
+     * $_SERVER when not given
+     * @param null|array<string, string> $cookies The request's cookies,
+     * $_COOKIE when not given
+     * @param null|array<string, string> $query The request's form
+     * parameters, read from the request when not given
+     * @return \fiftyone\pipeline\core\FlowData The processed Flow Data
+     */
+    public static function processWebRequest(
+        Pipeline $pipeline,
+        ?array $server = null,
+        ?array $cookies = null,
+        ?array $query = null
+    ): FlowData {
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->setFromWebRequest($server, $cookies, $query);
+
+        // A PHP that serves one request after another, as a worker does,
+        // keeps this state between them, so the Flow Data this one replaces
+        // is closed here rather than when that PHP stops.
+        $replaced = self::$requestFlowData;
+
+        // Kept before processing, so that a Pipeline that throws still
+        // leaves the request's Flow Data, with its errors, to be read. Kept
+        // before the replaced one is closed too, so an error from closing it
+        // still leaves this one to be read.
+        self::$requestFlowData = $flowData;
+        if (!self::$closeAtShutdown) {
+            self::$closeAtShutdown = true;
+            register_shutdown_function(static function (): void {
+                if (self::$requestFlowData !== null) {
+                    self::$requestFlowData->close();
+                }
+            });
+        }
+
+        try {
+            return $flowData->process();
+        } finally {
+            if ($replaced !== null) {
+                $replaced->close();
+            }
+        }
+    }
+
+    /**
+     * The Flow Data the last call to processWebRequest() processed, or null
+     * when there has been none. A PHP that builds its state afresh for every
+     * request starts each one with none. A PHP that serves one request after
+     * another, as a worker does, keeps it between them, so a request there
+     * that has not called processWebRequest() gets the previous request's
+     * Flow Data. Call processWebRequest() first in every request that reads
+     * it.
+     *
+     * So these methods suit a PHP that handles one request at a time in each
+     * process or thread. In a runtime that interleaves requests in one
+     * thread, such as one that runs them as coroutines, the next request's
+     * call to processWebRequest() closes and replaces the Flow Data an
+     * earlier request may still use. Code there passes on the Flow Data that
+     * processWebRequest() returns instead of reading it here.
+     */
+    public static function getFlowData(): ?FlowData
+    {
+        return self::$requestFlowData;
+    }
+
+    /**
      * Answer a request for the client-side JavaScript with the JavaScript
      * the Pipeline's JavaScript Builder Element writes, and the cache
      * headers of the web integration specification.

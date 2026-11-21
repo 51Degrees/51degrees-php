@@ -33,10 +33,23 @@ namespace fiftyone\pipeline\core;
 class Messages
 {
     /**
+     * Written to PHP's error log, with the entry, when the Logger cannot
+     * write to its file. The placeholder is the file.
+     */
+    public const LOG_FILE_NOT_WRITTEN = "The pipeline log entry could not be written to '%s', so it is written here:";
+
+    /**
      * Error message thrown when there is no matching element in the FlowData.
      */
     public const NO_ELEMENT_DATA = "There is no element data for '%s' against this flow data. Available element data keys are: '%s'";
     public const NO_ELEMENT_DATA_NULL = "There is no element data for '%s' against this flow data.'";
+
+    /**
+     * Thrown when a configuration gives an element's builder a build
+     * parameter it has no method for. This takes the parameter, then the
+     * builder.
+     */
+    public const BUILD_PARAMETER_NOT_SUPPORTED = "The build parameter '%s' has no set or add method in the builder '%s'.";
 
     /**
      * Logged once when a deprecated Data Key is used. This takes the
@@ -45,6 +58,8 @@ class Messages
     public const DATA_KEY_DEPRECATED = "The Data Key '%s' is deprecated and will be removed in a later release. Use '%s', which gives the same element and data.";
     public const PASS_KEY_VALUE = 'Must pass key and value';
     public const FLOW_DATA_PROCESSED = 'FlowData already processed';
+    public const FLOW_DATA_FINISHED = 'Cannot add %s: the FlowData has finished processing.';
+    public const ELEMENT_DATA_FINISHED = "Cannot set '%s': the FlowElement that writes the data for element '%s' has finished processing.";
 
     /**
      * Thrown when a property of a Pipeline other than a setting, such as

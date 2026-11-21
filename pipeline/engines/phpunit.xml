@@ -1,6 +1,7 @@
 <phpunit bootstrap="vendor/autoload.php">
   <testsuites>
     <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/CacheKeyTests.php</file>
       <file>tests/MissingPropertyTests.php</file>
       <file>tests/AspectDataValuesTests.php</file>

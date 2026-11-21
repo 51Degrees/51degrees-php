@@ -139,8 +139,10 @@ class SetHeaderTests extends TestCase
         ];
         $testPipeline = new TestPipeline();
         $setHeaderElement = new SetHeaderElement();
-        $testPipeline->flowData->data = $device;
-        $flowData = $testPipeline->flowData;
+        // A processed FlowData is read only, so the data is set on one that
+        // has not been processed.
+        $flowData = $testPipeline->pipeline->createFlowData();
+        $flowData->data = $device;
         $actualValue = $setHeaderElement->getResponseHeaderValue($flowData, $setHeaderPropertiesDict);
         $this->assertSame($expectedValue, $actualValue['Accept-CH']);
     }
@@ -203,8 +205,8 @@ class SetHeaderTests extends TestCase
             ]
         ];
         $testPipeline = new TestPipeline();
-        $testPipeline->flowData->data = $data;
-        $flowData = $testPipeline->flowData;
+        $flowData = $testPipeline->pipeline->createFlowData();
+        $flowData->data = $data;
         $actualValue = Utils::setResponseHeader($flowData);
         $this->assertEquals(false, isset($actualValue['Accept-CH']));
     }

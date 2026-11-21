@@ -1,11 +1,13 @@
 <phpunit bootstrap="vendor/autoload.php">
   <testsuites>
     <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/StoppedExampleFindOutMoreTests.php</file>
       <file>tests/DeviceDetectionTests.php</file>
       <file>tests/MetaDataTests.php</file>
       <file>tests/ExampleSettingsTests.php</file>
       <file>tests/SwigDataReadTests.php</file>
+      <file>tests/StoredStringTests.php</file>
       <file>tests/EvidenceMapTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
       <file>tests/DataModelTests.php</file>
@@ -35,6 +37,7 @@
       <file>tests/MetaDataTests.php</file>
       <file>tests/ExampleSettingsTests.php</file>
       <file>tests/SwigDataReadTests.php</file>
+      <file>tests/StoredStringTests.php</file>
       <file>tests/EvidenceMapTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>

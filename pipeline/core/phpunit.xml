@@ -5,6 +5,9 @@
       <file>tests/JavaScriptBuilderPerformanceTests.php</file>
     </testsuite>
     <testsuite name="Unit">
+      <file>tests/EveryFlowElementReadOnlyTests.php</file>
+      <file>tests/ReadOnlyWebElementsTests.php</file>
+      <file>tests/FinishedWritesTests.php</file>
       <file>tests/CoreTests.php</file>
       <file>tests/MultiPipelineElementTests.php</file>
       <file>tests/PipelineImmutableTests.php</file>
@@ -46,6 +49,9 @@
       <file>tests/RequestLineEvidenceTests.php</file>
       <file>tests/RequestLineDecisionTests.php</file>
       <file>tests/AspectPropertyValueTests.php</file>
+      <file>tests/LogTargetTests.php</file>
+      <file>tests/WebRequestFlowDataTests.php</file>
+      <file>tests/ElementBuilderConfigurationTests.php</file>
       <file>tests/LoggerTargetTests.php</file>
       <file>tests/ElementDataTypedGetterTests.php</file>
       <file>tests/SettingDefaultsTests.php</file>

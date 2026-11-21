@@ -79,18 +79,23 @@ class MissingPropertyService
         // A cloud engine has no data file, so only an on-premise engine
         // compares its data tier, and only where the metadata gives the
         // tiers the property is present in.
-        $tiers = $property['datatierswherepresent'] ?? null;
+        $tiers = $property !== null ? self::dataTiers($property) : null;
         if ($this->cloudRequestFailed) {
             $reason = MissingPropertyReason::CloudRequestFailed;
         } elseif ($property !== null && !$isCloud && is_array($tiers) &&
-            !in_array($flowElement->getDataSourceTier(), $tiers, true)) {
+            !self::containsTier($tiers, $flowElement->getDataSourceTier())) {
             $reason = MissingPropertyReason::DataFileUpgradeRequired;
         } elseif ($property !== null && ($property['available'] ?? true) === false) {
             $reason = MissingPropertyReason::PropertyExcludedFromEngineConfiguration;
-        } elseif ($isCloud) {
+        } elseif ($flowElement instanceof CloudEngineBase && $flowElement->propertyMetadataLoaded) {
             $reason = count($properties) === 0
                 ? MissingPropertyReason::ProductNotAccessibleWithResourceKey
                 : MissingPropertyReason::PropertyNotAccessibleWithResourceKey;
+        } elseif ($flowElement instanceof CloudEngineBase && $flowElement->propertyListRequestFailed) {
+            // The metadata was not loaded because the request for the
+            // property list failed. Not loaded for any other reason, the
+            // reason is unknown.
+            $reason = MissingPropertyReason::CloudRequestFailed;
         }
 
         // Build the message string to return to the caller.
@@ -133,6 +138,45 @@ class MissingPropertyService
         }
 
         return $message;
+    }
+
+    /**
+     * The data tiers a property's metadata says it is present in, or null
+     * where the metadata does not say. The engines name the list
+     * differently, Device Detection dataFiles and IP Intelligence datafiles,
+     * so the key is found ignoring case, under either name or under
+     * dataTiersWherePresent.
+     *
+     * @param array<string, mixed> $property
+     * @return null|array<string>
+     */
+    private static function dataTiers(array $property): ?array
+    {
+        foreach ($property as $key => $value) {
+            $lower = strtolower((string) $key);
+            if (($lower === 'datatierswherepresent' || $lower === 'datafiles') &&
+                is_array($value)) {
+                return array_values(array_map('strval', $value));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether a data tier is in a list, ignoring case.
+     *
+     * @param array<string> $tiers
+     */
+    private static function containsTier(array $tiers, string $tier): bool
+    {
+        foreach ($tiers as $each) {
+            if (strcasecmp($each, $tier) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

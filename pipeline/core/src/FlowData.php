@@ -38,8 +38,10 @@ namespace fiftyone\pipeline\core;
  *
  * @property \fiftyone\pipeline\core\JsonBundlerElement $jsonbundler
  * @property array<string, \fiftyone\pipeline\core\ElementData> $data
- * Deprecated. The ElementData by data key, made from the list each time it
- * is read.
+ * Deprecated. Use tryGet() or listElementData() instead. The ElementData by
+ * data key, made from the list each time it is read.
+ * @property array<string, \Throwable> $errors The errors of processing by
+ * key, a copy each time it is read.
  *
  * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#flow-data
  */
@@ -63,11 +65,14 @@ class FlowData
 
     /**
      * The errors of processing by key, each the one error under its key or
-     * an AggregateException holding every error under it.
+     * an AggregateException holding every error under it. It is read as
+     * the public errors property, which gives a copy, so changing one entry
+     * of that copy changes nothing and PHP raises a notice. Setting the
+     * whole property throws once processing has finished.
      *
      * @var array<string, \Throwable>
      */
-    public array $errors = [];
+    private array $errors = [];
 
     /**
      * Constructor for FlowData.
@@ -88,20 +93,33 @@ class FlowData
         if ($flowElementKey === 'data') {
             return $this->dataByKey();
         }
+        if ($flowElementKey === 'errors') {
+            return $this->errors;
+        }
 
         return $this->get($flowElementKey);
     }
 
     /**
      * Sets the deprecated data array, which replaces every ElementData with
-     * the array's, in its order.
+     * the array's, in its order, or the errors. Either adds to the FlowData,
+     * so it throws once processing has finished.
      *
      * @param string $name the property name
      * @param mixed $value the value
+     * @throws \Exception once processing has finished
      */
     public function __set(string $name, $value): void
     {
+        if ($name === 'errors') {
+            $this->checkNotFinished('errors');
+            $this->errors = $value;
+
+            return;
+        }
+
         if ($name === 'data' && is_array($value)) {
+            $this->checkNotFinished('ElementData');
             $this->elementDataHead = null;
             foreach ($value as $key => $data) {
                 $this->addNode((string) $key, $data);
@@ -114,13 +132,14 @@ class FlowData
     }
 
     /**
-     * Whether the deprecated data array or an ElementData is there.
+     * Whether the deprecated data array, the errors or an ElementData is
+     * there.
      *
      * @param string $name the property name
      */
     public function __isset(string $name): bool
     {
-        return $name === 'data' || $this->tryGet($name) !== null;
+        return $name === 'data' || $name === 'errors' || $this->tryGet($name) !== null;
     }
 
     /**
@@ -135,24 +154,34 @@ class FlowData
      */
     public function process(): FlowData
     {
-        if (!$this->processed) {
-            foreach ($this->pipeline->flowElements as $flowElement) {
-                if (!$this->stopped) {
-                    // All errors are caught and stored in an errors array keyed by the
-                    // FlowElement that set the error
+        // A finished FlowData takes no more writes, so it is processed once.
+        if ($this->processed) {
+            throw new \Exception(Messages::FLOW_DATA_PROCESSED);
+        }
 
-                    try {
-                        $flowElement->process($this);
-                    } catch (\Throwable $e) {
-                        $this->setError($flowElement->dataKey, $e);
-                    }
+        foreach ($this->pipeline->flowElements as $flowElement) {
+            if (!$this->stopped) {
+                // ElementData another FlowElement added under this key is
+                // open for writing again while this one processes.
+                self::setFinished($this->findByKey($flowElement->dataKey), false);
+
+                // All errors are caught and stored in an errors array keyed by the
+                // FlowElement that set the error
+                try {
+                    $flowElement->process($this);
+                } catch (\Throwable $e) {
+                    $this->setError($flowElement->dataKey, $e);
+                } finally {
+                    self::setFinished($this->findByKey($flowElement->dataKey), true);
                 }
             }
+        }
 
-            // Set processed flag to true. FlowData can only be processed once
-            $this->processed = true;
-        } else {
-            $this->setError('global', new \Exception(Messages::FLOW_DATA_PROCESSED));
+        // The FlowData, and every ElementData in it, including any the
+        // caller added, is read only from now on.
+        $this->processed = true;
+        foreach ($this->listElementData() as $data) {
+            self::setFinished($data, true);
         }
 
         if (count($this->errors) != 0 && $this->pipeline->suppressProcessExceptions === false) {
@@ -226,20 +255,7 @@ class FlowData
      */
     public function tryGet(string $flowElementKey)
     {
-        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
-            if ($node['key'] === $flowElementKey) {
-                return $node['data'];
-            }
-        }
-
-        // Of keys that differ from it only in case, the first added is
-        // found, which is the last in the list.
-        $found = null;
-        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
-            if (strcasecmp($node['key'], $flowElementKey) === 0) {
-                $found = $node['data'];
-            }
-        }
+        $found = $this->findByKey($flowElementKey);
         if ($found !== null) {
             return $found;
         }
@@ -256,6 +272,31 @@ class FlowData
         }
 
         return null;
+    }
+
+    /**
+     * The ElementData under a key as given, or else ignoring its letter
+     * case, finding the first added, or null.
+     *
+     * @return mixed
+     */
+    private function findByKey(string $flowElementKey)
+    {
+        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
+            if ($node['key'] === $flowElementKey) {
+                return $node['data'];
+            }
+        }
+
+        // Of keys that differ from it only in case, the first added is
+        // found, which is the last in the list.
+        $found = null;
+        for ($node = $this->elementDataHead; $node !== null; $node = $node['next']) {
+            if (strcasecmp($node['key'], $flowElementKey) === 0) {
+                $found = $node['data'];
+            }
+        }
+        return $found;
     }
 
     /**
@@ -327,7 +368,35 @@ class FlowData
      */
     public function setElementData(ElementData $data): void
     {
+        $this->checkNotFinished('ElementData');
         $this->addNode($data->flowElement->dataKey, $data);
+    }
+
+    /**
+     * Throws once processing has finished, because a finished FlowData is
+     * read only. Every method that writes to the FlowData calls this first.
+     *
+     * @param string $what what is being added, for the message
+     * @throws \Exception once processing has finished
+     */
+    public function checkNotFinished(string $what): void
+    {
+        if ($this->processed) {
+            throw new \Exception(sprintf(Messages::FLOW_DATA_FINISHED, $what));
+        }
+    }
+
+    /**
+     * Records whether the FlowElements that write an ElementData have
+     * finished. Anything that is not ElementData is left alone.
+     *
+     * @param mixed $data the ElementData
+     */
+    private static function setFinished($data, bool $finished): void
+    {
+        if ($data instanceof ElementData) {
+            $data->setWritesFinished($finished);
+        }
     }
 
     /**
@@ -337,6 +406,8 @@ class FlowData
      */
     public function setError(string $key, \Throwable $error): void
     {
+        $this->checkNotFinished('an error');
+
         $existing = $this->errors[$key] ?? null;
         if ($existing === null) {
             $this->errors[$key] = $error;

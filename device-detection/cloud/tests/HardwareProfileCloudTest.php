@@ -25,10 +25,12 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\core\AggregateException;
 use fiftyone\pipeline\core\FlowData;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
+use fiftyone\pipeline\devicedetection\DeviceDetectionCloud;
 use fiftyone\pipeline\devicedetection\HardwareProfileCloud;
 use fiftyone\pipeline\devicedetection\tests\classes\FakeCloudRequestEngine;
 use PHPUnit\Framework\TestCase;
@@ -254,6 +256,67 @@ class HardwareProfileCloudTest extends TestCase
             . 'was available to populate the property.',
             $message
         );
+    }
+
+    /**
+     * Completes testAFailedCloudRequestGivesCloudRequestFailed. When the
+     * cloud request fails, both Device Detection cloud engines give the
+     * CloudRequestFailed reason, naming their own Data Key, for every
+     * property: one their metadata lists, the same in another case, and one
+     * it does not list. The Flow Data holds the cloud request's error alone,
+     * and the error is the one the cloud request gave.
+     */
+    public function testAFailedCloudRequestGivesCloudRequestFailedForEveryPropertyOfEachEngine()
+    {
+        $cloud = new class ('') extends FakeCloudRequestEngine {
+            public function processInternal(FlowData $flowData): void
+            {
+                throw new \Exception('The cloud request failed.');
+            }
+        };
+        $cloud->flowElementProperties = self::HARDWARE_PRODUCT + [
+            'device' => [
+                'ismobile' => ['name' => 'IsMobile', 'type' => 'Boolean'],
+            ],
+        ];
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+            'suppressProcessExceptions' => true,
+        ]))
+            ->add($cloud)
+            ->add(new DeviceDetectionCloud())
+            ->add(new HardwareProfileCloud())
+            ->build();
+        $flowData = $pipeline->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(['cloud-response'], array_keys($flowData->errors));
+        $error = $flowData->errors['cloud-response'];
+        $this->assertNotInstanceOf(AggregateException::class, $error);
+        $this->assertSame('The cloud request failed.', $error->getMessage());
+
+        $reads = [
+            'device' => ['ismobile', 'IsMobile', 'ISMOBILE', 'nosuchproperty'],
+            'hardware' => ['profiles', 'Profiles', 'nosuchproperty'],
+        ];
+        foreach ($reads as $dataKey => $names) {
+            foreach ($names as $name) {
+                $message = null;
+                try {
+                    $flowData->get($dataKey)->get($name);
+                } catch (\Exception $e) {
+                    $message = $e->getMessage();
+                }
+                $this->assertSame(
+                    "Property '{$name}' not found in data for element '{$dataKey}'. "
+                    . 'This is because an upstream cloud request failed, so no '
+                    . 'data was available to populate the property.',
+                    $message,
+                    "{$dataKey}.{$name}"
+                );
+            }
+        }
     }
 
     public function testLogsNothingWhenTheHardwareProductIsPresent()

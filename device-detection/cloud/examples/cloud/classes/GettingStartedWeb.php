@@ -119,45 +119,47 @@ class GettingStartedWeb
 
     private function processRequest($pipeline, callable $output)
     {
-        // A Flow Data is for this one request. PHP runs each request on one
-        // thread, so nothing else uses it at the same time. A Flow Data
-        // must not be used by two threads at once, so never keep one for
-        // another request or hand it to another thread.
-        // Create the flowdata object.
-        $flowdata = $pipeline->createFlowData();
-
-        // Add any information from the request (headers, cookies and additional
-        // client side provided information)
-        $flowdata->evidence->setFromWebRequest();
-
         // The .NET and Java APIs have web integration packages which intercept
         // requests for the pipeline resources. There is no equivalent for PHP, and
         // the built-in PHP server routes every request to this single script, so
         // the example dispatches on the request path itself.
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-        // Serve the client-side JavaScript built by the JavaScriptBuilder element.
-        // The path matches the one used by the .NET, Java and Rust examples so that
-        // the page can reference the script by name instead of inlining it.
-        // Utils processes the flowdata itself and sets the cache headers, so a
-        // browser revalidating its copy gets a 304 without any processing.
-        if ($path === '/51Degrees.core.js') {
-            Utils::javascriptResponse($flowdata)->send($output);
+        if ($path === '/51Degrees.core.js' || $path === '/json') {
+            // A Flow Data is for this one request. PHP runs each request on one
+            // thread, so nothing else uses it at the same time. A Flow Data
+            // must not be used by two threads at once, so never keep one for
+            // another request or hand it to another thread.
+            // Create the flowdata object, and add any information from the
+            // request (headers, cookies and additional client side provided
+            // information).
+            $flowdata = $pipeline->createFlowData();
+            $flowdata->evidence->setFromWebRequest();
+
+            // Serve the client-side JavaScript built by the JavaScriptBuilder
+            // element at /51Degrees.core.js, and at /json the JSON encoded
+            // property database the client side calls for, using any
+            // additional evidence provided by the client. The path of the
+            // script matches the one used by the .NET, Java and Rust examples
+            // so that the page can reference the script by name instead of
+            // inlining it. Utils processes the flowdata itself and sets the
+            // cache headers, so a browser revalidating its copy gets a 304
+            // without any processing.
+            $response = $path === '/json'
+                ? Utils::jsonResponse($flowdata)
+                : Utils::javascriptResponse($flowdata);
+            $response->send($output);
 
             return;
         }
 
-        // Next we make a JSON route that will be called from the client side
-        // and will return a JSON encoded property database using any additional
-        // evidence provided by the client.
-        if ($path === '/json') {
-            Utils::jsonResponse($flowdata)->send($output);
-
-            return;
-        }
-
-        // Process the flowdata
-        $flowdata->process();
+        // Create the flowdata object, add the evidence from the request and
+        // process it. Utils keeps the processed flowdata, so any other part of
+        // the application handling this request can read the results with
+        // Utils::getFlowData() without being handed it. The flowdata must not
+        // be used by two threads at once. The caller is responsible for any
+        // locking.
+        $flowdata = Utils::processWebRequest($pipeline);
 
         // Some browsers require that extra HTTP headers are explicitly
         // requested. So set whatever headers are required by the browser in

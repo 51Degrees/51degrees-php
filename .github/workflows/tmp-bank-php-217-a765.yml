@@ -1,0 +1,48 @@
+name: Temporary red of the two new example timeout tests of pull request 217
+
+# Throwaway. Runs the Device Detection cloud example tests at a765f8ef, the
+# commit that adds the two tests that each example uses the timeout it is
+# given, before 540fec78 lets the examples take one. The package's default
+# timeout is left as it is.
+
+on:
+  push:
+    branches:
+      - 'tmp/bank-php-217-a765'
+
+permissions:
+  contents: read
+
+jobs:
+  red:
+    name: The tests at a765f8ef
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a765f8ef0d41f30d92f68356231efa775e1451aa
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      - name: Install from the root composer.json, as ci/build-project.ps1 does
+        shell: pwsh
+        run: |
+          git log --oneline -1
+          git submodule update --init pipeline/did/owid-php javascript-templates derived-properties
+          composer install --no-interaction --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          . ./ci/packages.ps1
+          Set-RootAutoload -RepoName .
+      - name: Which cloud example tests fail
+        shell: bash
+        env:
+          _51DEGREES_RESOURCE_KEY: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+        run: |
+          out=$( (cd device-detection/cloud &&
+            php "$GITHUB_WORKSPACE/vendor/bin/phpunit" --no-configuration \
+              --bootstrap vendor/autoload.php tests/ExampleTests.php) 2>&1 || true )
+          echo "$out"
+          echo "RESULT $(echo "$out" | grep -E '^(OK|Tests:)' | tail -1)"
+          echo "$out" | grep -E '^[0-9]+\) ' | sed 's/^[0-9]*) /RESULT failed /' || true

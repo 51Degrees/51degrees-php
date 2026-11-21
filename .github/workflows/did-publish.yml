@@ -1,5 +1,6 @@
 # Publishes the release of pipeline-php-did (51degrees/fiftyone.pipeline.did)
-# for each version tag of this repository.
+# for each of the package's release tags here, such as
+# fiftyone.pipeline.did/4.5.207.
 #
 # The package cannot be released as the plain split that mirror.yml tags for
 # the other packages. main keeps the OWID library as a git submodule and
@@ -15,10 +16,11 @@
 # which is the commit mirror.yml puts on the mirror's main. So the mirror
 # shows the release on top of the source it came from.
 #
-# The version is the repository's, chosen by common-ci when it publishes, so
-# this package is released with every other package under the same number.
-# common-ci refuses a version that moves the major or minor place before it
-# tags, so that check is not repeated here.
+# The version is the package's own. The publish tags this repository
+# fiftyone.pipeline.did/<version> when the package changed since its last
+# release, and this workflow tags the mirror <version>. common-ci refuses a
+# version that moves the major or minor place before it tags, so that check
+# is not repeated here.
 #
 # Run it by hand to rehearse: it assembles and checks the package from the
 # chosen branch, pushes nothing, and keeps the assembled package as an
@@ -28,7 +30,7 @@ name: Publish pipeline-php-did
 
 on:
   push:
-    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    tags: ['fiftyone.pipeline.did/[0-9]+.[0-9]+.[0-9]+']
   workflow_dispatch:
     inputs:
       version:
@@ -64,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            version="$GITHUB_REF_NAME"
+            version="${GITHUB_REF_NAME#fiftyone.pipeline.did/}"
             dryrun=false
           else
             version="$INPUT_VERSION"
@@ -177,8 +179,8 @@ jobs:
             -m "Release $version" \
             -m "Assembled from $split ($PACKAGE_DIR/ at $source_commit) with the OWID source copied in.")"
           # The tag is made here, in the checkout, only so the archive check
-          # below reads exactly what is pushed. This repository's own tag
-          # of the same name was made by common-ci and is not touched.
+          # below reads exactly what is pushed. It is never pushed to this
+          # repository.
           git tag -f -a "$version" -m "Release $version" "$commit"
           git show --stat --oneline "$commit"
           echo "tree=$tree" >> "$GITHUB_OUTPUT"

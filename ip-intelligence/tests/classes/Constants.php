@@ -38,14 +38,16 @@ class Constants
     public const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
 
     /**
-     * Read for the resource key when RESOURCE_KEY_VARIABLE is not set.
+     * The old environment variable name for the resource key.
+     * It is no longer read.
      *
      * @deprecated use {@see Constants::RESOURCE_KEY_VARIABLE}
      */
     public const RESOURCE_KEY_ENV_VAR = 'resource_key';
 
     /**
-     * Read for the data file when IPI_PATH_VARIABLE is not set.
+     * The old environment variable name for the data file.
+     * It is no longer read.
      *
      * @deprecated use {@see Constants::IPI_PATH_VARIABLE}
      */

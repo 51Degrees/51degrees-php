@@ -25,6 +25,13 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core;
 
+/**
+ * The web integration of a Pipeline, which sets the response headers the
+ * Pipeline's elements ask for and builds the responses to requests for
+ * the client-side JavaScript and JSON.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/web-integration.md
+ */
 class Utils
 {
     /**
@@ -96,6 +103,8 @@ class Utils
      * request is processed and gets a 200 with Cache-Control
      * 'max-age=1800, private', or the max age given, and the ETag, or
      * 'private, no-cache' and no ETag when processing recorded errors.
+     * When the JavaScript Builder Element itself failed, the script is
+     * empty.
      *
      * @param \fiftyone\pipeline\core\FlowData $flowData The request's
      * FlowData, with its Evidence set and not yet processed
@@ -115,7 +124,9 @@ class Utils
             $maxAgeSeconds,
             'application/x-javascript',
             static function (FlowData $flowData): string {
-                return (string) $flowData->javascriptbuilder->javascript;
+                $data = self::dataUnlessFailed($flowData, 'javascriptbuilder');
+
+                return $data === null ? '' : (string) $data->javascript;
             }
         );
     }
@@ -123,7 +134,8 @@ class Utils
     /**
      * Answer a request from the client-side JavaScript with the JSON the
      * Pipeline's JSON Builder Element writes, in the same way as
-     * javascriptResponse().
+     * javascriptResponse(). When the JSON Bundler Element itself failed,
+     * the JSON is an empty object.
      *
      * @param \fiftyone\pipeline\core\FlowData $flowData The request's
      * FlowData, with its Evidence set and not yet processed
@@ -143,23 +155,32 @@ class Utils
             $maxAgeSeconds,
             'application/json',
             static function (FlowData $flowData): string {
-                return (string) json_encode($flowData->jsonbundler->json);
+                $data = self::dataUnlessFailed($flowData, 'jsonbundler');
+
+                return $data === null ? '{}' : (string) json_encode($data->json);
             }
         );
     }
 
     /**
-     * Set response headers in the response object (e.g. Accept-CH).
+     * Set response headers in the response object (e.g. Accept-CH). When
+     * the Set Headers Element failed during processing, no header is set,
+     * and the FlowData's errors hold why.
      *
      * @param \fiftyone\pipeline\core\FlowData $flowData A processed FlowData instance to get the response header values from
      */
     public static function setResponseHeader(FlowData $flowData): void
     {
-        $setHeaderElementKey = Constants::SETHEADER_ELEMENT_KEY;
-        $setHeaderDataKey = Constants::SETHEADER_DATA_KEY;
+        $data = self::dataUnlessFailed(
+            $flowData,
+            Constants::SETHEADER_ELEMENT_KEY
+        );
+        if ($data === null) {
+            return;
+        }
 
         // Get response headers dictionary containing key values to be set in response
-        $responseHeaderDict = $flowData->{$setHeaderElementKey}->{$setHeaderDataKey};
+        $responseHeaderDict = $data->{Constants::SETHEADER_DATA_KEY};
 
         foreach ($responseHeaderDict as $responseKey => $responseValue) {
             $responseValue = str_replace(',', ', ', $responseValue);
@@ -168,6 +189,27 @@ class Utils
                 header("{$responseKey}: {$responseValue}");
             }
         }
+    }
+
+    /**
+     * The data of the element under the key, or null when that element
+     * recorded an error in the FlowData's errors during processing. The
+     * errors are read here, before FlowData::get(), which throws for an
+     * element that failed and added no data.
+     *
+     * @throws \Exception When no element in the Pipeline has the key, as
+     *   FlowData::get() does
+     */
+    private static function dataUnlessFailed(
+        FlowData $flowData,
+        string $key
+    ): ?ElementData {
+        $element = $flowData->pipeline->getElement($key);
+        if (isset($flowData->errors[$element->dataKey])) {
+            return null;
+        }
+
+        return $flowData->get($key);
     }
 
     /**

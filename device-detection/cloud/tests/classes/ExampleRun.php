@@ -44,7 +44,7 @@ class ExampleRun
     public const HEADING = "Find out more\n-------------\n";
 
     // The environment variables a resource key is read from.
-    public const RESOURCE_KEY_VARIABLES = ['_51DEGREES_RESOURCE_KEY', 'resource_key'];
+    public const RESOURCE_KEY_VARIABLES = ['_51DEGREES_RESOURCE_KEY'];
 
     // A link printed by an example of this repository, tagged with the
     // example's file as utm_content, or by a package of this repository

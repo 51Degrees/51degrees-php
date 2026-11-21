@@ -33,6 +33,8 @@ namespace fiftyone\pipeline\core;
  * This base class is always extended for a specific filter type.
  *
  * @property callable $filterEvidenceKey
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/advertize-accepted-evidence.md
  */
 class EvidenceKeyFilter
 {

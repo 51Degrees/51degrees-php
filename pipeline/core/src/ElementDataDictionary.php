@@ -27,6 +27,8 @@ namespace fiftyone\pipeline\core;
 
 /**
  * An extension of ElementData with dictionary object storage / lookup.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#element-data
  */
 class ElementDataDictionary extends ElementData
 {

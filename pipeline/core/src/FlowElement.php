@@ -31,6 +31,8 @@ namespace fiftyone\pipeline\core;
  * It uses this to optionally create ElementData on the FlowData
  * It has a unique dataKey which is used to extract data from the FlowData
  * Any errors in processing are caught in the FlowData's errors object.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#flow-element
  */
 class FlowElement
 {

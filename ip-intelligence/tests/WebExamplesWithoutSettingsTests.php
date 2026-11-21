@@ -73,10 +73,7 @@ class WebExamplesWithoutSettingsTests extends TestCase
         $run = ExampleRun::run(
             __DIR__ . "/../examples/{$script}",
             ['-d', ExampleUtils::DATA_FILE_SETTING . "={$dataFile}"],
-            [
-                ExampleConstants::IPI_PATH_VARIABLE,
-                ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
-            ],
+            [ExampleConstants::IPI_PATH_VARIABLE],
             ExampleRun::WEB_REQUEST
         );
         $this->assertSame(0, $run->status, $run->printed());

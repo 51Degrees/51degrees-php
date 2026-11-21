@@ -42,6 +42,8 @@ namespace fiftyone\pipeline\core;
  * data key, made from the list each time it is read.
  * @property array<string, \Throwable> $errors The errors of processing by
  * key, a copy each time it is read.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#flow-data
  */
 class FlowData
 {
@@ -146,6 +148,9 @@ class FlowData
      * This can only be run once per FlowData instance.
      *
      * @return static
+     * @throws \Throwable the first error recorded in errors, which is the
+     *   first error a FlowElement threw or the error for a second call,
+     *   unless the Pipeline's suppressProcessExceptions setting is true
      */
     public function process(): FlowData
     {
@@ -221,7 +226,9 @@ class FlowData
      * string key is, or by a deprecated Data Key the element had before,
      * which is logged once.
      *
-     * @throws \Exception
+     * @throws \Exception when the FlowData holds no data under the key, as
+     *   before processing, for a key no element in the Pipeline has, or for
+     *   an element that failed during processing and added no data
      */
     public function get(string $flowElementKey): ElementData
     {

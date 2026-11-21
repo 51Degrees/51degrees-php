@@ -34,6 +34,8 @@ use fiftyone\pipeline\engines\MissingPropertyService;
  * The Element Data of a cloud engine whose cloud request for the FlowData
  * failed. It holds no values, and reading any property throws the missing
  * property message with the CloudRequestFailed reason.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/properties.md#missing-properties
  */
 class CloudRequestFailedData extends AspectDataDictionary
 {

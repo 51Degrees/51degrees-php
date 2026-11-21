@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\engines;
 /**
  * Enumeration of reasons why a property may be missing from the results of an
  * Engine's processing.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/properties.md#missing-properties
  */
 class MissingPropertyReason
 {

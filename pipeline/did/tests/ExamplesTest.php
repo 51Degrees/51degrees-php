@@ -36,7 +36,7 @@ class ExamplesTest extends TestCase
 {
     // The environment variables the creator context server reads the
     // resource key from.
-    private const RESOURCE_KEY_VARIABLES = ['_51DEGREES_RESOURCE_KEY', 'RESOURCE_KEY'];
+    private const RESOURCE_KEY_VARIABLES = ['_51DEGREES_RESOURCE_KEY'];
 
     /**
      * The offline reader example needs no key and no cloud service.

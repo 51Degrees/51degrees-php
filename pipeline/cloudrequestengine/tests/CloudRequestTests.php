@@ -301,7 +301,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
     {
         $key = EnvironmentVariable::read(
             self::RESOURCE_KEY_ENV_VAR,
-            self::OLD_RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
 

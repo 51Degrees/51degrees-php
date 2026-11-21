@@ -186,7 +186,6 @@ class IpIntelligenceCloudTests extends TestCase
     {
         $resourceKey = EnvironmentVariable::read(
             Constants::RESOURCE_KEY_VARIABLE,
-            Constants::RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
         if ($resourceKey === '') {
@@ -198,8 +197,7 @@ class IpIntelligenceCloudTests extends TestCase
             'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ];
         $endPoint = EnvironmentVariable::read(
-            CloudConstants::CLOUD_ENDPOINT_VARIABLE,
-            CloudConstants::FOD_CLOUD_API_URL
+            CloudConstants::CLOUD_ENDPOINT_VARIABLE
         );
         if ($endPoint) {
             $settings['cloudEndPoint'] = $endPoint;

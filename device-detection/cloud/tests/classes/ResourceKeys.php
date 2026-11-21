@@ -50,7 +50,6 @@ class ResourceKeys
     {
         $value = EnvironmentVariable::read(
             $name,
-            Constants::LEGACY_ENV_VARS[$name] ?? $name,
             self::PLACEHOLDER
         );
 

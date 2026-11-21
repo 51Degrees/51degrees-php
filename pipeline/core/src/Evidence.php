@@ -27,6 +27,8 @@ namespace fiftyone\pipeline\core;
 
 /**
  * Storage of evidence on a FlowData object.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/evidence.md
  */
 class Evidence
 {

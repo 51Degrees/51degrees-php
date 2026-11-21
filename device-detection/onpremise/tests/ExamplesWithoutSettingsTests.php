@@ -170,7 +170,7 @@ class ExamplesWithoutSettingsTests extends TestCase
         $run = ExampleRun::run(
             __DIR__ . "/../examples/onpremise/{$script}",
             ['-d', "FiftyOneDegreesHashEngine.data_file={$dataFile}"],
-            [ExampleUtils::DD_PATH_VARIABLE, ExampleUtils::DATA_FILE_ENV_VAR],
+            [ExampleUtils::DD_PATH_VARIABLE],
             $set
         );
         $this->assertSame(0, $run->status, $run->printed());

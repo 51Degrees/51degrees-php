@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\core;
 /**
  * Stores information created by a FlowElement based on FlowData.
  * Stored in FlowData.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#element-data
  */
 class ElementData
 {
@@ -159,27 +161,70 @@ class ElementData
     }
 
     /**
-     * Helper method to get property as a string.
+     * The value of a Property as a string. For an AspectPropertyValue it is
+     * the value held.
+     *
+     * @throws \Exception when the Property is not there, has no value, in
+     *   which case the message is the reason, or is not a single value
      */
     public function getAsString(string $key): string
     {
-        return strval($this->get($key));
+        return strval($this->singleValue($key, 'a string'));
     }
 
     /**
-     * Helper method to get property as a float.
+     * The value of a Property as a float. For an AspectPropertyValue it is
+     * the value held.
+     *
+     * @throws \Exception when the Property is not there, has no value, in
+     *   which case the message is the reason, or is not a single value
      */
     public function getAsFloat(string $key): float
     {
-        return floatval($this->get($key));
+        return floatval($this->singleValue($key, 'a float'));
     }
 
     /**
-     * Helper method to get property as an int.
+     * The value of a Property as an int. For an AspectPropertyValue it is
+     * the value held.
+     *
+     * @throws \Exception when the Property is not there, has no value, in
+     *   which case the message is the reason, or is not a single value
      */
     public function getAsInteger(string $key): int
     {
-        return intval($this->get($key));
+        return intval($this->singleValue($key, 'an integer'));
+    }
+
+    /**
+     * The single value of a Property, from inside an AspectPropertyValue
+     * where it is one, for the typed getters to convert.
+     *
+     * @param string $type The type asked for, for the message
+     * @return bool|float|int|string
+     * @throws \Exception when the Property is not there, has no value or is
+     *   not a single value
+     */
+    private function singleValue(string $key, string $type)
+    {
+        $value = $this->get($key);
+        if ($value === null) {
+            throw new \Exception(sprintf(
+                Messages::PROPERTY_NOT_FOUND,
+                $key,
+                $this->flowElement->dataKey
+            ));
+        }
+
+        if ($value instanceof AspectPropertyValue) {
+            $value = $value->value;
+        }
+
+        if (!is_scalar($value)) {
+            throw new \Exception(sprintf(Messages::PROPERTY_NOT_SCALAR, $key, $type));
+        }
+
+        return $value;
     }
 
     /**

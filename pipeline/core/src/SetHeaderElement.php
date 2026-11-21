@@ -204,8 +204,16 @@ class SetHeaderElement extends FlowElement
         }
 
         $propertyKey = strtolower($propertyKey);
-        /** @phpstan-var null|\fiftyone\pipeline\core\AspectPropertyValue $property */
-        $property = $elementData->{$propertyKey};
+        try {
+            /** @phpstan-var null|\fiftyone\pipeline\core\AspectPropertyValue $property */
+            $property = $elementData->{$propertyKey};
+        } catch (\Exception $e) {
+            // A cloud engine asked for only some of its properties, as with
+            // a license key and the properties named, answers only those,
+            // and its data throws for the others. A property with no answer
+            // asks for no header.
+            return '';
+        }
 
         if ($property && $property->hasValue && !in_array($property->value, ['Unknown', 'noValue'])) {
             return $property->value;

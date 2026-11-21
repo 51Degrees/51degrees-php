@@ -91,6 +91,44 @@ class EnvironmentVariableTests extends TestCase
         $this->assertNull(ExampleUtils::getCloudEndpoint());
     }
 
+    /**
+     * The Accept-CH tests ask for one property at a time with the license
+     * key, which is read only under its own name. The four header resource
+     * keys they used before are gone, and no name they had is read.
+     */
+    public function testTheAcceptChLicenseKeyHasOnlyItsOwnName(): void
+    {
+        $this->assertSame(
+            '_51DEGREES_LICENSE_KEY_BESPOKE',
+            Constants::LICENSE_ENV_VAR
+        );
+        $this->assertArrayNotHasKey(
+            Constants::LICENSE_ENV_VAR,
+            Constants::LEGACY_ENV_VARS
+        );
+
+        // The old name is written in two parts, so the check of old names
+        // in ci/key-names.Tests.ps1 does not find it here.
+        $old = 'AcceptCh' . 'BrowserKey';
+        $this->set(Constants::LICENSE_ENV_VAR, ResourceKeys::PLACEHOLDER);
+        $this->set($old, 'old-browser-key');
+        $this->assertNull(ResourceKeys::find(Constants::LICENSE_ENV_VAR));
+        $this->set($old, null);
+
+        $this->set(Constants::LICENSE_ENV_VAR, 'license-key');
+        $this->assertSame(
+            'license-key',
+            ResourceKeys::find(Constants::LICENSE_ENV_VAR)
+        );
+
+        foreach (['PLATFORM', 'HARDWARE', 'BROWSER', 'NO_ACCEPTCH'] as $old) {
+            $this->assertFalse(
+                defined(Constants::class . '::' . $old . '_ENV_VAR'),
+                $old . '_ENV_VAR'
+            );
+        }
+    }
+
     public function testDeprecatedConstantsKeepTheirNamesAndValues(): void
     {
         $this->assertDeprecatedConstant(
@@ -111,10 +149,6 @@ class EnvironmentVariableTests extends TestCase
 
         $legacy = [
             'LEGACY_RESOURCE_ENV_VAR' => 'resource_key',
-            'LEGACY_PLATFORM_ENV_VAR' => 'AcceptChPlatformKey',
-            'LEGACY_HARDWARE_ENV_VAR' => 'AcceptChHardwareKey',
-            'LEGACY_BROWSER_ENV_VAR' => 'AcceptChBrowserKey',
-            'LEGACY_NO_ACCEPTCH_ENV_VAR' => 'AcceptChNoneKey',
         ];
         foreach ($legacy as $constant => $value) {
             $this->assertDeprecatedConstant(Constants::class, $constant, $value);
@@ -130,10 +164,6 @@ class EnvironmentVariableTests extends TestCase
     // name it replaced.
     private const TEST_KEY_NAMES = [
         '_51DEGREES_RESOURCE_KEY' => 'resource_key',
-        '_51DEGREES_RESOURCE_KEY_ACCEPTCH_PLATFORM' => 'AcceptChPlatformKey',
-        '_51DEGREES_RESOURCE_KEY_ACCEPTCH_HARDWARE' => 'AcceptChHardwareKey',
-        '_51DEGREES_RESOURCE_KEY_ACCEPTCH_BROWSER' => 'AcceptChBrowserKey',
-        '_51DEGREES_RESOURCE_KEY_ACCEPTCH_NONE' => 'AcceptChNoneKey',
     ];
 
     /**

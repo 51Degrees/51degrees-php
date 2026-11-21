@@ -148,6 +148,45 @@ class SetHeaderTests extends TestCase
     }
 
     /**
+     * A cloud engine asked for one of its SetHeader properties, by a
+     * license key with the property named, answers only that one, and its
+     * data throws for the others, as engine data does for a property it
+     * has no value for. The one it answered still sets the header.
+     */
+    public function testAPropertyTheDataThrowsForSetsNoHeader()
+    {
+        $device = new class(null, [
+            'setheaderbrowseraccept-ch' => new AspectPropertyValue(null, 'Sec-CH-UA')
+        ]) extends TestDataDictionary {
+            public function getInternal(string $key)
+            {
+                if (!array_key_exists($key, $this->contents)) {
+                    throw new \Exception("The data holds no value for {$key}.");
+                }
+
+                return $this->contents[$key];
+            }
+        };
+        $setHeaderPropertiesDict = [
+            'device' => [
+                'SetHeaderBrowserAccept-CH',
+                'SetHeaderHardwareAccept-CH',
+                'SetHeaderPlatformAccept-CH'
+            ]
+        ];
+        $testPipeline = new TestPipeline();
+        // A processed FlowData is read only, so the data is set on one that
+        // has not been processed.
+        $flowData = $testPipeline->pipeline->createFlowData();
+        $flowData->data = ['device' => $device];
+        $actualValue = (new SetHeaderElement())->getResponseHeaderValue(
+            $flowData,
+            $setHeaderPropertiesDict
+        );
+        $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $actualValue);
+    }
+
+    /**
      * Test response header not being sent for empty value
      */
     public function testSetResponseHeaderEmptyHeader()

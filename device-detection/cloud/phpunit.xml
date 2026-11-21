@@ -6,10 +6,9 @@
          which PHPUnit does not overwrite. -->
     <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
     <env name="_51DEGREES_CLOUD_ENDPOINT" value=""/>
-    <env name="_51DEGREES_RESOURCE_KEY_ACCEPTCH_PLATFORM" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="_51DEGREES_RESOURCE_KEY_ACCEPTCH_HARDWARE" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="_51DEGREES_RESOURCE_KEY_ACCEPTCH_BROWSER" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="_51DEGREES_RESOURCE_KEY_ACCEPTCH_NONE" value="!!YOUR_RESOURCE_KEY!!"/>
+    <!-- The license key the Accept-CH tests ask for one property at a
+         time with. -->
+    <env name="_51DEGREES_LICENSE_KEY_BESPOKE" value="!!YOUR_RESOURCE_KEY!!"/>
   </php>
   <testsuites>
     <!-- The unit suite runs against fixed cloud responses, so it needs no

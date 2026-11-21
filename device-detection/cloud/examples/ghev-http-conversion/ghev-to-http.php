@@ -28,12 +28,10 @@ require_once __DIR__ . '/../cloud/classes/ExampleUtils.php';
 
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 
+// Gives a value as an sf-string. An empty value is still quoted, as a
+// browser with no model sends Sec-CH-UA-Model: "".
 function qq(string $s): string {
-    $s = trim($s);
-    if (strlen($s) == 0) {
-        return $s;
-    }
-    return '"' . $s . '"';
+    return '"' . trim($s) . '"';
 }
 
 function brandVersionArrayToHTTP(array $clientHints, string $property): string {

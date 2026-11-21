@@ -4,6 +4,7 @@
   </php>
   <testsuites>
     <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/CloudResponse.php</file>
       <file>tests/CredentialsTests.php</file>
       <file>tests/DiscoveryTests.php</file>

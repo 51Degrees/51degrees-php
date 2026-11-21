@@ -52,6 +52,8 @@ class Messages
     public const DATA_KEY_DEPRECATED = "The Data Key '%s' is deprecated and will be removed in a later release. Use '%s', which gives the same element and data.";
     public const PASS_KEY_VALUE = 'Must pass key and value';
     public const FLOW_DATA_PROCESSED = 'FlowData already processed';
+    public const FLOW_DATA_FINISHED = 'Cannot add %s: the FlowData has finished processing.';
+    public const ELEMENT_DATA_FINISHED = "Cannot set '%s': the FlowElement that writes the data for element '%s' has finished processing.";
 
     /**
      * Thrown when a property of a Pipeline other than a setting, such as

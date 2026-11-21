@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
+use fiftyone\pipeline\core\EvidenceKeyFilter;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\SequenceElement;
@@ -164,6 +165,93 @@ class PipelineEvidenceKeyFilterTests extends TestCase
             $flowData->evidence->getAll(),
             $pipeline->getEvidenceKeyFilter()->filterEvidence($evidence)
         );
+    }
+
+    /**
+     * The filter is always needed and does not change once the Pipeline is
+     * built, so the Pipeline builds it when it is built and every call gives
+     * that same filter, rather than a new one on each call.
+     */
+    public function testTheFilterIsBuiltWithThePipelineAndKept()
+    {
+        $pipeline = $this->pipelineOf([
+            new ListedEvidenceElement(['header.user-agent']),
+        ]);
+
+        // Read before any call, so the filter must come from the build.
+        $kept = (function () {
+            return $this->evidenceKeyFilter ?? null;
+        })->call($pipeline);
+        $this->assertInstanceOf(
+            EvidenceKeyFilter::class,
+            $kept,
+            'The Pipeline has no filter once it is built'
+        );
+
+        $first = $pipeline->getEvidenceKeyFilter();
+        $this->assertSame($kept, $first);
+        $this->assertSame($first, $pipeline->getEvidenceKeyFilter());
+        $this->assertTrue($first->filterEvidenceKey('header.user-agent'));
+        $this->assertFalse($first->filterEvidenceKey('header.x-test'));
+    }
+
+    /**
+     * The Evidence and the request line decision ask the Pipeline's filter,
+     * so the Pipeline decides what it accepts in one place.
+     */
+    public function testEvidenceAndTheRequestLineAskThePipelineFilter()
+    {
+        $pipeline = $this->pipelineOf([
+            new ListedEvidenceElement(['header.user-agent']),
+        ]);
+        $asked = [];
+        $spy = new EvidenceKeyFilter();
+        $spy->filterEvidenceKey = function (string $key) use (&$asked): bool {
+            $asked[] = $key;
+
+            return true;
+        };
+        (function () use ($spy) {
+            $this->evidenceKeyFilter = $spy;
+        })->call($pipeline);
+
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->set('header.x-test', 'test');
+
+        $this->assertContains('header.x-test', $asked);
+        $this->assertSame(
+            ['header.x-test' => 'test'],
+            $flowData->evidence->getAll()
+        );
+
+        $this->assertTrue($pipeline->acceptsRequestLine());
+        $this->assertNotEmpty(array_diff($asked, ['header.x-test']));
+    }
+
+    /**
+     * Every caller shares the Pipeline's filter, so it cannot be given a
+     * filter function of its own, which would also stop a session cache
+     * serializing data that refers to the Pipeline.
+     */
+    public function testTheSharedFilterCannotBeGivenAFunction()
+    {
+        $pipeline = $this->pipelineOf([
+            new ListedEvidenceElement(['header.user-agent']),
+        ]);
+        $filter = $pipeline->getEvidenceKeyFilter();
+
+        $refused = false;
+        try {
+            $filter->filterEvidenceKey = function (string $key): bool {
+                return false;
+            };
+        } catch (\Exception $e) {
+            $refused = strpos($e->getMessage(), 'filterEvidenceKey') !== false;
+        }
+        $this->assertTrue($refused, 'The Pipeline filter took a filter function');
+
+        $this->assertTrue($filter->filterEvidenceKey('header.user-agent'));
+        $this->assertIsString(serialize($pipeline));
     }
 
     /**

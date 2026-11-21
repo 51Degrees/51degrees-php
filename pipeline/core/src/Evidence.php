@@ -118,14 +118,8 @@ class Evidence
     {
         $this->flowData->checkNotFinished('evidence');
 
-        $keep = false;
-
-        foreach ($this->flowData->pipeline->flowElements as $flowElement) {
-            if ($flowElement->filterEvidenceKey($key)) {
-                $keep = true;
-                break;
-            }
-        }
+        $keep = $this->flowData->pipeline->getEvidenceKeyFilter()
+            ->filterEvidenceKey($key);
 
         $lower = strtolower($key);
         if (isset($this->keys[$lower])) {

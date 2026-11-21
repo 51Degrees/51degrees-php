@@ -31,10 +31,10 @@ This will create the vendor directory containing autoload.php. Now navigate to t
 directory and start a PHP server with the relevant file. For example:
 
 ```
-php -S localhost:3000 CustomFlowElement.php
+php -S localhost:5151 CustomFlowElement.php
 ```
 
-This will start a local web server listening on port 3000. Open your web browser and browse to http://localhost:3000/ to see the example in action.
+This will start a local web server listening on port 5151. Open your web browser and browse to http://localhost:5151/ to see the example in action.
 
 `Pipeline.php` writes to the console, so run it with `php Pipeline.php` from the same directory.
 
@@ -51,6 +51,45 @@ and on our [website](https://51degrees.com/documentation/_device_detection__exam
 | OnPremiseEngine                        | In [pipeline/engines](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/engines). Demonstrates an on-premise engine, which gives the star sign for a date of birth from a data file. |
 | CloudEngine                            | In [pipeline/cloudrequestengine](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/cloudrequestengine). Demonstrates a cloud engine, which gives the star sign for a date of birth from a remote service. |
 | DerivedProperty                        | In [pipeline/derivedproperty](https://github.com/51Degrees/51degrees-php/tree/main/pipeline/derivedproperty). Demonstrates the derived property element, which computes properties from properties other elements have produced. |
+
+## Web applications
+
+`Utils::processWebRequest($pipeline)` handles a page request in one call. It creates a Flow Data,
+adds the request's headers, cookies, query and form parameters as Evidence, and processes it.
+The processed Flow Data is kept, so any other part of the application reads the results with
+`Utils::getFlowData()` without being handed it. It is closed when PHP finishes the request, or
+when the next request's call replaces it in a PHP that serves one request after another.
+
+A PHP that serves one request after another, as a worker does, keeps the Flow Data until that next
+call. So a request there that has not called `Utils::processWebRequest()` gets the previous
+request's Flow Data from `Utils::getFlowData()`. Call `Utils::processWebRequest()` first in every
+request that reads it.
+
+So these methods suit a PHP that handles one request at a time in each process or thread. In a
+runtime that interleaves requests in one thread, such as one that runs them as coroutines, the next
+request's call to `Utils::processWebRequest()` closes and replaces the Flow Data an earlier request
+may still use. Code there passes on the Flow Data that `Utils::processWebRequest()` returns instead
+of reading it from `Utils::getFlowData()`.
+
+A Flow Data holds the Evidence and results of one request. PHP runs each request on one thread,
+and a Flow Data must not be used by two threads at once. The caller is responsible for any
+locking, so code that hands a Flow Data to another thread coordinates that itself.
+
+```php
+use fiftyone\pipeline\core\Utils;
+
+// Where the request is handled. This Flow Data must not be used by two threads at once. The
+// caller is responsible for any locking.
+$flowData = Utils::processWebRequest($pipeline);
+Utils::setResponseHeader($flowData);
+
+// Anywhere else while the same request is handled.
+$device = Utils::getFlowData()->device;
+```
+
+Requests for the client-side JavaScript and JSON need a Flow Data that has not been processed, so
+answer those with `Utils::javascriptResponse()` and `Utils::jsonResponse()`, as the device
+detection Getting Started web examples do.
 
 ## Flow Data and threads
 

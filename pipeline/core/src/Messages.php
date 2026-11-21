@@ -45,6 +45,13 @@ class Messages
     public const NO_ELEMENT_DATA_NULL = "There is no element data for '%s' against this flow data.'";
 
     /**
+     * Thrown when a configuration gives an element's builder a build
+     * parameter it has no method for. This takes the parameter, then the
+     * builder.
+     */
+    public const BUILD_PARAMETER_NOT_SUPPORTED = "The build parameter '%s' has no set or add method in the builder '%s'.";
+
+    /**
      * Logged once when a deprecated Data Key is used. This takes the
      * deprecated key, then the key that replaces it.
      */

@@ -70,9 +70,9 @@ declare(strict_types=1);
  * Uses the 51Did package this demo is part of (PHP 8.1 or later), so run
  * `composer install` in the package's folder first, which is two folders
  * above this one (`pipeline/did` in 51degrees-php). Then from this folder
- * start the built-in server and open http://localhost:5100/ in a browser.
+ * start the built-in server and open http://localhost:5151/ in a browser.
  *
- *   php -S localhost:5100 server.php
+ *   php -S localhost:5151 server.php
  *
  * The port is the php -S argument. Under the built-in server getenv()
  * sees the environment the php -S process was started with.

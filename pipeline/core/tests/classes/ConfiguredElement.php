@@ -37,6 +37,13 @@ class ConfiguredElement extends FlowElement
         'answer' => ['name' => 'answer', 'type' => 'int'],
     ];
 
+    /**
+     * The names the element was built with, in order.
+     *
+     * @var string[]
+     */
+    public array $names;
+
     private int $answer;
 
     /**
@@ -46,6 +53,7 @@ class ConfiguredElement extends FlowElement
     {
         $this->dataKey = (string) ($settings['dataKey'] ?? 'configured');
         $this->answer = (int) ($settings['answer'] ?? 0);
+        $this->names = $settings['names'] ?? [];
     }
 
     public function processInternal(FlowData $flowData): void

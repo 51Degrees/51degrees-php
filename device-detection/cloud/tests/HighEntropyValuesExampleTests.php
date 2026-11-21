@@ -51,6 +51,9 @@ class HighEntropyValuesExampleTests extends TestCase
         'Sec-CH-UA-Bitness' => '"64"',
         'Sec-CH-UA-Full-Version-List' => '"Chromium";v="116.0.5845.187", "Not)A;Brand";v="24.0.0.0", "Google Chrome";v="116.0.5845.187"',
         'Sec-CH-UA-Mobile' => '?0',
+        // A browser with no model, as on a desktop, sends an empty quoted
+        // string rather than no value.
+        'Sec-CH-UA-Model' => '""',
         'Sec-CH-UA-Platform' => '"macOS"',
         'Sec-CH-UA-Platform-Version' => '"13.5.2"'
     ];

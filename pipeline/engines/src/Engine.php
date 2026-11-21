@@ -33,6 +33,8 @@ use fiftyone\pipeline\core\FlowElement;
  * An engine is an extension of the Pipeline Core flowElement class
  * It allows for a cache, restricted properties and meaningful errors when
  * a property isn't available via the aspect data missingPropertyService.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#aspect-engine
  */
 class Engine extends FlowElement
 {

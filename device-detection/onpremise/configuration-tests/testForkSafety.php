@@ -57,9 +57,6 @@
  * Without the User-Agents file the test refuses to run, with exit code 2, as
  * for a missing data file, because a few User-Agents do not always show the
  * streaming profile's wrong results, so the outcome would come and go.
- *
- * The names these replaced are still read, as deprecated names, when the
- * variable is not set.
  */
 
 const CHILDREN = 8;     // forked workers that all share the inherited handles
@@ -76,38 +73,10 @@ function fail(string $message, int $code = 2): void
     exit($code);
 }
 
-/**
- * The value of an environment variable, read by its name and, when that is
- * not set or is empty, by the deprecated name it replaced, whose use is
- * reported on standard error.
- */
-function readVariable(string $name, string $deprecated): string
-{
-    $value = (string) getenv($name);
-    if ($value !== '') {
-        return $value;
-    }
-
-    $value = (string) getenv($deprecated);
-    if ($value !== '') {
-        fwrite(STDERR, "A value was read from the environment variable {$deprecated}, " .
-            "which is deprecated. {$name} replaces it, so set that to the same value.\n");
-    }
-
-    return $value;
-}
-
-$dataFile = readVariable('_51DEGREES_DD_PATH', 'FIFTYONE_DATA_FILE') ?: ($argv[1] ?? '');
-$uaCsv = readVariable('_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV') ?: ($argv[3] ?? '');
+$dataFile = (string) getenv('_51DEGREES_DD_PATH') ?: ($argv[1] ?? '');
+$uaCsv = (string) getenv('_51DEGREES_UA_CSV') ?: ($argv[3] ?? '');
 if ($uaCsv === '' || !is_file($uaCsv)) {
     fail("User-Agents file not found (set _51DEGREES_UA_CSV or pass it as the third argument): '{$uaCsv}'");
-}
-
-// The extension defines the engine classes itself, so no wrapper file is
-// loaded for this variable.
-if ((string) getenv('FIFTYONE_WRAPPER') !== '') {
-    fwrite(STDERR, 'The environment variable FIFTYONE_WRAPPER is deprecated and ' .
-        "nothing replaces it. No wrapper file is loaded, so stop setting it.\n");
 }
 
 if ($dataFile === '' && function_exists('ini_get')) {

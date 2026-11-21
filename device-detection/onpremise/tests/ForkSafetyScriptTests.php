@@ -50,7 +50,7 @@ class ForkSafetyScriptTests extends TestCase
             $result = ExampleRun::run(
                 self::SCRIPT,
                 [],
-                ['_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV']
+                ['_51DEGREES_UA_CSV']
             );
 
             $this->assertSame(self::MISSING, $result->status, $result->errors);

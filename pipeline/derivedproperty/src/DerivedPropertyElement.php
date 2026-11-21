@@ -47,6 +47,8 @@ use fiftyone\pipeline\core\Pipeline;
  * string with commas between the entries, where an entry holding a comma
  * is wrapped in double quotes. DerivedPropertyElementBuilder adds scripts
  * in code.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/derived-property-element.md
  */
 class DerivedPropertyElement extends FlowElement
 {

@@ -9,6 +9,8 @@
       <file>tests/TranslationEngineBuilderTests.php</file>
       <file>tests/MultipleEnginesTests.php</file>
       <file>tests/MissingTranslationErrorsTests.php</file>
+      <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
       <file>tests/KeyFormatTests.php</file>
     </testsuite>
   </testsuites>

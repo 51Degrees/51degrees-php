@@ -73,8 +73,7 @@ class RelativeDataFileTests extends TestCase
     private static function locateDataFile(): ?string
     {
         $env = EnvironmentVariable::read(
-            Constants::IPI_PATH_VARIABLE,
-            Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            Constants::IPI_PATH_VARIABLE
         );
         $candidates = array_merge(
             $env ? [$env] : [],

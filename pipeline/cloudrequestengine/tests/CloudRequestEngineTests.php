@@ -36,11 +36,10 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
 {
     public const testEndPoint = 'http://testEndPoint/';
     public const testEnvVarEndPoint = 'http://testEnvVarEndPoint/';
-    public const testOldEnvVarEndPoint = 'http://testOldEnvVarEndPoint/';
 
-    // The deprecated environment variable for the endpoint, written out
-    // so that a test of what the engine reads does not depend on the
-    // constant that holds the name.
+    // The deprecated environment variable for the endpoint, which is no
+    // longer read, written out so that the test of the constant that holds
+    // the name does not depend on that constant.
     private const oldEndPointVariable = 'FOD_CLOUD_API_URL';
 
     /**
@@ -96,72 +95,6 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
-     * Test that the old environment variable is still read when the new
-     * one is not set.
-     */
-    public function testOldEndPointVariableReadWhenNewOneUnset()
-    {
-        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
-
-        $engine = new CloudRequestEngine([
-            'resourceKey' => CloudRequestEngineTests::resourceKey,
-            'httpClient' => $this->mockHttp()
-        ]);
-
-        $this->assertSame(self::testOldEnvVarEndPoint, $engine->baseURL);
-    }
-
-    /**
-     * Test that the old environment variable is still read when the new
-     * one is set to nothing.
-     */
-    public function testOldEndPointVariableReadWhenNewOneEmpty()
-    {
-        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '='));
-        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
-
-        $engine = new CloudRequestEngine([
-            'resourceKey' => CloudRequestEngineTests::resourceKey,
-            'httpClient' => $this->mockHttp()
-        ]);
-
-        $this->assertSame(self::testOldEnvVarEndPoint, $engine->baseURL);
-    }
-
-    /**
-     * Test that the new environment variable wins when both are set.
-     */
-    public function testNewEndPointVariableWinsWhenBothSet()
-    {
-        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . self::testEnvVarEndPoint));
-        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
-
-        $engine = new CloudRequestEngine([
-            'resourceKey' => CloudRequestEngineTests::resourceKey,
-            'httpClient' => $this->mockHttp()
-        ]);
-
-        $this->assertSame(self::testEnvVarEndPoint, $engine->baseURL);
-    }
-
-    /**
-     * Test that the default end point is used when neither environment
-     * variable is set.
-     */
-    public function testDefaultEndPointWhenNeitherVariableSet()
-    {
-        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE));
-        $this->assertTrue(putenv(self::oldEndPointVariable));
-
-        $engine = new CloudRequestEngine([
-            'resourceKey' => CloudRequestEngineTests::resourceKey,
-            'httpClient' => $this->mockHttp()
-        ]);
-
-        $this->assertSame(Constants::BASE_URL_DEFAULT, $engine->baseURL);
-    }
-
-    /**
      * Test that the constant for the old environment variable is still
      * there under its old name with its old value, marked deprecated and
      * naming the constant that replaces it.
@@ -177,74 +110,6 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         ))->getDocComment();
         $this->assertStringContainsString('@deprecated', $comment);
         $this->assertStringContainsString('CLOUD_ENDPOINT_VARIABLE', $comment);
-    }
-
-    /**
-     * Test that an engine which took its end point from the old
-     * environment variable says so once, as a warning, through the logger
-     * of the pipeline it is added to.
-     */
-    public function testOldEndPointVariableLoggedOnce()
-    {
-        $this->assertTrue(putenv(self::oldEndPointVariable . '=' . self::testOldEnvVarEndPoint));
-
-        $engine = new CloudRequestEngine([
-            'resourceKey' => CloudRequestEngineTests::resourceKey,
-            'httpClient' => $this->mockHttp()
-        ]);
-        $logger = self::memoryLogger();
-        (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
-        (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
-
-        $this->assertSame(['warning'], $logger->levels);
-        $this->assertStringContainsString(self::oldEndPointVariable, $logger->messages[0]);
-        $this->assertStringContainsString('deprecated', $logger->messages[0]);
-        $this->assertStringContainsString(Constants::CLOUD_ENDPOINT_VARIABLE, $logger->messages[0]);
-    }
-
-    /**
-     * Test that nothing is logged about the old environment variable when
-     * the end point did not come from it.
-     *
-     * @dataProvider provider_testOldEndPointVariableNotLogged
-     */
-    #[DataProvider('provider_testOldEndPointVariableNotLogged')]
-    public function testOldEndPointVariableNotLogged(?string $new, ?string $old, ?string $setting)
-    {
-        if ($new !== null) {
-            $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . $new));
-        }
-        if ($old !== null) {
-            $this->assertTrue(putenv(self::oldEndPointVariable . '=' . $old));
-        }
-        $settings = [
-            'resourceKey' => CloudRequestEngineTests::resourceKey,
-            'httpClient' => $this->mockHttp()
-        ];
-        if ($setting !== null) {
-            $settings['cloudEndPoint'] = $setting;
-        }
-
-        $logger = self::memoryLogger();
-        (new PipelineBuilder())
-            ->add(new CloudRequestEngine($settings))
-            ->addLogger($logger)
-            ->build();
-
-        $this->assertSame([], $logger->messages);
-    }
-
-    // Data Provider for testOldEndPointVariableNotLogged, each case being
-    // the new variable, the old variable and the cloudEndPoint setting,
-    // with null for one that is not set.
-    public static function provider_testOldEndPointVariableNotLogged()
-    {
-        return [
-            'both variables set' => [self::testEnvVarEndPoint, self::testOldEnvVarEndPoint, null],
-            'only the new variable set' => [self::testEnvVarEndPoint, null, null],
-            'neither variable set' => [null, null, null],
-            'the old variable set beside the setting' => [null, self::testOldEnvVarEndPoint, self::testEndPoint],
-        ];
     }
 
     /**
@@ -789,7 +654,6 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     protected function clearEndPointVariables()
     {
         $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE));
-        $this->assertTrue(putenv(self::oldEndPointVariable));
     }
 
     /**

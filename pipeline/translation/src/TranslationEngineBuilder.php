@@ -33,6 +33,8 @@ namespace fiftyone\pipeline\translation;
  * named [name].[locale].yml or [name].[locale].yaml, such as
  * countries.fr_FR.yml. The locale in the name is the language the file
  * holds, and all the sources for one language are used together.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/translation-engine.md
  */
 class TranslationEngineBuilder
 {

@@ -157,6 +157,8 @@ final class DerivedScript
      *     `properties`
      * @param null|int $matched set to the index of the rule that matched,
      *     or null where the script has no value
+     * @throws \LogicException when no rule matches, which a script the
+     *     validator accepted cannot do, as its rules end in an Else
      */
     public function evaluate(array $slots, ?int &$matched = null): AspectPropertyValue
     {

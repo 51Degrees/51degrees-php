@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\engines;
 /**
  * An extension of the cache class that stores a cache in a user's session
  * if PHP sessions are active.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/caching.md#cache-implementation
  */
 class SessionCache extends DataKeyedCache
 {

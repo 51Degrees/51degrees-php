@@ -34,6 +34,8 @@ use fiftyone\pipeline\engines\AspectDataDictionary;
  * gives the same value, and the engine logs the first read by that name.
  *
  * @property CloudRequestEngine $flowElement
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#element-data
  */
 class CloudRequestData extends AspectDataDictionary
 {

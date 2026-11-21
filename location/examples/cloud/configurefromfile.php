@@ -90,7 +90,6 @@ $config = json_decode(file_get_contents($configFile), true);
 // configuration file.
 $resourceKey = EnvironmentVariable::read(
     Constants::RESOURCE_KEY_VARIABLE,
-    Constants::RESOURCE_KEY_ENV_VAR,
     "!!YOUR_RESOURCE_KEY!!"
 );
 if ($resourceKey !== '') {

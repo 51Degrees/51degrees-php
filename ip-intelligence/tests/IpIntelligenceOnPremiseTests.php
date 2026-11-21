@@ -71,8 +71,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
     private static function locateDataFile(): ?string
     {
         $env = EnvironmentVariable::read(
-            Constants::IPI_PATH_VARIABLE,
-            Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            Constants::IPI_PATH_VARIABLE
         );
         if ($env && file_exists($env)) {
             return $env;

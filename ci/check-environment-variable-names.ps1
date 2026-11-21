@@ -1,10 +1,10 @@
 # Every 51Degrees environment variable name in this repository starts with an
 # underscore, because a POSIX shell cannot set a name that starts with a digit.
-# The names the variables had before are still read, as deprecated names, when
-# the variable is not set, and only by the files listed below, which are the
-# code that reads them and the tests of that code. This reads every file git
-# tracks, which leaves out build output and the submodules, and fails on a
-# name that starts with the digit, or an old name, in any other file.
+# The names the variables had before are no longer read. They appear only in
+# the files listed below, which keep deprecated constants that hold them, and
+# the tests of those constants. This reads every file git tracks, which leaves
+# out build output and the submodules, and fails on a name that starts with
+# the digit, or an old name, in any other file.
 #
 # Dot-sourcing the script defines Find-EnvironmentNameProblem without reading
 # the repository, which is how its tests use it.
@@ -80,41 +80,28 @@ function Find-EnvironmentNameProblem([string]$Line) {
     }
 }
 
-# The files that may name an old variable, which are the code that reads one
-# as a deprecated name when the variable is not set, the constants that hold
-# one, and the tests of both, a test that clears one so that an example runs
-# without it included. Paths are relative to the repository root.
+# The files that may name an old variable, which are the deprecated constants
+# that hold one and the tests of those constants. Paths are relative to the
+# repository root.
 $script:DeprecatedNameFiles = @(
     'device-detection/cloud/examples/cloud/classes/ExampleUtils.php'
     'device-detection/cloud/tests/EnvironmentVariableTests.php'
     'device-detection/cloud/tests/classes/Constants.php'
-    'device-detection/cloud/tests/classes/ResourceKeys.php'
-    'device-detection/onpremise/configuration-tests/testForkSafety.php'
     'device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php'
     'device-detection/onpremise/tests/EnvironmentVariableTests.php'
-    'device-detection/onpremise/tests/ForkSafetyScriptTests.php'
     'ip-intelligence/examples/classes/ExampleConstants.php'
-    'ip-intelligence/src/translation/TranslationPaths.php'
     'ip-intelligence/tests/EnvironmentVariableTests.php'
-    'ip-intelligence/tests/IpIntelligenceCloudTests.php'
     'ip-intelligence/tests/classes/Constants.php'
     'location/examples/cloud/classes/Constants.php'
-    'location/tests/EnvironmentVariableTests.php'
-    'pipeline/cloudrequestengine/src/CloudRequestEngine.php'
     'pipeline/cloudrequestengine/src/Constants.php'
     'pipeline/cloudrequestengine/tests/CloudRequestEngineTests.php'
     'pipeline/cloudrequestengine/tests/CloudRequestEngineTestsBase.php'
-    'pipeline/cloudrequestengine/tests/EnvironmentVariableTests.php'
-    'pipeline/cloudrequestengine/tests/ExampleTests.php'
-    'pipeline/did/examples/creator-context-web/server.php'
     'pipeline/did/src/DidClient.php'
-    'pipeline/did/tests/DidClientLiveTest.php'
     'pipeline/did/tests/DidClientTest.php'
-    'pipeline/did/tests/EnvironmentVariableTest.php'
 )
 
-# The one name starting with the digit that is still read, which is the old
-# name of the Device Detection data file variable.
+# The one name starting with the digit that a deprecated constant still holds,
+# which is the old name of the Device Detection data file variable.
 $script:DeprecatedDigitName = $digitInitial + 'DD_PATH'
 
 # True when a problem found in a file is a deprecated name in one of the files
@@ -189,8 +176,8 @@ if ($found.Count -gt 0 -or $fallbacks.Count -gt 0) {
     throw ("$($found.Count) names start with a digit, which a POSIX shell " +
         'cannot set, so each must start with an underscore, and ' +
         "$($fallbacks.Count) old names are read, set or kept outside the " +
-        'files that read them as deprecated names.')
+        'files that keep them in deprecated constants.')
 }
 
 Write-Output ('No tracked file names a variable starting with a digit or an ' +
-    'old name, outside the files that read the old names as deprecated names.')
+    'old name, outside the files that keep them in deprecated constants.')

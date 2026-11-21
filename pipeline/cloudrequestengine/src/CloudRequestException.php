@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\cloudrequestengine;
 /**
  * Contains details about exceptions that occur when making
  * requests to the cloud service.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/exception-handling.md
  */
 class CloudRequestException extends \Exception
 {

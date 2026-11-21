@@ -41,6 +41,8 @@ use fiftyone\pipeline\engines\CloudEngineBase;
  * parses it to extract the device part.
  * It also uses this data to generate a list of properties. It reads no
  * Evidence, so it accepts none.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-aspect-engine.md
  */
 class CloudEngine extends CloudEngineBase
 {
@@ -51,6 +53,14 @@ class CloudEngine extends CloudEngineBase
      * well-known text (WKT).
      */
     private const WKT_TYPES = ['wkt', 'wktstring', 'wkb', 'wkbr'];
+
+    /**
+     * The keys of each item of a weighted value, in the order the
+     * on-premise Engines give them.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/weighted-values.md#serializing
+     */
+    private const WEIGHTED_VALUE_KEYS = ['value', 'rawweighting'];
 
     /**
      * @var array<string, array<string, mixed>>
@@ -189,7 +199,10 @@ class CloudEngine extends CloudEngineBase
                 if (isset($cloudData[$this->dataKey][$key . 'nullreason'])) {
                     $result[$key] = new AspectPropertyValue($cloudData[$this->dataKey][$key . 'nullreason']);
                 } else {
-                    $result[$key] = new AspectPropertyValue(null, $this->wktText((string) $key, $value));
+                    $result[$key] = new AspectPropertyValue(
+                        null,
+                        self::weightedValues($this->wktText((string) $key, $value))
+                    );
                 }
             }
 
@@ -221,6 +234,44 @@ class CloudEngine extends CloudEngineBase
         }
 
         return $value;
+    }
+
+    /**
+     * A weighted value, being a list whose every item holds only the keys
+     * value and rawweighting, with each item's keys in the order the
+     * on-premise Engines give them, whatever order the JSON holds them in.
+     * The two Engines then give identical arrays. Any other value is given
+     * as it is.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/README.md#engine
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private static function weightedValues($value)
+    {
+        if (!is_array($value) || $value === [] ||
+            array_keys($value) !== range(0, count($value) - 1)) {
+            return $value;
+        }
+
+        $items = [];
+        foreach ($value as $item) {
+            if (!is_array($item) || count($item) !== count(self::WEIGHTED_VALUE_KEYS)) {
+                return $value;
+            }
+
+            $ordered = [];
+            foreach (self::WEIGHTED_VALUE_KEYS as $key) {
+                if (!array_key_exists($key, $item)) {
+                    return $value;
+                }
+                $ordered[$key] = $item[$key];
+            }
+            $items[] = $ordered;
+        }
+
+        return $items;
     }
 
     /**

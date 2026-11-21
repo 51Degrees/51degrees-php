@@ -33,9 +33,12 @@ use fiftyone\pipeline\core\LicenseKey;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\Engine;
 
-// Engine that makes a call to the 51Degrees cloud service
-// Returns raw JSON as a "json-response" property under the "cloud-response"
-// dataKey
+/**
+ * Engine that makes a call to the 51Degrees cloud service. Returns raw JSON
+ * as a "json-response" property under the "cloud-response" dataKey.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md
+ */
 class CloudRequestEngine extends Engine
 {
     // Joins license keys in one license key setting.
@@ -84,10 +87,6 @@ class CloudRequestEngine extends Engine
 
     // Set once a read by the Property's deprecated name has been logged.
     private bool $deprecatedPropertyReported = false;
-
-    // Set while the base URL came from the deprecated environment
-    // variable and that has yet to be logged.
-    private bool $oldEndPointVariableToReport = false;
 
     /**
      * @var array<string>
@@ -163,12 +162,6 @@ class CloudRequestEngine extends Engine
             // Check if base URL is set via environment variable
             $envVarUrl = getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
             if (empty($envVarUrl)) {
-                // The deprecated variable is read only when the new one
-                // gives nothing.
-                $envVarUrl = getenv(Constants::FOD_CLOUD_API_URL);
-                $this->oldEndPointVariableToReport = !empty($envVarUrl);
-            }
-            if (empty($envVarUrl)) {
                 // Use default if nothing else is set
                 $this->baseURL = Constants::BASE_URL_DEFAULT;
             } else {
@@ -200,22 +193,12 @@ class CloudRequestEngine extends Engine
 
     /**
      * Logs, as warnings through the logger of the first pipeline the
-     * engine is added to, that the base URL came from the deprecated
-     * environment variable, and anything the engine had to warn about
-     * while it was built. Each engine logs these once, so a site that
+     * engine is added to, anything the engine had to warn about while it
+     * was built. Each engine logs these once, so a site that
      * builds its pipeline in every request logs them in every request.
      */
     public function onRegistration(Pipeline $pipeline): void
     {
-        if ($this->oldEndPointVariableToReport) {
-            $this->oldEndPointVariableToReport = false;
-            $pipeline->log('warning', sprintf(
-                Constants::MESSAGE_ENDPOINT_VARIABLE_DEPRECATED,
-                Constants::FOD_CLOUD_API_URL,
-                Constants::CLOUD_ENDPOINT_VARIABLE
-            ));
-        }
-
         $warnings = $this->pendingWarnings;
         $this->pendingWarnings = [];
         foreach ($warnings as $warning) {
@@ -290,6 +273,10 @@ class CloudRequestEngine extends Engine
      * Makes a request to the cloud service with the supplied resource key
      * and evidence and returns a JSON object that is then parsed by cloud engines
      * placed later in the pipeline.
+     *
+     * @throws \Exception when the request to the cloud service, or the
+     *   request for the Evidence keys it accepts, fails, with the keys
+     *   masked
      */
     public function processInternal(FlowData $flowData): void
     {
@@ -549,6 +536,8 @@ class CloudRequestEngine extends Engine
      * Get properties for cloud engines from the cloud service.
      *
      * @return array<string, string|array<string, array<string, bool|string>>>
+     * @throws \Exception the error the request for the properties raised,
+     *   with the keys masked
      */
     public function getEngineProperties(): array
     {

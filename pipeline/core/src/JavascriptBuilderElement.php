@@ -37,6 +37,8 @@ use JShrink\Minifier;
  * The results of the JSON Bundler should also be used in a user-specified
  * endpoint which retrieves the JSON from the client side.
  * The JavaScriptBuilder is constructed with a url for this endpoint.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/javascript-builder.md
  */
 class JavascriptBuilderElement extends FlowElement
 {
@@ -100,6 +102,22 @@ class JavascriptBuilderElement extends FlowElement
      * the SequenceElement gives.
      */
     private const MAX_RENDERED_SEQUENCE = self::MAX_SEQUENCE + 1;
+
+    /**
+     * The default of each setting the constructor reads, used where the
+     * settings leave it out or give null. A null protocol or host is taken
+     * from the request's Evidence.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/reference-implementation-notes.md#builders
+     */
+    public const DEFAULTS = [
+        'objName' => 'fod',
+        'protocol' => null,
+        'host' => null,
+        'endpoint' => '',
+        'enableCookies' => true,
+        'minify' => true,
+    ];
 
     /**
      * @var array<string, mixed>
@@ -179,11 +197,14 @@ class JavascriptBuilderElement extends FlowElement
      * requested name is ignored with a warning logged. 'protocol', when set,
      * must be http or https in any case of its ASCII letters, or the
      * constructor throws an \InvalidArgumentException. Left out, the
-     * 'header.protocol' evidence is used, or https when there is none.
+     * 'header.protocol' evidence is used, or https when there is none. The
+     * default of each setting is in DEFAULTS.
+     * @throws \InvalidArgumentException when 'objName' is not a valid name
+     *   or 'protocol' is not http or https
      */
     public function __construct(array $settings = [])
     {
-        $objName = $settings['objName'] ?? 'fod';
+        $objName = $settings['objName'] ?? self::DEFAULTS['objName'];
         if (!self::isValidObjectName($objName)) {
             throw new \InvalidArgumentException(
                 "The JavaScript builder's objName setting must be a " .
@@ -195,7 +216,7 @@ class JavascriptBuilderElement extends FlowElement
         // A protocol given here is used for every request, so one the script
         // cannot send its request with is refused now rather than logged on
         // the first request.
-        $protocol = $settings['protocol'] ?? null;
+        $protocol = $settings['protocol'] ?? self::DEFAULTS['protocol'];
         if ($protocol !== null && $protocol !== '' &&
             !CallbackUrl::isScheme($protocol)) {
             throw new \InvalidArgumentException(
@@ -206,13 +227,13 @@ class JavascriptBuilderElement extends FlowElement
 
         $this->settings = [
             '_objName' => $objName,
-            '_protocol' => $settings['protocol'] ?? null,
-            '_host' => $settings['host'] ?? null,
-            '_endpoint' => $settings['endpoint'] ?? '',
-            '_enableCookies' => $settings['enableCookies'] ?? true
+            '_protocol' => $protocol,
+            '_host' => $settings['host'] ?? self::DEFAULTS['host'],
+            '_endpoint' => $settings['endpoint'] ?? self::DEFAULTS['endpoint'],
+            '_enableCookies' => $settings['enableCookies'] ?? self::DEFAULTS['enableCookies']
         ];
 
-        $this->minify = $settings['minify'] ?? true;
+        $this->minify = $settings['minify'] ?? self::DEFAULTS['minify'];
 
         parent::__construct();
     }

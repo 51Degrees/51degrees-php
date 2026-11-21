@@ -35,3 +35,5 @@ use fiftyone\pipeline\ipintelligence\examples\classes\SuspiciousConsoleOnPremise
 ExampleUtils::startWithEngine($argv);
 
 (new SuspiciousConsoleOnPremise())->run(STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

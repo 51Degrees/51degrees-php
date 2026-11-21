@@ -37,8 +37,33 @@ class Messages
      */
     public const NO_ELEMENT_DATA = "There is no element data for '%s' against this flow data. Available element data keys are: '%s'";
     public const NO_ELEMENT_DATA_NULL = "There is no element data for '%s' against this flow data.'";
+
+    /**
+     * Logged once when a deprecated Data Key is used. This takes the
+     * deprecated key, then the key that replaces it.
+     */
+    public const DATA_KEY_DEPRECATED = "The Data Key '%s' is deprecated and will be removed in a later release. Use '%s', which gives the same element and data.";
     public const PASS_KEY_VALUE = 'Must pass key and value';
     public const FLOW_DATA_PROCESSED = 'FlowData already processed';
+
+    /**
+     * Thrown when a property of a Pipeline other than a setting, such as
+     * flowElements, is set. This takes the name of the property as a format
+     * argument.
+     */
+    public const PIPELINE_IMMUTABLE = "A Pipeline cannot be changed once it is built, so '%s' cannot be set. Build a new Pipeline with the FlowElements it needs instead.";
+
+    /**
+     * Thrown when a setting of a Pipeline, such as logger, is set. This
+     * takes the name of the setting as a format argument.
+     */
+    public const PIPELINE_SETTING_IMMUTABLE = "A Pipeline cannot be changed once it is built, so '%s' cannot be set. Give it in the settings when the Pipeline is built instead.";
+
+    /**
+     * Thrown when a Pipeline has no element with the key asked for. This
+     * takes the key, then the Data Keys of the Pipeline's elements.
+     */
+    public const NO_ELEMENT = "There is no element for '%s' in this Pipeline. Available element keys are: '%s'";
 
     /**
      * A client-side response was asked for with a FlowData that has been
@@ -74,4 +99,11 @@ class Messages
      * and property names as format arguments.
      */
     public const PROPERTY_NOT_FOUND = "Property '%s' is not present in the FlowData against '%s' ElementData. ";
+
+    /**
+     * A typed getter was asked for a Property whose value is not a single
+     * value, such as a list. This takes the property name, then the type
+     * asked for, as format arguments.
+     */
+    public const PROPERTY_NOT_SCALAR = "The value of property '%s' is not a single value, so it cannot be read as %s.";
 }

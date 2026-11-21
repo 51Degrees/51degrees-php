@@ -45,14 +45,14 @@ class SwigHelpers
     }
 
     /**
-     * Helper to convert a PHP array of strings to a SWIG VectorStringSwig.
+     * Helper to convert a PHP array of strings to a SWIG vector of strings.
      *
      * @param array<string> $array
-     * @return \VectorStringSwig
+     * @return \FiftyOneDegreesIpiVectorStringSwig
      */
     public static function arrayToVector($array)
     {
-        $vector = new \VectorStringSwig();
+        $vector = new \FiftyOneDegreesIpiVectorStringSwig();
 
         foreach ($array as $item) {
             $vector->push($item);

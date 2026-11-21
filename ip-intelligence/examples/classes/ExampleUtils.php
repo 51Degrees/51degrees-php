@@ -39,6 +39,59 @@ class ExampleUtils
     // engine from when PHP starts.
     public const DATA_FILE_SETTING = 'FiftyOneDegreesIpIntelligenceEngine.data_file';
 
+    // The Device Detection on-premise engine, which the mixed examples use
+    // with this package's engine.
+    public const DEVICE_DETECTION_ONPREMISE_CLASS =
+        'fiftyone\\pipeline\\devicedetection\\DeviceDetectionOnPremise';
+
+    // Where the Device Detection on-premise package's classes are in the
+    // 51degrees-php repository, beside this package.
+    private const DEVICE_DETECTION_ONPREMISE_SOURCE =
+        __DIR__ . '/../../../device-detection/onpremise/src';
+
+    // The Device Detection extension, which the mixed examples load with
+    // this package's, and the php.ini setting naming the data file it builds
+    // its engine from when PHP starts.
+    public const DD_EXTENSION = 'FiftyOneDegreesHashEngine';
+    public const DD_DATA_FILE_SETTING = 'FiftyOneDegreesHashEngine.data_file';
+
+    // Where the data repository keeps the free Device Detection data files.
+    private const DD_DATA = __DIR__ . '/../../../cxx/data/device-detection';
+
+    /**
+     * True when the Device Detection on-premise package's classes can be
+     * loaded. This package does not depend on that package, so when it is
+     * not installed, its classes are loaded from the repository this package
+     * is in, where it sits beside this one.
+     */
+    public static function findDeviceDetectionOnPremise(): bool
+    {
+        if (class_exists(self::DEVICE_DETECTION_ONPREMISE_CLASS)) {
+            return true;
+        }
+        $source = realpath(self::DEVICE_DETECTION_ONPREMISE_SOURCE);
+        if ($source === false) {
+            return false;
+        }
+
+        $prefix = 'fiftyone\\pipeline\\devicedetection\\';
+        spl_autoload_register(
+            static function (string $class) use ($prefix, $source): void {
+                if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
+                    return;
+                }
+                $file = $source . '/' .
+                    str_replace('\\', '/', substr($class, strlen($prefix))) .
+                    '.php';
+                if (is_file($file)) {
+                    require $file;
+                }
+            }
+        );
+
+        return class_exists(self::DEVICE_DETECTION_ONPREMISE_CLASS);
+    }
+
     /**
      * Returns when the extension built its engine when PHP started, which is
      * the engine every on-premise example uses. Otherwise runs the example
@@ -59,14 +112,53 @@ class ExampleUtils
         array $argv,
         string $freeFile = ExampleConstants::LITE_DATA_FILE_NAME
     ): void {
+        self::start($argv, $freeFile, false);
+    }
+
+    /**
+     * As startWithEngine, for an example that uses the Device Detection
+     * engine as well. Each engine PHP built when it started is used. When
+     * either is missing, the example runs again in a new PHP started with a
+     * data file for each missing engine, the Device Detection one being the
+     * file getDeviceDetectionDataFile finds, so that the example runs with
+     * nothing set.
+     *
+     * @param array<string> $argv The script's arguments, its own name first
+     */
+    public static function startWithBothEngines(array $argv): void
+    {
+        self::start($argv, ExampleConstants::LITE_DATA_FILE_NAME, true);
+    }
+
+    /**
+     * Returns when PHP built every engine the example uses when it started.
+     * Otherwise runs the example again in a new PHP started with a data file
+     * for each engine that is missing, and exits with that PHP's status.
+     *
+     * @param array<string> $argv The script's arguments, its own name first
+     * @param string $freeFile The free IP Intelligence file to download when
+     * none is found
+     * @param bool $deviceDetection Whether the example uses the Device
+     * Detection engine as well
+     */
+    private static function start(
+        array $argv,
+        string $freeFile,
+        bool $deviceDetection
+    ): void {
         if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
             self::writeError(
                 'The FiftyOneDegreesIpIntelligenceEngine extension is not ' .
                 'loaded. OnPremise.md says how to build and enable it.'
             );
+            self::printFindOutMore(self::exampleFile());
             exit(1);
         }
 
+        // The engines PHP did not build, and the data file to build each
+        // from, by the php.ini setting that names it.
+        $engines = [];
+        $settings = [];
         $args = array_slice($argv, 1);
         $configured = (string) ini_get(self::DATA_FILE_SETTING);
         if (function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {
@@ -76,49 +168,117 @@ class ExampleUtils
                     "This example uses the engine PHP built when it started " .
                     "from {$configured}, which php.ini names. To use " .
                     "{$named} instead, run\n" .
-                    self::startCommand($named, $argv)
+                    self::startCommand([self::DATA_FILE_SETTING => $named], $argv)
                 );
             }
-
+        } else {
+            $path = self::getDataFile($args, $freeFile);
+            if ($path === null) {
+                self::writeError(
+                    'No IP intelligence engine was built when PHP started and ' .
+                    'no data file was found. Set ' . self::DATA_FILE_SETTING .
+                    ' in php.ini to the path of an .ipi data file.'
+                );
+                self::printFindOutMore(self::exampleFile());
+                exit(1);
+            }
+            if ($configured !== '' && realpath($configured) === realpath($path)) {
+                // This PHP was started with the data file and built no engine
+                // from it, so a new one would do the same.
+                self::writeError(
+                    "No IP intelligence engine was built from {$path}, which " .
+                    self::DATA_FILE_SETTING . ' names.'
+                );
+                self::printFindOutMore(self::exampleFile());
+                exit(1);
+            }
+            $engines[] = 'IP intelligence';
+            $settings[self::DATA_FILE_SETTING] = $path;
+        }
+        if ($deviceDetection) {
+            $path = self::getDeviceDetectionDataFile();
+            if ($path !== null) {
+                $engines[] = 'device detection';
+                $settings[self::DD_DATA_FILE_SETTING] = $path;
+            }
+        }
+        if ($settings === []) {
             return;
         }
 
-        $path = self::getDataFile($args, $freeFile);
-        if ($path === null) {
-            self::writeError(
-                'No IP intelligence engine was built when PHP started and ' .
-                'no data file was found. Set ' . self::DATA_FILE_SETTING .
-                ' in php.ini to the path of an .ipi data file.'
-            );
-            exit(1);
-        }
-        if ($configured !== '' && realpath($configured) === realpath($path)) {
-            // This PHP was started with the data file and built no engine
-            // from it, so a new one would do the same.
-            self::writeError(
-                "No IP intelligence engine was built from {$path}, which " .
-                self::DATA_FILE_SETTING . ' names.'
-            );
-            exit(1);
-        }
-
-        $command = self::startCommand($path, $argv);
+        $missing = implode(' or ', $engines);
+        $command = self::startCommand($settings, $argv);
         if (!function_exists('passthru')) {
+            $set = [];
+            foreach ($settings as $setting => $path) {
+                $set[] = "{$setting} in php.ini to {$path}";
+            }
             self::writeError(
-                'No IP intelligence engine was built when PHP started. Set ' .
-                self::DATA_FILE_SETTING . " in php.ini to {$path}, or run\n" .
-                $command
+                "No {$missing} engine was built when PHP started. Set " .
+                implode(' and ', $set) . ", or run\n{$command}"
             );
+            self::printFindOutMore(self::exampleFile());
             exit(1);
         }
+        $one = count($settings) === 1;
         self::writeError(
-            'No IP intelligence engine was built when PHP started, so the ' .
-            "example runs again in a PHP that builds one from {$path}. Set " .
-            self::DATA_FILE_SETTING . ' in php.ini, so that PHP builds the ' .
-            "engine once when it starts.\n{$command}"
+            "No {$missing} engine was built when PHP started, so the " .
+            'example runs again in a PHP that builds ' .
+            ($one ? 'one' : 'them') . ' from ' . implode(' and ', $settings) .
+            '. Set ' . implode(' and ', array_keys($settings)) . ' in ' .
+            'php.ini, so that PHP builds the ' . ($one ? 'engine' : 'engines') .
+            " once when it starts.\n{$command}"
         );
         passthru($command, $status);
         exit($status);
+    }
+
+    /**
+     * The Device Detection data file to start a new PHP with, so that its
+     * Device Detection extension builds the engine the mixed examples use,
+     * or null when this PHP built that engine when it started. The file is
+     * the one the _51DEGREES_DD_PATH environment variable names, or else the
+     * free Lite file in cxx/data/device-detection, downloaded when it is
+     * missing. Exits with 1 and a message on standard error when the
+     * extension is not loaded, when there is no data file, or when this PHP
+     * was started with that file and built no engine from it, as a new PHP
+     * would do the same.
+     */
+    public static function getDeviceDetectionDataFile(): ?string
+    {
+        if (!extension_loaded(self::DD_EXTENSION)) {
+            self::writeError(
+                'The ' . self::DD_EXTENSION . ' extension is not loaded. The ' .
+                'Device Detection on-premise readme says how to build it.'
+            );
+            self::printFindOutMore(self::exampleFile());
+            exit(1);
+        }
+        if (\FiftyOneDegreesHashEngine::engine_get() !== null) {
+            return null;
+        }
+
+        $named = (string) getenv(ExampleConstants::DD_PATH_VARIABLE);
+        $path = $named !== ''
+            ? $named
+            : self::DD_DATA . '/' . ExampleConstants::DD_LITE_DATA_FILE_NAME;
+        if (!self::downloadMissingDataFile($path)) {
+            self::writeError("There is no Device Detection data file at {$path}.");
+            self::printFindOutMore(self::exampleFile());
+            exit(1);
+        }
+        $path = (string) realpath($path);
+        $configured = (string) ini_get(self::DD_DATA_FILE_SETTING);
+        if ($configured !== '' && realpath($configured) === $path) {
+            self::writeError(
+                "No device detection engine was built from {$path}, which " .
+                self::DD_DATA_FILE_SETTING . ' names.'
+            );
+            self::printFindOutMore(self::exampleFile());
+            exit(1);
+        }
+
+        return $path;
     }
 
     /**
@@ -133,23 +293,24 @@ class ExampleUtils
             return $args[0];
         }
         $env = EnvironmentVariable::read(
-            ExampleConstants::IPI_PATH_VARIABLE,
-            ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            ExampleConstants::IPI_PATH_VARIABLE
         );
 
         return $env !== '' && file_exists($env) ? $env : null;
     }
 
     /**
-     * The command that runs the script again with PHP building its engine
-     * from the data file when it starts. Where the system gives PHP's own
-     * command line, its options, such as one loading the extension, are
-     * kept, and the data file setting goes after them, just before the
-     * script, so that it replaces any setting of the same name.
+     * The command that runs the script again with PHP building its engines
+     * from the data files when it starts. Where the system gives PHP's own
+     * command line, its options, such as one loading an extension, are kept,
+     * and the data file settings go after them, just before the script, so
+     * that each replaces any setting of the same name.
      *
+     * @param array<string, string> $settings Each data file, by the php.ini
+     * setting that names it
      * @param array<string> $argv The script's arguments, its own name first
      */
-    private static function startCommand(string $path, array $argv): string
+    private static function startCommand(array $settings, array $argv): string
     {
         $parts = array_merge([PHP_BINARY], $argv);
         $script = 1;
@@ -166,10 +327,12 @@ class ExampleUtils
         }
 
         $quoted = array_map('escapeshellarg', $parts);
-        array_splice($quoted, $script, 0, [
-            '-d',
-            escapeshellarg(self::DATA_FILE_SETTING . '=' . $path)
-        ]);
+        $options = [];
+        foreach ($settings as $setting => $path) {
+            $options[] = '-d';
+            $options[] = escapeshellarg("{$setting}={$path}");
+        }
+        array_splice($quoted, $script, 0, $options);
 
         return implode(' ', $quoted);
     }
@@ -188,7 +351,6 @@ class ExampleUtils
 
         $key = EnvironmentVariable::read(
             ExampleConstants::RESOURCE_KEY_VARIABLE,
-            ExampleConstants::CLOUD_RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
 
@@ -214,8 +376,7 @@ class ExampleUtils
         }
 
         $env = EnvironmentVariable::read(
-            ExampleConstants::IPI_PATH_VARIABLE,
-            ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            ExampleConstants::IPI_PATH_VARIABLE
         );
         if ($env && file_exists($env)) {
             return $env;
@@ -514,6 +675,115 @@ class ExampleUtils
         }
     }
 
+    // The repositories every example lists under "Find out more".
+    private const FIND_OUT_MORE_REPOSITORIES = [
+        'This example' =>
+            'https://github.com/51Degrees/51degrees-php/tree/main/ip-intelligence',
+        'The IP intelligence engine' => 'https://github.com/51Degrees/51degrees-cxx',
+        'The free data files' => 'https://github.com/51Degrees/data'
+    ];
+
+    // The 51degrees.com pages every example lists under "Find out more",
+    // each with the utm_term its link carries.
+    private const FIND_OUT_MORE_PAGES = [
+        'IP intelligence' => ['ip-intelligence', 'find-out-more-ip-intelligence'],
+        'Device detection' => ['device-detection', 'find-out-more-device-detection'],
+        'Resource keys for the cloud service' => [
+            'documentation/_services__cloud__resource_keys.html',
+            'find-out-more-resource-keys'
+        ],
+        'Data files and pricing' => ['pricing', 'find-out-more-pricing'],
+        'Contact us' => ['contact-us', 'find-out-more-contact']
+    ];
+
+    /**
+     * A link to a page on 51degrees.com, tagged as printed by an example so
+     * that a visit can be traced to the example that prompted it.
+     *
+     * @param string $page The page's path, such as contact-us
+     * @param string $exampleFile The example's file, __FILE__
+     * @param string $term Where in the example the link is
+     */
+    public static function getTaggedLink(
+        string $page,
+        string $exampleFile,
+        string $term
+    ): string {
+        return 'https://51degrees.com/' .
+            "{$page}?utm_source=code&utm_medium=example" .
+            '&utm_campaign=51degrees-php&utm_content=' .
+            self::getContentSlug($exampleFile) . "&utm_term={$term}";
+    }
+
+    /**
+     * The "Find out more" section every example ends with, as text, giving
+     * the person running it the links to follow up.
+     *
+     * @param string $exampleFile The example's file, __FILE__
+     */
+    public static function getFindOutMore(string $exampleFile): string
+    {
+        $lines = ['', 'Find out more', '-------------'];
+        foreach (self::FIND_OUT_MORE_REPOSITORIES as $label => $url) {
+            $lines[] = "{$label}: {$url}";
+        }
+        foreach (self::FIND_OUT_MORE_PAGES as $label => [$page, $term]) {
+            $lines[] = "{$label}: " .
+                self::getTaggedLink($page, $exampleFile, $term);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * The "Find out more" section for the end of a web page.
+     *
+     * @param string $exampleFile The page's file, __FILE__
+     */
+    public static function getFindOutMoreHtml(string $exampleFile): string
+    {
+        $items = '';
+        foreach (self::FIND_OUT_MORE_REPOSITORIES as $label => $url) {
+            $url = htmlspecialchars($url);
+            $items .= "        <li>{$label}: <a href=\"{$url}\">{$url}</a></li>\n";
+        }
+        foreach (self::FIND_OUT_MORE_PAGES as $label => [$page, $term]) {
+            $url = htmlspecialchars(
+                self::getTaggedLink($page, $exampleFile, $term)
+            );
+            $items .= "        <li><a href=\"{$url}\">{$label}</a></li>\n";
+        }
+
+        return "<div id=\"find-out-more\">\n" .
+            "    <h3 class=\"c-eg-page__heading\">Find out more</h3>\n" .
+            "    <ul>\n{$items}    </ul>\n</div>\n";
+    }
+
+    /**
+     * The example's own file, which is the script PHP was started with, so
+     * that a message written before the example can run carries the links
+     * for that example.
+     */
+    private static function exampleFile(): string
+    {
+        $file = isset($_SERVER['SCRIPT_FILENAME'])
+            ? (string) $_SERVER['SCRIPT_FILENAME']
+            : '';
+
+        return $file === '' ? __FILE__ : $file;
+    }
+
+    /**
+     * Writes the "Find out more" section to standard output, which a
+     * console example ends with.
+     *
+     * @param string $exampleFile The example's file, __FILE__
+     */
+    public static function printFindOutMore(string $exampleFile): void
+    {
+        fwrite(STDOUT, self::getFindOutMore($exampleFile) . "\n");
+    }
+
     /**
      * Write a message to standard error. A web example's server shows it in
      * its console, and it never reaches the page.
@@ -521,5 +791,21 @@ class ExampleUtils
     private static function writeError(string $message): void
     {
         file_put_contents('php://stderr', $message . "\n");
+    }
+
+    /**
+     * The example's path from the package's folder, in lower case with a
+     * hyphen for each folder separator, such as
+     * examples-onpremise-gettingstarted-console.php.
+     *
+     * @param string $exampleFile The example's file
+     */
+    private static function getContentSlug(string $exampleFile): string
+    {
+        $path = str_replace('\\', '/', $exampleFile);
+        $at = strrpos($path, '/examples/');
+        $path = $at === false ? basename($path) : substr($path, $at + 1);
+
+        return strtolower(str_replace('/', '-', $path));
     }
 }

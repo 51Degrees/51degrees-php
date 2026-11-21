@@ -34,8 +34,8 @@
  *
  */
 
-// Uncomment the line below when running the example as a standalone script
-// require_once __DIR__ . '/../vendor/autoload.php';
+// The package's autoloader, which composer install writes.
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use fiftyone\pipeline\core\BasicListEvidenceKeyFilter;
 use fiftyone\pipeline\core\ElementDataDictionary;
@@ -170,6 +170,10 @@ $Pipeline = (new PipelineBuilder(['javascriptBuilderSettings' => $javascriptBuil
     ->add(new AstrologyFlowElement())
     ->build();
 
+// A Flow Data is for this one request. PHP runs each request on one
+// thread, so nothing else uses it at the same time. A Flow Data
+// must not be used by two threads at once, so never keep one for
+// another request or hand it to another thread.
 $flowData = $Pipeline->createFlowData();
 
 // Add any information from the request (headers, cookies and additional
@@ -238,6 +242,19 @@ $output .= 'loadHemisphere = function() {
             })};';
 
 $output .= '</script>';
+
+// Find out more, the links for the person running this example to follow
+// up.
+$output .= '<div id="find-out-more"><h3>Find out more</h3><ul>';
+$output .= '<li>This example: <a href="https://github.com/51Degrees/51degrees-php/tree/main/pipeline/core">https://github.com/51Degrees/51degrees-php/tree/main/pipeline/core</a></li>';
+$output .= '<li>The Pipeline API specification: <a href="https://github.com/51Degrees/specifications/tree/main/pipeline-specification">https://github.com/51Degrees/specifications/tree/main/pipeline-specification</a></li>';
+$output .= '<li><a href="' . htmlspecialchars(
+    'https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-customflowelement.php&utm_term=find-out-more-pipeline-api'
+) . '">The Pipeline API</a></li>';
+$output .= '<li><a href="' . htmlspecialchars(
+    'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-customflowelement.php&utm_term=find-out-more-contact'
+) . '">Contact us</a></li>';
+$output .= '</ul></div>';
 
 // Return the full output to the page
 echo $output;

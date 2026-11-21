@@ -31,6 +31,9 @@
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 
+// The package's autoloader, which composer install writes.
+require_once __DIR__ . '/../vendor/autoload.php';
+
 // Require some FlowElements to use in this example
 require __DIR__ . '/FlowElementsForExamples.php';
 
@@ -68,6 +71,10 @@ $pipeline = (new PipelineBuilder())
 
 // We create FlowData which we will add evidence to
 
+// A Flow Data is for this one request. PHP runs each request on one
+// thread, so nothing else uses it at the same time. A Flow Data
+// must not be used by two threads at once, so never keep one for
+// another request or hand it to another thread.
 $flowData = $pipeline->createFlowData();
 
 $flowData->evidence->set('header.user-agent', 'test');
@@ -87,3 +94,20 @@ $flowData->getWhere('type', 'int');
 
 // Get from an element by its object
 $flowData->getFromElement($fe1)->exampleProperty1;
+
+// Find out more, the links for the person running this example to follow
+// up.
+$findOutMore = [
+    'This example' =>
+        'https://github.com/51Degrees/51degrees-php/tree/main/pipeline/core',
+    'The Pipeline API specification' =>
+        'https://github.com/51Degrees/specifications/tree/main/pipeline-specification',
+    'The Pipeline API' =>
+        'https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-pipeline.php&utm_term=find-out-more-pipeline-api',
+    'Contact us' =>
+        'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-pipeline.php&utm_term=find-out-more-contact'
+];
+echo "\nFind out more\n-------------\n";
+foreach ($findOutMore as $label => $url) {
+    echo "{$label}: {$url}\n";
+}

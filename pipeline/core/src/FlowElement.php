@@ -31,6 +31,8 @@ namespace fiftyone\pipeline\core;
  * It uses this to optionally create ElementData on the FlowData
  * It has a unique dataKey which is used to extract data from the FlowData
  * Any errors in processing are caught in the FlowData's errors object.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#flow-element
  */
 class FlowElement
 {
@@ -47,6 +49,15 @@ class FlowElement
      * @var array<\fiftyone\pipeline\core\Pipeline>
      */
     public array $pipelines = [];
+
+    /**
+     * Data Keys the element had before. Pipeline::getElement and
+     * FlowData::get still answer to each, logging once that it is
+     * deprecated, so code that names an old key keeps working.
+     *
+     * @var array<string>
+     */
+    public array $deprecatedDataKeys = [];
 
     /**
      * A default dummy constructor is needed for there are classes inheriting this

@@ -1,11 +1,26 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [hashtable]$Keys = @{}
+    [hashtable]$Keys = @{},
+    # False, from select-options.ps1, on every entry of a pull request but
+    # one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot/packages.ps1"
+
+# A browser's first start on a fresh runner is many times slower than the
+# starts after it, so Chrome and Firefox are started here, before the packages'
+# Selenium contract tests, rather than inside their first tests. The tests still
+# run when they cannot be started. An entry that skips the contract starts none.
+if ($SeleniumContract) {
+    try {
+        & "$PSScriptRoot/start-browsers-once.ps1"
+    } catch {
+        Write-Host "::warning title=Browsers not started::$_"
+    }
+}
 
 # The device-detection/cloud script runs composer install in its package for
 # the Selenium contract tests. Without composer.ci.json that install takes the
@@ -14,5 +29,11 @@ $ErrorActionPreference = 'Stop'
 Write-CheckoutComposer -RepoName $RepoName -Package 'device-detection/cloud' `
     -Pipeline 'core', 'engines', 'cloudrequestengine'
 
-Invoke-PackageScript -RepoName $RepoName -Script run-integration-tests -Parameters @{ Keys = $Keys } `
-    -Environment @{ 'device-detection/cloud' = @{ COMPOSER = 'composer.ci.json' } }
+Invoke-PackageScript -RepoName $RepoName -Script run-integration-tests -Parameters @{
+    Keys = $Keys
+    SeleniumContract = $SeleniumContract
+} -Environment @{ 'device-detection/cloud' = @{ COMPOSER = 'composer.ci.json' } }
+
+# Every package's unit and integration tests have run by now, so this finds a
+# free data file that any of them downloaded rather than took from the cache.
+& "$PSScriptRoot/check-no-data-file-downloads.ps1" -RepoName $RepoName

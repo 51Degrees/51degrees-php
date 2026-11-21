@@ -2,7 +2,10 @@ param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
     [Parameter(Mandatory=$true)]
-    [hashtable]$Keys
+    [hashtable]$Keys,
+    # False, from select-options.ps1, on every entry of a pull request but
+    # one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 
 if (!$Keys.TestResourceKey) {
@@ -23,6 +26,11 @@ $env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_NONE = $Keys.TestResourceKey
 
 ./php/run-integration-tests.ps1 -RepoName $RepoName
 $status = $LASTEXITCODE
+
+if (-not $SeleniumContract) {
+    Write-Host "Another entry runs the Selenium contract tests for this pull request."
+    exit $status
+}
 
 Write-Host 'Running Selenium tests...'
 try {
@@ -57,7 +65,8 @@ try {
     $env:PAID_RESOURCE_KEY = $Keys.TestResourceKey
     $env:EXAMPLE_URL = "http://localhost:$env:PORT"
     $env:EXAMPLE_LANG = 'php'
-    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract
+    # Normal verbosity prints each test's time, passed or failed.
+    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"
 } catch {
     if ($example) { Write-Host '>>> example app output >>>'; Receive-Job $example | Out-Host; Write-Host '<<< app output <<<' }
     throw

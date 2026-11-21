@@ -32,23 +32,26 @@ namespace fiftyone\pipeline\core;
  * JavaScriptBuilder itself to pass properties to the client side.
  * Both this and the JavaScriptBuilder element are automatically
  * added to a Pipeline unless specifically omitted in the PipelineBuilder.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/json-builder.md
  */
 class JsonBundlerElement extends FlowElement
 {
     /**
-     * The nullreason of a Property assigned no value without a message.
-     */
-    private const NO_VALUE_MESSAGE = 'This instance does not have a set value';
-
-    /**
      * The Data Keys of the elements whose data is left out of the JSON,
      * being this element, the JavaScript builder, the Set Headers Element
      * and the Cloud Request Engine, whose data is the cloud service's raw
-     * response.
+     * response, under its Data Key and cloud, the key it had before.
      */
     private const EXCLUDED_DATA_KEYS = [
-        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud'
+        'jsonbundler', 'javascriptbuilder', 'set-headers', 'cloud-response', 'cloud'
     ];
+
+    /**
+     * The Property types, in lower case, whose values are shapes in
+     * well-known text (WKT).
+     */
+    private const WKT_TYPES = ['wkt', 'wktstring', 'wkb', 'wkbr'];
 
     public string $dataKey = 'jsonbundler';
 
@@ -59,14 +62,28 @@ class JsonBundlerElement extends FlowElement
     private const MAX_SEQUENCE_WITH_JAVASCRIPT = 10;
 
     /**
+     * The JSON the element writes, as the array the JSON endpoint encodes.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'json' => ['name' => 'json', 'type' => 'array'],
+    ];
+
+    /**
      * @var array<string, mixed>
      */
     public array $json;
 
     /**
-     * @var array<string, mixed>
+     * What the JSON needs from the Property metadata of the elements of each
+     * Pipeline the bundler is in, worked out for each Pipeline, because an
+     * element can be in Pipelines with different elements. Each is kept with
+     * the Pipeline's count of property list updates when it was worked out,
+     * and is worked out again when an element of that Pipeline has updated
+     * its list since.
      */
-    private array $propertyCache = [];
+    private ?\SplObjectStorage $propertyCaches = null;
 
     /**
      * The JSONBundler accepts no Evidence. It reads the Element Data of the
@@ -97,6 +114,26 @@ class JsonBundlerElement extends FlowElement
     }
 
     /**
+     * Whether a value is a shape in well-known text, being a string whose
+     * Property type is one of WKT_TYPES. The JSON holds such a value as an
+     * object with one member, value, holding the text.
+     *
+     * @param mixed $property The Property's metadata
+     * @param mixed $value
+     */
+    private static function isWkt($property, $value): bool
+    {
+        if (!is_string($value) || !is_array($property)) {
+            return false;
+        }
+
+        $type = $property['type'] ?? $property['Type'] ?? null;
+
+        return is_string($type) &&
+            in_array(strtolower($type), self::WKT_TYPES, true);
+    }
+
+    /**
      * The JSONBundler extracts all properties from a FlowData and serializes them into JSON.
      */
     public function processInternal(FlowData $flowData): void
@@ -112,12 +149,14 @@ class JsonBundlerElement extends FlowElement
             'javascriptProperties' => []
         ];
 
-        if (count($this->propertyCache)) {
-            $propertyCacheSet = true;
-        } else {
-            $propertyCacheSet = false;
-            $this->propertyCache = [];
-        }
+        // The cache of a Pipeline with an element that has updated its
+        // property list since the cache was made is made again.
+        $this->propertyCaches = $this->propertyCaches ?? new \SplObjectStorage();
+        $pipeline = $flowData->pipeline;
+        $updates = $pipeline->getPropertyListUpdates();
+        $propertyCacheSet = isset($this->propertyCaches[$pipeline])
+            && $this->propertyCaches[$pipeline]['updates'] === $updates;
+        $pipelineCache = $propertyCacheSet ? $this->propertyCaches[$pipeline]['elements'] : [];
 
         foreach ($flowData->pipeline->flowElements as $flowElement) {
             if (in_array($flowElement->dataKey, self::EXCLUDED_DATA_KEYS, true)) {
@@ -161,18 +200,20 @@ class JsonBundlerElement extends FlowElement
                     }
                 }
 
-                $this->propertyCache[$flowElement->dataKey] = [
+                $pipelineCache[$flowElement->dataKey] = [
                     'delayExecutionList' => $delayExecutionList,
                     'evidenceProperties' => $delayedEvidenceProperties
                 ];
             }
 
-            $propertyCache = $this->propertyCache[$flowElement->dataKey];
+            $propertyCache = $pipelineCache[$flowElement->dataKey];
 
             // Create empty area for FlowElement properties to go. Every key in
             // the JSON is lower case.
             $dataKey = strtolower($flowElement->dataKey);
-            $output[$dataKey] = [];
+            // Elements that share a Data Key, as Translation Engines can,
+            // populate one Element Data, which has one entry.
+            $output[$dataKey] = $output[$dataKey] ?? [];
 
             foreach ($properties as $propertyKey => $property) {
                 $value = null;
@@ -195,7 +236,7 @@ class JsonBundlerElement extends FlowElement
                         } else {
                             $nullReason = !empty($valueContainer->noValueMessage)
                                 ? $valueContainer->noValueMessage
-                                : self::NO_VALUE_MESSAGE;
+                                : AspectPropertyValue::NO_VALUE_MESSAGE;
                         }
                     } else {
                         // Standard value
@@ -206,6 +247,12 @@ class JsonBundlerElement extends FlowElement
                     continue;
                 }
 
+                // Each item of a list of Element Data, such as the hardware
+                // profiles, is written by the same rules as a Property.
+                if (self::isElementDataList($value)) {
+                    $value = self::listJson($value);
+                }
+
                 // A Property assigned no value is written as null with its
                 // reason. Any other null, such as a plain null from an
                 // element that is not an Engine, has no entry. Only a Property
@@ -214,7 +261,9 @@ class JsonBundlerElement extends FlowElement
                     $output[$dataKey][strtolower($propertyKey)] = null;
                     $output[$dataKey][strtolower($propertyKey) . 'nullreason'] = $nullReason;
                 } elseif ($value !== null) {
-                    $output[$dataKey][strtolower($propertyKey)] = $value;
+                    $output[$dataKey][strtolower($propertyKey)] = self::isWkt($property, $value)
+                        ? ['value' => $value]
+                        : $value;
                     if (in_array($propertyKey, $propertyCache['delayExecutionList'])) {
                         $output[$dataKey][strtolower($propertyKey) . 'delayexecution'] = true;
                     }
@@ -234,8 +283,117 @@ class JsonBundlerElement extends FlowElement
             }
         }
 
+        if (!$propertyCacheSet) {
+            $this->propertyCaches[$pipeline] = [
+                'updates' => $updates,
+                'elements' => $pipelineCache
+            ];
+        }
+
         $data = new ElementDataDictionary($this, ['json' => $output]);
 
         $flowData->setElementData($data);
+    }
+
+    /**
+     * Whether a value is a list of Element Data, being a list whose items
+     * are each Element Data or an array keyed by Property name, as the
+     * hardware profiles are, with at least one Property among them. A list
+     * of plain values, such as a list of names, is not.
+     *
+     * @param mixed $value
+     */
+    private static function isElementDataList($value): bool
+    {
+        if (!is_array($value) || $value === [] ||
+            array_keys($value) !== range(0, count($value) - 1)) {
+            return false;
+        }
+
+        $hasProperty = false;
+        foreach ($value as $item) {
+            if ($item instanceof ElementData) {
+                $hasProperty = true;
+                continue;
+            }
+
+            if (!is_array($item)) {
+                return false;
+            }
+
+            foreach (array_keys($item) as $name) {
+                if (!is_string($name)) {
+                    return false;
+                }
+
+                $hasProperty = true;
+            }
+        }
+
+        return $hasProperty;
+    }
+
+    /**
+     * Each item of a list of Element Data as a JSON object.
+     *
+     * @param array<int, ElementData|array<string, mixed>> $items
+     * @return array<int, array<string, mixed>|\stdClass>
+     */
+    private static function listJson(array $items): array
+    {
+        $json = [];
+        foreach ($items as $item) {
+            $json[] = self::itemJson($item);
+        }
+
+        return $json;
+    }
+
+    /**
+     * One item of a list of Element Data, written by the rules for a
+     * Property. A Property assigned no value is null with its nullreason, a
+     * null has no entry, and every name is lower case. An item with nothing
+     * to write is an empty object, so that it is still an object in the
+     * JSON.
+     *
+     * @param ElementData|array<string, mixed> $item
+     * @return array<string, mixed>|\stdClass
+     */
+    private static function itemJson($item)
+    {
+        $properties = $item instanceof ElementData
+            ? $item->asDictionary()
+            : $item;
+        $json = [];
+
+        foreach ($properties as $name => $property) {
+            $name = strtolower((string) $name);
+            $value = $property;
+
+            if (is_object($property) && property_exists($property, 'hasValue')) {
+                if (!$property->hasValue) {
+                    $json[$name] = null;
+                    $json[$name . 'nullreason'] = !empty($property->noValueMessage)
+                        ? $property->noValueMessage
+                        : AspectPropertyValue::NO_VALUE_MESSAGE;
+
+                    continue;
+                }
+
+                $value = $property->value;
+            }
+
+            if ($value === null) {
+                continue;
+            }
+
+            if (self::isElementDataList($value)) {
+                $value = self::listJson($value);
+            }
+
+            $json[$name] = $value;
+        }
+
+        return $json === [] ? new \stdClass() : $json;
     }
 }

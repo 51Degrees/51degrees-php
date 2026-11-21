@@ -58,14 +58,26 @@ class StubSwigResult
     private array $requiredProperties;
 
     /**
+     * The matched User-Agent of each result, in result order.
+     *
+     * @var array<string>
+     */
+    private array $userAgents;
+
+    /**
      * @param array<string, StubSwigValue> $values keyed by property name
      * @param null|array<string> $requiredProperties build-time names in index
      *   order, defaulting to the value keys
+     * @param array<string> $userAgents the matched User-Agent of each result
      */
-    public function __construct(array $values, ?array $requiredProperties = null)
-    {
+    public function __construct(
+        array $values,
+        ?array $requiredProperties = null,
+        array $userAgents = []
+    ) {
         $this->values = $values;
         $this->requiredProperties = $requiredProperties ?? array_keys($values);
+        $this->userAgents = $userAgents;
     }
 
     /**
@@ -147,7 +159,12 @@ class StubSwigResult
 
     public function getUserAgents(): int
     {
-        return 0;
+        return count($this->userAgents);
+    }
+
+    public function getUserAgent(int $resultIndex): string
+    {
+        return $this->userAgents[$resultIndex] ?? '';
     }
 
     /**

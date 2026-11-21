@@ -1,20 +1,41 @@
 <phpunit bootstrap="vendor/autoload.php">
   <testsuites>
+    <!-- Timed, so run only by ci/run-performance-tests.ps1. -->
+    <testsuite name="Performance">
+      <file>tests/JavaScriptBuilderPerformanceTests.php</file>
+    </testsuite>
     <testsuite name="Unit">
       <file>tests/CoreTests.php</file>
+      <file>tests/MultiPipelineElementTests.php</file>
+      <file>tests/PipelineImmutableTests.php</file>
+      <file>tests/ElementKeyTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/JavaScriptBundlerTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyChoicesTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyOnceTests.php</file>
+      <file>tests/JsonBundlerListTests.php</file>
       <file>tests/JavaScriptBuilderParametersTests.php</file>
       <file>tests/JavaScriptBuilderObjectNameTests.php</file>
       <file>tests/JavaScriptBuilderSequenceTests.php</file>
       <file>tests/CallbackUrlTests.php</file>
+      <file>tests/JsonBundlerWktTests.php</file>
       <file>tests/EnableCookiesTests.php</file>
       <file>tests/FlowDataTests.php</file>
+      <file>tests/ElementDataListTests.php</file>
+      <file>tests/FlowDataErrorsTests.php</file>
+      <file>tests/DeprecatedDataKeyTests.php</file>
       <file>tests/CloseTests.php</file>
       <file>tests/PropertyDatabaseTests.php</file>
+      <file>tests/ConfigurationFileTests.php</file>
+      <file>tests/ElementContractTests.php</file>
+      <file>tests/FileSystemPathTests.php</file>
+      <file>tests/FlowDataAccessorTests.php</file>
+      <file>tests/WebIntegrationFailureTests.php</file>
 	    <file>tests/SetHeaderTests.php</file>
       <file>tests/EvidenceFromWebRequestTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>
+      <file>tests/PipelineEvidenceKeyFilterTests.php</file>
       <file>tests/WebIntegrationElementsTests.php</file>
       <file>tests/ClientSideResponseTests.php</file>
       <file>tests/JsonBundlerSequenceTests.php</file>
@@ -22,6 +43,16 @@
       <file>tests/JsonBundlerKeysTests.php</file>
       <file>tests/LicenseKeyTests.php</file>
       <file>tests/JsonBundlerNullTests.php</file>
+      <file>tests/RequestLineEvidenceTests.php</file>
+      <file>tests/RequestLineDecisionTests.php</file>
+      <file>tests/AspectPropertyValueTests.php</file>
+      <file>tests/LoggerTargetTests.php</file>
+      <file>tests/ElementDataTypedGetterTests.php</file>
+      <file>tests/SettingDefaultsTests.php</file>
+      <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
+      <file>tests/FlowDataThreadsDocsTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

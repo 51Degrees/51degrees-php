@@ -1,8 +1,16 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName
+    [string]$RepoName,
+    # False, from select-options.ps1, on every entry of a pull request but
+    # one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 $ErrorActionPreference = 'Stop'
+
+if (-not $SeleniumContract) {
+    Write-Host "Another entry runs the Selenium contract tests for this pull request."
+    return
+}
 
 # The shared Selenium contract tests need DeviceType and the JavaScript
 # overrides for screen size, which the Lite data file does not have, so they
@@ -19,7 +27,7 @@ if (!(Test-Path $dataFile)) {
 # data file from _51DEGREES_DD_PATH, and that is set to the same file here so
 # the two agree. Because they name the same file, useDataFileFromEnv finds
 # the engine already loaded from it and returns without reloading, so this
-# run does not cover the reload itself.
+# run does not cover the reload itself. tests/WebExampleReloadTests.php does.
 $sep = [IO.Path]::PathSeparator
 $env:PHP_INI_SCAN_DIR = "$sep$PWD/$RepoName"
 [Environment]::SetEnvironmentVariable('_51DEGREES_DD_PATH', $dataFile)
@@ -63,7 +71,8 @@ try {
     $env:PAID_RESOURCE_KEY = "not-used-by-the-on-premise-example"
     $env:EXAMPLE_URL = "http://localhost:$port"
     $env:EXAMPLE_LANG = 'php'
-    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract
+    # Normal verbosity prints each test's time, passed or failed.
+    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"
     if ($LASTEXITCODE -ne 0) {
         throw "The Selenium contract tests failed against the on-premise web example"
     }

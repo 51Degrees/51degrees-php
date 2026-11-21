@@ -49,21 +49,25 @@
 # Per package:
 #   pipeline/core, engines and cloudrequestengine: Unit suite. Only
 #     cloudrequestengine has integration tests, which need TestResourceKey.
-#     No performance tests.
+#     Of these, pipeline/core has performance tests, which time minification.
 #   pipeline/did: Unit suite with its own vendor/bin/phpunit, which here
 #     is the root one. Its Live suite is not run by its CI, and its tags are
 #     published by .github/workflows/did-publish.yml, because the published
 #     tree has the OWID source copied in.
 #   pipeline/translation: Unit suite. No mirror, and its code is also
 #     tested through ip-intelligence, which requires it.
+#   pipeline/derivedproperty: Unit suite, which runs the shared cases from
+#     the derived-properties submodule at the root. No mirror.
 #   device-detection/cloud: Unit suite without keys, Integration suite and the
 #     Selenium contract tests against the cloud example when TestResourceKey
 #     and the CSV file are present.
 #   device-detection/onpremise: Own. Not in the root composer.json, as it
 #     has the same package name as device-detection/cloud. Builds the native
-#     extension, needs the TAC data file for its tests, and is the only
-#     package with real performance tests. No mirror.
-#   location: Integration suite only, which needs TestResourceKey.
+#     extension, needs the TAC data file for most of its tests, running only
+#     its WithoutTacFile suite without it, and has the performance tests of
+#     detection. No mirror.
+#   location: Unit suite without keys, and Integration suite, which needs
+#     TestResourceKey.
 #   ip-intelligence: Own, because its build-project.ps1 compiles the
 #     native extension and then runs composer install. No mirror yet.
 #
@@ -75,6 +79,7 @@ $Packages = @(
     @{ Path = 'pipeline/cloudrequestengine'; Mirror = 'pipeline-php-cloudrequestengine'; Vendor = 'Root'; Ci = $true }
     @{ Path = 'pipeline/did'; Mirror = 'pipeline-php-did'; Vendor = 'Root'; Ci = $true; Assembled = $true }
     @{ Path = 'pipeline/translation'; Mirror = $null; Vendor = 'Root'; Ci = $true }
+    @{ Path = 'pipeline/derivedproperty'; Mirror = $null; Vendor = 'Root'; Ci = $true }
     @{ Path = 'device-detection/cloud'; Mirror = 'device-detection-php'; Vendor = 'Root'; Ci = $true }
     @{ Path = 'device-detection/onpremise'; Mirror = $null; Vendor = 'Own'; Ci = $true; Native = $true }
     @{ Path = 'location'; Mirror = 'location-php'; Vendor = 'Root'; Ci = $true }

@@ -20,12 +20,14 @@ versions, but additional caution should be applied.
 
 You will require a [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies)
 to use the Cloud API. You can create resource keys using our 
-[configurator](https://configure.51degrees.com/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies), see our 
+[configuration page](https://51degrees.com/configure/?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies), see our 
 [documentation](https://51degrees.com/documentation/_services__configurator.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=dependencies) on how to use this.
 
 ## Examples
 
 **Note: Examples run on Linux and macOS. We don't test on Windows environments as it is a rare choice for PHP.**
+
+The examples and tests are in the [51degrees-php repository](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud), not in the package Composer installs, so clone the repository to run them.
 
 To run the examples, you will need PHP and composer installed.
 Once these are available, install (or update) the dependencies required by the examples. 

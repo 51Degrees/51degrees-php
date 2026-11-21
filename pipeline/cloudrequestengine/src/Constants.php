@@ -29,27 +29,41 @@ class Constants
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
     /**
-     * Environment variable read for the cloud endpoint when
-     * CLOUD_ENDPOINT_VARIABLE is not set or is empty.
+     * The old name of the environment variable CLOUD_ENDPOINT_VARIABLE
+     * names. It is no longer read.
      *
      * @deprecated use {@see Constants::CLOUD_ENDPOINT_VARIABLE}
      */
     public const FOD_CLOUD_API_URL = 'FOD_CLOUD_API_URL';
 
-    // Logged once by each engine whose cloud endpoint came from the
-    // deprecated environment variable, which is named first, then the
-    // one that replaces it.
-    public const MESSAGE_ENDPOINT_VARIABLE_DEPRECATED =
-        'The cloud endpoint was read from the environment variable %s, ' .
-        'which is deprecated. %s replaces it, so set that to the same ' .
-        'value.';
-
     // Default base url
     public const BASE_URL_DEFAULT = 'https://cloud.51degrees.com/api/v4/';
 
+    // The Cloud Request Engine's Data Key.
+    public const DATA_KEY = 'cloud-response';
+
+    // The Data Key the Cloud Request Engine had before DATA_KEY, which still
+    // finds the engine and its data and is logged as deprecated.
+    public const DEPRECATED_DATA_KEY = 'cloud';
+
+    // The one Property of the Cloud Request Engine's Element Data, the raw
+    // JSON response body.
+    public const JSON_RESPONSE_PROPERTY = 'json-response';
+
+    // The name the Property had before JSON_RESPONSE_PROPERTY, which still
+    // gives the response and is logged as deprecated.
+    public const DEPRECATED_JSON_RESPONSE_PROPERTY = 'cloud';
+
+    // Logged once by each engine whose Element Data is read by the
+    // Property's deprecated name, which is named first, then the new one.
+    public const MESSAGE_PROPERTY_DEPRECATED =
+        "The Cloud Request Engine's Property '%s' is deprecated and will be " .
+        "removed in a later release. Use '%s', which gives the same raw " .
+        'JSON response.';
+
     // No Data in response message to be set in exception when cloud neither
     // return any data nor any error messages
-    public const MESSAGE_NO_DATA_IN_RESPONSE = 'No data in response from cloud service at %s';
+    public const MESSAGE_NO_DATA_IN_RESPONSE = "No data in response from cloud service at '%s'";
 
     // Message when multiple errors are returned from cloud service
     public const EXCEPTION_CLOUD_ERRORS_MULTIPLE =
@@ -59,6 +73,34 @@ class Constants
     // Message when single error is returned from cloud service
     public const EXCEPTION_CLOUD_ERROR =
             "Error returned from 51Degrees cloud service: '%s'";
+
+    // Logged for each entry of the warnings array in a response.
+    public const MESSAGE_CLOUD_WARNING =
+            "Warning returned from 51Degrees cloud service: '%s'";
+
+    // Logged when a discovery request made as the engine is built fails
+    // with anything but a 4xx answer. The first placeholder is what was
+    // asked for, and the second the failure.
+    public const MESSAGE_DISCOVERY_DEFERRED =
+        'CloudRequestEngine could not get the %s from the cloud service ' .
+        'when it was built, and will ask again when it is first used. %s';
+
+    // Refused when the discoveryResults setting is not what
+    // CloudRequestEngine::getDiscoveryResults() gives.
+    public const MESSAGE_DISCOVERY_RESULTS_NOT_A_COPY =
+        'The discoveryResults setting is not a copy of the discovery ' .
+        'results that CloudRequestEngine::getDiscoveryResults() gives. ' .
+        'Leave the setting out so that the engine asks the cloud service, ' .
+        'then keep what getDiscoveryResults() gives once it is built.';
+
+    // Refused when the discoveryResults setting was made for other keys or
+    // another cloud endpoint.
+    public const MESSAGE_DISCOVERY_RESULTS_OTHER_CREDENTIALS =
+        'The discoveryResults setting holds the discovery results for other ' .
+        'keys or another cloud endpoint, and the results depend on both. ' .
+        'Leave the setting out so that the engine asks the cloud service ' .
+        'for these keys, then keep what getDiscoveryResults() gives once ' .
+        'it is built.';
 
     // Error message when non-success status is returned.
     public const MESSAGE_ERROR_CODE_RETURNED = "Cloud service at '%s' returned status code '%s' with content %s";
@@ -84,7 +126,7 @@ class Constants
         'CloudRequestEngine needs a resourceKey or a licenseKey to ' .
         'authenticate with, as the cloud service answers 401 to a request ' .
         'that carries neither. Create a resource key for free at ' .
-        'https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-constants.php&utm_term=no-credential';
+        'https://51degrees.com/configure?utm_source=code&utm_medium=comment&utm_campaign=51degrees-php&utm_content=src-constants.php&utm_term=no-credential';
     public const MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES =
         'CloudRequestEngine has a licenseKey and no resourceKey or ' .
         'requestedProperties. A license key names no properties of its own, ' .
@@ -166,4 +208,16 @@ class Constants
 
     public const CLOUDREQUESTENGINE_EXCEPTION_MESSAGE =
         'CloudRequestEngine needs to be placed before cloud elements in Pipeline';
+
+    // The timeout of a request to the cloud service unless the
+    // timeoutSeconds setting gives one.
+    public const TIMEOUT_SECONDS_DEFAULT = 2.0;
+
+    // Refused as a timeout, with the value given, by the engine when it is
+    // built and by HttpClient::setTimeoutSeconds.
+    public const MESSAGE_TIMEOUT_NOT_POSITIVE =
+        'The timeout of requests to the cloud service is %s, and it must ' .
+        'be a number of seconds greater than 0, because a request with no ' .
+        "timeout can wait forever. Leave CloudRequestEngine's " .
+        'timeoutSeconds setting out for the default of 2 seconds.';
 }

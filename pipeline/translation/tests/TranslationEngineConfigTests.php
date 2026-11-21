@@ -42,14 +42,17 @@ class TranslationEngineConfigTests extends TestCase
     /**
      * Builds a pipeline from a configuration holding one Translation Engine
      * with the given build parameters, and gives the engine to the check.
+     * The web integration elements are left out, so the engine is the
+     * Pipeline's only element.
      *
      * @param array<string, mixed> $parameters
      */
     private function withConfigured(array $parameters, callable $check): void
     {
-        $pipeline = (new PipelineBuilder())->buildFromConfig(
-            self::configuration($parameters)
-        );
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+        ]))->buildFromConfig(self::configuration($parameters));
         try {
             $this->assertCount(1, $pipeline->flowElements);
             $engine = $pipeline->flowElements[0];
@@ -248,7 +251,8 @@ class TranslationEngineConfigTests extends TestCase
      */
     public function testFlowErrorRecordsAMissingTranslation(): void
     {
-        $pipeline = (new PipelineBuilder())
+        // Keep the error in the FlowData rather than throw it from process.
+        $pipeline = (new PipelineBuilder(['suppressProcessExceptions' => true]))
             ->add(new SourceElement())
             ->add(new TranslationEngine(
                 'translated',
@@ -259,8 +263,6 @@ class TranslationEngineConfigTests extends TestCase
                 MissingTranslationBehavior::FLOW_ERROR
             ))
             ->build();
-        // Keep the error in the FlowData rather than throw it from process.
-        $pipeline->suppressProcessExceptions = true;
         $flowData = $pipeline->createFlowData();
         try {
             $flowData->process();

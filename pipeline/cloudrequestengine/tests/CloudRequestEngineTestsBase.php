@@ -43,7 +43,7 @@ class CloudRequestEngineTestsBase extends TestCase
     public const noDataKey = 'nodatakey';
     public const noDataKeyResponse = '{}';
     public const noDataKeyMessageComplete = "Error returned from 51Degrees cloud service: 'No data in response " .
-        "from cloud service at https://cloud.51degrees.com/api/v4/accessibleProperties?resource=nodatakey'";
+        "from cloud service at 'https://cloud.51degrees.com/api/v4/accessibleProperties?resource=nodatakey''";
     public const accessibleSubPropertiesResponse =
         "{\n" .
         "    \"Products\": {\n" .
@@ -94,8 +94,8 @@ class CloudRequestEngineTestsBase extends TestCase
     public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
     /**
-     * The environment variable read for the resource key when
-     * RESOURCE_KEY_ENV_VAR is not set.
+     * The old environment variable name for the resource key. It is no
+     * longer read.
      *
      * @deprecated use {@see CloudRequestEngineTestsBase::RESOURCE_KEY_ENV_VAR}
      */

@@ -37,6 +37,8 @@ use JShrink\Minifier;
  * The results of the JSON Bundler should also be used in a user-specified
  * endpoint which retrieves the JSON from the client side.
  * The JavaScriptBuilder is constructed with a url for this endpoint.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/javascript-builder.md
  */
 class JavascriptBuilderElement extends FlowElement
 {
@@ -102,6 +104,22 @@ class JavascriptBuilderElement extends FlowElement
     private const MAX_RENDERED_SEQUENCE = self::MAX_SEQUENCE + 1;
 
     /**
+     * The default of each setting the constructor reads, used where the
+     * settings leave it out or give null. A null protocol or host is taken
+     * from the request's Evidence.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/reference-implementation-notes.md#builders
+     */
+    public const DEFAULTS = [
+        'objName' => 'fod',
+        'protocol' => null,
+        'host' => null,
+        'endpoint' => '',
+        'enableCookies' => true,
+        'minify' => true,
+    ];
+
+    /**
      * @var array<string, mixed>
      */
     public array $settings;
@@ -109,10 +127,65 @@ class JavascriptBuilderElement extends FlowElement
     public string $dataKey = 'javascriptbuilder';
 
     /**
+     * The JavaScript the element writes.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public array $properties = [
+        'javascript' => ['name' => 'javascript', 'type' => 'string'],
+    ];
+
+    /**
      * Set once a callback URL that is not valid has been logged, because a
      * misconfigured element would otherwise log on every request.
      */
     private bool $invalidUrlLogged = false;
+
+    /**
+     * The template's values that change from request to request, each with
+     * the token the template is minified with in its place. A token is
+     * treated by JShrink as the value it stands for is: an object for the
+     * two JSON values, which JShrink leaves as json_encode writes them, and
+     * a name for the rest, which are a name, a number or text inside quotes.
+     * So writing the values over the tokens in the minified template gives
+     * what JShrink gives for the whole script.
+     */
+    private const MINIFY_TOKENS = [
+        '_jsonObject' => '{_51DegreesMinifyJson_}',
+        '_parameters' => '{_51DegreesMinifyParameters_}',
+        '_sessionId' => '_51DegreesMinifySessionId_',
+        '_sequence' => '_51DegreesMinifySequence_',
+        '_objName' => '_51DegreesMinifyObjectName_',
+        '_url' => '_51DegreesMinifyUrl_',
+    ];
+
+    /**
+     * The template's choices the minified template is kept for. Each is
+     * true or false, so at most 32 minified templates are kept. The template
+     * also opens sections on _userPrompt, which this builder never sets, so
+     * those sections are always left out. _userPrompt joins this list on
+     * the day the builder sets it.
+     */
+    private const MINIFY_CHOICES = [
+        '_updateEnabled', '_enableCookies', '_supportsFetch',
+        '_supportsPromises', '_hasDelayedProperties',
+    ];
+
+    /**
+     * The template minified with the tokens of MINIFY_TOKENS in place of the
+     * values, for each set of the template's choices met so far. JShrink
+     * takes tens of milliseconds for the whole script, and the values are a
+     * small part of it, so the template is minified once for each set of
+     * choices rather than on every request. The minified templates are kept
+     * for the life of this builder. So a process that keeps its Pipeline
+     * between requests minifies the template once for each set of choices,
+     * and only it gains. A Pipeline built for every request, as the cloud
+     * Device Detection web example builds it, minifies the whole template in
+     * each of those requests, as it did before the templates were kept.
+     *
+     * @var array<string, string>
+     */
+    private array $minifiedTemplates = [];
 
     /**
      * @param array<string, mixed> $settings 'objName' is the name of the
@@ -124,11 +197,14 @@ class JavascriptBuilderElement extends FlowElement
      * requested name is ignored with a warning logged. 'protocol', when set,
      * must be http or https in any case of its ASCII letters, or the
      * constructor throws an \InvalidArgumentException. Left out, the
-     * 'header.protocol' evidence is used, or https when there is none.
+     * 'header.protocol' evidence is used, or https when there is none. The
+     * default of each setting is in DEFAULTS.
+     * @throws \InvalidArgumentException when 'objName' is not a valid name
+     *   or 'protocol' is not http or https
      */
     public function __construct(array $settings = [])
     {
-        $objName = $settings['objName'] ?? 'fod';
+        $objName = $settings['objName'] ?? self::DEFAULTS['objName'];
         if (!self::isValidObjectName($objName)) {
             throw new \InvalidArgumentException(
                 "The JavaScript builder's objName setting must be a " .
@@ -140,7 +216,7 @@ class JavascriptBuilderElement extends FlowElement
         // A protocol given here is used for every request, so one the script
         // cannot send its request with is refused now rather than logged on
         // the first request.
-        $protocol = $settings['protocol'] ?? null;
+        $protocol = $settings['protocol'] ?? self::DEFAULTS['protocol'];
         if ($protocol !== null && $protocol !== '' &&
             !CallbackUrl::isScheme($protocol)) {
             throw new \InvalidArgumentException(
@@ -151,13 +227,13 @@ class JavascriptBuilderElement extends FlowElement
 
         $this->settings = [
             '_objName' => $objName,
-            '_protocol' => $settings['protocol'] ?? null,
-            '_host' => $settings['host'] ?? null,
-            '_endpoint' => $settings['endpoint'] ?? '',
-            '_enableCookies' => $settings['enableCookies'] ?? true
+            '_protocol' => $protocol,
+            '_host' => $settings['host'] ?? self::DEFAULTS['host'],
+            '_endpoint' => $settings['endpoint'] ?? self::DEFAULTS['endpoint'],
+            '_enableCookies' => $settings['enableCookies'] ?? self::DEFAULTS['enableCookies']
         ];
 
-        $this->minify = $settings['minify'] ?? true;
+        $this->minify = $settings['minify'] ?? self::DEFAULTS['minify'];
 
         parent::__construct();
     }
@@ -397,19 +473,71 @@ class JavascriptBuilderElement extends FlowElement
             (object) $this->getParameters($flowData->evidence->getAll())
         );
 
-        $output = (new \Mustache_Engine())->render(
-            file_get_contents(__DIR__ . '/../javascript-templates/JavaScriptResource.mustache'),
-            $vars
-        );
-
-        if ($this->minify) {
-            // Minify the output
-            $output = Minifier::minify($output);
-        }
+        $output = $this->minify
+            ? $this->renderMinified($vars)
+            : self::render($vars);
 
         $data = new ElementDataDictionary($this, ['javascript' => $output]);
 
         $flowData->setElementData($data);
+    }
+
+    /**
+     * The script rendered from the template with the values given.
+     *
+     * @param array<string, mixed> $vars
+     */
+    private static function render(array $vars): string
+    {
+        return (new \Mustache_Engine())->render(
+            file_get_contents(__DIR__ . '/../javascript-templates/JavaScriptResource.mustache'),
+            $vars
+        );
+    }
+
+    /**
+     * The script minified by JShrink. The template is minified with tokens
+     * in place of the values that change from request to request, once for
+     * each set of the template's choices, and the values are then written
+     * over the tokens, written as the template writes them. The result is
+     * what JShrink gives for the whole script, as
+     * JavaScriptBuilderMinifyChoicesTests checks.
+     *
+     * @param array<string, mixed> $vars
+     */
+    private function renderMinified(array $vars): string
+    {
+        $key = '';
+        foreach (self::MINIFY_CHOICES as $choice) {
+            $key .= empty($vars[$choice]) ? '0' : '1';
+        }
+
+        if (!isset($this->minifiedTemplates[$key])) {
+            $this->minifiedTemplates[$key] = Minifier::minify(
+                self::render(array_merge($vars, self::MINIFY_TOKENS))
+            );
+        }
+
+        $values = [];
+        foreach (self::MINIFY_TOKENS as $name => $token) {
+            $values[$token] = (string) ($vars[$name] ?? '');
+        }
+
+        // The template writes the object name as {{_objName}}, which
+        // Mustache escapes, so the same escaping is written here. The name
+        // is checked by isValidObjectName, so no name the element accepts
+        // reaches this line with anything to escape, and the minified and
+        // plain scripts stay the same if that check ever widens.
+        $values[self::MINIFY_TOKENS['_objName']] = htmlspecialchars(
+            $values[self::MINIFY_TOKENS['_objName']],
+            ENT_COMPAT,
+            'UTF-8'
+        );
+
+        // strtr replaces each token once and does not look again inside the
+        // values it writes, so a value holding a token's text is kept as it
+        // is.
+        return strtr($this->minifiedTemplates[$key], $values);
     }
 
     /**

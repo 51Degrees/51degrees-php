@@ -26,8 +26,24 @@ namespace fiftyone\pipeline\devicedetection;
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\engines\AspectData;
 
+/**
+ * Extension of AspectData that reads each property from the results the
+ * SWIG wrapper of the on-premise device detection engine gives.
+ *
+ * SwigData, and the native results it holds, is not safe to use from
+ * several threads at once, because reading a value writes into the native
+ * results, and SwigData takes no lock. The caller is responsible for
+ * thread-safe access, so a caller that shares an instance between threads
+ * coordinates that itself.
+ */
 class SwigData extends AspectData
 {
+    /**
+     * The names of the C library's match methods, in the order of its
+     * fiftyoneDegreesHashMatchMethod values, which getMethod returns.
+     */
+    private const MATCH_METHODS = ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'];
+
     private $result;
 
     public function __construct($engine, $result)
@@ -73,7 +89,7 @@ class SwigData extends AspectData
         $property = $this->flowElement->findProperty($key);
 
         if ($property !== null) {
-            if ($property['category'] == 'DeviceMetrics') {
+            if ($property['category'] === DeviceDetectionOnPremise::METRICS_CATEGORY) {
                 switch ($property['name']) {
                     case 'MatchedNodes':
                         $result = new AspectPropertyValue(
@@ -100,10 +116,15 @@ class SwigData extends AspectData
                         );
                         break;
                     case 'UserAgents':
+                        // Each matched User-Agent once, as more than one
+                        // result can give the same one.
                         $useragents = [];
                         $count = $this->result->getUserAgents();
                         for ($i = 0; $i < $count; ++$i) {
-                            $useragents[] = $this->result->getUserAgent($i);
+                            $useragent = $this->result->getUserAgent($i);
+                            if (!in_array($useragent, $useragents, true)) {
+                                $useragents[] = $useragent;
+                            }
                         }
                         $result = new AspectPropertyValue(
                             null,
@@ -113,7 +134,7 @@ class SwigData extends AspectData
                     case 'Method':
                         $result = new AspectPropertyValue(
                             null,
-                            $this->result->getDifference()
+                            self::MATCH_METHODS[$this->result->getMethod()] ?? 'NONE'
                         );
                         break;
                     case 'Iterations':

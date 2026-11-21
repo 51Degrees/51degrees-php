@@ -31,15 +31,26 @@ use fiftyone\pipeline\core\PipelineBuilder;
 
 class CloudRequestTests extends CloudRequestEngineTestsBase
 {
+    /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
     public function testCloudRequestEngine()
     {
-        $params = ['resourceKey' => $this->getResourceKey()];
+        $params = [
+            'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ];
 
         $this->assertNotSame(
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and set the RESOURCEKEY' .
+            'https://51degrees.com/configure and set the RESOURCEKEY' .
             'environment variable to its value before running tests'
         );
 
@@ -73,13 +84,16 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
      */
     public function testCloudPostRequestWithSequenceEvidence()
     {
-        $params = ['resourceKey' => $this->getResourceKey()];
+        $params = [
+            'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ];
 
         $this->assertNotSame(
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and paste it into the ' .
+            'https://51degrees.com/configure and paste it into the ' .
             'phpunit.xml config file, ' .
             'replacing !!YOUR_RESOURCE_KEY!!.'
         );
@@ -122,6 +136,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
 
         $params = [
             'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS,
             'httpClient' => $httpClient
         ];
 
@@ -129,7 +144,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and paste it into the ' .
+            'https://51degrees.com/configure and paste it into the ' .
             'phpunit.xml config file, ' .
             'replacing !!YOUR_RESOURCE_KEY!!.'
         );
@@ -181,7 +196,10 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
      */
     public function testHttpDataSetInException()
     {
-        $params = ['resourceKey' => 'resource_key'];
+        $params = [
+            'resourceKey' => 'resource_key',
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ];
 
         $pipeline = new PipelineBuilder();
 
@@ -203,6 +221,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
     {
         $params = [
             'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS,
             'httpClient' => $this->mockHttp()
         ];
 
@@ -210,7 +229,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and set the RESOURCEKEY' .
+            'https://51degrees.com/configure and set the RESOURCEKEY' .
             'environment variable to its value before running tests'
         );
 
@@ -222,10 +241,9 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
 
         $cloud->setRestrictedProperties(['cloud']);
 
-        $pipeline = new PipelineBuilder();
+        $pipeline = new PipelineBuilder(['suppressProcessExceptions' => true]);
 
         $pipeline = $pipeline->add($cloud)->add($engine)->build();
-        $pipeline->suppressProcessExceptions = true;
 
         $fd = $pipeline->createFlowData();
 
@@ -239,14 +257,15 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             // silently discard exceptions not being tested here
         }
 
-        $this->assertArrayHasKey('cloud', $result->errors);
-        $this->assertInstanceOf(CloudRequestException::class, $result->errors['cloud']);
+        $this->assertArrayHasKey('cloud-response', $result->errors);
+        $this->assertInstanceOf(CloudRequestException::class, $result->errors['cloud-response']);
     }
 
     public function testPipelineDoesNotSuppressExceptionsWhenCloudServiceIsDown()
     {
         $params = [
             'resourceKey' => $this->getResourceKey(),
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS,
             'httpClient' => $this->mockHttp()
         ];
 
@@ -254,7 +273,7 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             '!!YOUR_RESOURCE_KEY!!',
             $params['resourceKey'],
             'You need to create a resource key at ' .
-            'https://configure.51degrees.com and set the RESOURCEKEY' .
+            'https://51degrees.com/configure and set the RESOURCEKEY' .
             'environment variable to its value before running tests'
         );
 
@@ -282,7 +301,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
     {
         $key = EnvironmentVariable::read(
             self::RESOURCE_KEY_ENV_VAR,
-            self::OLD_RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
 

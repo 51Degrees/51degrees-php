@@ -27,6 +27,8 @@ namespace fiftyone\pipeline\core;
 
 /**
  * An extension of ElementData with dictionary object storage / lookup.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#element-data
  */
 class ElementDataDictionary extends ElementData
 {
@@ -59,12 +61,23 @@ class ElementDataDictionary extends ElementData
     }
 
     /**
-     * Internal getter for contents.
+     * Internal getter for contents, finding the name ignoring case as every
+     * string key is compared.
      *
      * @return mixed
      */
     public function getInternal(string $key)
     {
-        return $this->contents[$key] ?? null;
+        if (array_key_exists($key, $this->contents)) {
+            return $this->contents[$key];
+        }
+
+        foreach ($this->contents as $name => $value) {
+            if (strcasecmp((string) $name, $key) === 0) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 }

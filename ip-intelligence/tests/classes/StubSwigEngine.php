@@ -31,20 +31,30 @@ use fiftyone\pipeline\ipintelligence\Constants;
 
 /**
  * A stand-in for IpIntelligenceOnPremise carrying only the property metadata
- * SwigData reads, so SwigData can be built without the native extension.
+ * and the positions SwigData reads, so SwigData can be built without the
+ * native extension.
  */
 class StubSwigEngine extends Engine
 {
     public string $dataKey = Constants::ELEMENT_DATA_KEY;
 
     /**
+     * @var array<string, int>
+     */
+    private array $positions;
+
+    /**
      * @param array<string, array<string, string>> $properties metadata keyed
      *   by lowercase property name, as the real engine builds it
+     * @param null|array<string, int> $positions the position of each name,
+     *   keyed by lowercase name. Defaults to the order of $properties, which
+     *   is the order StubSwigResult holds its values in by default.
      */
-    public function __construct(array $properties)
+    public function __construct(array $properties, ?array $positions = null)
     {
         $this->pipelines = [];
         $this->properties = $properties;
+        $this->positions = $positions ?? array_flip(array_keys($properties));
 
         parent::__construct();
     }
@@ -57,6 +67,15 @@ class StubSwigEngine extends Engine
     public function findProperty(string $name): ?array
     {
         return $this->properties[strtolower($name)] ?? null;
+    }
+
+    /**
+     * The position of a name, as the real engine gives it to a read, or -1
+     * for a name it has no position for.
+     */
+    public function getPosition(string $name): int
+    {
+        return $this->positions[strtolower($name)] ?? -1;
     }
 
     public function processInternal(FlowData $flowData): void

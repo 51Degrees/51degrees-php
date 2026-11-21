@@ -4,10 +4,16 @@
     <env name="_51DEGREES_CLOUD_ENDPOINT" value=""/>
   </php>
   <testsuites>
+    <!-- Runs the examples with no resource key, so it runs on every build. -->
+    <testsuite name="Unit">
+      <file>tests/ExamplesWithoutKeyTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
+    </testsuite>
     <testsuite name="Integration">
       <file>tests/ExampleTests.php</file>
       <file>tests/GeoLocationTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/MissingProductTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

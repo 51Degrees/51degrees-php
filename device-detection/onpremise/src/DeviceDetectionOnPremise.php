@@ -36,76 +36,96 @@ class DeviceDetectionOnPremise extends Engine
     public \EngineHashSwig $engine;
 
     /**
+     * The component the match metrics belong to, which the data set does
+     * not hold, so getComponents adds it after the data set's components.
+     */
+    public const METRICS_COMPONENT = 'Metrics';
+
+    /**
+     * The category of the match metrics, written as the specification
+     * writes it.
+     */
+    public const METRICS_CATEGORY = 'Device Metrics';
+
+    /**
      * The match metrics, which the results give rather than the data set.
      */
     private const METRIC_PROPERTIES = [
         'matchednodes' => [
             'name' => 'MatchedNodes',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::MATCHED_NODES_DESCRIPTION,
-            'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
         'difference' => [
             'name' => 'Difference',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::DIFFERENCE_DESCRIPTION,
-            'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
         'drift' => [
             'name' => 'Drift',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::DRIFT_DESCRIPTION,
-            'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
         'deviceid' => [
             'name' => 'DeviceId',
             'type' => 'String',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::DEVICE_ID_DESCRIPTION,
-            'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'defaultValue' => '0-0-0-0',
+            'category' => self::METRICS_CATEGORY,
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
         'useragents' => [
             'name' => 'UserAgents',
             'type' => 'Array',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::USER_AGENTS_DESCRIPTION,
-            'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'defaultValue' => [],
+            'category' => self::METRICS_CATEGORY,
+            'component' => self::METRICS_COMPONENT,
             'isList' => true,
             'available' => true
         ],
         'iterations' => [
             'name' => 'Iterations',
             'type' => 'Integer',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::ITERATIONS_DESCRIPTION,
-            'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'defaultValue' => 0,
+            'category' => self::METRICS_CATEGORY,
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ],
         'method' => [
             'name' => 'Method',
             'type' => 'String',
-            'dataFiles' => ['Lite', 'Premium', 'Enterprise'],
+            'dataFiles' => ['Lite', 'Premium', 'Enterprise', 'TAC'],
             'description' => Constants::METHOD_DESCRIPTION,
-            'category' => 'DeviceMetrics',
-            'component' => 'MatchMetrics',
+            'defaultValue' => 'NONE',
+            'values' => ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'],
+            'category' => self::METRICS_CATEGORY,
+            'component' => self::METRICS_COMPONENT,
             'isList' => false,
             'available' => true
         ]
@@ -137,6 +157,10 @@ class DeviceDetectionOnPremise extends Engine
         // List of pipelines the flowElement has been added to
         $this->pipelines = [];
 
+        if (!extension_loaded('FiftyOneDegreesHashEngine')) {
+            throw new \Exception(Messages::EXTENSION_NOT_LOADED);
+        }
+
         // The on-premise Hash engine for PHP can only run with the in-memory
         // MaxPerformance profile. PHP is normally run under a process manager
         // (Apache MPM prefork, php-fpm) that forks the worker process. Any other
@@ -152,7 +176,7 @@ class DeviceDetectionOnPremise extends Engine
             throw new \Exception(sprintf(Messages::PERFORMANCE_PROFILE_ERROR, $performanceProfile));
         }
 
-        $this->engine = \FiftyOneDegreesHashEngine::engine_get();
+        $this->engine = self::startupEngine();
 
         $requiredProperties = self::startupSetting(
             'FiftyOneDegreesHashEngine.required_properties'
@@ -168,23 +192,14 @@ class DeviceDetectionOnPremise extends Engine
         // looks up only its own property (see findProperty).
         unset($this->properties);
 
-        // Make evidence list
-        $evidences = $this->engine->getKeys();
-        $evidenceKeysList = [];
-        for ($i = 0; $i < $evidences->size(); ++$i) {
-            $evidence = strtolower($evidences->get($i));
-            $evidence = str_replace('http_', '', $evidence);
-            $evidence = str_replace('http_x-', '', $evidence);
-            $evidenceKeysList[] = $evidence;
-        }
-        $this->evidenceKeys = $evidenceKeysList;
+        $this->readEvidenceKeys();
 
         parent::__construct(...func_get_args());
     }
 
     /**
-     * Instance of EvidenceKeyFilter based on the evidence keys fetched
-     * from the cloud service by the private getEvidenceKeys() method.
+     * The Evidence keys the data file in use accepts, as the engine gives
+     * them, in lower case.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
@@ -200,7 +215,10 @@ class DeviceDetectionOnPremise extends Engine
 
         foreach ($evidence as $key => $value) {
             if ($this->filterEvidenceKey($key) && is_string($value)) {
-                $evidenceInternal->set($key, $value);
+                // Evidence keys ignore letter case, and the native code
+                // finds the prefix in lower case only, so the key is
+                // lowered. It matches the field in any case.
+                $evidenceInternal->set(strtolower($key), $value);
             }
         }
 
@@ -223,36 +241,137 @@ class DeviceDetectionOnPremise extends Engine
     }
 
     /**
-     * Ask the engine to start using the specified data file
-     * for detections.
-     * This can be used in 3 different scenarios:
-     * 1. The data file that was originally used to create the engine has
-     * been updated on disk. In this case, no parameters are needed.
-     * 2. A new data file is available, but it is in a different location
-     * to the original. In this case, the parameter should be the new data
-     * file location.
-     * 3. A new data file is available in memory. The first parameter will
-     * be the variable holding the in-memory data file. The second will
-     * be the size of the data file in bytes.
+     * Makes the engine use a new data file, in one of two ways.
+     * 1. refreshData() reloads the data file the engine was built from,
+     * once that file has been replaced on disk.
+     * 2. refreshData($fileName) loads the data file at that path.
      *
-     * @param null|string $fileName_or_data Data file path or the variable holding the in-memory data file
-     * @param null|int $length Length of the in-memory data file in bytes
+     * A data file held in memory cannot be passed to the engine from PHP,
+     * so giving a length throws an exception that says to use one of the
+     * two forms above. A data file the engine cannot use throws an
+     * exception, and the engine goes on with the data it had.
+     *
+     * @param null|string $fileName_or_data Path of the new data file, or
+     *   null to reload the file the engine was built from
+     * @param null|int $length Not supported, and throws when given
+     * @throws \Exception
      */
     public function refreshData(?string $fileName_or_data = null, ?int $length = null): void
     {
-        switch (func_num_args()) {
-            case 0: $this->engine->refreshData();
-                break;
-            case 1: $this->engine->refreshData($fileName_or_data);
-                break;
-            default: 
-                $this->engine->refreshData($fileName_or_data, $length);
+        if ($length !== null) {
+            throw new \Exception(Messages::REFRESH_FROM_MEMORY);
         }
 
-        // The metadata follows the new data set.
+        if ($fileName_or_data === null) {
+            $this->engine->refreshData();
+        } else {
+            $this->engine->refreshData($fileName_or_data);
+        }
+
+        // The metadata and the accepted Evidence follow the new data set.
         unset($this->properties);
         $this->requiredNames = null;
         $this->readProperties = [];
+        $this->readEvidenceKeys();
+    }
+
+    /**
+     * Reads the Evidence keys the data set in use accepts from the engine.
+     */
+    private function readEvidenceKeys(): void
+    {
+        $evidences = $this->engine->getKeys();
+        $evidenceKeysList = [];
+        for ($i = 0; $i < $evidences->size(); ++$i) {
+            $evidence = strtolower($evidences->get($i));
+            $evidence = str_replace('http_', '', $evidence);
+            $evidence = str_replace('http_x-', '', $evidence);
+            $evidenceKeysList[] = $evidence;
+        }
+        $this->evidenceKeys = $evidenceKeysList;
+    }
+
+    /**
+     * The components of the data set, each with its name, its id, the id
+     * of its default profile and the names of its properties, followed by
+     * the Metrics component, which holds the match metrics. Keyed by the
+     * lowercase name.
+     *
+     * @return array<string, array{name: string, componentId: ?int,
+     *     defaultProfileId: ?int, properties: array<string>}>
+     */
+    public function getComponents(): array
+    {
+        $metaData = $this->engine->getMetaData();
+        $native = $metaData->getComponents();
+        $components = [];
+        for ($i = 0; $i < $native->getSize(); ++$i) {
+            $component = $native->getByIndex($i);
+            $properties = $metaData->getPropertiesForComponent($component);
+            $names = [];
+            for ($j = 0; $j < $properties->getSize(); ++$j) {
+                $names[] = $properties->getByIndex($j)->getName();
+            }
+            $default = $metaData->getDefaultProfileForComponent($component);
+            $components[strtolower($component->getName())] = [
+                'name' => $component->getName(),
+                'componentId' => $component->getComponentIdAsInt(),
+                'defaultProfileId' => $default === null ? null : $default->getProfileId(),
+                'properties' => $names
+            ];
+        }
+        $components[strtolower(self::METRICS_COMPONENT)] = [
+            'name' => self::METRICS_COMPONENT,
+            'componentId' => null,
+            'defaultProfileId' => null,
+            'properties' => array_values(array_column(self::METRIC_PROPERTIES, 'name'))
+        ];
+
+        return $components;
+    }
+
+    /**
+     * Every profile in the data set, each with its id and the name of its
+     * component. A data set holds many profiles, so they are read from
+     * native code one at a time as the caller iterates.
+     *
+     * @return \Generator<int, array{profileId: int, component: string}>
+     */
+    public function getProfiles(): \Generator
+    {
+        $metaData = $this->engine->getMetaData();
+        $profiles = $metaData->getProfiles();
+        for ($i = 0; $i < $profiles->getSize(); ++$i) {
+            $profile = $profiles->getByIndex($i);
+            yield [
+                'profileId' => $profile->getProfileId(),
+                'component' => $metaData->getComponentForProfile($profile)->getName()
+            ];
+        }
+    }
+
+    /**
+     * Every value in the data set, each with its name, the name of its
+     * property, its description and its URL. A data set holds many values,
+     * so they are read from native code one at a time as the caller
+     * iterates.
+     *
+     * @return \Generator<int, array{name: string, property: string,
+     *     description: string, url: string}>
+     */
+    public function getValues(): \Generator
+    {
+        $metaData = $this->engine->getMetaData();
+        $values = $metaData->getValues();
+        for ($i = 0; $i < $values->getSize(); ++$i) {
+            $value = $values->getByIndex($i);
+            yield [
+                'name' => $value->getName(),
+                'property' => $metaData->getPropertyForValue($value)->getName(),
+                'description' => $value->getDescription(),
+                'url' => $value->getUrl()
+            ];
+        }
     }
 
     /**
@@ -401,6 +520,39 @@ class DeviceDetectionOnPremise extends Engine
         $value = get_cfg_var($name);
 
         return is_string($value) ? $value : '';
+    }
+
+    /**
+     * The engine the extension built when PHP started. PHP starts without
+     * one when the data file setting names no file the engine can be built
+     * from, and then the exception says why and which setting to set.
+     *
+     * @throws \Exception
+     */
+    private static function startupEngine(): \EngineHashSwig
+    {
+        $engine = \FiftyOneDegreesHashEngine::engine_get();
+        if ($engine !== null) {
+            return $engine;
+        }
+
+        // The value PHP started with, which is the extension's default when
+        // php.ini leaves the setting out. ini_get_all finds an extension by
+        // the lower case name PHP keeps it under.
+        $settings = ini_get_all('fiftyonedegreeshashengine');
+        $dataFile = (string) (
+            $settings[Constants::DATA_FILE_SETTING]['global_value'] ?? ''
+        );
+        $configured = self::startupSetting(Constants::DATA_FILE_SETTING);
+        if ($dataFile !== '' && file_exists($dataFile)) {
+            $reason = sprintf(Messages::DATA_FILE_NOT_LOADED, $dataFile);
+        } elseif ($configured !== '') {
+            $reason = sprintf(Messages::DATA_FILE_MISSING, $configured);
+        } else {
+            $reason = Messages::DATA_FILE_NOT_SET;
+        }
+
+        throw new \Exception(sprintf(Messages::NO_ENGINE, $reason));
     }
 
     private function getComponentName($property)

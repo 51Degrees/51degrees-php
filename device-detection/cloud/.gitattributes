@@ -1,0 +1,6 @@
+# Composer installs this package from the archive GitHub makes of its
+# mirror, which leaves out each path marked export-ignore here. The
+# examples and tests stay in the repository.
+/examples export-ignore
+/tests export-ignore
+/phpunit.xml export-ignore

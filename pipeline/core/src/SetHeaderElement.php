@@ -29,15 +29,35 @@ namespace fiftyone\pipeline\core;
  * Set response headers element class. This is used to get response
  * headers based on what the browser supports. For example, newer
  * Chrome browsers support the Accept-CH header.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/set-headers-element.md
  */
 class SetHeaderElement extends FlowElement
 {
     public string $dataKey = 'set-headers';
 
     /**
-     * @var array<string, array<int, mixed>>
+     * The headers to set, by header name.
+     *
+     * @var array<string, array<string, mixed>>
      */
-    private array $setHeaderProperties = [];
+    public array $properties = [
+        'responseheaderdictionary' => [
+            'name' => 'responseheaderdictionary',
+            'type' => 'array'
+        ],
+    ];
+
+    /**
+     * The SetHeader properties of the elements of each Pipeline the element
+     * is in, worked out for each Pipeline, because an element can be in
+     * Pipelines with different elements. Each is kept with the Pipeline's
+     * count of property list updates when it was worked out, and is worked
+     * out again when an element of that Pipeline has updated its list since.
+     * The element holds each Pipeline it has processed for as long as the
+     * element lives, so share an element only between long-lived Pipelines.
+     */
+    private ?\SplObjectStorage $setHeaderProperties = null;
 
     /**
      * The element reads only the element data of the elements before it, so
@@ -53,11 +73,27 @@ class SetHeaderElement extends FlowElement
      */
     public function processInternal(FlowData $flowData): void
     {
-        if (empty($this->setHeaderProperties)) {
-            $this->setHeaderProperties = $this->getSetHeaderPropertiesPipeline($flowData->pipeline);
+        $this->setHeaderProperties = $this->setHeaderProperties ?? new \SplObjectStorage();
+        $pipeline = $flowData->pipeline;
+
+        $updates = $pipeline->getPropertyListUpdates();
+
+        // A Pipeline whose elements had no SetHeader property yet is looked
+        // at again, as an element can learn its properties later, and so is
+        // one with an element that has updated its property list since.
+        if (!isset($this->setHeaderProperties[$pipeline])
+            || empty($this->setHeaderProperties[$pipeline]['properties'])
+            || $this->setHeaderProperties[$pipeline]['updates'] !== $updates) {
+            $this->setHeaderProperties[$pipeline] = [
+                'updates' => $updates,
+                'properties' => $this->getSetHeaderPropertiesPipeline($pipeline)
+            ];
         }
 
-        $responseHeaders = $this->getResponseHeaderValue($flowData, $this->setHeaderProperties);
+        /** @var array<string, array<int, mixed>> $setHeaderProperties */
+        $setHeaderProperties = $this->setHeaderProperties[$pipeline]['properties'];
+
+        $responseHeaders = $this->getResponseHeaderValue($flowData, $setHeaderProperties);
 
         $data = new ElementDataDictionary($this, ['responseheaderdictionary' => $responseHeaders]);
 
@@ -82,8 +118,9 @@ class SetHeaderElement extends FlowElement
 
             // Loop over each flowElement property
             foreach ($properties as $propertyKey => $propertyMeta) {
-                // Check if the property starts ith SetHeader
-                if (strpos($propertyKey, 'setheader') !== false) {
+                // The key is the lower-case name, and only a name that
+                // starts with SetHeader is a SetHeader property.
+                if (strpos($propertyKey, 'setheader') === 0) {
                     $setHeaderElementList[] = $propertyMeta['name'];
                 }
             }
@@ -157,12 +194,12 @@ class SetHeaderElement extends FlowElement
      */
     public function getPropertyValue(FlowData $flowData, string $elementKey, string $propertyKey): string
     {
-        if ($flowData->{$elementKey}) {
-            // Get the elementData from flowData that contains required property.
-            $elementData = $flowData->{$elementKey};
-        } else {
-            echo sprintf(Messages::ELEMENT_NOT_FOUND, $elementKey);
-
+        try {
+            $elementData = $flowData->get($elementKey);
+        } catch (\Exception $e) {
+            // An element that failed, or that processing stopped before,
+            // has no data. Its headers are left out, so the response is
+            // still sent.
             return '';
         }
 
@@ -178,43 +215,25 @@ class SetHeaderElement extends FlowElement
     }
 
     /**
-     * Determines which response header the property value will be appended to by
-     * stripping the 'SetHeader' string and the 'Component Name' from the property name.
+     * The response header a SetHeader[Identifier][HeaderName] property sets.
+     * The identifier has no upper-case letter after its first character, so
+     * the header name starts at the first upper-case letter after that.
      *
-     * @param string $propertyKey Key for SetHeaderAcceptCH property
+     * @param string $propertyKey Name of a SetHeader property
      * @return string Response header name
-     * @throws \Exception
+     * @throws \Exception When the name does not start with SetHeader, or has
+     * no identifier or no header name
      */
     public function getResponseHeaderName(string $propertyKey): string
     {
-        $actualPropertyName = $propertyKey;
-
-        // Check if property name starts with SetHeader.
-        // If Yes, Discard SetHeader from property name.
-        if (strcmp(substr($propertyKey, 0, 9), 'SetHeader') !== 0) {
-            throw new \Exception(sprintf(Messages::PROPERTY_NOT_SET_HEADER, $actualPropertyName));
+        if (strncmp($propertyKey, 'SetHeader', 9) !== 0) {
+            throw new \Exception(sprintf(Messages::PROPERTY_NOT_SET_HEADER, $propertyKey));
         }
 
-        $propertyKey = str_replace('SetHeader', '', $propertyKey);
-
-        // Check if the first letter of Component name is in Uppercase
-        // If Yes, Split the propertyKey based on Uppercase letters
-        if (ctype_upper(substr($propertyKey, 0, 1)) === false) {
-            throw new \Exception(sprintf(Messages::WRONG_PROPERTY_FORMAT, $actualPropertyName));
+        if (preg_match('/^.[^A-Z]*([A-Z].*)$/sD', substr($propertyKey, 9), $match) !== 1) {
+            throw new \Exception(sprintf(Messages::WRONG_PROPERTY_FORMAT, $propertyKey));
         }
 
-        /** @phpstan-var array<string> $parts */
-        $parts = preg_split('/(?=[A-Z][^A-Z]*)/', $propertyKey, -1, PREG_SPLIT_NO_EMPTY);
-
-        // Get the Component name string to be removed from the key
-        $discardLetter = $parts[0];
-
-        // Check if property name contains the header name that starts with upper case
-        // If Yes, Remove the previously found Component Name to get the Header Name
-        if (count($parts) <= 1) {
-            throw new \Exception(sprintf(Messages::WRONG_PROPERTY_FORMAT, $actualPropertyName));
-        }
-
-        return str_replace($discardLetter, '', $propertyKey);
+        return $match[1];
     }
 }

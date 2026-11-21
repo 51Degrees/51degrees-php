@@ -27,6 +27,8 @@ namespace fiftyone\pipeline\core;
 
 /**
  * Storage of evidence on a FlowData object.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/evidence.md
  */
 class Evidence
 {
@@ -81,6 +83,14 @@ class Evidence
     public const HTTP_REQUEST_KEY = 'server.http-request';
 
     /**
+     * The keys the request line is held under, being the method, the path
+     * and the query string without its ?, each exactly as it was sent.
+     */
+    public const REQUEST_METHOD_KEY = 'server.request-method';
+    public const REQUEST_PATH_KEY = 'server.request-path';
+    public const REQUEST_QUERY_KEY = 'server.request-query';
+
+    /**
      * The web request, kept apart from the values above so that it never
      * reaches an element's filter, a cache key or a request to the cloud.
      */
@@ -106,14 +116,8 @@ class Evidence
      */
     public function set(string $key, $value): void
     {
-        $keep = false;
-
-        foreach ($this->flowData->pipeline->flowElements as $flowElement) {
-            if ($flowElement->filterEvidenceKey($key)) {
-                $keep = true;
-                break;
-            }
-        }
+        $keep = $this->flowData->pipeline->getEvidenceKeyFilter()
+            ->filterEvidenceKey($key);
 
         $lower = strtolower($key);
         if (isset($this->keys[$lower])) {
@@ -234,6 +238,8 @@ class Evidence
 
         $evidence['header.protocol'] = $protocol;
 
+        $evidence += $this->requestLine($server);
+
         $this->setArray($evidence);
 
         $this->httpRequest = new HttpRequest(
@@ -246,6 +252,48 @@ class Evidence
             (string) ($server['REQUEST_METHOD'] ?? ''),
             self::pathOf((string) ($server['REQUEST_URI'] ?? ''))
         );
+    }
+
+    /**
+     * The request line Evidence, from REQUEST_METHOD and REQUEST_URI, which
+     * PHP's built-in server, Apache and nginx with php-fpm fill with the
+     * method and the request target as sent. The target is split at its
+     * first ? with no decoding, and the query is empty when there is none.
+     * A target in absolute form, such as http://example.com/page, gives the
+     * path after its authority, which is empty when it has none.
+     * All three keys are given together, and only when an element in the
+     * Pipeline accepts one of them, so a Pipeline that does not read the
+     * request line carries none of it. The Pipeline decides that once and
+     * keeps the answer, see Pipeline::acceptsRequestLine().
+     *
+     * @param array<string, mixed> $server The request's server values
+     * @return array<string, string>
+     */
+    private function requestLine(array $server): array
+    {
+        if (!isset($server['REQUEST_METHOD'], $server['REQUEST_URI']) ||
+            !$this->flowData->pipeline->acceptsRequestLine()) {
+            return [];
+        }
+
+        $target = (string) $server['REQUEST_URI'];
+        $queryStart = strpos($target, '?');
+        $path = $queryStart === false
+            ? $target
+            : substr($target, 0, $queryStart);
+
+        // The scheme and authority of a target in absolute form.
+        if (preg_match('#^[A-Za-z][A-Za-z0-9+.-]*://[^/]*#', $path, $match) === 1) {
+            $path = substr($path, strlen($match[0]));
+        }
+
+        return [
+            self::REQUEST_METHOD_KEY => (string) $server['REQUEST_METHOD'],
+            self::REQUEST_PATH_KEY => $path,
+            self::REQUEST_QUERY_KEY => $queryStart === false
+                ? ''
+                : substr($target, $queryStart + 1),
+        ];
     }
 
     /**

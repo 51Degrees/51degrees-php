@@ -59,6 +59,12 @@ use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 
+// The example uses the engine the extension builds once, when PHP starts,
+// from the FiftyOneDegreesHashEngine.data_file php.ini setting. Without it,
+// the page says what to set, as the server cannot be started again from a
+// request.
+ExampleUtils::startWithEngine();
+
 // The example is run as a router script for the PHP built-in server
 // (php -S localhost:3000 userAgentClientHints-Web.php), so every request,
 // including the shared CSS and JS assets, is routed here. Serve the
@@ -93,6 +99,10 @@ $builder = new PipelineBuilder(['suppressProcessExceptions' => true]);
 
 $pipeline = $builder->add($device)->build();
 
+// A Flow Data is for this one request. PHP runs each request on one
+// thread, so nothing else uses it at the same time. A Flow Data
+// must not be used by two threads at once, so never keep one for
+// another request or hand it to another thread.
 // We create the flowData object that is used to add evidence to and read data from.
 // It is closed, with the pipeline, in the finally block at the end of the
 // page, which releases the results of the detection straight away.
@@ -203,6 +213,8 @@ try {
       <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-useragentclienthints-web.php&utm_term=paid-data-file">Contact us</a>
     </div>
     <?php } ?>
+
+    <?php echo ExampleUtils::getFindOutMoreHtml(__FILE__); ?>
 </div>
 
 <script>

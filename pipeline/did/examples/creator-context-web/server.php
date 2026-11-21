@@ -67,8 +67,9 @@ declare(strict_types=1);
  * its end, and at most once a minute while 51Dids arrive that fail their
  * signature or are dated past the keys it holds.
  *
- * Uses the 51Did package from this repository (PHP 8.1 or later), so run
- * `composer install` at the repository root first, then from this folder
+ * Uses the 51Did package this demo is part of (PHP 8.1 or later), so run
+ * `composer install` in the package's folder first, which is two folders
+ * above this one (`pipeline/did` in 51degrees-php). Then from this folder
  * start the built-in server and open http://localhost:5100/ in a browser.
  *
  *   php -S localhost:5100 server.php
@@ -90,42 +91,40 @@ use fiftyone\pipeline\did\DidClient;
 use fiftyone\pipeline\did\FodId;
 use fiftyone\pipeline\did\NotSupportedException;
 
-// The package from this repository, through the repository's own
-// autoloader, so the demo exercises the checked-out code.
+// The package this demo is part of, through the package's own autoloader,
+// so the demo exercises the checked-out code.
 $autoload = __DIR__ . '/../../vendor/autoload.php';
 if (!is_file($autoload)) {
     http_response_code(500);
-    exit('Run composer install at the repository root first.');
+    exit('Run composer install in the package folder, two folders above ' .
+        'this demo, first.');
 }
 require $autoload;
 
-/**
- * The value of an environment variable, read by its name and, when that
- * is not set or is empty, by the deprecated name it replaced, whose use is
- * written to the PHP error log.
- */
-function readVariable(string $name, string $deprecated): string
-{
-    $value = (string) getenv($name);
-    if ($value !== '') {
-        return $value;
-    }
-
-    $value = (string) getenv($deprecated);
-    if ($value !== '') {
-        error_log("A value was read from the environment variable {$deprecated}, "
-            . "which is deprecated. {$name} replaces it, so set that to the "
-            . 'same value.');
-    }
-
-    return $value;
-}
-
 // The resource key is public by nature and names the account.
-$resource = readVariable('_51DEGREES_RESOURCE_KEY', 'RESOURCE_KEY');
+$resource = (string) getenv('_51DEGREES_RESOURCE_KEY');
 if (!$resource) {
-    http_response_code(500);
-    exit('Set _51DEGREES_RESOURCE_KEY to the resource key of the page.');
+    // The demo cannot run without the key, so the page says where to
+    // create one, then gives the links to find out more. Having no key is
+    // how a person running the demo from a fresh clone starts, so the page
+    // is answered with success rather than an error status.
+    $configure = htmlspecialchars(
+        'https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-creator-context-web-server.php&utm_term=resource-key-required'
+    );
+    exit('<p>Set _51DEGREES_RESOURCE_KEY to the resource key of the page. '
+        . 'The 51Degrees cloud service creates and checks the 51Did with '
+        . "it. Create a resource key at <a href=\"{$configure}\">"
+        . 'the configuration page</a>.</p>'
+        . '<div id="find-out-more"><h3>Find out more</h3><ul>'
+        . '<li>This example: <a href="https://github.com/51Degrees/51degrees-php/tree/main/pipeline/did">https://github.com/51Degrees/51degrees-php/tree/main/pipeline/did</a></li>'
+        . '<li>The 51Did specification: <a href="https://github.com/51Degrees/specifications/tree/main/did-specification">https://github.com/51Degrees/specifications/tree/main/did-specification</a></li>'
+        . '<li><a href="' . htmlspecialchars(
+            'https://51degrees.com/documentation/_identifiers__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-creator-context-web-server.php&utm_term=find-out-more-51did'
+        ) . '">What a 51Did is</a></li>'
+        . '<li><a href="' . htmlspecialchars(
+            'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-creator-context-web-server.php&utm_term=find-out-more-contact'
+        ) . '">Contact us</a></li>'
+        . '</ul></div>');
 }
 
 // Only an account that holds licence keys needs one to redeem, because
@@ -133,7 +132,7 @@ if (!$resource) {
 // servers. An account holding none has nothing to check against, so the
 // demo runs without it, and where the account does hold some the
 // redemption reports the context unreadable.
-$licence = readVariable('_51DEGREES_LICENSE_KEY', 'LICENSE_KEY') ?: null;
+$licence = (string) getenv('_51DEGREES_LICENSE_KEY') ?: null;
 
 // One client for the server. The endpoint argument is left null so the
 // client reads _51DEGREES_CLOUD_ENDPOINT itself, the same variable the 51Degrees

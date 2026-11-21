@@ -16,13 +16,11 @@ try {
     New-Item -ItemType Directory -Force -Path cxx | Out-Null
     Copy-Item -Recurse -Path "$PSScriptRoot/../../cxx/src" -Destination cxx/src -ErrorAction Stop
 
-    # Generate the SWIG wrapper (requires SWIG 4.1+ on PATH).
-    New-Item -ItemType Directory -Force -Path src/php8 | Out-Null
-    swig -c++ -php -module FiftyOneDegreesIpIntelligenceEngine -outdir src/php8 -o src/php8/ipi_wrap.cxx ipi-php.i || $(throw "swig failed")
-
+    # The build compiles the committed wrapper, which configure copies from
+    # src/php8. A wrapper from another SWIG would join the Device Detection
+    # extension's SWIG type table in a PHP that loads both, which crashes PHP.
     phpize || $(throw "phpize failed")
     ./configure --enable-FiftyOneDegreesIpIntelligenceEngine || $(throw "configure failed")
-    Copy-Item -Path src/php8/* -Destination . -Force
     make "-j$([Environment]::ProcessorCount)" || $(throw "make failed")
 } finally {
     Pop-Location

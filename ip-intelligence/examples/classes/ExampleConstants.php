@@ -31,8 +31,8 @@ class ExampleConstants
     public const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
 
     /**
-     * Environment variable read for the cloud resource key when
-     * RESOURCE_KEY_VARIABLE is not set or is empty.
+     * The old environment variable name for the cloud resource key.
+     * It is no longer read.
      *
      * @deprecated use {@see ExampleConstants::RESOURCE_KEY_VARIABLE}
      */
@@ -42,8 +42,8 @@ class ExampleConstants
     public const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
 
     /**
-     * Environment variable read for the data file when IPI_PATH_VARIABLE
-     * is not set or is empty.
+     * The old environment variable name for the data file.
+     * It is no longer read.
      *
      * @deprecated use {@see ExampleConstants::IPI_PATH_VARIABLE}
      */
@@ -57,6 +57,16 @@ class ExampleConstants
     // the ASN properties and is far smaller than the Lite file, so the
     // performance example, which reads one property, downloads it instead.
     public const ASN_DATA_FILE_NAME = '51Degrees-IPIV4AsnIpiV41.ipi';
+
+    // Environment variable holding the path to a Device Detection .hash data
+    // file, which the mixed examples read when PHP built no Device Detection
+    // engine.
+    public const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
+
+    // The free Device Detection data file, as the data repository names it.
+    // The mixed examples download it into cxx/data/device-detection when PHP
+    // built no Device Detection engine and no other file is named.
+    public const DD_LITE_DATA_FILE_NAME = '51Degrees-LiteV4.1.hash';
 
     // The default on-premise data file names searched for, in priority order.
     // The Asn file is left out, because it has only the Asn and AsnName

@@ -58,7 +58,7 @@
  * ```
  *
  * Results can also be accessed in client-side code by using the `fod` object. See the
- * [JavaScriptBuilderElement](/documentation/4.5/apis/pipeline-php-core/classfiftyone_1_1pipeline_1_1core_1_1_javascript_builder_element.html)
+ * [JavaScriptBuilderElement](https://51degrees.com/pipeline-php/4.5/classfiftyone_1_1pipeline_1_1core_1_1_javascript_builder_element.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-classes-gettingstartedweb.php&utm_term=header)
  * for details on available settings such as changing the `fod` name.
  * ```{js}
  * window.onload = function () {
@@ -109,23 +109,20 @@ class GettingStartedWeb
         }
         $builder = new DeviceDetectionPipelineBuilder($builderSettings);
 
-        // To stop having to construct the pipeline
-        // and re-make cloud API requests used during construction on every page load,
-        // we recommend caching the serialized pipeline to a database or disk.
-        // Below we are using PHP's serialize and writing to a file if it doesn't exist
-        $serializedPipelineFile = __DIR__ . 'gettingStartedWeb.pipeline';
-        if (file_exists($serializedPipelineFile)) {
-            $pipeline = unserialize(file_get_contents($serializedPipelineFile));
-        } else {
-            $pipeline = $builder->build();
-            file_put_contents($serializedPipelineFile, serialize($pipeline));
-        }
+        // PHP keeps nothing from one request to the next, so the pipeline is
+        // built for each request. A pipeline saved to a file and read back
+        // would keep the resource key it was built with.
+        $pipeline = $builder->build();
 
         $this->processRequest($pipeline, $output);
     }
 
     private function processRequest($pipeline, callable $output)
     {
+        // A Flow Data is for this one request. PHP runs each request on one
+        // thread, so nothing else uses it at the same time. A Flow Data
+        // must not be used by two threads at once, so never keep one for
+        // another request or hand it to another thread.
         // Create the flowdata object.
         $flowdata = $pipeline->createFlowData();
 

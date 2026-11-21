@@ -36,6 +36,14 @@ use PHPUnit\Framework\TestCase;
 class IpIntelligenceCloudTests extends TestCase
 {
     /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
+    /**
      * Build a cloud pipeline backed by the MockHttpClient so the tests run
      * with no network access or resource key.
      */
@@ -172,23 +180,24 @@ class IpIntelligenceCloudTests extends TestCase
 
     /**
      * Live integration test - only runs when a real resource key has been
-     * supplied via the resource_key environment variable.
+     * supplied via the _51DEGREES_RESOURCE_KEY environment variable.
      */
     public function testLiveCloud(): void
     {
         $resourceKey = EnvironmentVariable::read(
             Constants::RESOURCE_KEY_VARIABLE,
-            Constants::RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
         if ($resourceKey === '') {
-            $this->markTestSkipped('No resource_key environment variable set - skipping live cloud test.');
+            $this->markTestSkipped('No _51DEGREES_RESOURCE_KEY environment variable set - skipping live cloud test.');
         }
 
-        $settings = ['resourceKey' => $resourceKey];
+        $settings = [
+            'resourceKey' => $resourceKey,
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ];
         $endPoint = EnvironmentVariable::read(
-            CloudConstants::CLOUD_ENDPOINT_VARIABLE,
-            CloudConstants::FOD_CLOUD_API_URL
+            CloudConstants::CLOUD_ENDPOINT_VARIABLE
         );
         if ($endPoint) {
             $settings['cloudEndPoint'] = $endPoint;

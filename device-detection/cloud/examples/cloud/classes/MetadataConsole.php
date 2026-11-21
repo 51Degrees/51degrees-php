@@ -62,10 +62,19 @@ class MetadataConsole
      *
      * @param string $resourceKey
      * @param \fiftyone\pipeline\core\Logger $logger
+     * @param callable $output
+     * @param float|int|null $timeoutSeconds The timeout of each request to the
+     * cloud service, or null for the Cloud Request Engine's default
      */
-    public function run($resourceKey, $logger, callable $output)
+    public function run($resourceKey, $logger, callable $output, $timeoutSeconds = null)
     {
-        $pipeline = (new DeviceDetectionPipelineBuilder(['resourceKey' => $resourceKey]))
+        $settings = ['resourceKey' => $resourceKey];
+
+        if ($timeoutSeconds !== null) {
+            $settings['timeoutSeconds'] = $timeoutSeconds;
+        }
+
+        $pipeline = (new DeviceDetectionPipelineBuilder($settings))
             ->addLogger($logger)
             ->build();
         

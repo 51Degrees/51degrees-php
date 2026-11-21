@@ -185,7 +185,6 @@ class ServeWebExamplesTests extends TestCase
         $environment = getenv();
         unset(
             $environment[ExampleConstants::IPI_PATH_VARIABLE],
-            $environment[ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR],
             $environment[self::DD_PATH_VARIABLE]
         );
         $environment['PHP_INI_SCAN_DIR'] = implode(

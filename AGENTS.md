@@ -232,8 +232,8 @@ of which the Lite file has, then `Hardware Vendor`, `Hardware Name` and
 they read `needs the Enterprise data file`. After the three it prints
 `Some of these properties need the Enterprise data file. Contact us for a copy
 at` and the tagged contact page. It prints nothing about the data file,
-because the messages go to `fiftyone\pipeline\core\Logger`, whose
-`logInternal` writes nothing.
+because the messages go to a `fiftyone\pipeline\core\Logger` given no
+`file` setting, which writes nothing.
 
 The IP Intelligence example looks up four addresses, being
 `116.154.188.222`, `1.3.32.31`, `45.236.48.61` and
@@ -290,9 +290,7 @@ argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
 its first argument or from `_51DEGREES_RESOURCE_KEY`, after a `composer install` in
-`ip-intelligence`. The Device Detection, IP Intelligence and location examples
-still read the old name `resource_key` when `_51DEGREES_RESOURCE_KEY` is unset
-or empty, and write to the PHP error log that the old name is deprecated.
+`ip-intelligence`.
 
 ### Pipeline examples
 

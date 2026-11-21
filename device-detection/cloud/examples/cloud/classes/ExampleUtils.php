@@ -33,8 +33,8 @@ class ExampleUtils
     public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
     /**
-     * The environment variable read for the resource key when
-     * RESOURCE_KEY_ENV_VAR is not set or is empty.
+     * The old environment variable name for the resource key.
+     * It is no longer read.
      *
      * @deprecated use {@see ExampleUtils::RESOURCE_KEY_ENV_VAR}
      */
@@ -49,8 +49,8 @@ class ExampleUtils
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
     /**
-     * The environment variable read for the cloud service when
-     * CLOUD_ENDPOINT_VARIABLE is not set or is empty.
+     * The old environment variable name for the cloud service.
+     * It is no longer read.
      *
      * @deprecated use {@see ExampleUtils::CLOUD_ENDPOINT_VARIABLE}
      */
@@ -77,8 +77,7 @@ class ExampleUtils
     public static function getResourceKeyFromEnv()
     {
         $key = EnvironmentVariable::read(
-            self::RESOURCE_KEY_ENV_VAR,
-            self::LEGACY_RESOURCE_KEY_ENV_VAR
+            self::RESOURCE_KEY_ENV_VAR
         );
 
         return $key === '' ? null : $key;
@@ -87,8 +86,7 @@ class ExampleUtils
     public static function getCloudEndpoint()
     {
         $endpoint = EnvironmentVariable::read(
-            self::CLOUD_ENDPOINT_VARIABLE,
-            self::ENDPOINT_ENV_VAR
+            self::CLOUD_ENDPOINT_VARIABLE
         );
 
         return $endpoint === '' ? null : $endpoint;

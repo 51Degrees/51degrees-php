@@ -46,8 +46,7 @@ class RestrictedPropertiesListTests extends TestCase
     public static function setUpBeforeClass(): void
     {
         $path = EnvironmentVariable::read(
-            Constants::IPI_PATH_VARIABLE,
-            Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            Constants::IPI_PATH_VARIABLE
         );
         $candidates = array_merge(
             $path ? [$path] : [],

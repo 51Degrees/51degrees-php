@@ -31,6 +31,8 @@ namespace fiftyone\pipeline\core;
  * If not value is set, a specific no value message is returned.
  *
  * @property mixed $value
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/properties.md#null-values
  */
 class AspectPropertyValue
 {

@@ -29,20 +29,12 @@ class Constants
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
     /**
-     * Environment variable read for the cloud endpoint when
-     * CLOUD_ENDPOINT_VARIABLE is not set or is empty.
+     * The old name of the environment variable CLOUD_ENDPOINT_VARIABLE
+     * names. It is no longer read.
      *
      * @deprecated use {@see Constants::CLOUD_ENDPOINT_VARIABLE}
      */
     public const FOD_CLOUD_API_URL = 'FOD_CLOUD_API_URL';
-
-    // Logged once by each engine whose cloud endpoint came from the
-    // deprecated environment variable, which is named first, then the
-    // one that replaces it.
-    public const MESSAGE_ENDPOINT_VARIABLE_DEPRECATED =
-        'The cloud endpoint was read from the environment variable %s, ' .
-        'which is deprecated. %s replaces it, so set that to the same ' .
-        'value.';
 
     // Default base url
     public const BASE_URL_DEFAULT = 'https://cloud.51degrees.com/api/v4/';

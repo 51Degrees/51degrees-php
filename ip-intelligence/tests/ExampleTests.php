@@ -65,7 +65,6 @@ class ExampleTests extends TestCase
     {
         $key = EnvironmentVariable::read(
             Constants::RESOURCE_KEY_VARIABLE,
-            Constants::RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
 

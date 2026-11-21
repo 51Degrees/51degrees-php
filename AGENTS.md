@@ -290,9 +290,7 @@ argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
 its first argument or from `_51DEGREES_RESOURCE_KEY`, after a `composer install` in
-`ip-intelligence`. The Device Detection, IP Intelligence and location examples
-still read the old name `resource_key` when `_51DEGREES_RESOURCE_KEY` is unset
-or empty, and write to the PHP error log that the old name is deprecated.
+`ip-intelligence`.
 
 ### Pipeline examples
 

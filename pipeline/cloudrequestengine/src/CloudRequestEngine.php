@@ -88,10 +88,6 @@ class CloudRequestEngine extends Engine
     // Set once a read by the Property's deprecated name has been logged.
     private bool $deprecatedPropertyReported = false;
 
-    // Set while the base URL came from the deprecated environment
-    // variable and that has yet to be logged.
-    private bool $oldEndPointVariableToReport = false;
-
     /**
      * @var array<string>
      */
@@ -164,12 +160,6 @@ class CloudRequestEngine extends Engine
             // Check if base URL is set via environment variable
             $envVarUrl = getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
             if (empty($envVarUrl)) {
-                // The deprecated variable is read only when the new one
-                // gives nothing.
-                $envVarUrl = getenv(Constants::FOD_CLOUD_API_URL);
-                $this->oldEndPointVariableToReport = !empty($envVarUrl);
-            }
-            if (empty($envVarUrl)) {
                 // Use default if nothing else is set
                 $this->baseURL = Constants::BASE_URL_DEFAULT;
             } else {
@@ -201,22 +191,12 @@ class CloudRequestEngine extends Engine
 
     /**
      * Logs, as warnings through the logger of the first pipeline the
-     * engine is added to, that the base URL came from the deprecated
-     * environment variable, and anything the engine had to warn about
-     * while it was built. Each engine logs these once, so a site that
+     * engine is added to, anything the engine had to warn about while it
+     * was built. Each engine logs these once, so a site that
      * builds its pipeline in every request logs them in every request.
      */
     public function onRegistration(Pipeline $pipeline): void
     {
-        if ($this->oldEndPointVariableToReport) {
-            $this->oldEndPointVariableToReport = false;
-            $pipeline->log('warning', sprintf(
-                Constants::MESSAGE_ENDPOINT_VARIABLE_DEPRECATED,
-                Constants::FOD_CLOUD_API_URL,
-                Constants::CLOUD_ENDPOINT_VARIABLE
-            ));
-        }
-
         $warnings = $this->pendingWarnings;
         $this->pendingWarnings = [];
         foreach ($warnings as $warning) {

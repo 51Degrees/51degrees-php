@@ -376,7 +376,7 @@ class StartWithoutDataFileTests extends TestCase
     /**
      * The environment of each PHP started. Its settings folders are the
      * system's own and, when the extension is wanted, the one holding the
-     * php.ini that loads it. The variables that name a data file are left
+     * php.ini that loads it. The variable that names a data file is left
      * out.
      *
      * @return array<string, string>
@@ -384,10 +384,7 @@ class StartWithoutDataFileTests extends TestCase
     private function environment(bool $extension): array
     {
         $environment = getenv();
-        unset(
-            $environment[ExampleUtils::DD_PATH_VARIABLE],
-            $environment[ExampleUtils::DATA_FILE_ENV_VAR]
-        );
+        unset($environment[ExampleUtils::DD_PATH_VARIABLE]);
         $folders = array_filter([
             PHP_CONFIG_FILE_SCAN_DIR,
             $extension ? self::$settings : null

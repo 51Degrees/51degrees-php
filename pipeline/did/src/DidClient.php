@@ -87,8 +87,8 @@ final class DidClient
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
     /**
-     * The environment variable read for the API base when
-     * {@see DidClient::CLOUD_ENDPOINT_VARIABLE} is not set or is empty.
+     * The old name of the environment variable
+     * {@see DidClient::CLOUD_ENDPOINT_VARIABLE} names. It is no longer read.
      *
      * @deprecated use {@see DidClient::CLOUD_ENDPOINT_VARIABLE}
      */
@@ -133,22 +133,6 @@ final class DidClient
     /** Stands in for each hidden character of a licence key. */
     private const LICENCE_MASK_CHARACTER = '*';
 
-    /**
-     * Written to the PHP error log when the API base came from the
-     * deprecated environment variable, which is named first, then the
-     * one that replaces it.
-     */
-    private const OLD_ENDPOINT_VARIABLE_MESSAGE =
-        'The cloud endpoint was read from the environment variable %s, '
-        . 'which is deprecated. %s replaces it, so set that to the same '
-        . 'value.';
-
-    /**
-     * Whether the deprecated variable has been reported since PHP started
-     * the script, which under a web server is since the request began.
-     */
-    private static bool $oldEndpointVariableReported = false;
-
     private string $resourceKey;
     private ?string $licenceKey;
     private string $endpoint;
@@ -170,8 +154,7 @@ final class DidClient
      *     only, needed to redeem where the account holds licence keys.
      * @param string|null $endpoint The API base including `/api/v4/`. When
      *     null the `_51DEGREES_CLOUD_ENDPOINT` environment variable is read,
-     *     then the deprecated `FOD_CLOUD_API_URL`, then
-     *     {@see DidClient::DEFAULT_ENDPOINT}. A value with or without a
+     *     then {@see DidClient::DEFAULT_ENDPOINT}. A value with or without a
      *     trailing slash is normalised to end in exactly one.
      * @param callable|null $transport An HTTP transport for tests, called as
      *     `$transport(string $method, string $url, string[] $headers,
@@ -214,33 +197,14 @@ final class DidClient
     }
 
     /**
-     * The API base from the environment, or null when neither variable
-     * holds a value. The deprecated variable is read only when the new
-     * one gives nothing. Its use is written to the PHP error log, because
-     * the package has no logger, once for each time PHP runs the script.
-     * Under a web server that is once in each request that builds a
-     * client from the deprecated variable.
+     * The API base from the environment, or null when the variable holds
+     * no value.
      */
     private static function endpointFromEnvironment(): ?string
     {
         $new = getenv(self::CLOUD_ENDPOINT_VARIABLE);
-        if ($new !== false && $new !== '') {
-            return $new;
-        }
-        $old = getenv(self::ENDPOINT_VARIABLE);
-        if ($old === false || $old === '') {
-            return null;
-        }
-        if (!self::$oldEndpointVariableReported) {
-            self::$oldEndpointVariableReported = true;
-            error_log(sprintf(
-                self::OLD_ENDPOINT_VARIABLE_MESSAGE,
-                self::ENDPOINT_VARIABLE,
-                self::CLOUD_ENDPOINT_VARIABLE
-            ));
-        }
 
-        return $old;
+        return $new !== false && $new !== '' ? $new : null;
     }
 
     /** The API base, ending in one slash. */

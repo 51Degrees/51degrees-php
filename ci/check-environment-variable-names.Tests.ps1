@@ -3,9 +3,9 @@
 # Each case is one line of text and what the check must make of it. The
 # names are matched in any case, because Windows reads an environment
 # variable name in any case, so a lower case old name is still the old name
-# there. The old names are still read as deprecated names, so the check
-# leaves them alone in the files that read them and fails on them anywhere
-# else.
+# there. The old names are no longer read, but deprecated constants still
+# hold them, so the check leaves them alone in the files that keep those
+# constants and fails on them anywhere else.
 
 BeforeAll {
     $script:Check = Join-Path $PSScriptRoot 'check-environment-variable-names.ps1'
@@ -107,7 +107,7 @@ Describe 'Find-EnvironmentNameProblem' {
 
 }
 
-# The old names are still read as deprecated names, by the files the check
+# The old names are held by deprecated constants in the files the check
 # lists, so they are allowed there and nowhere else.
 Describe 'Test-DeprecatedNameAllowed' {
 
@@ -118,20 +118,16 @@ Describe 'Test-DeprecatedNameAllowed' {
            Line = 'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';' }
         @{ Path = 'pipeline\did\src\DidClient.php'
            Line = 'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';' }
-        @{ Path = 'pipeline/did/examples/creator-context-web/server.php'
-           Line = '$key = readVariable(''_51DEGREES_RESOURCE_KEY'', ''RESOURCE_KEY'');' }
         @{ Path = 'device-detection/cloud/examples/cloud/classes/ExampleUtils.php'
            Line = 'public const LEGACY_RESOURCE_KEY_ENV_VAR = ''resource_key'';' }
         @{ Path = 'device-detection/cloud/examples/cloud/classes/ExampleUtils.php'
            Line = 'public const ENDPOINT_ENV_VAR = ''cloud_endpoint'';' }
-        @{ Path = 'device-detection/cloud/tests/classes/ResourceKeys.php'
-           Line = 'Constants::LEGACY_ENV_VARS[$name] ?? $name,' }
+        @{ Path = 'device-detection/cloud/tests/classes/Constants.php'
+           Line = 'public const LEGACY_RESOURCE_ENV_VAR = ''resource_key'';' }
         @{ Path = 'device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php'
            Line = 'public const DATA_FILE_ENV_VAR = ''51DEGREES_DD_PATH'';' }
-        @{ Path = 'device-detection/onpremise/configuration-tests/testForkSafety.php'
-           Line = 'readVariable(''_51DEGREES_DD_PATH'', ''FIFTYONE_DATA_FILE'')' }
-        @{ Path = 'ip-intelligence/src/translation/TranslationPaths.php'
-           Line = 'private const OLD_IPI_PATH_VARIABLE = ''IPINTELLIGENCEDATAFILE'';' }
+        @{ Path = 'ip-intelligence/examples/classes/ExampleConstants.php'
+           Line = 'public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = ''IPINTELLIGENCEDATAFILE'';' }
         @{ Path = 'location/examples/cloud/classes/Constants.php'
            Line = 'const RESOURCE_KEY_ENV_VAR = ''resource_key'';' }
     ) {
@@ -149,8 +145,13 @@ Describe 'Test-DeprecatedNameAllowed' {
            Line = '[Environment]::SetEnvironmentVariable(''51DEGREES_DD_PATH'', $dataFile)' }
         @{ Path = 'Pipeline/Did/Src/DidClient.php'
            Line = 'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';' }
+        # These files read old names before and no longer may.
+        @{ Path = 'pipeline/did/examples/creator-context-web/server.php'
+           Line = '$key = readVariable(''_51DEGREES_RESOURCE_KEY'', ''RESOURCE_KEY'');' }
+        @{ Path = 'ip-intelligence/src/translation/TranslationPaths.php'
+           Line = 'private const OLD_IPI_PATH_VARIABLE = ''IPINTELLIGENCEDATAFILE'';' }
         # A name starting with the digit is allowed only when it is the one
-        # that is still read.
+        # that a deprecated constant still holds.
         @{ Path = 'device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php'
            Line = 'public const IPI_FILE_ENV_VAR = ''51DEGREES_IPI_PATH'';' }
         @{ Path = 'device-detection/onpremise/examples/onpremise/classes/ExampleUtils.php'
@@ -169,7 +170,7 @@ Describe 'Test-DeprecatedNameAllowed' {
 
 Describe 'the check over a repository' {
 
-    It 'passes on an old name in a file that reads it as a deprecated name' {
+    It 'passes on an old name in a file that keeps a deprecated constant holding it' {
         $output = Invoke-CheckOver 'pipeline/did/src/DidClient.php' `
             'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';'
         $output | Should -Contain ('1 deprecated names left alone in the ' +

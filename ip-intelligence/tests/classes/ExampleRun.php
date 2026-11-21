@@ -44,7 +44,7 @@ class ExampleRun
     public const HEADING = "Find out more\n-------------\n";
 
     // The environment variables a resource key is read from.
-    public const RESOURCE_KEY_VARIABLES = ['_51DEGREES_RESOURCE_KEY', 'resource_key'];
+    public const RESOURCE_KEY_VARIABLES = ['_51DEGREES_RESOURCE_KEY'];
 
     // The variables a web server gives a script for a request for the home
     // page. PHP from the command line puts environment variables in

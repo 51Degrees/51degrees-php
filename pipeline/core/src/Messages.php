@@ -99,4 +99,11 @@ class Messages
      * and property names as format arguments.
      */
     public const PROPERTY_NOT_FOUND = "Property '%s' is not present in the FlowData against '%s' ElementData. ";
+
+    /**
+     * A typed getter was asked for a Property whose value is not a single
+     * value, such as a list. This takes the property name, then the type
+     * asked for, as format arguments.
+     */
+    public const PROPERTY_NOT_SCALAR = "The value of property '%s' is not a single value, so it cannot be read as %s.";
 }

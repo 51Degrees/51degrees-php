@@ -100,4 +100,18 @@ class FlowDataAccessorTests extends TestCase
             $flowData->getEvidenceDataKey()['header.user-agent']
         );
     }
+
+    /**
+     * A key no element has is still the caller's mistake once the Flow Data
+     * is processed, failed elements or not.
+     */
+    public function testAKeyNoElementHasStillThrows(): void
+    {
+        $flowData = self::flowData(true);
+        $flowData->process();
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("'nothing'");
+        $flowData->get('nothing');
+    }
 }

@@ -31,8 +31,8 @@ class Constants
     const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
 
     /**
-     * The environment variable read for the resource key when
-     * RESOURCE_KEY_VARIABLE is not set or is empty.
+     * The old environment variable name for the resource key.
+     * It is no longer read.
      *
      * @deprecated use {@see Constants::RESOURCE_KEY_VARIABLE}
      */

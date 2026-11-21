@@ -30,6 +30,8 @@ namespace fiftyone\pipeline\derivedproperty;
  * files and script text held by code. The element runs the scripts in the
  * order they were added. Every fault in every script is reported together
  * when build is called.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/derived-property-element.md
  */
 class DerivedPropertyElementBuilder
 {

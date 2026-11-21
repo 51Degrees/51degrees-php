@@ -27,8 +27,7 @@ class Constants
 {
     // Resource key environment variables follow the 51Degrees convention,
     // which is that every one of them starts with
-    // '_51DEGREES_RESOURCE_KEY'. The name it replaced is still read, as a
-    // deprecated name, when the variable is not set.
+    // '_51DEGREES_RESOURCE_KEY'. The name it replaced is no longer read.
     public const RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
     // The license key the Accept-CH tests ask the cloud for one property at
@@ -39,8 +38,8 @@ class Constants
     public const LEGACY_RESOURCE_ENV_VAR = 'resource_key';
 
     /**
-     * Pairs each variable with the deprecated name it replaced, so a
-     * lookup can read that name without every test knowing both.
+     * Pairs each variable with the deprecated name it replaced, which is
+     * no longer read.
      *
      * @deprecated use the variable names, which are the keys
      */

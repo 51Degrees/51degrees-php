@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\core;
  * Masks license keys for log entries and error messages. A license key is
  * shown as its last 4 characters, and a key of 4 characters or fewer is
  * replaced entirely.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/logging.md#license-keys
  */
 class LicenseKey
 {

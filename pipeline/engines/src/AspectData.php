@@ -32,6 +32,8 @@ use fiftyone\pipeline\core\ElementData;
  * It also allows properties to be explicitly excluded by a FlowElement / Engine.
  *
  * @property \fiftyone\pipeline\engines\Engine $flowElement
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#aspect-data
  */
 class AspectData extends ElementData
 {

@@ -100,8 +100,7 @@ if (!extension_loaded('FiftyOneDegreesHashEngine')) {
 
 $setting = [];
 $fromEnvironment = EnvironmentVariable::read(
-    ExampleUtils::DD_PATH_VARIABLE,
-    ExampleUtils::DATA_FILE_ENV_VAR
+    ExampleUtils::DD_PATH_VARIABLE
 );
 if ($named === [] && $fromEnvironment === '' &&
     \FiftyOneDegreesHashEngine::engine_get() !== null) {

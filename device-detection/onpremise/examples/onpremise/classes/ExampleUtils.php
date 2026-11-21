@@ -34,8 +34,8 @@ class ExampleUtils
     public const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
 
     /**
-     * Environment variable read for the data file when DD_PATH_VARIABLE is
-     * not set or is empty.
+     * The old environment variable name for the data file.
+     * It is no longer read.
      *
      * @deprecated use {@see ExampleUtils::DD_PATH_VARIABLE}
      */
@@ -95,8 +95,7 @@ class ExampleUtils
     public static function useDataFileFromEnv($engine, $logger)
     {
         $path = EnvironmentVariable::read(
-            ExampleUtils::DD_PATH_VARIABLE,
-            ExampleUtils::DATA_FILE_ENV_VAR
+            ExampleUtils::DD_PATH_VARIABLE
         );
         if ($path === '') {
             return;
@@ -329,8 +328,7 @@ class ExampleUtils
         }
 
         $env = EnvironmentVariable::read(
-            ExampleUtils::DD_PATH_VARIABLE,
-            ExampleUtils::DATA_FILE_ENV_VAR
+            ExampleUtils::DD_PATH_VARIABLE
         );
         if ($env !== '') {
             if (!ExampleUtils::downloadMissingDataFile($env)) {
@@ -365,8 +363,7 @@ class ExampleUtils
             return $args[0];
         }
         $env = EnvironmentVariable::read(
-            ExampleUtils::DD_PATH_VARIABLE,
-            ExampleUtils::DATA_FILE_ENV_VAR
+            ExampleUtils::DD_PATH_VARIABLE
         );
 
         return $env !== '' && is_file($env) ? $env : null;

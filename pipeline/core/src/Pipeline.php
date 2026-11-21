@@ -44,6 +44,8 @@ namespace fiftyone\pipeline\core;
  * @property-read bool $autoCloseElements The autoCloseElements setting
  * @property-read array<string, array<string, array<string, array<string, string>>>> $propertyDatabase
  *   The metadata of every element's properties
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#pipeline
  */
 class Pipeline
 {
@@ -70,6 +72,21 @@ class Pipeline
         'metaDataStore',
         'suppressProcessExceptions',
         'autoCloseElements',
+    ];
+
+    /**
+     * The default of each setting, used where the settings leave it out.
+     * The logger entry records the setting's default of null, and a
+     * Pipeline given no logger makes a Logger at Logger::DEFAULT_LEVEL
+     * with no file setting, which writes nothing.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/reference-implementation-notes.md#builders
+     */
+    public const DEFAULTS = [
+        'logger' => null,
+        'metaDataStore' => null,
+        'suppressProcessExceptions' => false,
+        'autoCloseElements' => true,
     ];
 
     /**
@@ -157,18 +174,28 @@ class Pipeline
     private ?bool $acceptsRequestLine = null;
 
     /**
+     * The Evidence the Pipeline accepts, which getEvidenceKeyFilter gives.
+     * It is always needed and the elements it asks do not change once the
+     * Pipeline is built, so the constructor builds it once. It holds no
+     * closure, so the Pipeline can still be serialized, as a session cache
+     * does through an element's data.
+     */
+    private EvidenceKeyFilter $evidenceKeyFilter;
+
+    /**
      * Pipeline constructor.
      *
      * @param array<\fiftyone\pipeline\core\FlowElement> $flowElements List of FlowElements
      * @param array<string, mixed> $settings The logger, metaDataStore,
-     *   suppressProcessExceptions and autoCloseElements settings
+     *   suppressProcessExceptions and autoCloseElements settings, whose
+     *   defaults are in DEFAULTS
      */
     public function __construct(array $flowElements, array $settings)
     {
         $this->logger = $settings['logger'] ?? new Logger(null);
-        $this->metaDataStore = $settings['metaDataStore'] ?? null;
-        $this->suppressProcessExceptions = (bool) ($settings['suppressProcessExceptions'] ?? false);
-        $this->autoCloseElements = (bool) ($settings['autoCloseElements'] ?? true);
+        $this->metaDataStore = $settings['metaDataStore'] ?? self::DEFAULTS['metaDataStore'];
+        $this->suppressProcessExceptions = (bool) ($settings['suppressProcessExceptions'] ?? self::DEFAULTS['suppressProcessExceptions']);
+        $this->autoCloseElements = (bool) ($settings['autoCloseElements'] ?? self::DEFAULTS['autoCloseElements']);
 
         $this->flowElements = $flowElements;
 
@@ -194,6 +221,8 @@ class Pipeline
 
             $flowElement->onRegistration($this);
         }
+
+        $this->evidenceKeyFilter = new PipelineEvidenceKeyFilter($this->flowElements);
     }
 
     /**
@@ -282,6 +311,9 @@ class Pipeline
      * FlowData created by the Pipeline are not closed by it. Close each one
      * as well, because the results it holds keep the engine's data in memory
      * until they are released.
+     *
+     * @throws \Throwable the first error a FlowElement's close threw, once
+     *   every FlowElement has been closed
      */
     public function close(): void
     {
@@ -317,21 +349,13 @@ class Pipeline
      * of its FlowElements accepts, in any letter case. Each element is asked
      * when a key is checked, so the filter follows an element whose accepted
      * Evidence changes, as it does when an engine's data is refreshed.
+     *
+     * The filter is built once, when the Pipeline is built, and every call
+     * gives that same filter.
      */
     public function getEvidenceKeyFilter(): EvidenceKeyFilter
     {
-        $filter = new EvidenceKeyFilter();
-        $filter->filterEvidenceKey = function (string $key): bool {
-            foreach ($this->flowElements as $flowElement) {
-                if ($flowElement->filterEvidenceKey($key)) {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-
-        return $filter;
+        return $this->evidenceKeyFilter;
     }
 
     /**
@@ -363,17 +387,15 @@ class Pipeline
     }
 
     /**
-     * Whether any element accepts any of the keys.
+     * Whether the Pipeline's filter accepts any of the keys.
      *
      * @param array<string> $keys
      */
     private function anyElementAccepts(array $keys): bool
     {
-        foreach ($this->flowElements as $flowElement) {
-            foreach ($keys as $key) {
-                if ($flowElement->filterEvidenceKey($key)) {
-                    return true;
-                }
+        foreach ($keys as $key) {
+            if ($this->evidenceKeyFilter->filterEvidenceKey($key)) {
+                return true;
             }
         }
 

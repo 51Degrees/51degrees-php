@@ -110,8 +110,7 @@ if (!extension_loaded('FiftyOneDegreesIpIntelligenceEngine')) {
 
 $settings = [];
 $fromEnvironment = EnvironmentVariable::read(
-    ExampleConstants::IPI_PATH_VARIABLE,
-    ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+    ExampleConstants::IPI_PATH_VARIABLE
 );
 if ($named === [] && $fromEnvironment === '' &&
     function_exists('ipi_engine_get') && \ipi_engine_get() !== null) {

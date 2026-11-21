@@ -106,7 +106,6 @@ class GeoLocationTests extends TestCase
     {
         $resourceKey = EnvironmentVariable::read(
             Constants::RESOURCE_KEY_VARIABLE,
-            Constants::RESOURCE_KEY_ENV_VAR,
             '!!YOUR_RESOURCE_KEY!!'
         );
 

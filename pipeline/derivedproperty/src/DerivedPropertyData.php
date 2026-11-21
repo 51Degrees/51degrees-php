@@ -34,6 +34,8 @@ use fiftyone\pipeline\core\ElementDataDictionary;
  * produce has no value and a message naming every source property that was
  * missing. Names are matched without regard to case, and the keys of
  * asDictionary are lower case, as for the other elements.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/derived-property-element.md
  */
 class DerivedPropertyData extends ElementDataDictionary
 {

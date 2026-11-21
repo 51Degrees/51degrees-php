@@ -27,6 +27,8 @@ namespace fiftyone\pipeline\core;
 
 /**
  * Storage of evidence on a FlowData object.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/evidence.md
  */
 class Evidence
 {
@@ -114,14 +116,8 @@ class Evidence
      */
     public function set(string $key, $value): void
     {
-        $keep = false;
-
-        foreach ($this->flowData->pipeline->flowElements as $flowElement) {
-            if ($flowElement->filterEvidenceKey($key)) {
-                $keep = true;
-                break;
-            }
-        }
+        $keep = $this->flowData->pipeline->getEvidenceKeyFilter()
+            ->filterEvidenceKey($key);
 
         $lower = strtolower($key);
         if (isset($this->keys[$lower])) {

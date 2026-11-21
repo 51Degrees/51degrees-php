@@ -320,7 +320,6 @@ class MixedExamplesTests extends TestCase
             [],
             [
                 ExampleConstants::IPI_PATH_VARIABLE,
-                ExampleConstants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR,
                 self::DD_PATH_VARIABLE,
             ],
             ['PHP_INI_SCAN_DIR' => implode(

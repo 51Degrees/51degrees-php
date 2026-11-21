@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\core;
 /**
  * An instance of EvidenceKeyFilter that uses a simple array of keys
  * Evidence not using these keys is filtered out.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/advertize-accepted-evidence.md
  */
 class BasicListEvidenceKeyFilter extends EvidenceKeyFilter
 {

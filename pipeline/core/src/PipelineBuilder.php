@@ -29,9 +29,28 @@ namespace fiftyone\pipeline\core;
  * A PipelineBuilder generates a Pipeline object
  * Before construction of the Pipeline, FlowElements are added to it
  * There are also options for how JavaScript is output from the Pipeline.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#pipeline-builder
  */
 class PipelineBuilder
 {
+    /**
+     * The default of each setting the constructor reads, used where the
+     * settings leave it out. The Pipeline's own settings, which the builder
+     * passes on, have their defaults in Pipeline::DEFAULTS.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/reference-implementation-notes.md#builders
+     */
+    public const DEFAULTS = [
+        'addJavaScriptBuilder' => true,
+        'javascriptBuilderSettings' => [],
+        'useSetHeaderProperties' => true,
+        'addSequenceElement' => true,
+        'addJsonBundlerElement' => true,
+        'addJavaScriptBuilderElement' => true,
+        'addSetHeaderElement' => true,
+    ];
+
     /**
      * @var array<\fiftyone\pipeline\core\Pipeline>
      */
@@ -69,20 +88,22 @@ class PipelineBuilder
     protected array $settings = [];
 
     /**
-     * @param array<string, mixed> $settings
+     * @param array<string, mixed> $settings The builder's settings, whose
+     *   defaults are in DEFAULTS, and the Pipeline's, whose defaults are in
+     *   Pipeline::DEFAULTS
      */
     public function __construct(array $settings = [])
     {
         // List of Pipelines the FlowElement has been added to
         $this->pipelines = [];
 
-        $this->addJavaScriptBuilder = (bool) ($settings['addJavaScriptBuilder'] ?? true);
-        $this->javascriptBuilderSettings = $settings['javascriptBuilderSettings'] ?? [];
-        $this->useSetHeaderProperties = (bool) ($settings['useSetHeaderProperties'] ?? true);
-        $this->addSequenceElement = (bool) ($settings['addSequenceElement'] ?? true);
-        $this->addJsonBundlerElement = (bool) ($settings['addJsonBundlerElement'] ?? true);
-        $this->addJavaScriptBuilderElement = (bool) ($settings['addJavaScriptBuilderElement'] ?? true);
-        $this->addSetHeaderElement = (bool) ($settings['addSetHeaderElement'] ?? true);
+        $this->addJavaScriptBuilder = (bool) ($settings['addJavaScriptBuilder'] ?? self::DEFAULTS['addJavaScriptBuilder']);
+        $this->javascriptBuilderSettings = $settings['javascriptBuilderSettings'] ?? self::DEFAULTS['javascriptBuilderSettings'];
+        $this->useSetHeaderProperties = (bool) ($settings['useSetHeaderProperties'] ?? self::DEFAULTS['useSetHeaderProperties']);
+        $this->addSequenceElement = (bool) ($settings['addSequenceElement'] ?? self::DEFAULTS['addSequenceElement']);
+        $this->addJsonBundlerElement = (bool) ($settings['addJsonBundlerElement'] ?? self::DEFAULTS['addJsonBundlerElement']);
+        $this->addJavaScriptBuilderElement = (bool) ($settings['addJavaScriptBuilderElement'] ?? self::DEFAULTS['addJavaScriptBuilderElement']);
+        $this->addSetHeaderElement = (bool) ($settings['addSetHeaderElement'] ?? self::DEFAULTS['addSetHeaderElement']);
 
         // The Pipeline's own settings, passed on to it because a built
         // Pipeline's settings cannot be set. addLogger also sets the logger.
@@ -167,6 +188,8 @@ class PipelineBuilder
      * configuration are closed and the error is thrown.
      *
      * @param array<string, mixed>|string $fileOrConfig Filename of the config file to load config or associative array of config values
+     * @throws \Throwable the error of an element that could not be built,
+     *   once the elements already built are closed
      */
     public function buildFromConfig($fileOrConfig): Pipeline
     {

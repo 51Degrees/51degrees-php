@@ -175,9 +175,12 @@ class SetHeaderTests extends TestCase
             ]
         ];
         $testPipeline = new TestPipeline();
-        $testPipeline->flowData->data = ['device' => $device];
+        // A processed FlowData is read only, so the data is set on one that
+        // has not been processed.
+        $flowData = $testPipeline->pipeline->createFlowData();
+        $flowData->data = ['device' => $device];
         $actualValue = (new SetHeaderElement())->getResponseHeaderValue(
-            $testPipeline->flowData,
+            $flowData,
             $setHeaderPropertiesDict
         );
         $this->assertSame(['Accept-CH' => 'Sec-CH-UA'], $actualValue);

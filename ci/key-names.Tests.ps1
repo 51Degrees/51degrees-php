@@ -213,3 +213,21 @@ Describe 'Old key names' {
         $found | Should -BeNullOrEmpty
     }
 }
+
+Describe 'The 51Did and Basic resource keys' {
+    # The 51Did license key unseals only results made with the resource key
+    # of its own account, and the Basic tier needs a key on CloudV5Basic
+    # alone, so each is filled from the secret of its own name.
+    It 'are given <Name> from the secret of the same name by every workflow' -ForEach @(
+        @{ Name = '_51DEGREES_RESOURCE_KEY_51DID' }
+        @{ Name = '_51DEGREES_RESOURCE_KEY_BASIC' }
+    ) {
+        $lines = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Filter *.yml |
+            Select-String -Pattern "^\s*$Name\s*:" |
+            ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" })
+        $lines | Should -Not -BeNullOrEmpty
+        $lines | Where-Object {
+            $_ -notmatch (':\s*\$\{\{\s*secrets\.' + $Name + '\s*\}\}\s*$')
+        } | Should -BeNullOrEmpty
+    }
+}

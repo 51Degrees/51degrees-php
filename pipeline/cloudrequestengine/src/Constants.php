@@ -28,14 +28,6 @@ class Constants
     // Environment variable to set cloud endpoint
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
-    /**
-     * The old name of the environment variable CLOUD_ENDPOINT_VARIABLE
-     * names. It is no longer read.
-     *
-     * @deprecated use {@see Constants::CLOUD_ENDPOINT_VARIABLE}
-     */
-    public const FOD_CLOUD_API_URL = 'FOD_CLOUD_API_URL';
-
     // Default base url
     public const BASE_URL_DEFAULT = 'https://cloud.51degrees.com/api/v4/';
 

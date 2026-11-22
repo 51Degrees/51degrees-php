@@ -31,25 +31,12 @@ namespace fiftyone\pipeline\geolocation\examples\cloud\classes;
 class EnvironmentVariable
 {
     /**
-     * The variable's value, or an empty string when it holds none.
+     * The variable's value, or an empty string when it is not set.
      *
      * @param string $name The variable's name
-     * @param string $placeholder A value that counts as not set, which is
-     * how a phpunit.xml file marks a value nobody has filled in
      */
-    public static function read(string $name, string $placeholder = ''): string
+    public static function read(string $name): string
     {
-        return self::value($name, $placeholder);
-    }
-
-    private static function value(string $name, string $placeholder): string
-    {
-        $value = getenv($name);
-        if ($value === false) {
-            $value = $_ENV[$name] ?? '';
-        }
-        $value = (string) $value;
-
-        return $value === $placeholder ? '' : $value;
+        return (string) getenv($name);
     }
 }

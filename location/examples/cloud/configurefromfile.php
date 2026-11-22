@@ -89,8 +89,7 @@ $config = json_decode(file_get_contents($configFile), true);
 // A key in the environment variable is used in place of the one in the
 // configuration file.
 $resourceKey = EnvironmentVariable::read(
-    Constants::RESOURCE_KEY_VARIABLE,
-    "!!YOUR_RESOURCE_KEY!!"
+    Constants::RESOURCE_KEY_VARIABLE
 );
 if ($resourceKey !== '') {
     $config["PipelineOptions"]["Elements"][0]["BuildParameters"]["resourceKey"] = $resourceKey;

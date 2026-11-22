@@ -1,8 +1,4 @@
 <phpunit bootstrap="vendor/autoload.php">
-  <php>
-    <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="_51DEGREES_CLOUD_ENDPOINT" value=""/>
-  </php>
   <testsuites>
     <!-- Runs the examples with no resource key, so it runs on every build. -->
     <testsuite name="Unit">

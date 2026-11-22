@@ -33,14 +33,6 @@ class ExampleUtils
     // is the name the 51Degrees examples in every language read.
     public const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
 
-    /**
-     * The old environment variable name for the data file.
-     * It is no longer read.
-     *
-     * @deprecated use {@see ExampleUtils::DD_PATH_VARIABLE}
-     */
-    public const DATA_FILE_ENV_VAR = '51DEGREES_DD_PATH';
-
     // The php.ini setting naming the data file the extension builds its
     // engine from when PHP starts.
     public const DATA_FILE_SETTING = 'FiftyOneDegreesHashEngine.data_file';

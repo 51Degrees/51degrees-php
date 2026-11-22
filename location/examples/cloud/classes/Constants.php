@@ -30,14 +30,6 @@ class Constants
     // The environment variable the examples read the resource key from.
     const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
 
-    /**
-     * The old environment variable name for the resource key.
-     * It is no longer read.
-     *
-     * @deprecated use {@see Constants::RESOURCE_KEY_VARIABLE}
-     */
-    const RESOURCE_KEY_ENV_VAR = 'resource_key';
-
     // The repository every example lists under "Find out more".
     private const FIND_OUT_MORE_REPOSITORIES = [
         'This example' =>

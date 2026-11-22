@@ -1,15 +1,4 @@
 <phpunit bootstrap="vendor/autoload.php">
-  <php>
-    <!-- Resource key variables follow the 51Degrees convention, which is
-         that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The
-         values here are placeholders. Real keys come from the environment,
-         which PHPUnit does not overwrite. -->
-    <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="_51DEGREES_CLOUD_ENDPOINT" value=""/>
-    <!-- The license key the Accept-CH tests ask for one property at a
-         time with. -->
-    <env name="_51DEGREES_LICENSE_KEY_BESPOKE" value="!!YOUR_RESOURCE_KEY!!"/>
-  </php>
   <testsuites>
     <!-- The unit suite runs against fixed cloud responses, so it needs no
          resource key and no network connection. It runs on every build,

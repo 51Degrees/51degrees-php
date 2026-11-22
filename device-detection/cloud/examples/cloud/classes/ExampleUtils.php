@@ -32,14 +32,6 @@ class ExampleUtils
     // resource key variable starts with '_51DEGREES_RESOURCE_KEY'.
     public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
-    /**
-     * The old environment variable name for the resource key.
-     * It is no longer read.
-     *
-     * @deprecated use {@see ExampleUtils::RESOURCE_KEY_ENV_VAR}
-     */
-    public const LEGACY_RESOURCE_KEY_ENV_VAR = 'resource_key';
-
     // The query string parameter the web examples accept a resource key on.
     // This is part of the URL rather than the environment, so it keeps its
     // own name.
@@ -47,14 +39,6 @@ class ExampleUtils
 
     // The environment variable that can name the cloud service to use.
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
-
-    /**
-     * The old environment variable name for the cloud service.
-     * It is no longer read.
-     *
-     * @deprecated use {@see ExampleUtils::CLOUD_ENDPOINT_VARIABLE}
-     */
-    public const ENDPOINT_ENV_VAR = 'cloud_endpoint';
 
     // The repository every example lists under "Find out more".
     private const FIND_OUT_MORE_REPOSITORIES = [

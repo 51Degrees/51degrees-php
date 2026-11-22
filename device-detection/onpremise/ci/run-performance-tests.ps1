@@ -22,7 +22,7 @@ $perfSummary = New-Item -ItemType directory -Path $RepoName/test-results/perform
 Push-Location $RepoName
 try {
     Write-Output "Running performance tests"
-    $resultsRaw = php performance-tests/benchmark.php ../assets/"20000 User Agents.csv" --output || $(throw "benchmark failed")
+    $resultsRaw = php performance-tests/benchmark.php ../assets/"20000 Evidence Records.yml" --output || $(throw "benchmark failed")
     Write-Output $resultsRaw
 
     $results = $resultsRaw | ConvertFrom-Json

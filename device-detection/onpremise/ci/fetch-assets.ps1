@@ -10,7 +10,7 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
 # which common-ci puts into the environment as _51DEGREES_LICENSE_KEY before
 # this runs. Without it, as in a build with no secrets, only the free assets
 # are fetched, and ci/run-unit-tests.ps1 runs the tests that need no TAC file.
-$assets = @("20000 User Agents.csv", "51Degrees-LiteV4.1.hash")
+$assets = @("20000 Evidence Records.yml", "51Degrees-LiteV4.1.hash")
 if ($env:_51DEGREES_LICENSE_KEY) {
     $assets = @("TAC-HashV41.hash") + $assets
 } else {

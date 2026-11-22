@@ -43,11 +43,6 @@ concurrency:
   group: did-publish-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  _51DEGREES_PACKAGE_DIR: pipeline/did
-  # The old repository that Packagist reads, which is not the directory name.
-  _51DEGREES_MIRROR_REPO: pipeline-php-did
-
 jobs:
   Publish:
     name: Publish
@@ -92,7 +87,7 @@ jobs:
       # Only this package's submodule. The others are large (the C
       # libraries and the data files) and the package does not use them.
       - name: Checkout the OWID submodule
-        run: git submodule update --init "$_51DEGREES_PACKAGE_DIR/owid-php"
+        run: git submodule update --init pipeline/did/owid-php
 
       # The same guards as mirror.yml, for a tag pushed by hand.
       - name: Refuse a tag that is not on main or is below the mirror
@@ -111,12 +106,12 @@ jobs:
             echo "::error::tag $_51DEGREES_VERSION is not on main"
             exit 1
           }
-          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${_51DEGREES_MIRROR_REPO}.git"
+          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
           pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
           top=$(git ls-remote --tags "$mirror" | awk '{ print $2 }' |
             sed -e 's|^refs/tags/||' -e 's|\^{}$||' | { grep -E "$pattern" || true; } | sort -V | tail -1)
           if [ -n "$top" ] && [ "$(printf '%s\n' "$top" "$_51DEGREES_VERSION" | sort -V | tail -1)" != "$_51DEGREES_VERSION" ]; then
-            echo "::error::$_51DEGREES_VERSION is below $top, the highest version on $_51DEGREES_MIRROR_REPO"
+            echo "::error::$_51DEGREES_VERSION is below $top, the highest version on pipeline-php-did"
             exit 1
           fi
 
@@ -127,7 +122,7 @@ jobs:
           extensions: mbstring, openssl, json
 
       - name: Assemble the package
-        run: '"$_51DEGREES_PACKAGE_DIR/ci/assemble-package.sh" "$RUNNER_TEMP/package"'
+        run: 'pipeline/did/ci/assemble-package.sh "$RUNNER_TEMP/package"'
 
       - name: Check the package the way a consumer sees it
         run: |
@@ -157,7 +152,7 @@ jobs:
           source_commit="$(git rev-parse HEAD)"
           # Keeps the split inside the package history, see the script.
           ./ci/prepare-split.sh
-          split="$(git subtree split --prefix="$_51DEGREES_PACKAGE_DIR" 2>"$RUNNER_TEMP/split.err")" || {
+          split="$(git subtree split --prefix=pipeline/did 2>"$RUNNER_TEMP/split.err")" || {
             cat "$RUNNER_TEMP/split.err" >&2
             exit 1
           }
@@ -174,7 +169,7 @@ jobs:
           unset GIT_INDEX_FILE
           commit="$(git commit-tree "$tree" -p "$split" \
             -m "Release $version" \
-            -m "Assembled from $split ($_51DEGREES_PACKAGE_DIR/ at $source_commit) with the OWID source copied in.")"
+            -m "Assembled from $split (pipeline/did/ at $source_commit) with the OWID source copied in.")"
           # The tag is made here, in the checkout, only so the archive check
           # below reads exactly what is pushed. This repository's own tag
           # of the same name was made by common-ci and is not touched.
@@ -211,15 +206,15 @@ jobs:
           _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
         run: |
           set -euo pipefail
-          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${_51DEGREES_MIRROR_REPO}.git"
+          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
           if git ls-remote --exit-code --tags "$mirror" "refs/tags/$_51DEGREES_VERSION" > /dev/null; then
             git fetch --no-tags "$mirror" "refs/tags/$_51DEGREES_VERSION"
             published="$(git rev-parse 'FETCH_HEAD^{tree}')"
             if [ "$published" = "$_51DEGREES_TREE" ]; then
-              echo "$_51DEGREES_MIRROR_REPO already has $_51DEGREES_VERSION with this tree"
+              echo "pipeline-php-did already has $_51DEGREES_VERSION with this tree"
               exit 0
             fi
-            echo "::error::$_51DEGREES_MIRROR_REPO already has $_51DEGREES_VERSION with tree $published, not $_51DEGREES_TREE. A published version is never moved."
+            echo "::error::pipeline-php-did already has $_51DEGREES_VERSION with tree $published, not $_51DEGREES_TREE. A published version is never moved."
             exit 1
           fi
           git push "$mirror" "refs/tags/$_51DEGREES_VERSION"

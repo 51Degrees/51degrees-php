@@ -28,7 +28,9 @@ namespace fiftyone\pipeline\devicedetection\tests\classes;
 /**
  * Reads a YAML evidence file, such as 20000 Evidence Records.yml, which is a
  * stream of YAML documents each holding one flat map of evidence key to
- * value. A value is single quoted, or double quoted, where YAML needs it.
+ * value. A value is single quoted where YAML needs it, as that file writes
+ * them, and a double quoted value is read with the escapes YAML shares with
+ * JSON.
  */
 final class EvidenceRecords
 {
@@ -107,8 +109,11 @@ final class EvidenceRecords
         if ($length >= 2 && $value[0] === "'" && $value[$length - 1] === "'") {
             return str_replace("''", "'", substr($value, 1, -1));
         }
+        // A double quoted value is read with JSON's escapes, which are the
+        // ones YAML's double quotes share with it, such as \" and é.
         if ($length >= 2 && $value[0] === '"' && $value[$length - 1] === '"') {
-            return stripcslashes(substr($value, 1, -1));
+            $decoded = json_decode($value);
+            return is_string($decoded) ? $decoded : substr($value, 1, -1);
         }
 
         return $value;

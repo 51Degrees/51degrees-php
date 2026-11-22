@@ -51,6 +51,7 @@ class EvidenceRecordsTests extends TestCase
             "header.user-agent: 'Mozilla/5.0 (compatible; id: it''s quoted)'",
             '---',
             'header.sec-ch-ua: "\"Chromium\";v=\"142\""',
+            'header.x-place: "café"',
             '...',
             ''
         ]));
@@ -72,7 +73,10 @@ class EvidenceRecordsTests extends TestCase
                 'header.sec-ch-ua-mobile' => '?0',
                 'header.user-agent' => "Mozilla/5.0 (compatible; id: it's quoted)"
             ],
-            ['header.sec-ch-ua' => '"Chromium";v="142"']
+            [
+                'header.sec-ch-ua' => '"Chromium";v="142"',
+                'header.x-place' => "caf\u{e9}"
+            ]
         ], EvidenceRecords::read($this->file));
     }
 

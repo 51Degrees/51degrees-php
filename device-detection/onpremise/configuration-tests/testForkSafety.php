@@ -101,8 +101,12 @@ if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
 }
 
 // Load a set of User-Agents to detect. The exact values do not matter, only
-// that there are enough distinct ones to exercise the data file.
-$userAgents = EvidenceRecords::values($evidenceFile, 'header.user-agent', 200);
+// that there are enough distinct ones to exercise the data file, so the
+// first USER_AGENTS distinct values are taken.
+const USER_AGENTS = 200;
+$userAgents = array_slice(array_values(array_unique(
+    EvidenceRecords::values($evidenceFile, 'header.user-agent', PHP_INT_MAX)
+)), 0, USER_AGENTS);
 if (count($userAgents) === 0) {
     fail("the evidence file holds no User-Agents: '{$evidenceFile}'");
 }

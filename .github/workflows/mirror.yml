@@ -16,8 +16,8 @@ name: Mirror
 # the split of its directory at the tagged commit. That tag is what Packagist
 # turns into a release. pipeline-php-did is tagged by did-publish.yml instead.
 #
-# MIRROR_PUSH_TOKEN must be able to push to the mirror repositories and to
-# nothing else: a fine-grained token limited to the mirrors with
+# _51DEGREES_MIRROR_PUSH_TOKEN must be able to push to the mirror repositories
+# and to nothing else: a fine-grained token limited to the mirrors with
 # Contents: write, plus Workflows: write, because GitHub refuses a push that
 # changes a file under .github/workflows without it, and the mirrors still
 # hold the workflows of their old repositories until the push that deletes
@@ -55,12 +55,11 @@ jobs:
 
       - name: Split and push each mirrored package
         env:
-          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
-          OWNER: ${{ github.repository_owner }}
+          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
         run: |
           set -uo pipefail
-          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
-            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
+          if [ -z "$_51DEGREES_MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret _51DEGREES_MIRROR_PUSH_TOKEN is not set"
             exit 1
           fi
           # Keeps the split inside the package history, see the script.
@@ -80,7 +79,7 @@ jobs:
               failed=1
               continue
             fi
-            url="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${mirror}.git"
+            url="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${mirror}.git"
             out=$(git push "$url" "$s:refs/heads/main" 2>&1); rc=$?
             echo "$p split=$s rc=$rc"
             echo "$out"
@@ -103,12 +102,11 @@ jobs:
 
       - name: Split the tagged commit and push the tag to every mirror
         env:
-          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
-          OWNER: ${{ github.repository_owner }}
+          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
         run: |
           set -uo pipefail
-          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
-            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
+          if [ -z "$_51DEGREES_MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret _51DEGREES_MIRROR_PUSH_TOKEN is not set"
             exit 1
           fi
           version="$GITHUB_REF_NAME"
@@ -156,7 +154,7 @@ jobs:
               failed=1
               continue
             fi
-            url="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${mirror}.git"
+            url="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${mirror}.git"
             if ! refs=$(git ls-remote --tags "$url"); then
               echo "::error::cannot read the tags of $mirror"
               failed=1
@@ -192,7 +190,7 @@ jobs:
 
           while read -r mirror s; do
             [ -n "$mirror" ] || continue
-            url="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${OWNER}/${mirror}.git"
+            url="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${mirror}.git"
             if git push "$url" "$s:refs/tags/$version"; then
               echo "pushed $s to $mirror as tag $version"
             else

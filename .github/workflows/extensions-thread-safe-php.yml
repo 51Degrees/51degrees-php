@@ -60,13 +60,13 @@ jobs:
       - name: Build, expecting the refusal
         working-directory: ${{ matrix.path }}
         env:
-          CONFIGURE_OPTIONS: ${{ matrix.configure }}
+          _51DEGREES_CONFIGURE_OPTIONS: ${{ matrix.configure }}
         run: |
           rm -rf cxx
           mkdir cxx
           cp -R "$GITHUB_WORKSPACE/cxx/src" cxx/src
           phpize
-          ./configure $CONFIGURE_OPTIONS
+          ./configure $_51DEGREES_CONFIGURE_OPTIONS
           if make -j"$(nproc)" > make.log 2>&1; then
             tail -n 20 make.log
             echo "::error::The extension built against a thread-safe PHP."

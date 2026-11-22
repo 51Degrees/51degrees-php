@@ -28,6 +28,7 @@
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/WebExampleReloadTests.php</file>
       <file>tests/ForkSafetyScriptTests.php</file>
+      <file>tests/EvidenceRecordsTests.php</file>
       <file>tests/KeyFormatTests.php</file>
     </testsuite>
     <!-- The tests of the Unit suite that need no TAC data file, which
@@ -48,6 +49,7 @@
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/WebExampleReloadTests.php</file>
       <file>tests/ForkSafetyScriptTests.php</file>
+      <file>tests/EvidenceRecordsTests.php</file>
       <file>tests/KeyFormatTests.php</file>
     </testsuite>
     <!-- Downloads the free Lite data file from the distributor. Runs once,

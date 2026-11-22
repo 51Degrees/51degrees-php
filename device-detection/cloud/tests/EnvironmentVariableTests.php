@@ -28,12 +28,11 @@ namespace fiftyone\pipeline\devicedetection\tests;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
-use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
 use PHPUnit\Framework\TestCase;
 
 /**
  * A variable is read by its name only.
- * Each constant that held a deprecated name keeps its name and its value.
+ * Each constant that names a variable holds that name.
  */
 class EnvironmentVariableTests extends TestCase
 {
@@ -67,16 +66,6 @@ class EnvironmentVariableTests extends TestCase
         $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testPlaceholderCountsAsNotSet(): void
-    {
-        $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
-
-        $this->assertSame('', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
-    }
-
     public function testNoExampleKeyGivesNull(): void
     {
         $this->set('_51DEGREES_RESOURCE_KEY', null);
@@ -91,97 +80,36 @@ class EnvironmentVariableTests extends TestCase
         $this->assertNull(ExampleUtils::getCloudEndpoint());
     }
 
-    /**
-     * The Accept-CH tests ask for one property at a time with the license
-     * key, which is read only under its own name. The four header resource
-     * keys they used before are gone, and no name they had is read.
-     */
-    public function testTheAcceptChLicenseKeyHasOnlyItsOwnName(): void
+    public function testAValueOnlyInTheEnvArrayIsNotRead(): void
     {
-        $this->assertSame(
-            '_51DEGREES_LICENSE_KEY_BESPOKE',
-            Constants::LICENSE_ENV_VAR
-        );
-        $this->assertArrayNotHasKey(
-            Constants::LICENSE_ENV_VAR,
-            Constants::LEGACY_ENV_VARS
-        );
+        $this->set('_51DEGREES_TEST_UNSET', null);
+        $_ENV['_51DEGREES_TEST_UNSET'] = 'not-in-the-environment';
 
-        // The old name is written in two parts, so the check of old names
-        // in ci/key-names.Tests.ps1 does not find it here.
-        $old = 'AcceptCh' . 'BrowserKey';
-        $this->set(Constants::LICENSE_ENV_VAR, ResourceKeys::PLACEHOLDER);
-        $this->set($old, 'old-browser-key');
-        $this->assertNull(ResourceKeys::find(Constants::LICENSE_ENV_VAR));
-        $this->set($old, null);
-
-        $this->set(Constants::LICENSE_ENV_VAR, 'license-key');
-        $this->assertSame(
-            'license-key',
-            ResourceKeys::find(Constants::LICENSE_ENV_VAR)
-        );
-
-        foreach (['PLATFORM', 'HARDWARE', 'BROWSER', 'NO_ACCEPTCH'] as $old) {
-            $this->assertFalse(
-                defined(Constants::class . '::' . $old . '_ENV_VAR'),
-                $old . '_ENV_VAR'
-            );
-        }
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testDeprecatedConstantsKeepTheirNamesAndValues(): void
+    public function testConstantsHoldTheVariableNames(): void
     {
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             ExampleUtils::class,
-            'LEGACY_RESOURCE_KEY_ENV_VAR',
-            'resource_key'
-        );
-        $this->assertDeprecatedConstant(
-            ExampleUtils::class,
-            'ENDPOINT_ENV_VAR',
-            'cloud_endpoint'
+            'RESOURCE_KEY_ENV_VAR',
+            '_51DEGREES_RESOURCE_KEY'
         );
         $this->assertVariableConstant(
             ExampleUtils::class,
             'CLOUD_ENDPOINT_VARIABLE',
             '_51DEGREES_CLOUD_ENDPOINT'
         );
-
-        $legacy = [
-            'LEGACY_RESOURCE_ENV_VAR' => 'resource_key',
-        ];
-        foreach ($legacy as $constant => $value) {
-            $this->assertDeprecatedConstant(Constants::class, $constant, $value);
-        }
-        $this->assertTrue(defined(Constants::class . '::LEGACY_ENV_VARS'));
-        $this->assertSame(
-            self::TEST_KEY_NAMES,
-            constant(Constants::class . '::LEGACY_ENV_VARS')
+        $this->assertVariableConstant(
+            Constants::class,
+            'RESOURCE_ENV_VAR',
+            '_51DEGREES_RESOURCE_KEY_BESPOKE'
         );
-    }
-
-    // Each variable the tests read a resource key from, and the deprecated
-    // name it replaced.
-    private const TEST_KEY_NAMES = [
-        '_51DEGREES_RESOURCE_KEY' => 'resource_key',
-    ];
-
-    /**
-     * Checks that a constant still has its name and its value, and is
-     * marked deprecated.
-     *
-     * @param class-string $class
-     */
-    private function assertDeprecatedConstant(
-        string $class,
-        string $constant,
-        string $value
-    ): void {
-        $this->assertTrue(defined($class . '::' . $constant), $constant);
-        $this->assertSame($value, constant($class . '::' . $constant));
-        $comment = (string) (new \ReflectionClassConstant($class, $constant))
-            ->getDocComment();
-        $this->assertStringContainsString('@deprecated', $comment, $constant);
+        $this->assertVariableConstant(
+            Constants::class,
+            'LICENSE_ENV_VAR',
+            '_51DEGREES_LICENSE_KEY_BESPOKE'
+        );
     }
 
     /**

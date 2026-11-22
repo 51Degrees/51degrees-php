@@ -60,14 +60,9 @@ class HumanConfidenceWeb
      */
     public static function getSettingsFromEnv()
     {
-        $licenseKey = getenv(self::LICENSE_KEY_VARIABLE);
-        if ($licenseKey === false) {
-            $licenseKey = $_ENV[self::LICENSE_KEY_VARIABLE] ?? '';
-        }
-
         return [
             'resourceKey' => ExampleUtils::getResourceKeyFromEnv(),
-            'licenseKey' => (string) $licenseKey,
+            'licenseKey' => EnvironmentVariable::read(self::LICENSE_KEY_VARIABLE),
             'cloudEndPoint' => ExampleUtils::getCloudEndpoint()
         ];
     }

@@ -63,14 +63,12 @@ class EnvironmentVariableTest extends TestCase
         $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testPlaceholderCountsAsNotSet(): void
+    public function testAValueOnlyInTheEnvArrayIsNotRead(): void
     {
-        $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
+        $this->set('_51DEGREES_TEST_UNSET', null);
+        $_ENV['_51DEGREES_TEST_UNSET'] = 'not-in-the-environment';
 
-        $this->assertSame('', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
     /**

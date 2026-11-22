@@ -25,27 +25,13 @@ namespace fiftyone\pipeline\devicedetection\tests\classes;
 
 class Constants
 {
-    // Resource key environment variables follow the 51Degrees convention,
-    // which is that every one of them starts with
-    // '_51DEGREES_RESOURCE_KEY'. The name it replaced is no longer read.
-    public const RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
+    // The resource key the tests read, which carries every property the
+    // tests ask for.
+    public const RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY_BESPOKE';
 
     // The license key the Accept-CH tests ask the cloud for one property at
-    // a time with. It has no deprecated name.
+    // a time with.
     public const LICENSE_ENV_VAR = '_51DEGREES_LICENSE_KEY_BESPOKE';
-
-    /** @deprecated use {@see Constants::RESOURCE_ENV_VAR} */
-    public const LEGACY_RESOURCE_ENV_VAR = 'resource_key';
-
-    /**
-     * Pairs each variable with the deprecated name it replaced, which is
-     * no longer read.
-     *
-     * @deprecated use the variable names, which are the keys
-     */
-    public const LEGACY_ENV_VARS = [
-        self::RESOURCE_ENV_VAR => self::LEGACY_RESOURCE_ENV_VAR
-    ];
 
     // The property each Accept-CH case asks for with the license key, named
     // with its component, as the cloud service needs. Each SetHeader

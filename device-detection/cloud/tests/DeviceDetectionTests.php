@@ -295,9 +295,12 @@ class DeviceDetectionTests extends TestCase
 
     public function testFailureToMatch()
     {
-        // The example reads the key from the environment itself, so make
-        // sure one is there before running it.
-        $this->getResourceKey();
+        // The example reads the key from the environment itself, under the
+        // name a person sets, so the key of the tests is put there while it
+        // runs.
+        $key = $this->getResourceKey();
+        $previous = getenv(ExampleUtils::RESOURCE_KEY_ENV_VAR);
+        putenv(ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $key);
 
         ob_start();
 
@@ -305,6 +308,9 @@ class DeviceDetectionTests extends TestCase
             include __DIR__ . '/../examples/cloud/failureToMatch.php';
         } finally {
             $output = ob_get_clean();
+            putenv($previous === false
+                ? ExampleUtils::RESOURCE_KEY_ENV_VAR
+                : ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $previous);
         }
 
         // The example asks two questions, one about a User-Agent it can

@@ -293,13 +293,13 @@ class ExampleTests extends TestCase
     }
 
     /**
-     * Runs a PHP script with the resource key in its environment and
-     * returns everything it wrote.
+     * Runs a PHP script with the resource key in the variable the examples
+     * read, and returns everything it wrote.
      */
     private function runScript(string $script, string $key): string
     {
         $environment = getenv();
-        $environment[Constants::RESOURCE_ENV_VAR] = $key;
+        $environment[ExampleUtils::RESOURCE_KEY_ENV_VAR] = $key;
 
         $process = proc_open(
             [PHP_BINARY, $script],

@@ -63,12 +63,8 @@ try {
         throw "The on-premise web example did not start on port $port"
     }
 
-    # The suite reads the cloud address at start up and needs a resource key
-    # to be set, even though the on-premise example uses neither. The tests
-    # pass both to the example they start, and an example given in
-    # EXAMPLE_URL is already running, so nothing is sent anywhere.
-    $env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-    $env:PAID_RESOURCE_KEY = "not-used-by-the-on-premise-example"
+    # The contract tests open the example that is already running, so they
+    # need no cloud address and no resource key.
     $env:EXAMPLE_URL = "http://localhost:$port"
     $env:EXAMPLE_LANG = 'php'
     # Normal verbosity prints each test's time, passed or failed.

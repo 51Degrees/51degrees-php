@@ -30,24 +30,8 @@ class ExampleConstants
     // Environment variable holding the cloud resource key.
     public const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
 
-    /**
-     * The old environment variable name for the cloud resource key.
-     * It is no longer read.
-     *
-     * @deprecated use {@see ExampleConstants::RESOURCE_KEY_VARIABLE}
-     */
-    public const CLOUD_RESOURCE_KEY_ENV_VAR = 'resource_key';
-
     // Environment variable holding the path to an on-premise .ipi data file.
     public const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
-
-    /**
-     * The old environment variable name for the data file.
-     * It is no longer read.
-     *
-     * @deprecated use {@see ExampleConstants::IPI_PATH_VARIABLE}
-     */
-    public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = 'IPINTELLIGENCEDATAFILE';
 
     // The free Lite data file, as the data repository names it. The examples
     // download it into cxx/data/ip-intelligence when no other file is found.

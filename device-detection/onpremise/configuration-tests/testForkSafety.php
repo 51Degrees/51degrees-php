@@ -50,14 +50,20 @@
  * Exit code 0 means the contrast was demonstrated. Any other code means the
  * expected behaviour was not observed.
  *
- * Inputs (env vars, with argv fallbacks):
- *   _51DEGREES_DD_PATH  path to a .hash data file   (argv[1], or the module's configured data_file)
- *   _51DEGREES_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3])
+ * Inputs, from the environment:
+ *   _51DEGREES_DD_PATH        path to a .hash data file
+ *   _51DEGREES_EVIDENCE_YAML  path to a YAML evidence file, such as
+ *                             20000 Evidence Records.yml, whose
+ *                             header.user-agent values are detected
  *
- * Without the User-Agents file the test refuses to run, with exit code 2, as
+ * Without the evidence file the test refuses to run, with exit code 2, as
  * for a missing data file, because a few User-Agents do not always show the
  * streaming profile's wrong results, so the outcome would come and go.
  */
+
+require_once __DIR__ . '/../tests/classes/EvidenceRecords.php';
+
+use fiftyone\pipeline\devicedetection\tests\classes\EvidenceRecords;
 
 const CHILDREN = 8;     // forked workers that all share the inherited handles
 const ITERATIONS = 40;  // passes over the User-Agent list per worker
@@ -77,17 +83,14 @@ function fail(string $message, int $code = 2): void
     exit($code);
 }
 
-$dataFile = (string) getenv('_51DEGREES_DD_PATH') ?: ($argv[1] ?? '');
-$uaCsv = (string) getenv('_51DEGREES_UA_CSV') ?: ($argv[3] ?? '');
-if ($uaCsv === '' || !is_file($uaCsv)) {
-    fail("User-Agents file not found (set _51DEGREES_UA_CSV or pass it as the third argument): '{$uaCsv}'");
+$dataFile = (string) getenv('_51DEGREES_DD_PATH');
+$evidenceFile = (string) getenv('_51DEGREES_EVIDENCE_YAML');
+if ($evidenceFile === '' || !is_file($evidenceFile)) {
+    fail("evidence file not found (set _51DEGREES_EVIDENCE_YAML): '{$evidenceFile}'");
 }
 
-if ($dataFile === '' && function_exists('ini_get')) {
-    $dataFile = (string) ini_get('FiftyOneDegreesHashEngine.data_file');
-}
 if ($dataFile === '' || !is_file($dataFile)) {
-    fail("data file not found (set _51DEGREES_DD_PATH or pass it as the first argument): '{$dataFile}'");
+    fail("data file not found (set _51DEGREES_DD_PATH): '{$dataFile}'");
 }
 
 if (!function_exists('pcntl_fork')) {
@@ -98,18 +101,14 @@ if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
 }
 
 // Load a set of User-Agents to detect. The exact values do not matter, only
-// that there are enough distinct ones to exercise the data file.
-$userAgents = [];
-$handle = fopen($uaCsv, 'r');
-while (($line = fgets($handle)) !== false && count($userAgents) < 200) {
-    $line = trim($line, " \t\r\n\"");
-    if ($line !== '' && stripos($line, 'user-agent') !== 0) {
-        $userAgents[] = $line;
-    }
-}
-fclose($handle);
+// that there are enough distinct ones to exercise the data file, so the
+// first USER_AGENTS distinct values are taken.
+const USER_AGENTS = 200;
+$userAgents = array_slice(array_values(array_unique(
+    EvidenceRecords::values($evidenceFile, 'header.user-agent', PHP_INT_MAX)
+)), 0, USER_AGENTS);
 if (count($userAgents) === 0) {
-    fail("the User-Agents file holds no User-Agents: '{$uaCsv}'");
+    fail("the evidence file holds no User-Agents: '{$evidenceFile}'");
 }
 
 /**

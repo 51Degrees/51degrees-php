@@ -72,8 +72,7 @@ class ExampleTests extends TestCase
     private function liveResourceKey(): ?string
     {
         $key = EnvironmentVariable::read(
-            Constants::RESOURCE_KEY_VARIABLE,
-            '!!YOUR_RESOURCE_KEY!!'
+            Constants::RESOURCE_KEY_VARIABLE
         );
 
         return $key === '' ? null : $key;
@@ -117,7 +116,7 @@ class ExampleTests extends TestCase
     {
         $resourceKey = $this->liveResourceKey();
         if ($resourceKey === null) {
-            $this->markTestSkipped('No _51DEGREES_RESOURCE_KEY set - the mixed cloud example needs a live key authorised for both device detection and IP intelligence.');
+            $this->markTestSkipped('No ' . Constants::RESOURCE_KEY_VARIABLE . ' set - the mixed cloud example needs a live key authorised for both device detection and IP intelligence.');
         }
 
         $output = $this->memoryStream();

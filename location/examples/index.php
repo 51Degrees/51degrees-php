@@ -30,8 +30,7 @@ use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 $resourceKey = EnvironmentVariable::read(
-    Constants::RESOURCE_KEY_VARIABLE,
-    "!!YOUR_RESOURCE_KEY!!"
+    Constants::RESOURCE_KEY_VARIABLE
 );
 $params = array(
     "resourceKey" => $resourceKey === '' ? "!!YOUR_RESOURCE_KEY!!" : $resourceKey,

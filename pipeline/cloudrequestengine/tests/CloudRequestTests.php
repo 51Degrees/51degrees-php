@@ -46,14 +46,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ];
 
-        $this->assertNotSame(
-            '!!YOUR_RESOURCE_KEY!!',
-            $params['resourceKey'],
-            'You need to create a resource key at ' .
-            'https://51degrees.com/configure and set the RESOURCEKEY' .
-            'environment variable to its value before running tests'
-        );
-
         $cloud = new CloudRequestEngine($params);
 
         $engine = new CloudEngine();
@@ -88,15 +80,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             'resourceKey' => $this->getResourceKey(),
             'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
         ];
-
-        $this->assertNotSame(
-            '!!YOUR_RESOURCE_KEY!!',
-            $params['resourceKey'],
-            'You need to create a resource key at ' .
-            'https://51degrees.com/configure and paste it into the ' .
-            'phpunit.xml config file, ' .
-            'replacing !!YOUR_RESOURCE_KEY!!.'
-        );
 
         $cloud = new CloudRequestEngine($params);
 
@@ -139,15 +122,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS,
             'httpClient' => $httpClient
         ];
-
-        $this->assertNotSame(
-            '!!YOUR_RESOURCE_KEY!!',
-            $params['resourceKey'],
-            'You need to create a resource key at ' .
-            'https://51degrees.com/configure and paste it into the ' .
-            'phpunit.xml config file, ' .
-            'replacing !!YOUR_RESOURCE_KEY!!.'
-        );
 
         $cloud = new CloudRequestEngine($params);
 
@@ -225,14 +199,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             'httpClient' => $this->mockHttp()
         ];
 
-        $this->assertNotSame(
-            '!!YOUR_RESOURCE_KEY!!',
-            $params['resourceKey'],
-            'You need to create a resource key at ' .
-            'https://51degrees.com/configure and set the RESOURCEKEY' .
-            'environment variable to its value before running tests'
-        );
-
         $cloud = new CloudRequestEngine($params);
 
         $engine = new CloudEngine();
@@ -269,14 +235,6 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
             'httpClient' => $this->mockHttp()
         ];
 
-        $this->assertNotSame(
-            '!!YOUR_RESOURCE_KEY!!',
-            $params['resourceKey'],
-            'You need to create a resource key at ' .
-            'https://51degrees.com/configure and set the RESOURCEKEY' .
-            'environment variable to its value before running tests'
-        );
-
         $cloud = new CloudRequestEngine($params);
 
         $engine = new CloudEngine();
@@ -297,14 +255,15 @@ class CloudRequestTests extends CloudRequestEngineTestsBase
         $fd->process();
     }
 
-    private function getResourceKey()
+    private function getResourceKey(): string
     {
-        $key = EnvironmentVariable::read(
-            self::RESOURCE_KEY_ENV_VAR,
-            '!!YOUR_RESOURCE_KEY!!'
-        );
+        $key = EnvironmentVariable::read(self::RESOURCE_KEY_ENV_VAR);
+        if ($key === '') {
+            $this->fail('Set ' . self::RESOURCE_KEY_ENV_VAR . ' to a resource key ' .
+                'created at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=tests-cloudrequesttests.php&utm_term=resource-key-required ' .
+                'to run these tests.');
+        }
 
-        // With no key under either name the tests see what phpunit.xml set.
-        return $key === '' ? ($_ENV[self::RESOURCE_KEY_ENV_VAR] ?? null) : $key;
+        return $key;
     }
 }

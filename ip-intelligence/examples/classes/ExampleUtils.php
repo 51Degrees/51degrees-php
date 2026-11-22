@@ -350,8 +350,7 @@ class ExampleUtils
         }
 
         $key = EnvironmentVariable::read(
-            ExampleConstants::RESOURCE_KEY_VARIABLE,
-            '!!YOUR_RESOURCE_KEY!!'
+            ExampleConstants::RESOURCE_KEY_VARIABLE
         );
 
         return $key === '' ? null : $key;

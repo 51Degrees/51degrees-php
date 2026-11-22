@@ -511,10 +511,12 @@ composer install
 vendor/bin/phpunit
 ```
 
-The `Live` suite calls the cloud and is skipped unless
-`_51DEGREES_RESOURCE_KEY` is set, with
-`_51DEGREES_LICENSE_KEY` and `_51DEGREES_CLOUD_ENDPOINT` read as the demo reads
-them. Each live test costs uses against the subscription behind the key.
+The `Live` suite calls the cloud once for each of
+`_51DEGREES_RESOURCE_KEY_BASIC`, `_51DEGREES_RESOURCE_KEY_BESPOKE` and
+`_51DEGREES_RESOURCE_KEY_51DID` that is set, and skips the others. The 51Did
+key is used with `_51DEGREES_LICENSE_KEY_51DID`, and every key with
+`_51DEGREES_CLOUD_ENDPOINT`, read as the demo reads it. Each live test costs
+uses against the subscription behind the key.
 
 ## Creator context demo
 

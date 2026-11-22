@@ -385,16 +385,15 @@ cd ../..
 
 ## Environment variable names
 
-[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.md)
-holds every environment variable name that the packages, tests, examples and
-CI scripts of every language read, with what each name holds and the
-deprecated names each replaced. The list decides. Use the names it gives, and
-when a change needs a new name, or reads an old name again, change
-[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.json)
-in common-ci in the same piece of work. This repository's own name
-check, [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1), still keeps a
-list of its own. Where the two differ, common-ci's list is the one to
-follow.
+[`environment-variables.md`](environment-variables.md) lists every
+environment variable name that the packages, tests, examples, CI scripts and
+workflows of this repository read or set, with what each holds. Only names
+that start with `_51DEGREES_` are read, apart from the ones the operating
+system, the runner, PHP or another tool defines, which
+[`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1)
+lists and checks on every pull request. A change that needs a new name adds it
+to the list in the same piece of work. A name that is no longer read is named
+in the pull request that removes it, never in the code.
 
 ## Directories
 

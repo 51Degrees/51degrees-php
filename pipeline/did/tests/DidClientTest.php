@@ -56,12 +56,11 @@ class DidClientTest extends TestCase
     private const DOMAIN = '51degrees.com';
 
     /**
-     * The environment variables the endpoint is read from, written out
-     * so that a test of what the client reads does not depend on the
-     * client's constants.
+     * The environment variable the endpoint is read from, written out so
+     * that a test of what the client reads does not depend on the client's
+     * constants.
      */
     private const NEW_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
-    private const OLD_VARIABLE = 'FOD_CLOUD_API_URL';
 
     /** The message the cloud sends for a value that does not parse. */
     private const NOT_A_51DID =
@@ -376,19 +375,12 @@ class DidClientTest extends TestCase
         $this->assertSame([], $logged);
     }
 
-    public function testEndpointConstantsKeepTheirNamesAndValues(): void
+    public function testEndpointConstantNamesTheVariable(): void
     {
-        $this->assertSame(self::OLD_VARIABLE, DidClient::ENDPOINT_VARIABLE);
         $this->assertSame(
             self::NEW_VARIABLE,
             DidClient::CLOUD_ENDPOINT_VARIABLE
         );
-
-        $comment = (string) (new ReflectionClass(DidClient::class))
-            ->getReflectionConstant('ENDPOINT_VARIABLE')
-            ->getDocComment();
-        $this->assertStringContainsString('@deprecated', $comment);
-        $this->assertStringContainsString('CLOUD_ENDPOINT_VARIABLE', $comment);
     }
 
     /**

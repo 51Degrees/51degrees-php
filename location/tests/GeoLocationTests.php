@@ -26,9 +26,9 @@ namespace fiftyone\pipeline\geolocation\tests;
 // Fake remote address for web integration
 $_SERVER['REMOTE_ADDR'] = '0.0.0.0';
 
-use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
+use fiftyone\pipeline\geolocation\tests\classes\TestKeys;
 use PHPUnit\Framework\TestCase;
 
 class GeoLocationTests extends TestCase
@@ -105,15 +105,13 @@ class GeoLocationTests extends TestCase
     private function getResourceKey()
     {
         $resourceKey = EnvironmentVariable::read(
-            Constants::RESOURCE_KEY_VARIABLE,
-            '!!YOUR_RESOURCE_KEY!!'
+            TestKeys::RESOURCE_KEY_VARIABLE
         );
 
         if ($resourceKey === '') {
-            $this->fail('You need to create a resource key at ' .
-            'https://51degrees.com/configure and paste it into the ' .
-            'phpunit.xml config file, ' .
-            'replacing !!YOUR_RESOURCE_KEY!!.');
+            $this->fail('Set ' . TestKeys::RESOURCE_KEY_VARIABLE . ' to a ' .
+            'resource key created at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=tests-geolocationtests.php&utm_term=resource-key-required ' .
+            'to run these tests.');
         }
 
         return $resourceKey;

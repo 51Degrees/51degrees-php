@@ -86,14 +86,6 @@ final class DidClient
      */
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
-    /**
-     * The old name of the environment variable
-     * {@see DidClient::CLOUD_ENDPOINT_VARIABLE} names. It is no longer read.
-     *
-     * @deprecated use {@see DidClient::CLOUD_ENDPOINT_VARIABLE}
-     */
-    public const ENDPOINT_VARIABLE = 'FOD_CLOUD_API_URL';
-
     /** The Composer package name, sent in the User-Agent. */
     public const PACKAGE_NAME = '51degrees/fiftyone.pipeline.did';
 

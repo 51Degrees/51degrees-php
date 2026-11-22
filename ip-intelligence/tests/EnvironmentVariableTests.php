@@ -38,7 +38,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * A variable is read by its name only.
- * Each constant that held a deprecated name keeps its name and its value.
+ * Each constant that names a variable holds that name.
  */
 class EnvironmentVariableTests extends TestCase
 {
@@ -90,57 +90,43 @@ class EnvironmentVariableTests extends TestCase
         $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testPlaceholderCountsAsNotSet(): void
-    {
-        $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
-
-        $this->assertSame('', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
-    }
-
     public function testNoExampleKeyGivesNull(): void
     {
-        $this->set('_51DEGREES_RESOURCE_KEY', '!!YOUR_RESOURCE_KEY!!');
+        $this->set('_51DEGREES_RESOURCE_KEY', null);
 
         $this->assertNull(ExampleUtils::getResourceKey());
     }
 
-    public function testDeprecatedConstantsKeepTheirNamesAndValues(): void
+    public function testAValueOnlyInTheEnvArrayIsNotRead(): void
     {
-        $this->assertDeprecatedConstant(
+        $this->set('_51DEGREES_TEST_UNSET', null);
+        $_ENV['_51DEGREES_TEST_UNSET'] = 'not-in-the-environment';
+
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
+    }
+
+    public function testConstantsHoldTheVariableNames(): void
+    {
+        $this->assertVariableConstant(
             ExampleConstants::class,
-            'CLOUD_RESOURCE_KEY_ENV_VAR',
-            'resource_key'
+            'RESOURCE_KEY_VARIABLE',
+            '_51DEGREES_RESOURCE_KEY'
         );
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             ExampleConstants::class,
-            'IP_INTELLIGENCE_DATA_FILE_ENV_VAR',
-            'IPINTELLIGENCEDATAFILE'
+            'IPI_PATH_VARIABLE',
+            '_51DEGREES_IPI_PATH'
         );
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             Constants::class,
-            'RESOURCE_KEY_ENV_VAR',
-            'resource_key'
+            'RESOURCE_KEY_VARIABLE',
+            '_51DEGREES_RESOURCE_KEY_BESPOKE'
         );
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             Constants::class,
-            'IP_INTELLIGENCE_DATA_FILE_ENV_VAR',
-            'IPINTELLIGENCEDATAFILE'
+            'IPI_PATH_VARIABLE',
+            '_51DEGREES_IPI_PATH'
         );
-        foreach ([ExampleConstants::class, Constants::class] as $class) {
-            $this->assertVariableConstant(
-                $class,
-                'RESOURCE_KEY_VARIABLE',
-                '_51DEGREES_RESOURCE_KEY'
-            );
-            $this->assertVariableConstant(
-                $class,
-                'IPI_PATH_VARIABLE',
-                '_51DEGREES_IPI_PATH'
-            );
-        }
     }
 
     /**
@@ -180,24 +166,6 @@ class EnvironmentVariableTests extends TestCase
 
     /** @var string[] The folders made by dataFile */
     private $folders = [];
-
-    /**
-     * Checks that a constant still has its name and its value, and is
-     * marked deprecated.
-     *
-     * @param class-string $class
-     */
-    private function assertDeprecatedConstant(
-        string $class,
-        string $constant,
-        string $value
-    ): void {
-        $this->assertTrue(defined($class . '::' . $constant), $constant);
-        $this->assertSame($value, constant($class . '::' . $constant));
-        $comment = (string) (new \ReflectionClassConstant($class, $constant))
-            ->getDocComment();
-        $this->assertStringContainsString('@deprecated', $comment, $constant);
-    }
 
     /**
      * Checks that a constant holds a variable's name.

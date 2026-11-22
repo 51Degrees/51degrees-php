@@ -1,7 +1,4 @@
 <phpunit bootstrap="vendor/autoload.php">
-  <php>
-    <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
-  </php>
   <testsuites>
     <testsuite name="Unit">
       <file>tests/ReadOnlyTests.php</file>

@@ -29,8 +29,8 @@ use fiftyone\pipeline\devicedetection\tests\classes\ExampleRun;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The fork-safety test script refuses to run without a User-Agents file,
- * the same way every time, rather than passing or failing by chance.
+ * The fork-safety test script refuses to run without an evidence file, the
+ * same way every time, rather than passing or failing by chance.
  */
 class ForkSafetyScriptTests extends TestCase
 {
@@ -43,33 +43,33 @@ class ForkSafetyScriptTests extends TestCase
     // The exit code the script gives when something it needs is missing.
     private const MISSING = 2;
 
-    public function testWithNoUserAgentsFileItRefusesEveryTime(): void
+    public function testWithNoEvidenceFileItRefusesEveryTime(): void
     {
         for ($run = 0; $run < self::RUNS; ++$run) {
-            // Both names the script reads the file from are left out.
+            // The one name the script reads the file from is left out.
             $result = ExampleRun::run(
                 self::SCRIPT,
                 [],
-                ['_51DEGREES_UA_CSV']
+                ['_51DEGREES_EVIDENCE_YAML']
             );
 
             $this->assertSame(self::MISSING, $result->status, $result->errors);
             $this->assertStringContainsString(
-                'User-Agents file not found (set _51DEGREES_UA_CSV',
+                'evidence file not found (set _51DEGREES_EVIDENCE_YAML',
                 $result->errors
             );
         }
     }
 
-    public function testWithAUserAgentsFileThatIsNotThereItRefuses(): void
+    public function testWithAnEvidenceFileThatIsNotThereItRefuses(): void
     {
-        $missing = sys_get_temp_dir() . '/no-such-user-agents.csv';
+        $missing = sys_get_temp_dir() . '/no-such-evidence.yml';
 
         $result = ExampleRun::run(
             self::SCRIPT,
             [],
             [],
-            ['_51DEGREES_UA_CSV' => $missing]
+            ['_51DEGREES_EVIDENCE_YAML' => $missing]
         );
 
         $this->assertSame(self::MISSING, $result->status, $result->errors);

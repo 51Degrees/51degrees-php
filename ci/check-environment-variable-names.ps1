@@ -59,41 +59,71 @@ $script:BrowserSuiteNames = @('EXAMPLE_URL', 'EXAMPLE_LANG')
 # Each way a name is read or set, with the name in the group 'name'. A name
 # given to a helper, held in a constant named for a variable, or set in
 # phpunit.xml counts as well as a direct read, because each is read later.
+# The PHP functions, PowerShell and workflow expressions are matched in any
+# case, as their languages read them. A constant's name, a shell form and a
+# Docker option are matched as written, so that ordinary code in another case
+# is left alone.
 $name = '(?<name>[A-Za-z_][A-Za-z0-9_]*)'
 $quote = '[''"]'
-$script:ReadPatterns = @(
+$anyCase = @(
     # PHP
     "getenv\(\s*$quote$name"
     "putenv\(\s*$quote$name"
     "\`$_ENV\[\s*$quote$name"
     "\`$_SERVER\[\s*$quote$name"
     "EnvironmentVariable::read\(\s*$quote$name"
-    "\bconst\s+[A-Za-z_]*(?:ENV_VAR|VARIABLE)S?\s*=\s*\[?\s*$quote$name"
-    "<(?:env|server)\s+name=`"$name"
+    "<(?:env|server)\s+name=$quote$name"
     # PowerShell, with or without braces, and through the Env: drive
     "\`$\{?env:\\?$name"
-    "\bEnv:\\$name"
+    "(?<!\`$\{?)\bEnv:\\?$name"
     "(?:Get|Set)EnvironmentVariable\(\s*$quote$name"
-    # Workflow expressions
-    "\`$\{\{\s*(?:env|secrets|vars)\.$name"
-    # Shell
+    # Workflow expressions, with a dot or with brackets
+    "\`$\{\{\s*(?:env|secrets|vars)(?:\.$name|\[\s*$quote$name)"
+)
+$asWritten = @(
+    "\bconst\s+[A-Z_]*(?:ENV_VAR|VARIABLE)S?\s*=\s*\[?\s*$quote$name"
+)
+# Shell forms, looked for only in shell scripts and workflows, where a line
+# such as a URL's query string cannot be mistaken for one. They are an
+# export, a name given to one command before it, such as
+# NAME=value php script.php, on its line or continued onto the next with a
+# backslash, and Docker's -e and --env. A value that starts
+# with a quote is only matched when the quote closes on the line, and one
+# that starts with $ is not matched, so a line that assigns a variable for
+# the script is left alone.
+$shell = @(
     "\bexport\s+$name="
-    "\s-e\s+$name="
-) | ForEach-Object {
-    [regex]::new($_, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    "(?:^|[;|(]\s*|&&\s*|&\s+|\bthen\s+|\bdo\s+)\s*$name=(?:`"[^`"]*`"|'[^']*'|[^\s;&|`"'`$``][^\s;&|]*)\s+(?![;&|#)]|$)\S"
+    "(?<!\becho)\s(?:-e|--env)\s+$name(?==|\s|$)"
+)
+$script:ReadPatterns = @(
+    $anyCase | ForEach-Object {
+        [regex]::new($_, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+    $asWritten | ForEach-Object { [regex]::new($_) }
+)
+$script:ShellPatterns = @($shell | ForEach-Object { [regex]::new($_) })
+
+# True when a file is a shell script or a workflow, whose lines are read for
+# the shell forms as well.
+function Test-ShellFile([string]$Path) {
+    $Path -match '\.(sh|bash|ya?ml)$'
 }
 
-# True when a name may be read or set here.
+# True when a name may be read or set here. A platform's name is compared in
+# any case, because Windows reads an environment variable name in any case.
+# A _51DEGREES_ name is compared as written, because Linux and macOS read a
+# name in another case as another name.
 function Test-NameAllowed([string]$Name) {
     if ($Name.StartsWith($script:Prefix, [StringComparison]::Ordinal)) {
         return $true
     }
-    if ($script:PlatformNames -ccontains $Name -or
-        $script:BrowserSuiteNames -ccontains $Name) {
+    if ($script:PlatformNames -contains $Name -or
+        $script:BrowserSuiteNames -contains $Name) {
         return $true
     }
     foreach ($prefix in $script:PlatformPrefixes) {
-        if ($Name.StartsWith($prefix, [StringComparison]::Ordinal)) {
+        if ($Name.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
             return $true
         }
     }
@@ -101,12 +131,17 @@ function Test-NameAllowed([string]$Name) {
 }
 
 # The problems on one line, each as its kind, 'digit' or 'name', and the text
-# matched.
-function Find-EnvironmentNameProblem([string]$Line) {
+# matched. -Shell reads the line for the shell forms as well.
+function Find-EnvironmentNameProblem([string]$Line, [switch]$Shell) {
     foreach ($match in $script:DigitInitialPattern.Matches($Line)) {
         [pscustomobject]@{ Kind = 'digit'; Value = $match.Value }
     }
-    foreach ($pattern in $script:ReadPatterns) {
+    $patterns = if ($Shell) {
+        $script:ReadPatterns + $script:ShellPatterns
+    } else {
+        $script:ReadPatterns
+    }
+    foreach ($pattern in $patterns) {
         foreach ($match in $pattern.Matches($Line)) {
             $found = $match.Groups['name'].Value
             # A name starting with the digit is reported once, above.
@@ -170,8 +205,9 @@ foreach ($relative in $tracked) {
     }
     $read++
     $lines = [IO.File]::ReadAllLines($path)
+    $shell = Test-ShellFile $relative
     for ($i = 0; $i -lt $lines.Count; $i++) {
-        foreach ($problem in Find-EnvironmentNameProblem $lines[$i]) {
+        foreach ($problem in Find-EnvironmentNameProblem $lines[$i] -Shell:$shell) {
             $found += "${relative}:$($i + 1): $($problem.Value)"
         }
     }

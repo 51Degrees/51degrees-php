@@ -37,11 +37,6 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     public const testEndPoint = 'http://testEndPoint/';
     public const testEnvVarEndPoint = 'http://testEnvVarEndPoint/';
 
-    // The deprecated environment variable for the endpoint, which is no
-    // longer read, written out so that the test of the constant that holds
-    // the name does not depend on that constant.
-    private const oldEndPointVariable = 'FOD_CLOUD_API_URL';
-
     /**
      * Test the explicit setting of cloudEndPoint via constructor take
      * precedence over environment variable settings.
@@ -95,21 +90,11 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
-     * Test that the constant for the old environment variable is still
-     * there under its old name with its old value, marked deprecated and
-     * naming the constant that replaces it.
+     * Test that the constant names the variable the endpoint is read from.
      */
-    public function testOldEndPointConstantKept()
+    public function testEndPointConstantNamesTheVariable()
     {
         $this->assertSame('_51DEGREES_CLOUD_ENDPOINT', Constants::CLOUD_ENDPOINT_VARIABLE);
-        $this->assertSame(self::oldEndPointVariable, Constants::FOD_CLOUD_API_URL);
-
-        $comment = (string) (new \ReflectionClassConstant(
-            Constants::class,
-            'FOD_CLOUD_API_URL'
-        ))->getDocComment();
-        $this->assertStringContainsString('@deprecated', $comment);
-        $this->assertStringContainsString('CLOUD_ENDPOINT_VARIABLE', $comment);
     }
 
     /**

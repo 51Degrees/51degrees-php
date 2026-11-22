@@ -31,7 +31,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * A variable is read by its name only.
- * Each constant that held a deprecated name keeps its name and its value.
+ * Each constant that names a variable holds that name.
  */
 class EnvironmentVariableTests extends TestCase
 {
@@ -73,16 +73,6 @@ class EnvironmentVariableTests extends TestCase
         $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testPlaceholderCountsAsNotSet(): void
-    {
-        $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
-
-        $this->assertSame('', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
-    }
-
     public function testNoDataFileNamedLeavesTheEngineAlone(): void
     {
         $this->set('_51DEGREES_DD_PATH', null);
@@ -90,36 +80,21 @@ class EnvironmentVariableTests extends TestCase
         $this->assertNull(ExampleUtils::useDataFileFromEnv(null, null));
     }
 
-    public function testDeprecatedConstantKeepsItsNameAndValue(): void
+    public function testAValueOnlyInTheEnvArrayIsNotRead(): void
     {
-        $this->assertDeprecatedConstant(
-            ExampleUtils::class,
-            'DATA_FILE_ENV_VAR',
-            '51DEGREES_DD_PATH'
-        );
+        $this->set('_51DEGREES_TEST_UNSET', null);
+        $_ENV['_51DEGREES_TEST_UNSET'] = 'not-in-the-environment';
+
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
+    }
+
+    public function testConstantsHoldTheVariableNames(): void
+    {
         $this->assertVariableConstant(
             ExampleUtils::class,
             'DD_PATH_VARIABLE',
             '_51DEGREES_DD_PATH'
         );
-    }
-
-    /**
-     * Checks that a constant still has its name and its value, and is
-     * marked deprecated.
-     *
-     * @param class-string $class
-     */
-    private function assertDeprecatedConstant(
-        string $class,
-        string $constant,
-        string $value
-    ): void {
-        $this->assertTrue(defined($class . '::' . $constant), $constant);
-        $this->assertSame($value, constant($class . '::' . $constant));
-        $comment = (string) (new \ReflectionClassConstant($class, $constant))
-            ->getDocComment();
-        $this->assertStringContainsString('@deprecated', $comment, $constant);
     }
 
     /**

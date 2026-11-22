@@ -28,18 +28,14 @@ namespace fiftyone\pipeline\devicedetection\tests\classes;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\EnvironmentVariable;
 
 /**
- * Finds the resource key a test needs in the environment.
+ * Finds the key a test needs in the environment.
  *
- * A key is read from its variable and, when that is not set, from the
- * deprecated name the variable replaced. When neither is set the message
+ * A key is read from its one variable. When that is not set the message
  * names the variable that was wanted, rather than leaving the reader to
  * guess.
  */
 class ResourceKeys
 {
-    // Placeholder written into phpunit.xml, which stands for 'not set'.
-    public const PLACEHOLDER = '!!YOUR_RESOURCE_KEY!!';
-
     /**
      * Get the value of a key variable, or null when it is not set.
      *
@@ -48,10 +44,7 @@ class ResourceKeys
      */
     public static function find(string $name): ?string
     {
-        $value = EnvironmentVariable::read(
-            $name,
-            self::PLACEHOLDER
-        );
+        $value = EnvironmentVariable::read($name);
 
         return $value === '' ? null : $value;
     }

@@ -24,6 +24,7 @@
 namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\HumanConfidenceWeb;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\ExampleRun;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
@@ -116,8 +117,16 @@ class HumanConfidenceWebTests extends TestCase
         fclose($socket);
 
         self::$log = (string) tempnam(sys_get_temp_dir(), 'example');
+        // The example reads the resource key and the license key under the
+        // names a person sets, so the server is given the keys of the tests
+        // under those names, and no license key when the tests have none.
         $environment = getenv();
-        $environment[Constants::RESOURCE_ENV_VAR] = self::$key;
+        $environment[ExampleUtils::RESOURCE_KEY_ENV_VAR] = self::$key;
+        unset($environment[HumanConfidenceWeb::LICENSE_KEY_VARIABLE]);
+        $license = ResourceKeys::find(Constants::LICENSE_ENV_VAR);
+        if ($license !== null) {
+            $environment[HumanConfidenceWeb::LICENSE_KEY_VARIABLE] = $license;
+        }
         $process = proc_open(
             [PHP_BINARY, '-S', self::$address, __DIR__ . '/humanConfidenceWebRouter.php'],
             [0 => ['pipe', 'r'], 1 => ['file', self::$log, 'w'], 2 => ['file', self::$log, 'a']],

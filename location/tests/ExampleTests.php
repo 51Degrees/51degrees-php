@@ -23,11 +23,39 @@
 
 namespace fiftyone\pipeline\geolocation\tests;
 
+use fiftyone\pipeline\geolocation\examples\cloud\classes\Constants;
+use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\tests\classes\ExampleRun;
+use fiftyone\pipeline\geolocation\tests\classes\TestKeys;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Runs the examples with the resource key of the tests, given to them under
+ * the name the examples read.
+ */
 class ExampleTests extends TestCase
 {
+    /** @var string|false What the examples' variable held before the test */
+    private $previous = false;
+
+    protected function setUp(): void
+    {
+        $key = EnvironmentVariable::read(TestKeys::RESOURCE_KEY_VARIABLE);
+        if ($key === '') {
+            $this->fail('Set ' . TestKeys::RESOURCE_KEY_VARIABLE .
+                ' to run the examples with a resource key.');
+        }
+        $this->previous = getenv(Constants::RESOURCE_KEY_VARIABLE);
+        putenv(Constants::RESOURCE_KEY_VARIABLE . '=' . $key);
+    }
+
+    protected function tearDown(): void
+    {
+        putenv($this->previous === false
+            ? Constants::RESOURCE_KEY_VARIABLE
+            : Constants::RESOURCE_KEY_VARIABLE . '=' . $this->previous);
+    }
+
     public function testExamples()
     {
         ob_start(); // hide output
@@ -37,7 +65,8 @@ class ExampleTests extends TestCase
         // The page sets $javascript only when a resource key is set.
         $this->assertNotEmpty(
             $javascript ?? null,
-            'The page gave no JavaScript. Is _51DEGREES_RESOURCE_KEY set?'
+            'The page gave no JavaScript for the key in ' .
+            TestKeys::RESOURCE_KEY_VARIABLE . '.'
         );
     }
 

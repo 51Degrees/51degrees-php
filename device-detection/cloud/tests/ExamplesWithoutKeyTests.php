@@ -78,6 +78,11 @@ class ExamplesWithoutKeyTests extends TestCase
         $this->serveWithoutKey('cloud/userAgentClientHints-Web.php');
     }
 
+    public function testHumanConfidenceWeb()
+    {
+        $this->serveWithoutKey('cloud/humanConfidenceWeb.php');
+    }
+
     /**
      * The conversion example needs no key and no cloud service.
      */

@@ -31,6 +31,7 @@
       <file>tests/ExampleTests.php</file>
       <file>tests/DeviceDetectionTests.php</file>
       <file>tests/ExampleWebTests.php</file>
+      <file>tests/HumanConfidenceWebTests.php</file>
       <file>tests/UACHCloudTests.php</file>
     </testsuite>
   </testsuites>

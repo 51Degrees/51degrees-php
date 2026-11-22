@@ -91,7 +91,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'if [ "$found" != "$version" ]; then' }
         @{ Line = 'echo -e FOO=bar' }
         @{ Line = 'grep -E "$pattern" file' }
-        @{ Line = 'https://51degrees.com/pricing?utm_source=github&utm_term=x more text' }
+        @{ Line = 'https://51degrees.com/pricing?utm_source=github&utm_medium=comment&utm_campaign=51degrees-php&utm_content=check-environment-variable-names.tests.ps1&utm_term=shell-line more text' }
     ) {
         Get-Kind $Line -Shell | Should -BeNullOrEmpty
     }

@@ -52,7 +52,15 @@ class NativeModelLookupConsole
     private $nativeModel1 = 'SC-03L';
     private $nativeModel2 = 'iPhone11,8';
 
-    public function run($resourceKey, $logger, callable $output, $cloudEndPoint = '')
+    /**
+     * @param string $resourceKey
+     * @param \fiftyone\pipeline\core\Logger $logger
+     * @param callable $output
+     * @param string $cloudEndPoint The cloud service to use, or empty for the default
+     * @param float|int|null $timeoutSeconds The timeout of each request to the
+     * cloud service, or null for the Cloud Request Engine's default
+     */
+    public function run($resourceKey, $logger, callable $output, $cloudEndPoint = '', $timeoutSeconds = null)
     {
         $output('This example shows the details of devices ' .
             "associated with a given 'native model name'.");
@@ -74,6 +82,10 @@ class NativeModelLookupConsole
         // cloud pipeline endpoint.
         if (!empty($cloudEndPoint)) {
             $cloudRequestEngineSettings['cloudEndpoint'] = $cloudEndPoint;
+        }
+
+        if ($timeoutSeconds !== null) {
+            $cloudRequestEngineSettings['timeoutSeconds'] = $timeoutSeconds;
         }
 
         // Create the cloud request engine.

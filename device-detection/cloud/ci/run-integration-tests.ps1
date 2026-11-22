@@ -6,12 +6,13 @@ param (
     [bool]$SeleniumContract = $true
 )
 
-# common-ci puts the keys into the environment under their _51DEGREES_ names
-# before this runs: _51DEGREES_RESOURCE_KEY filled from the organization
-# secret _51DEGREES_RESOURCE_KEY_BESPOKE, and _51DEGREES_LICENSE_KEY_BESPOKE,
-# which the Accept-CH tests ask for one property at a time with.
-if (!$env:_51DEGREES_RESOURCE_KEY) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::_51DEGREES_RESOURCE_KEY is not set, so integration tests will not run."
+# common-ci puts each organization secret into the environment under its own
+# name before this runs. The tests read _51DEGREES_RESOURCE_KEY_BESPOKE, the
+# key that carries every property they ask for, and
+# _51DEGREES_LICENSE_KEY_BESPOKE, which the Accept-CH tests ask for one
+# property at a time with.
+if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so integration tests will not run."
     return
 } elseif (!(Test-Path $RepoName/tests/51Degrees.csv)) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No CSV File::CSV file wasn't found, so integration tests will not run."
@@ -28,13 +29,16 @@ if (-not $SeleniumContract) {
 
 Write-Host 'Running Selenium tests...'
 try {
-    # Start this repo's cloud example, pointed at the live cloud.
+    # Start this repo's cloud example, against the cloud service that
+    # _51DEGREES_CLOUD_ENDPOINT names, or the public one when it is unset.
+    # The example reads the key a person sets, so it is given the key of the
+    # tests under that name.
+    $port = 8096
     Push-Location "$PSScriptRoot/../examples"
     try {
         composer install --working-dir=..
-        $env:PORT = 8096
-        $env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
-        $example = php -S "localhost:$env:PORT" cloud/gettingStartedWeb.php 2>&1 &
+        $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+        $example = php -S "localhost:$port" cloud/gettingStartedWeb.php 2>&1 &
     } finally { Pop-Location }
 
     # Get the shared contract tests.
@@ -42,22 +46,21 @@ try {
         git clone --depth 1 https://github.com/51Degrees/selenium-api-tests.git
     }
     # Wait for the example to come up.
-    curl -sS -o /dev/null --retry 5 --retry-connrefused "http://localhost:$env:PORT"
+    curl -sS -o /dev/null --retry 5 --retry-connrefused "http://localhost:$port"
 
     # Every browser test needs the client-side script, so check the example
     # serves it first. Otherwise a broken route shows only as each test timing
     # out, and the example's output is never printed.
     $coreJs = Join-Path ([IO.Path]::GetTempPath()) '51Degrees.core.js'
-    $answer = curl -sS -o $coreJs -w '%{http_code} %{content_type}' "http://localhost:$env:PORT/51Degrees.core.js"
+    $answer = curl -sS -o $coreJs -w '%{http_code} %{content_type}' "http://localhost:$port/51Degrees.core.js"
     if ($answer -notlike '200 application/x-javascript*' -or
         -not (Select-String -Quiet -SimpleMatch 'fiftyoneDegreesManager' $coreJs)) {
         throw "The example answered /51Degrees.core.js with '$answer' and no client-side script."
     }
 
-    $env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-    # The contract tests read the key under this name.
-    $env:PAID_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY
-    $env:EXAMPLE_URL = "http://localhost:$env:PORT"
+    # The contract tests open the example that is already running, which was
+    # given its key and its cloud service above, so they need neither.
+    $env:EXAMPLE_URL = "http://localhost:$port"
     $env:EXAMPLE_LANG = 'php'
     # Normal verbosity prints each test's time, passed or failed.
     dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"

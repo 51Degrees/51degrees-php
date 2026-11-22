@@ -32,14 +32,13 @@ workflow here - PHP asks for properties by name and generates no accessor classe
 
 ## Required secrets / keys
 
-`common-ci` puts each key into the environment under its `_51DEGREES_` name
-before these scripts run, from the organization secrets the workflows pass
-with `secrets: inherit`.
+`common-ci` puts each organization secret the workflows pass with
+`secrets: inherit` into the environment under its own name before these
+scripts run.
 
-- `_51DEGREES_RESOURCE_KEY`, filled from the organization secret
-  `_51DEGREES_RESOURCE_KEY_BESPOKE`. It is a 51Degrees cloud resource key
-  authorised for IP intelligence (`ip.*`) properties, used by the live cloud
-  and mixed-cloud tests.
+- `_51DEGREES_RESOURCE_KEY_BESPOKE`, a 51Degrees cloud resource key that
+  carries every property the tests ask for, including the IP intelligence
+  (`ip.*`) properties, used by the live cloud and mixed-cloud tests.
 - `_51DEGREES_LICENSE_KEY`, the data license, with which `fetch-assets.ps1`
   has the Enterprise data file downloaded from the Distributor as IPIV41
   IPIV4Enterprise. Without it only the free data files are fetched.

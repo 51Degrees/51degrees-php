@@ -9,8 +9,8 @@ BeforeAll {
     $script:Check = Join-Path $PSScriptRoot 'check-environment-variable-names.ps1'
     . $script:Check
 
-    function Get-Kind([string]$Line) {
-        @(Find-EnvironmentNameProblem $Line | ForEach-Object { $_.Kind })
+    function Get-Kind([string]$Line, [switch]$Shell) {
+        @(Find-EnvironmentNameProblem $Line -Shell:$Shell | ForEach-Object { $_.Kind })
     }
 
     # Runs the check over a new repository holding one file with the lines.
@@ -51,17 +51,49 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'public const ENDPOINT_VARIABLE = ''FOD_CLOUD_API_URL'';' }
         @{ Line = 'public const RESOURCE_KEY_VARIABLES = [''RESOURCE_KEY''];' }
         @{ Line = '<env name="RESOURCE_KEY" value="x"/>' }
+        @{ Line = "<env name='RESOURCE_KEY' value='x'/>" }
         @{ Line = '$env:PORT = 8096' }
         @{ Line = '${env:LICENSE_KEY} = $key' }
         @{ Line = 'Remove-Item Env:\LICENSE_KEY' }
+        @{ Line = 'Remove-Item Env:LICENSE_KEY' }
+        @{ Line = 'Test-Path Env:RESOURCE_KEY' }
         @{ Line = '[Environment]::SetEnvironmentVariable("LICENSE_KEY", $k)' }
         @{ Line = '          url: ${{ env.CLOUD_ENDPOINT }}' }
         @{ Line = '          key: ${{ secrets.MIRROR_PUSH_TOKEN }}' }
+        @{ Line = '          key: ${{ secrets[''MIRROR_PUSH_TOKEN''] }}' }
         @{ Line = '          key: ${{ vars.CLOUD_ENDPOINT }}' }
-        @{ Line = 'export FIFTYONE_DATA_FILE=/data/file.hash' }
-        @{ Line = '    -e CSV="/repo/file.csv" \' }
     ) {
         Get-Kind $Line | Should -Contain 'name'
+    }
+
+    It 'finds the shell form <Line> in a shell script or a workflow' -ForEach @(
+        @{ Line = 'export FIFTYONE_DATA_FILE=/data/file.hash' }
+        @{ Line = 'RESOURCE_KEY=abc php x.php' }
+        @{ Line = '        UA_CSV="${CSV}" \' }
+        @{ Line = 'cd examples && RESOURCE_KEY="a b" php x.php' }
+        @{ Line = '    -e CSV="/repo/file.csv" \' }
+        @{ Line = 'docker run -e RESOURCE_KEY image' }
+        @{ Line = 'docker run --env RESOURCE_KEY=x image' }
+    ) {
+        Get-Kind $Line -Shell | Should -Contain 'name'
+        # Outside a shell script or a workflow the same line is text.
+        Get-Kind $Line | Should -BeNullOrEmpty
+    }
+
+    It 'leaves the shell line <Line> alone' -ForEach @(
+        @{ Line = 'top=$(git ls-remote --tags "$mirror")' }
+        @{ Line = 'dd="-d extension=$PWD/module.so' }
+        @{ Line = 'version="$_51DEGREES_INPUT_VERSION"' }
+        @{ Line = 'split="$(git subtree split)" || {' }
+        @{ Line = 'pattern=''^[0-9]+$''' }
+        @{ Line = 'PHP_INI_SCAN_DIR=":$PWD" php examples/x.php' }
+        @{ Line = '_51DEGREES_RESOURCE_KEY=key php cloud/gettingStartedConsole.php' }
+        @{ Line = 'if [ "$found" != "$version" ]; then' }
+        @{ Line = 'echo -e FOO=bar' }
+        @{ Line = 'grep -E "$pattern" file' }
+        @{ Line = 'https://51degrees.com/pricing?utm_source=github&utm_term=x more text' }
+    ) {
+        Get-Kind $Line -Shell | Should -BeNullOrEmpty
     }
 
     It 'leaves <Line> alone' -ForEach @(
@@ -80,6 +112,11 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '          key: ${{ secrets.GITHUB_TOKEN }}' }
         @{ Line = '$env:EXAMPLE_URL = "http://localhost:$port"' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
+        # Windows reads a platform's name in any case.
+        @{ Line = '$env:Path = "$dir;$env:Path"' }
+        @{ Line = 'Get-ChildItem Env: | Where-Object Name -like ''_51DEGREES_*''' }
+        # A constant whose name is not a constant's upper case is code.
+        @{ Line = 'const someVariable = "abc";' }
     ) {
         Get-Kind $Line | Should -BeNullOrEmpty
     }
@@ -136,6 +173,13 @@ Describe 'the check over a repository' {
             '          VERSION: ${{ inputs.version }}'
             '        run: echo "$VERSION"'
         ) } | Should -Throw '1 names are read or set*'
+    }
+
+    It 'reads a shell script for the shell forms and a readme not' {
+        { Invoke-CheckOver 'dev/run.sh' 'RESOURCE_KEY=x php a.php' } |
+            Should -Throw '1 names are read or set*'
+        { Invoke-CheckOver 'readme.md' 'RESOURCE_KEY=x php a.php' } |
+            Should -Not -Throw
     }
 
     # git quotes a path holding a non-ASCII character unless told not to,

@@ -23,8 +23,10 @@
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
 use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
@@ -42,9 +44,21 @@ class ExampleWebTests extends TestCase
             unlink($stale);
         }
 
-        // start server
-        self::$process = new Process('php -S localhost:5151 examples/cloud/gettingStartedWeb.php');
-        self::$process->start();
+        // The example reads the key under the name a person sets, so the
+        // server is started with the key of the tests under that name.
+        $key = ResourceKeys::find(Constants::RESOURCE_ENV_VAR);
+        $previous = getenv(ExampleUtils::RESOURCE_KEY_ENV_VAR);
+        if ($key !== null) {
+            putenv(ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $key);
+        }
+        try {
+            self::$process = new Process('php -S localhost:5151 examples/cloud/gettingStartedWeb.php');
+            self::$process->start();
+        } finally {
+            putenv($previous === false
+                ? ExampleUtils::RESOURCE_KEY_ENV_VAR
+                : ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $previous);
+        }
         sleep(5);
         if (self::$process->status()) {
             shell_exec('lsof -i tcp:5151 1>/dev/null 2>&1');

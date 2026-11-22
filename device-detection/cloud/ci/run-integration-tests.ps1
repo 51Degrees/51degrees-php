@@ -28,6 +28,9 @@ if (-not $SeleniumContract) {
 }
 
 Write-Host 'Running Selenium tests...'
+# The scripts of the other packages run in this process afterwards, so the
+# example's key is put back as it was once the browser tests end.
+$previousKey = $env:_51DEGREES_RESOURCE_KEY
 try {
     # Start this repo's cloud example, against the cloud service that
     # _51DEGREES_CLOUD_ENDPOINT names, or the public one when it is unset.
@@ -69,4 +72,5 @@ try {
     throw
 } finally {
     if ($example) { Remove-Job -Force $example }
+    $env:_51DEGREES_RESOURCE_KEY = $previousKey
 }

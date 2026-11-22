@@ -27,7 +27,7 @@ which common-ci puts into the environment under that name.
 
 | Name | What it holds | Read by |
 | --- | --- | --- |
-| `_51DEGREES_CLOUD_ENDPOINT` | The address of the cloud service, including `/api/v4/`. Unset means the public service. In CI it comes from the organization variable of the same name. | The published packages `51degrees/fiftyone.pipeline.cloudrequestengine` and `51degrees/fiftyone.pipeline.did`, and every cloud example and test |
+| `_51DEGREES_CLOUD_ENDPOINT` | The address of the cloud service, including `/api/v4/`. Unset means the public service. `cloud-51did.yml` reads it from the organization variable of the same name, and the build jobs have it once common-ci puts the organization's `_51DEGREES_` variables into the environment. | The published packages `51degrees/fiftyone.pipeline.cloudrequestengine` and `51degrees/fiftyone.pipeline.did`, and every cloud example and test |
 | `_51DEGREES_DD_PATH` | The path of a Device Detection data file | The on-premise examples of `device-detection/onpremise` and `ip-intelligence`, their tests, and the fork safety test |
 | `_51DEGREES_IPI_PATH` | The path of an IP Intelligence data file | The `51degrees/fiftyone.ipintelligence` package, which looks for the translations beside the data file when they are not in the data submodule, and its on-premise examples and tests |
 | `_51DEGREES_EVIDENCE_YAML` | The path of a YAML evidence file, such as `20000 Evidence Records.yml` | The fork safety test, `device-detection/onpremise/configuration-tests/testForkSafety.php` |

@@ -136,6 +136,37 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
+     * Test that the address the tests expect when they give none is the
+     * address the engine uses, when the variable is unset, empty, "0", an
+     * address without a trailing slash or an address with one.
+     */
+    public function testExpectedEndPointMatchesTheEngine()
+    {
+        $values = [
+            null,
+            '',
+            '0',
+            rtrim(self::testEnvVarEndPoint, '/'),
+            self::testEnvVarEndPoint
+        ];
+        foreach ($values as $value) {
+            $this->assertTrue(putenv($value === null
+                ? Constants::CLOUD_ENDPOINT_VARIABLE
+                : Constants::CLOUD_ENDPOINT_VARIABLE . '=' . $value));
+            $engine = new CloudRequestEngine([
+                'resourceKey' => CloudRequestEngineTests::resourceKey,
+                'httpClient' => $this->mockHttp()
+            ]);
+
+            $this->assertSame(
+                CloudEndPoint::expected(),
+                $engine->baseURL,
+                var_export($value, true)
+            );
+        }
+    }
+
+    /**
      * Test that the constant names the variable the endpoint is read from.
      */
     public function testEndPointConstantNamesTheVariable()

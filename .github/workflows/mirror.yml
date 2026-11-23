@@ -20,7 +20,7 @@ name: Mirror
 # that changes only them. pipeline-php-did is tagged by did-publish.yml
 # instead.
 #
-# _51DEGREES_MIRROR_PUSH_TOKEN must be able to push to the mirror repositories
+# MIRROR_PUSH_TOKEN must be able to push to the mirror repositories
 # and to nothing else: a fine-grained token limited to the mirrors with
 # Contents: write, plus Workflows: write, because GitHub refuses a push that
 # changes a file under .github/workflows without it, and the mirrors still
@@ -61,11 +61,11 @@ jobs:
 
       - name: Split and push each mirrored package
         env:
-          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
         run: |
           set -uo pipefail
-          if [ -z "$_51DEGREES_MIRROR_PUSH_TOKEN" ]; then
-            echo "::error::Secret _51DEGREES_MIRROR_PUSH_TOKEN is not set"
+          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
             exit 1
           fi
           # Keeps the split inside the package history, see the script.
@@ -85,7 +85,7 @@ jobs:
               failed=1
               continue
             fi
-            url="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${mirror}.git"
+            url="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${mirror}.git"
             out=$(git push "$url" "$s:refs/heads/main" 2>&1); rc=$?
             echo "$p split=$s rc=$rc"
             echo "$out"
@@ -121,11 +121,11 @@ jobs:
 
       - name: Push each released package's version to its mirror
         env:
-          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "$_51DEGREES_MIRROR_PUSH_TOKEN" ]; then
-            echo "::error::Secret _51DEGREES_MIRROR_PUSH_TOKEN is not set"
+          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
             exit 1
           fi
           # Keeps the split inside the package history, see the script.

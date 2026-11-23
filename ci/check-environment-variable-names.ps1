@@ -43,6 +43,13 @@ $script:PlatformNames = @(
     'phpts'
 )
 
+# Secrets only CI uses. No customer sets them, so they take no _51DEGREES_
+# prefix, and each is named for what it does and read from the organization
+# secret of exactly that name.
+$script:CiSecretNames = @(
+    'MIRROR_PUSH_TOKEN'
+)
+
 # Prefixes of names that a platform defines, being the runner's own, the web
 # request values PHP puts in $_SERVER, and the C compiler's flags.
 $script:PlatformPrefixes = @(
@@ -107,13 +114,16 @@ function Test-ShellFile([string]$Path) {
 
 # True when a name may be read or set here. A platform's name is compared in
 # any case, because Windows reads an environment variable name in any case.
-# A _51DEGREES_ name is compared as written, because Linux and macOS read a
-# name in another case as another name.
+# A _51DEGREES_ name and a CI secret's name are compared as written, because
+# Linux and macOS read a name in another case as another name.
 function Test-NameAllowed([string]$Name) {
     if ($Name.StartsWith($script:Prefix, [StringComparison]::Ordinal)) {
         return $true
     }
     if ($script:PlatformNames -contains $Name) {
+        return $true
+    }
+    if ($script:CiSecretNames -ccontains $Name) {
         return $true
     }
     foreach ($prefix in $script:PlatformPrefixes) {
@@ -220,9 +230,9 @@ Write-Output ("$read paths read, $($skipped.Count) skipped as not files: " +
 if ($found.Count -gt 0) {
     Write-Output ($found | Sort-Object -Unique)
     throw ("$($found.Count) names are read or set that do not start with " +
-        "$($script:Prefix) and are not a platform's own, or start with " +
-        'the digit, which a POSIX shell cannot set.')
+        "$($script:Prefix) and are not a platform's own or a CI secret's, or " +
+        'start with the digit, which a POSIX shell cannot set.')
 }
 
 Write-Output ("Every name read or set starts with $($script:Prefix), or is " +
-    'a platform name, and none starts with the digit.')
+    'a platform name or a CI secret, and none starts with the digit.')

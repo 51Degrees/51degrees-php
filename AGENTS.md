@@ -389,7 +389,8 @@ cd ../..
 environment variable name that the packages, tests, examples, CI scripts and
 workflows of this repository read or set, with what each holds. Only names
 that start with `_51DEGREES_` are read, apart from the ones the operating
-system, the runner, PHP or another tool defines, which
+system, the runner, PHP or another tool defines, and the secrets only CI
+uses, which
 [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1)
 lists and checks on every pull request. A change that needs a new name adds it
 to the list in the same piece of work. A name that is no longer read is named

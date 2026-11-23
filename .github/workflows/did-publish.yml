@@ -83,7 +83,7 @@ jobs:
           fetch-depth: 0
           # The GITHUB_TOKEN header the checkout would leave behind is sent
           # to every github.com URL and would replace
-          # _51DEGREES_MIRROR_PUSH_TOKEN on the mirror push.
+          # MIRROR_PUSH_TOKEN on the mirror push.
           persist-credentials: false
 
       # Only this package's submodule. The others are large (the C
@@ -96,11 +96,11 @@ jobs:
         if: steps.release.outputs.dryrun != 'true'
         env:
           _51DEGREES_VERSION: ${{ steps.release.outputs.version }}
-          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "$_51DEGREES_MIRROR_PUSH_TOKEN" ]; then
-            echo "::error::Secret _51DEGREES_MIRROR_PUSH_TOKEN is not set"
+          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
             exit 1
           fi
           git fetch origin main
@@ -108,7 +108,7 @@ jobs:
             echo "::error::tag $_51DEGREES_VERSION is not on main"
             exit 1
           }
-          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
+          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
           pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
           top=$(git ls-remote --tags "$mirror" | awk '{ print $2 }' |
             sed -e 's|^refs/tags/||' -e 's|\^{}$||' | { grep -E "$pattern" || true; } | sort -V | tail -1)
@@ -205,10 +205,10 @@ jobs:
         env:
           _51DEGREES_VERSION: ${{ steps.release.outputs.version }}
           _51DEGREES_TREE: ${{ steps.build.outputs.tree }}
-          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
         run: |
           set -euo pipefail
-          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
+          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
           if git ls-remote --exit-code --tags "$mirror" "refs/tags/$_51DEGREES_VERSION" > /dev/null; then
             git fetch --no-tags "$mirror" "refs/tags/$_51DEGREES_VERSION"
             published="$(git rev-parse 'FETCH_HEAD^{tree}')"

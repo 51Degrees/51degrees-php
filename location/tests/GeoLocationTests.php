@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\geolocation\tests;
 // Fake remote address for web integration
 $_SERVER['REMOTE_ADDR'] = '0.0.0.0';
 
+use fiftyone\pipeline\core\ElementData;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 use fiftyone\pipeline\geolocation\tests\classes\TestKeys;
@@ -94,7 +95,11 @@ class GeoLocationTests extends TestCase
 
         $result = $flowData->process();
 
-        $this->availableProperties($result->location, 'location');
+        $this->availableProperties(
+            $result->location,
+            $pipeline->getElement('location')->getProperties(),
+            'location'
+        );
     }
 
     public function testValueTypes51Degrees()
@@ -143,9 +148,25 @@ class GeoLocationTests extends TestCase
         );
     }
 
-    private function availableProperties($result, $dataKey)
+    /**
+     * Checks that each expected property the resource key includes has a
+     * value, or a reason it has none. The cloud service returns only the
+     * properties the key includes, so the others are not checked.
+     *
+     * @param ElementData $result The element's data
+     * @param array<string, array<string, mixed>> $keyProperties The
+     *   properties the cloud service lists for the key, by lower case name
+     * @param string $dataKey The element's data key
+     */
+    private function availableProperties($result, array $keyProperties, $dataKey)
     {
-        foreach ($this->expectedProperties[$dataKey] as &$property) {
+        $checked = 0;
+        foreach ($this->expectedProperties[$dataKey] as $property) {
+            if (!isset($keyProperties[$property])) {
+                continue;
+            }
+            ++$checked;
+
             $apv = $result->getInternal($property);
 
             $this->assertNotNull($apv, $property);
@@ -156,6 +177,13 @@ class GeoLocationTests extends TestCase
                 $this->assertNotNull($apv->noValueMessage, $property);
             }
         }
+
+        $this->assertGreaterThan(
+            0,
+            $checked,
+            'The resource key in ' . TestKeys::RESOURCE_KEY_VARIABLE .
+            ' includes none of the ' . $dataKey . ' properties the test checks.'
+        );
     }
 
     private function valueTypes($properties, $result, $expectedProps)

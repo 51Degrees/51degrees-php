@@ -33,10 +33,10 @@ workflow here - PHP asks for properties by name and generates no accessor classe
 ## Required secrets / keys
 
 `common-ci` puts each organization secret the workflows pass with
-`secrets: inherit`, and each organization variable, into the environment
-under its own name before these scripts run.
+`secrets: inherit` into the environment under its own name before these
+scripts run.
 
-- `_51DEGREES_RESOURCE_KEY_BESPOKE`, an organization variable holding a
+- `_51DEGREES_RESOURCE_KEY_BESPOKE`, an organization secret holding a
   51Degrees cloud resource key that
   carries every property the tests ask for, including the IP intelligence
   (`ip.*`) properties, used by the live cloud and mixed-cloud tests.

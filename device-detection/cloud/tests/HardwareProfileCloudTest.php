@@ -183,7 +183,7 @@ class HardwareProfileCloudTest extends TestCase
     {
         $hardware = $this->process(self::NO_HARDWARE_RESPONSE);
 
-        $this->assertCount(0, ExampleUtils::getProfiles($hardware));
+        $this->assertSame([], $hardware->profiles);
     }
 
     /**

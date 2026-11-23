@@ -119,7 +119,8 @@ class HumanConfidenceWebStandInTests extends TestCase
     {
         $environment = getenv();
         $environment[ExampleUtils::RESOURCE_KEY_ENV_VAR] = $key;
-        $environment[ExampleUtils::CLOUD_ENDPOINT_VARIABLE] ='http://' . self::$cloudAddress . '/api/v4/';
+        $environment[ExampleUtils::CLOUD_ENDPOINT_VARIABLE] =
+            'http://' . self::$cloudAddress . '/api/v4/';
         unset($environment[HumanConfidenceWeb::LICENSE_KEY_VARIABLE]);
         $address = self::freeAddress();
         $example = self::serve(

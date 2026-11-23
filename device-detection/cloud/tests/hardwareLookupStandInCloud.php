@@ -23,39 +23,44 @@
 
 // A stand-in for the cloud service, served with PHP's built-in server for
 // HardwareLookupStandInTests. It answers the accessible properties as the
-// cloud service does for a resource key without the hardware lookup, and
-// the evidence keys, and anything else with 404. It writes each request to
-// standard error after REQUEST_MARKER, so a test can see what was asked.
-// For two resource keys the accessible properties request fails with 500,
-// the first time it is made or every time. For one more the key has the
-// hardware lookup and every lookup matches no device.
+// cloud service does for each resource key below, the evidence keys, a
+// lookup for a key with the hardware lookup with no devices, and anything
+// else with 404. It writes each request to standard error after
+// REQUEST_MARKER, so a test can see what was asked.
 
 const REQUEST_MARKER = 'Stand-in request: ';
 
-// The resource keys whose accessible properties request fails, and the
-// error the stand-in gives.
+// The resource keys whose accessible properties request fails with 500,
+// the first time it is made or every time, and the error the stand-in
+// gives. Any other key, and FAILS_ONCE_KEY after its failure, lacks the
+// hardware lookup.
 const FAILS_ONCE_KEY = 'fails-once-key';
 const FAILS_ALWAYS_KEY = 'fails-always-key';
 const FAILURE = 'Stand-in failure';
 
-// The resource key that has the hardware lookup, whose lookups match no
-// device.
+// The resource keys that have the hardware lookup, whose lookups match no
+// device. The accessible properties request for the second fails with 500
+// the first time it is made.
 const NO_DEVICES_KEY = 'no-devices-key';
+const FAILS_ONCE_WITH_LOOKUP_KEY = 'fails-once-with-lookup-key';
+
+// The resource keys that have the hardware lookup.
+const KEYS_WITH_LOOKUP = [NO_DEVICES_KEY, FAILS_ONCE_WITH_LOOKUP_KEY];
 
 /**
  * Whether the accessible properties request for the key fails this time.
- * The first failure for FAILS_ONCE_KEY is recorded in a file in the
- * document root, which each test makes empty.
+ * The first failure for a key that fails once is recorded in a file named
+ * after the key in the document root, which each test makes empty.
  */
 function failsNow(string $key): bool
 {
     if ($key === FAILS_ALWAYS_KEY) {
         return true;
     }
-    if ($key !== FAILS_ONCE_KEY) {
+    if ($key !== FAILS_ONCE_KEY && $key !== FAILS_ONCE_WITH_LOOKUP_KEY) {
         return false;
     }
-    $failed = $_SERVER['DOCUMENT_ROOT'] . '/failed-once';
+    $failed = $_SERVER['DOCUMENT_ROOT'] . "/{$key}-failed";
     if (file_exists($failed)) {
         return false;
     }
@@ -138,7 +143,7 @@ if ($method === 'GET' && $path === '/api/v4/accessibleproperties') {
         return;
     }
     $products = ['device' => $device];
-    if ($key === NO_DEVICES_KEY) {
+    if (in_array($key, KEYS_WITH_LOOKUP, true)) {
         $products['hardware'] = $hardware;
     }
     echo json_encode(['Products' => $products]);
@@ -151,7 +156,9 @@ if ($method === 'GET' && $path === '/api/v4/evidencekeys') {
     return;
 }
 // The cloud service's answer to a lookup that matches no device.
-if ($method === 'POST' && $path === '/api/v4/' . NO_DEVICES_KEY . '.json') {
+if ($method === 'POST' &&
+    preg_match('~^/api/v4/([^/]+)\.json$~', $path, $lookup) === 1 &&
+    in_array($lookup[1], KEYS_WITH_LOOKUP, true)) {
     echo json_encode(['hardware' => ['profiles' => []]]);
 
     return;

@@ -38,6 +38,14 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     public const testEnvVarEndPoint = 'http://testEnvVarEndPoint/';
 
     /**
+     * The end point variable's value before the test, or false when it was
+     * not set.
+     *
+     * @var string|false
+     */
+    private $endPointVariable = false;
+
+    /**
      * Test the explicit setting of cloudEndPoint via constructor take
      * precedence over environment variable settings.
      */
@@ -87,6 +95,41 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
         ]);
 
         $this->assertSame(Constants::BASE_URL_DEFAULT, $engine->baseURL);
+    }
+
+    /**
+     * Test that the default end point is used when the environment
+     * variable is set but blank.
+     */
+    public function testConfigPrecedenceBlankEnvironmentVariable()
+    {
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '='));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame(Constants::BASE_URL_DEFAULT, $engine->baseURL);
+    }
+
+    /**
+     * Test that the address the tests expect when they give none follows
+     * the same order as the engine, the variable when it is set and the
+     * default when it is not.
+     */
+    public function testExpectedEndPointFollowsTheVariable()
+    {
+        $this->assertSame(Constants::BASE_URL_DEFAULT, CloudEndPoint::expected());
+
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=http://testEnvVarEndPoint'));
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame(self::testEnvVarEndPoint, CloudEndPoint::expected());
+        $this->assertSame(CloudEndPoint::expected(), $engine->baseURL);
     }
 
     /**
@@ -627,18 +670,34 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
-     * Unsets both environment variables before and after each test, so
-     * that neither is left over from another test or taken from the
-     * environment the tests run in.
+     * Unsets the end point variable before each test, so that no value is
+     * taken from the environment the tests run in, and keeps the value it
+     * had for restoreEndPointVariable.
      *
      * @before
-     * @after
      */
     #[Before]
-    #[After]
-    protected function clearEndPointVariables()
+    protected function clearEndPointVariable()
     {
+        $this->endPointVariable = getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
         $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE));
+    }
+
+    /**
+     * Puts the end point variable back as it was before the test, so the
+     * tests that run after this class use the address the environment
+     * gives.
+     *
+     * @after
+     */
+    #[After]
+    protected function restoreEndPointVariable()
+    {
+        $this->assertTrue(putenv(
+            $this->endPointVariable === false
+                ? Constants::CLOUD_ENDPOINT_VARIABLE
+                : Constants::CLOUD_ENDPOINT_VARIABLE . '=' . $this->endPointVariable
+        ));
     }
 
     /**

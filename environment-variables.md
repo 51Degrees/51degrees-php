@@ -32,6 +32,8 @@ name. common-ci puts each one into the environment under that name.
 | `_51DEGREES_DD_PATH` | The path of a Device Detection data file | The on-premise examples of `device-detection/onpremise` and `ip-intelligence`, their tests, and the fork safety test |
 | `_51DEGREES_IPI_PATH` | The path of an IP Intelligence data file | The `51degrees/fiftyone.ipintelligence` package, which looks for the translations beside the data file when they are not in the data submodule, and its on-premise examples and tests |
 | `_51DEGREES_EVIDENCE_YAML` | The path of a YAML evidence file, such as `20000 Evidence Records.yml` | The fork safety test, `device-detection/onpremise/configuration-tests/testForkSafety.php` |
+| `_51DEGREES_EXAMPLE_URL` | The address of the web example that is already running, set by the browser runs in `device-detection/cloud/ci/run-integration-tests.ps1` and `device-detection/onpremise/ci/run-integration-tests.ps1` | The shared browser tests, [selenium-api-tests](https://github.com/51Degrees/selenium-api-tests) |
+| `_51DEGREES_EXAMPLE_LANG` | The language of that example, `php`, set by the same browser runs | The shared browser tests |
 
 The reader tests set `_51DEGREES_TEST_SET` and `_51DEGREES_TEST_UNSET` for
 themselves and read them back.
@@ -43,15 +45,6 @@ themselves and read them back.
 | `_51DEGREES_MIRROR_PUSH_TOKEN` | A token that can push to the mirror repositories Packagist reads, and nothing else. It comes from the organization secret of the same name. | `.github/workflows/mirror.yml` and `.github/workflows/did-publish.yml` |
 | `_51DEGREES_INPUT_VERSION`, `_51DEGREES_VERSION`, `_51DEGREES_TREE` | The version given to a dry run, the version being published, and the tree published under it | `.github/workflows/did-publish.yml` |
 | `_51DEGREES_CONFIGURE_OPTIONS` | The options `./configure` is given for one extension | `.github/workflows/extensions-thread-safe-php.yml` |
-
-## Names another repository reads
-
-The browser runs in `device-detection/cloud/ci/run-integration-tests.ps1` and
-`device-detection/onpremise/ci/run-integration-tests.ps1` set `EXAMPLE_URL`
-and `EXAMPLE_LANG`, the names the shared browser tests in
-[selenium-api-tests](https://github.com/51Degrees/selenium-api-tests) read for
-the address and language of the running example. They take `_51DEGREES_`
-names when those tests read them.
 
 ## Adding a name
 

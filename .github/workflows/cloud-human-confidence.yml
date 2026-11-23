@@ -3,7 +3,7 @@ name: Cloud Human Confidence Tests
 # Runs the Staging suite of device-detection/cloud
 # (tests/HumanConfidenceWebStagingTests.php), the Human Confidence tests of
 # what the staging cloud service serves and the production one does not,
-# being HumanConfidenceSource and the redeem of a sealed value. The other
+# being HumanConfidenceSource and the Human Confidence redeem. The other
 # Human Confidence tests are in the Integration suite, which common-ci runs
 # against _51DEGREES_CLOUD_ENDPOINT.
 #
@@ -28,16 +28,18 @@ on:
     - cron: '50 6 * * *'
   pull_request:
     branches: [main, rc]
+    # The example and what it reads its settings with, the tests and their
+    # helpers, and what the package is installed from.
     paths:
-      - 'device-detection/cloud/examples/cloud/humanConfidenceWeb.php'
-      - 'device-detection/cloud/examples/cloud/classes/HumanConfidenceWeb.php'
-      - 'device-detection/cloud/examples/cloud/static/humanConfidence.html'
+      - 'device-detection/cloud/examples/cloud/**'
       - 'device-detection/cloud/tests/HumanConfidenceWebStagingTests.php'
       - 'device-detection/cloud/tests/humanConfidenceWebRouter.php'
-      - 'device-detection/cloud/tests/classes/HumanConfidenceWebTestCase.php'
-      - 'device-detection/cloud/tests/classes/Constants.php'
-      - 'device-detection/cloud/tests/classes/ResourceKeys.php'
+      - 'device-detection/cloud/tests/classes/**'
+      - 'device-detection/cloud/composer.json'
       - 'device-detection/cloud/phpunit.xml'
+      - 'pipeline/core/**'
+      - 'pipeline/engines/**'
+      - 'pipeline/cloudrequestengine/**'
       - 'ci/packages.ps1'
       - '.github/workflows/cloud-human-confidence.yml'
 
@@ -88,9 +90,15 @@ jobs:
           if ($missing) { exit 1 }
 
           $report = 'test-results/staging.xml'
-          php vendor/bin/phpunit --testdox --fail-on-warning `
-            --testsuite Staging --log-junit $report
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $names = 'test-results/staging.txt'
+          # The default output with --display-skipped prints each skip's
+          # reason, which --testdox leaves out. The test names are written
+          # as TestDox text and printed after.
+          php vendor/bin/phpunit --display-skipped --fail-on-warning `
+            --testsuite Staging --log-junit $report --testdox-text $names
+          $status = $LASTEXITCODE
+          if (Test-Path $names) { Get-Content $names }
+          if ($status -ne 0) { exit $status }
           if (-not (Test-Path $report)) {
             Write-Host '::error::The staging tests did not run.'
             exit 1

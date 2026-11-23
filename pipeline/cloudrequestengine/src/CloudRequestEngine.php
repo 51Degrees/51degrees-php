@@ -120,7 +120,7 @@ class CloudRequestEngine extends Engine
      * 2) a cloudEndPoint, the address of the cloud service. When it is
      *    blank, the _51DEGREES_CLOUD_ENDPOINT environment variable is
      *    used, and when that is blank too, the default address. Blank
-     *    means unset, empty or only white space.
+     *    means unset, empty or only whitespace.
      * 3) a cloudRequestOrigin to use when sending requests to cloud.
      * 4) discoveryResults, what getDiscoveryResults() gave after an earlier
      *    build with the same keys and cloudEndPoint, so that the engine
@@ -912,11 +912,11 @@ class CloudRequestEngine extends Engine
      * A value that is absent, empty or only whitespace counts as blank and
      * passes to the next, and any other value is used as given.
      *
-     * @param mixed $setting The cloudEndPoint setting
+     * @param string|null $setting The cloudEndPoint setting
      */
-    private static function cloudAddress($setting): string
+    private static function cloudAddress(?string $setting): string
     {
-        $address = (string) ($setting ?? '');
+        $address = $setting ?? '';
         if (trim($address) === '') {
             $address = (string) getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
         }

@@ -162,6 +162,36 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
+     * Test that a variable of "0" is used as the address, as any value that
+     * is not blank is.
+     */
+    public function testZeroIsAnAddress()
+    {
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=0'));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame('0/', $engine->baseURL);
+    }
+
+    /**
+     * Test that a cloudEndPoint setting that is not a string is refused.
+     */
+    public function testSettingThatIsNotAStringIsRefused()
+    {
+        $this->expectException(\TypeError::class);
+
+        new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp(),
+            'cloudEndPoint' => ['https://cloud.example.test/api/v4/']
+        ]);
+    }
+
+    /**
      * Test that the address the tests expect when they give none is the
      * address the engine uses, when the variable is unset, empty, only
      * whitespace, "0", an address without a trailing slash or an address

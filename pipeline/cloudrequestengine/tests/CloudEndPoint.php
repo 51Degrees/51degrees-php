@@ -34,10 +34,10 @@ use fiftyone\pipeline\cloudrequestengine\Constants;
 class CloudEndPoint
 {
     /**
-     * The value of the _51DEGREES_CLOUD_ENDPOINT environment variable when
-     * it is not blank, meaning unset, empty or only whitespace, as the
-     * engine checks it, otherwise the default address, ending with a slash
-     * as the engine makes it.
+     * The value of the _51DEGREES_CLOUD_ENDPOINT environment variable, or
+     * the default address when the variable is blank, ending with a slash
+     * as the engine makes it. Blank means unset, empty or only whitespace,
+     * as the engine checks it.
      */
     public static function expected(): string
     {

@@ -73,7 +73,7 @@ class HumanConfidenceWebTests extends TestCase
     private const PROPERTIES = 'derived.humanconfidence,derived.humanconfidencesource';
 
     // The levels a passive result can be.
-    private const LEVELS = ['High', 'Medium', 'Low'];
+    private const LEVELS = ['High', 'Medium', 'Low', 'Unknown'];
 
     // Text that shows the example printed a programming fault rather than
     // an answer.
@@ -447,7 +447,7 @@ class HumanConfidenceWebTests extends TestCase
             'timeout' => self::CLOUD_TIMEOUT_SECONDS
         ]]);
         $body = @file_get_contents(self::endpoint() . rawurlencode($key) . '.json', false, $context);
-        self::assertNotFalse($body, 'The cloud service at ' . self::endpoint() . ' did not answer.');
+        self::assertNotFalse($body, 'The cloud service named by ' . ExampleUtils::CLOUD_ENDPOINT_VARIABLE . ' did not answer.');
         $json = json_decode($body, true);
         self::assertIsArray($json, 'The cloud service did not answer with JSON.');
         self::assertArrayNotHasKey('errors', $json, str_replace($key, '<key>', $body));
@@ -457,7 +457,7 @@ class HumanConfidenceWebTests extends TestCase
 
     private static function notListedMessage(): string
     {
-        return 'The cloud service at ' . self::endpoint() . ' did not list the ' .
+        return 'The cloud service named by ' . ExampleUtils::CLOUD_ENDPOINT_VARIABLE . ' did not list the ' .
             'properties of the resource key in ' . Constants::RESOURCE_ENV_VAR . '.';
     }
 

@@ -24,6 +24,7 @@
 namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\HumanConfidenceWeb;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use PHPUnit\Framework\TestCase;
 
@@ -31,9 +32,9 @@ use PHPUnit\Framework\TestCase;
  * Serves the Human Confidence web example with PHP's built-in server,
  * pointed at a stand-in for the cloud service in
  * humanConfidenceStandInCloud.php, and asks it for the passive step. The
- * stand-in answers each resource key in the shape the cloud service gives
- * that kind of key, so the source the example returns is checked with no
- * key and no network.
+ * stand-in answers three resource keys with the members the cloud service
+ * gives such keys, so the source the example returns is checked with no key
+ * and no network.
  */
 class HumanConfidenceWebStandInTests extends TestCase
 {
@@ -96,8 +97,9 @@ class HumanConfidenceWebStandInTests extends TestCase
     }
 
     /**
-     * A key whose products offer the level and not the source is answered
-     * with the level and no source, and the example makes up no source.
+     * A key whose own property list holds HumanConfidence alone, as keys
+     * made before the source existed do, is answered with the level and no
+     * source member, and the example makes up no source.
      */
     public function testPassiveForAKeyWithOnlyTheLevelGivesNoSource()
     {
@@ -117,8 +119,8 @@ class HumanConfidenceWebStandInTests extends TestCase
     {
         $environment = getenv();
         $environment[ExampleUtils::RESOURCE_KEY_ENV_VAR] = $key;
-        $environment['_51DEGREES_CLOUD_ENDPOINT'] = 'http://' . self::$cloudAddress . '/api/v4/';
-        unset($environment['_51DEGREES_LICENSE_KEY']);
+        $environment[ExampleUtils::CLOUD_ENDPOINT_VARIABLE] ='http://' . self::$cloudAddress . '/api/v4/';
+        unset($environment[HumanConfidenceWeb::LICENSE_KEY_VARIABLE]);
         $address = self::freeAddress();
         $example = self::serve(
             $address,

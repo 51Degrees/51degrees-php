@@ -26,7 +26,9 @@
 // Confidence web example calls in the passive step, and answers a resource
 // key's JSON path in the shape the cloud service gives that kind of key.
 
-// The answer for each resource key.
+// The answer for each resource key. The cloud service also gives a null
+// reason beside a null value, which the example does not read, so the
+// stand-in leaves it out.
 $answers = [
     // A key whose products offer HumanConfidenceSource, such as Pro or
     // Bespoke, asked before any browser tests have run.
@@ -37,15 +39,12 @@ $answers = [
     // A Basic key, as the Basic product offers neither property.
     'basic-key' => ['derived' => [
         'humanconfidence' => null,
-        'humanconfidencenullreason' => 'The key does not give this property a value.',
-        'humanconfidencesource' => null,
-        'humanconfidencesourcenullreason' => 'The key does not give this property a value.'
+        'humanconfidencesource' => null
     ]],
-    // A key whose products offer the level and not the source.
+    // A key whose own property list holds HumanConfidence alone, as keys
+    // made before the source existed do, answered with no source member.
     'level-only-key' => ['derived' => [
-        'humanconfidence' => 'Medium',
-        'humanconfidencesource' => null,
-        'humanconfidencesourcenullreason' => 'The key does not give this property a value.'
+        'humanconfidence' => 'Medium'
     ]]
 ];
 

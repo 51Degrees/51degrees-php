@@ -100,7 +100,8 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'getenv("_51DEGREES_RESOURCE_KEY")' }
         @{ Line = '$env:_51DEGREES_DD_PATH = "file.hash"' }
         @{ Line = '${env:_51DEGREES_RESOURCE_KEY_BESPOKE}' }
-        @{ Line = '          key: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}' }
+        @{ Line = '          key: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}' }
+        @{ Line = '          key: ${{ secrets._51DEGREES_LICENSE_KEY_51DID }}' }
         @{ Line = '          url: ${{ vars._51DEGREES_CLOUD_ENDPOINT }}' }
         @{ Line = 'public const RESOURCE_KEY_QUERY_PARAM = ''resource_key'';' }
         @{ Line = '$params = [''resourceKey'' => ''resource_key''];' }

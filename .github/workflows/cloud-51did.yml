@@ -5,12 +5,13 @@ name: Cloud 51Did Tests
 # every resource key in its keys() data provider, read under the key's own
 # name.
 #
-# The secrets are named one by one rather than passed as toJSON(secrets),
+# The keys are named one by one rather than passed as toJSON(secrets),
 # because a step given every secret is held for manual approval, so the
-# nightly never ran. A new resource key therefore needs a line here as well
-# as a row in the test's data provider.
+# nightly never ran. The resource keys come from organization variables and
+# the license key from an organization secret. A new resource key therefore
+# needs a line here as well as a row in the test's data provider.
 #
-# The test skips a key that is not set, so a run with no secrets is green and
+# The test skips a key that is not set, so a run with no keys is green and
 # proves nothing. That is deliberate, because a pull request from a fork has
 # no secrets, and it is the reason the test names each key it skips.
 #
@@ -56,11 +57,11 @@ jobs:
       # path repository to owid-php are used, as a consumer of the package
       # would resolve it.
       - run: composer install --no-interaction --no-progress
-      - name: Cloud 51Did test for each resource key secret
+      - name: Cloud 51Did test for each resource key
         env:
-          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}
-          _51DEGREES_RESOURCE_KEY_BESPOKE: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_51DID }}
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}
+          _51DEGREES_RESOURCE_KEY_BESPOKE: ${{ vars._51DEGREES_RESOURCE_KEY_BESPOKE }}
+          _51DEGREES_RESOURCE_KEY_51DID: ${{ vars._51DEGREES_RESOURCE_KEY_51DID }}
           # The service only opens a sealed result for a license key of the
           # account whose resource key sealed it, so the test gives this
           # license key only to the resource key of the same suffix.

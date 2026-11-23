@@ -9,11 +9,11 @@ param (
 # common-ci puts each organization secret and variable into the environment
 # under its own name before this runs. The tests read
 # _51DEGREES_RESOURCE_KEY_BESPOKE, the organization secret holding the key
-# that carries every property they ask for,
+# that carries every property they ask for, and
 # _51DEGREES_LICENSE_KEY_BESPOKE, the organization secret the Accept-CH tests
-# ask for one property at a time with, and _51DEGREES_RESOURCE_KEY_BASIC, the
-# organization secret holding a Basic key, which the Human Confidence test
-# of a key without HumanConfidenceSource skips without.
+# ask for one property at a time with. The Human Confidence tests that need
+# the staging cloud service are in the Staging suite, which
+# .github/workflows/cloud-human-confidence.yml runs rather than this script.
 if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so integration tests will not run."
     return

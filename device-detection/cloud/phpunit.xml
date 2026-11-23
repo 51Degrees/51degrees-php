@@ -26,5 +26,13 @@
       <file>tests/HumanConfidenceWebTests.php</file>
       <file>tests/UACHCloudTests.php</file>
     </testsuite>
+    <!-- The Human Confidence tests of what the staging cloud service serves
+         and the production one does not. They read CLOUD_STAGING_ENDPOINT
+         and RESOURCE_KEY_BESPOKE_STAGING, which only
+         .github/workflows/cloud-human-confidence.yml sets, so only that
+         workflow runs this suite. -->
+    <testsuite name="Staging">
+      <file>tests/HumanConfidenceWebStagingTests.php</file>
+    </testsuite>
   </testsuites>
 </phpunit>

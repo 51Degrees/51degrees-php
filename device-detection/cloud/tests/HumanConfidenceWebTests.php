@@ -62,6 +62,11 @@ class HumanConfidenceWebTests extends TestCase
     // another.
     private const DEFAULT_ENDPOINT = 'https://cloud.51degrees.com/api/v4/';
 
+    // The style sheet vendored beside the page. The weekly example assets
+    // update replaces it with the latest published release, so the test
+    // compares the answer with the file rather than naming its rules.
+    private const STYLE_SHEET = __DIR__ . '/../examples/cloud/static/examples-main.min.css';
+
     // The properties the example reads, as the cloud service names them in
     // its results.
     private const PROPERTY = 'humanconfidence';
@@ -228,15 +233,19 @@ class HumanConfidenceWebTests extends TestCase
     }
 
     /**
-     * The page links its style sheet, so the example serves it.
+     * The page links its style sheet, so the example serves the one
+     * vendored beside the page, unchanged.
      */
     public function testStyleSheet()
     {
+        $expected = (string) file_get_contents(self::STYLE_SHEET);
+        $this->assertNotSame('', $expected, self::STYLE_SHEET . ' is missing or empty.');
+
         $answer = self::get('/examples-main.min.css');
 
         $this->assertSame(200, $answer['status'], self::printed($answer));
         $this->assertStringStartsWith('text/css', $answer['headers']['content-type'] ?? '');
-        $this->assertStringContainsString('c-eg-status', $answer['body']);
+        $this->assertSame($expected, $answer['body']);
     }
 
     /**

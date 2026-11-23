@@ -447,7 +447,7 @@ class HumanConfidenceWebTests extends TestCase
             'timeout' => self::CLOUD_TIMEOUT_SECONDS
         ]]);
         $body = @file_get_contents(self::endpoint() . rawurlencode($key) . '.json', false, $context);
-        self::assertNotFalse($body, 'The cloud service named by ' . ExampleUtils::CLOUD_ENDPOINT_VARIABLE . ' did not answer.');
+        self::assertNotFalse($body, self::serviceName() . ' did not answer.');
         $json = json_decode($body, true);
         self::assertIsArray($json, 'The cloud service did not answer with JSON.');
         self::assertArrayNotHasKey('errors', $json, str_replace($key, '<key>', $body));
@@ -455,9 +455,22 @@ class HumanConfidenceWebTests extends TestCase
         return is_array($json['derived'] ?? null) ? $json['derived'] : [];
     }
 
+    /**
+     * The cloud service the tests ask, for a failure message. A service set
+     * in the endpoint variable is named by the variable rather than its
+     * address, and the public service by its address.
+     */
+    private static function serviceName(): string
+    {
+        return trim((string) ExampleUtils::getCloudEndpoint()) === ''
+            ? 'The cloud service at ' . self::DEFAULT_ENDPOINT
+            : 'The cloud service named by ' .
+                ExampleUtils::CLOUD_ENDPOINT_VARIABLE;
+    }
+
     private static function notListedMessage(): string
     {
-        return 'The cloud service named by ' . ExampleUtils::CLOUD_ENDPOINT_VARIABLE . ' did not list the ' .
+        return self::serviceName() . ' did not list the ' .
             'properties of the resource key in ' . Constants::RESOURCE_ENV_VAR . '.';
     }
 

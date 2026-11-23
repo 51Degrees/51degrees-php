@@ -24,7 +24,7 @@
 // A stand-in for the cloud service, served with PHP's built-in server for
 // HumanConfidenceWebStandInTests. It answers the paths the Human
 // Confidence web example calls in the passive step, and answers a resource
-// key's JSON path in the shape the cloud service gives that kind of key.
+// key's JSON path with the members the cloud service gives such keys.
 
 // The answer for each resource key. The cloud service also gives a null
 // reason beside a null value, which the example does not read, so the

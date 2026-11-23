@@ -47,7 +47,7 @@ jobs:
       - name: Show the release plan
         shell: pwsh
         env:
-          COMMON_CI: ${{ github.workspace }}/common-ci
+          _51DEGREES_COMMON_CI: ${{ github.workspace }}/common-ci
         run: |
           # Exits 0 when something would be released and 1 when nothing
           # would, and both are answers. Anything else is a failure.

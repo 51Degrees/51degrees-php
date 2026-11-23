@@ -42,9 +42,10 @@ themselves and read them back.
 
 | Name | What it holds | Set and read by |
 | --- | --- | --- |
-| `_51DEGREES_MIRROR_PUSH_TOKEN` | A token that can push to the mirror repositories Packagist reads, and nothing else. It comes from the organization secret of the same name. | `.github/workflows/mirror.yml` and `.github/workflows/did-publish.yml` |
+| `_51DEGREES_MIRROR_PUSH_TOKEN` | A token that can push to the mirror repositories Packagist reads, and nothing else. It comes from the organization secret of the same name. | `.github/workflows/mirror.yml`, `ci/mirror-tags.ps1` and `.github/workflows/did-publish.yml` |
 | `_51DEGREES_INPUT_VERSION`, `_51DEGREES_VERSION`, `_51DEGREES_TREE` | The version given to a dry run, the version being published, and the tree published under it | `.github/workflows/did-publish.yml` |
 | `_51DEGREES_CONFIGURE_OPTIONS` | The options `./configure` is given for one extension | `.github/workflows/extensions-thread-safe-php.yml` |
+| `_51DEGREES_COMMON_CI` | The folder of a common-ci checkout, where the release plan scripts look for `steps/release-plan.ps1` | Set by `.github/workflows/release-plan.yml` and `ci/publish-package.Tests.ps1`, read by `ci/packages.ps1` |
 
 ## Adding a name
 

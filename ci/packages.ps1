@@ -91,9 +91,10 @@ $Packages = @(Get-Content -Raw (Join-Path $PSScriptRoot 'packages.json') |
 
 # Where common-ci's steps/release-plan.ps1 is looked for. common-ci runs these
 # scripts from its own root, with this repository checked out inside it. A
-# checkout of common-ci beside this repository, or one named by COMMON_CI, is
-# found too.
-$CommonCiFolders = @($env:COMMON_CI, (Join-Path $PSScriptRoot '..' '..'),
+# checkout of common-ci beside this repository, or one named by
+# _51DEGREES_COMMON_CI, is found too.
+$CommonCiFolders = @($env:_51DEGREES_COMMON_CI,
+    (Join-Path $PSScriptRoot '..' '..'),
     (Join-Path $PSScriptRoot '..' '..' 'common-ci'))
 
 # The path of common-ci's steps/release-plan.ps1, which the scripts that work
@@ -106,7 +107,7 @@ function Get-ReleasePlanScript {
         Select-Object -First 1
     if ($null -eq $found) {
         throw "common-ci's steps/release-plan.ps1 was not found. Set " +
-            "COMMON_CI to a checkout of common-ci."
+            "_51DEGREES_COMMON_CI to a checkout of common-ci."
     }
     return $found
 }

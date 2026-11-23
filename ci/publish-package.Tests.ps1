@@ -45,7 +45,8 @@ BeforeAll {
     }
 
     # The repository, as common-ci lays it out: a folder named "repo" in the
-    # current folder, with the plan script in a folder named by COMMON_CI.
+    # current folder, with the plan script in a folder named by
+    # _51DEGREES_COMMON_CI.
     function New-Layout {
         $root = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid())
         $repo = Join-Path $root 'repo'
@@ -126,14 +127,14 @@ function Get-PackagePaths($Package) {
     # Runs the publish over the layout and returns what gh was asked to do.
     function Invoke-Publish($Layout, [bool]$DryRun = $false) {
         $global:GhCalls = [Collections.Generic.List[object]]::new()
-        $env:COMMON_CI = $Layout.CommonCi
+        $env:_51DEGREES_COMMON_CI = $Layout.CommonCi
         Push-Location $Layout.Root
         try {
             $script:Output = @(& $script:Publish -RepoName 'repo' `
                 -OrgName '51Degrees' -DryRun $DryRun)
         } finally {
             Pop-Location
-            Remove-Item env:COMMON_CI
+            Remove-Item env:_51DEGREES_COMMON_CI
         }
         return $global:GhCalls
     }

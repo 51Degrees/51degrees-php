@@ -17,7 +17,7 @@ organization secret of exactly its name. common-ci puts each one into the enviro
 | Name | What it holds | Read by |
 | --- | --- | --- |
 | `_51DEGREES_RESOURCE_KEY` | The resource key a person sets to run a cloud example. CI has no secret of this name. A test of an example gives the example the key it checks under this name. | The cloud examples of `device-detection/cloud`, `ip-intelligence` and `location`, and the 51Did creator context example |
-| `_51DEGREES_RESOURCE_KEY_BESPOKE` | The resource key the cloud tests use | The cloud tests of `device-detection/cloud`, `ip-intelligence`, `location` and `pipeline/cloudrequestengine`, the browser run of the cloud example, and the 51Did live test |
+| `_51DEGREES_RESOURCE_KEY_BESPOKE` | A resource key carrying every property the cloud tests of `device-detection/cloud`, `ip-intelligence` and `pipeline/cloudrequestengine` ask for. The location tests check only the location properties it includes, and fail when it includes none | The cloud tests of `device-detection/cloud`, `ip-intelligence`, `location` and `pipeline/cloudrequestengine`, the browser run of the cloud example, and the 51Did live test |
 | `_51DEGREES_RESOURCE_KEY_BASIC` | A resource key on the basic data tier | The 51Did live test, and the Human Confidence test of `device-detection/cloud` that checks a key whose products do not offer `HumanConfidenceSource` gets none |
 | `_51DEGREES_RESOURCE_KEY_51DID` | The resource key of the 51Did account | The 51Did live test |
 | `_51DEGREES_LICENSE_KEY` | A 51Degrees license key | The packages' `ci/fetch-assets.ps1`, to download the paid data files, and the Human Confidence and 51Did creator context examples, which send it to the cloud to redeem a sealed result |

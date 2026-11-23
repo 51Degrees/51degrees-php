@@ -7,8 +7,8 @@ name: Cloud 51Did Tests
 #
 # The keys are named one by one rather than passed as toJSON(secrets),
 # because a step given every secret is held for manual approval, so the
-# nightly never ran. The resource keys come from organization variables and
-# the license key from an organization secret. A new resource key therefore
+# nightly never ran. The resource keys and the license key come from
+# organization secrets. A new resource key therefore
 # needs a line here as well as a row in the test's data provider.
 #
 # The test skips a key that is not set, so a run with no keys is green and
@@ -59,9 +59,9 @@ jobs:
       - run: composer install --no-interaction --no-progress
       - name: Cloud 51Did test for each resource key
         env:
-          _51DEGREES_RESOURCE_KEY_BASIC: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}
-          _51DEGREES_RESOURCE_KEY_BESPOKE: ${{ vars._51DEGREES_RESOURCE_KEY_BESPOKE }}
-          _51DEGREES_RESOURCE_KEY_51DID: ${{ vars._51DEGREES_RESOURCE_KEY_51DID }}
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}
+          _51DEGREES_RESOURCE_KEY_BESPOKE: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_51DID }}
           # The service only opens a sealed result for a license key of the
           # account whose resource key sealed it, so the test gives this
           # license key only to the resource key of the same suffix.

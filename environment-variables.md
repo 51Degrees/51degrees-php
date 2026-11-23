@@ -11,9 +11,8 @@ customer sets and which are named for what they do. That script lists both.
 
 ## Keys
 
-In CI each resource key is filled from the organization variable of exactly
-its name, and each license key from the organization secret of exactly its
-name. common-ci puts each one into the environment under that name.
+In CI each resource key and each license key is filled from the
+organization secret of exactly its name. common-ci puts each one into the environment under that name.
 
 | Name | What it holds | Read by |
 | --- | --- | --- |
@@ -51,9 +50,8 @@ themselves and read them back.
 ## Adding a name
 
 A new name starts with `_51DEGREES_`, holds one thing, and is added to this
-list in the same change. A resource key gets an organization variable of
-exactly its name, and a license key an organization secret of exactly its
-name. A setting only this repository uses lives in this repository's own
+list in the same change. A resource key or a license key gets an
+organization secret of exactly its name. A setting only this repository uses lives in this repository's own
 files rather than in a variable, as the SWIG version does in each
 `on-premise/generate-wrapper.sh`. Names that are no longer read are listed in
 the pull request that removes them, not here.

@@ -4,7 +4,7 @@ param (
 )
 
 # The cloud tests read the resource key from _51DEGREES_RESOURCE_KEY_BESPOKE,
-# the organization variable common-ci puts into the environment under its own
+# the organization secret common-ci puts into the environment under its own
 # name before this runs. They fall back to a mocked HTTP client when it is
 # not set.
 

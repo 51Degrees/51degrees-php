@@ -8,11 +8,11 @@ param (
 
 # common-ci puts each organization secret and variable into the environment
 # under its own name before this runs. The tests read
-# _51DEGREES_RESOURCE_KEY_BESPOKE, the organization variable holding the key
+# _51DEGREES_RESOURCE_KEY_BESPOKE, the organization secret holding the key
 # that carries every property they ask for,
 # _51DEGREES_LICENSE_KEY_BESPOKE, the organization secret the Accept-CH tests
 # ask for one property at a time with, and _51DEGREES_RESOURCE_KEY_BASIC, the
-# organization variable holding a Basic key, which the Human Confidence test
+# organization secret holding a Basic key, which the Human Confidence test
 # of a key without HumanConfidenceSource skips without.
 if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so integration tests will not run."

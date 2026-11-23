@@ -407,10 +407,11 @@ class CredentialsTests extends TestCase
     public function testFailedRequestsLogAndThrowNothingHoldingTheLicenseKey(array $settings): void
     {
         // The discovery request, then the data request, which is named by
-        // the resource key where there is one.
+        // the resource key where there is one, and is otherwise the data
+        // path under the address the engine uses.
         $dataPath = isset($settings['resourceKey'])
             ? strtolower(self::resourceKey) . '.json'
-            : 'v4/json';
+            : strtolower(CloudEndPoint::expected() . Constants::LICENSE_DATA_PATH);
         foreach (['accessibleproperties', $dataPath] as $failing) {
             $result = $this->process($settings, $failing);
 

@@ -136,15 +136,73 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     }
 
     /**
+     * Test that a blank cloudEndPoint setting, empty or only whitespace,
+     * gives way to the environment variable, and to the default when the
+     * variable is blank too.
+     */
+    public function testBlankSettingGivesWayToTheVariableThenTheDefault()
+    {
+        foreach (['', '  '] as $setting) {
+            $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . self::testEnvVarEndPoint));
+            $engine = new CloudRequestEngine([
+                'resourceKey' => CloudRequestEngineTests::resourceKey,
+                'httpClient' => $this->mockHttp(),
+                'cloudEndPoint' => $setting
+            ]);
+            $this->assertSame(self::testEnvVarEndPoint, $engine->baseURL, var_export($setting, true));
+
+            $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=  '));
+            $engine = new CloudRequestEngine([
+                'resourceKey' => CloudRequestEngineTests::resourceKey,
+                'httpClient' => $this->mockHttp(),
+                'cloudEndPoint' => $setting
+            ]);
+            $this->assertSame(Constants::BASE_URL_DEFAULT, $engine->baseURL, var_export($setting, true));
+        }
+    }
+
+    /**
+     * Test that a variable of "0" is used as the address, as any value that
+     * is not blank is.
+     */
+    public function testZeroIsAnAddress()
+    {
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=0'));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $this->assertSame('0/', $engine->baseURL);
+    }
+
+    /**
+     * Test that a cloudEndPoint setting that is not a string is refused.
+     */
+    public function testSettingThatIsNotAStringIsRefused()
+    {
+        $this->expectException(\TypeError::class);
+
+        new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp(),
+            'cloudEndPoint' => ['https://cloud.example.test/api/v4/']
+        ]);
+    }
+
+    /**
      * Test that the address the tests expect when they give none is the
-     * address the engine uses, when the variable is unset, empty, "0", an
-     * address without a trailing slash or an address with one.
+     * address the engine uses, when the variable is unset, empty, only
+     * whitespace, "0", an address without a trailing slash or an address
+     * with one.
      */
     public function testExpectedEndPointMatchesTheEngine()
     {
         $values = [
             null,
             '',
+            '  ',
             '0',
             rtrim(self::testEnvVarEndPoint, '/'),
             self::testEnvVarEndPoint

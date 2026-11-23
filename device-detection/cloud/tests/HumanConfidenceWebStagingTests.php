@@ -38,6 +38,9 @@ use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
  */
 class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 {
+    // Where the cloud service says why HumanConfidenceSource has no value.
+    private const SOURCE_NULL_REASON = 'humanconfidencesourcenullreason';
+
     protected static function resourceKeyVariable(): string
     {
         return Constants::STAGING_RESOURCE_ENV_VAR;
@@ -77,7 +80,9 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 
     /**
      * The Basic product does not offer HumanConfidenceSource, so a Basic
-     * key gets no source.
+     * key gets the source as null, with the reason it has no value. An
+     * answer that leaves the source out says nothing about the product, so
+     * it fails.
      */
     public function testBasicKeyGetsNoSource()
     {
@@ -88,7 +93,10 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 
         $derived = self::passiveAnswer($key);
 
-        $this->assertNull($derived[self::SOURCE_PROPERTY] ?? null, (string) json_encode($derived));
+        $message = (string) json_encode($derived);
+        $this->assertArrayHasKey(self::SOURCE_PROPERTY, $derived, $message);
+        $this->assertNull($derived[self::SOURCE_PROPERTY], $message);
+        $this->assertIsString($derived[self::SOURCE_NULL_REASON] ?? null, $message);
     }
 
     /**

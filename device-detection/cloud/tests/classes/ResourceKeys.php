@@ -1,0 +1,62 @@
+<?php
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+declare(strict_types=1);
+
+namespace fiftyone\pipeline\devicedetection\tests\classes;
+
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\EnvironmentVariable;
+
+/**
+ * Finds the key a test needs in the environment.
+ *
+ * A key is read from its one variable. When that is not set the message
+ * names the variable that was wanted, rather than leaving the reader to
+ * guess.
+ */
+class ResourceKeys
+{
+    /**
+     * Get the value of a key variable, or null when it is not set.
+     *
+     * @param string $name One of the Constants::*_ENV_VAR names
+     * @return null|string
+     */
+    public static function find(string $name): ?string
+    {
+        $value = EnvironmentVariable::read($name);
+
+        return $value === '' ? null : $value;
+    }
+
+    /**
+     * The message shown when a key is missing, naming the variable the test
+     * was looking for.
+     */
+    public static function missingMessage(string $name): string
+    {
+        return "No key found. Set the environment variable " .
+            "'" . $name . "'. Create a resource key for free at " .
+            'https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=tests-classes-resourcekeys.php&utm_term=resource-key-required';
+    }
+}

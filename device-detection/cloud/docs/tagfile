@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<tagfile>
+  <compound kind="class">
+    <name>fiftyone::pipeline::devicedetection::deviceDetectionCloud</name>
+    <filename>classfiftyone_1_1pipeline_1_1devicedetection_1_1device_detection_cloud.html</filename>
+  </compound>
+  <compound kind="class">
+    <name>fiftyone::pipeline::devicedetection::deviceDetectionPipelineBuilder</name>
+    <filename>classfiftyone_1_1pipeline_1_1devicedetection_1_1device_detection_pipeline_builder.html</filename>
+  </compound>
+  <compound kind="page">
+    <name>md_D:_Workspace_V4_device-detection-php_readme</name>
+    <title>readme</title>
+    <filename>md__d_1__workspace__v4_device-detection-php_readme</filename>
+  </compound>
+</tagfile>

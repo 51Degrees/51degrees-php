@@ -1,0 +1,133 @@
+name: Mirror
+
+# Packagist reads the old repositories, not this one. This keeps each old
+# repository, now a read-only mirror, equal to its package directory here.
+# The mirrors are the packages with a Mirror in ci/packages.json.
+#
+# Push to main: each mirrored directory is split out with git subtree split
+# and pushed to the main branch of its mirror. The split of unchanged history
+# gives the same commits every time, so the push is a fast-forward or
+# "Everything up-to-date". Nothing here uses --force: a push git refuses as
+# not a fast-forward means somebody pushed to a mirror directly, and a person
+# has to decide which side wins.
+#
+# The publish tags a commit of main "<package>/<version>", such as
+# fiftyone.pipeline.core/4.5.207, for each package it releases. Each such tag
+# runs ci/mirror-tags.ps1, which tags the package's mirror "<version>", and
+# that tag is what Packagist turns into a release. A package that requires
+# others is published with those requirements raised to the versions
+# released with it, so its mirror's tag goes on a commit on top of the split
+# that changes only them. pipeline-php-did is tagged by did-publish.yml
+# instead.
+#
+# MIRROR_PUSH_TOKEN must be able to push to the mirror repositories
+# and to nothing else: a fine-grained token limited to the mirrors with
+# Contents: write, plus Workflows: write, because GitHub refuses a push that
+# changes a file under .github/workflows without it, and the mirrors still
+# hold the workflows of their old repositories until the push that deletes
+# them. The checkout drops its own credentials, because the
+# GITHUB_TOKEN header it leaves behind is sent to every github.com URL and
+# would replace this token on the mirror push.
+
+on:
+  push:
+    branches: [main]
+    tags: ['*/[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer main run makes a waiting one pointless, so main runs share one
+# group. A tag run mirrors every package tag on its commit, so the tag runs of
+# one commit share a group too. GitHub keeps only the newest waiting run of a
+# group, which loses nothing, because that run starts after every tag before
+# it was pushed.
+concurrency:
+  group: ${{ startsWith(github.ref, 'refs/tags/') && format('mirror-tags-{0}', github.sha) || format('mirror-{0}', github.ref) }}
+  cancel-in-progress: false
+
+jobs:
+  Branch:
+    name: Mirror main
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # git subtree split walks the whole history.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Split and push each mirrored package
+        env:
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
+        run: |
+          set -uo pipefail
+          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
+            exit 1
+          fi
+          # Keeps the split inside the package history, see the script.
+          ./ci/prepare-split.sh
+          list=$(pwsh -NoProfile -Command '. ./ci/packages.ps1; $Packages | Where-Object Mirror | ForEach-Object { "$($_.Path) $($_.Mirror)" }')
+          if [ -z "$list" ]; then
+            echo "::error::ci/packages.json lists no mirrored package"
+            exit 1
+          fi
+          failed=0
+          # One failing mirror must not hold back the others, so failures
+          # are collected and the job fails at the end.
+          while read -r p mirror; do
+            if ! s=$(git subtree split --prefix="$p" 2>"$RUNNER_TEMP/split.err"); then
+              cat "$RUNNER_TEMP/split.err"
+              echo "::error::git subtree split of $p failed"
+              failed=1
+              continue
+            fi
+            url="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/${mirror}.git"
+            out=$(git push "$url" "$s:refs/heads/main" 2>&1); rc=$?
+            echo "$p split=$s rc=$rc"
+            echo "$out"
+            if [ $rc -ne 0 ]; then
+              echo "::error::push of $p to $mirror main was refused, see the git output above (not a fast-forward means the mirror has commits this repository does not)"
+              failed=1
+            fi
+          done <<< "$list"
+          exit $failed
+
+  Tag:
+    name: Mirror release tags
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # git subtree split walks the whole history, and the versions
+          # required are read from the tags.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # A tag pushed by hand is a path into Packagist that the publish's
+      # checks do not see, and a published version cannot be taken back.
+      - name: Refuse a tag that is not on main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor HEAD origin/main || {
+            echo "::error::$GITHUB_REF_NAME is not on main"
+            exit 1
+          }
+
+      - name: Push each released package's version to its mirror
+        env:
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
+            exit 1
+          fi
+          # Keeps the split inside the package history, see the script.
+          ./ci/prepare-split.sh
+          pwsh -NoProfile -File ./ci/mirror-tags.ps1 -Owner "$GITHUB_REPOSITORY_OWNER" -Tag "$GITHUB_REF_NAME" -Push

@@ -1,0 +1,199 @@
+<?php
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+namespace fiftyone\pipeline\devicedetection\examples\onpremise\classes;
+
+use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
+
+class GettingStartedConsole
+{
+    // Where to ask for a copy of the Enterprise data file, tagged with this
+    // example.
+    private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=enterprise-data-file';
+
+    // The properties only the Enterprise data file has, with the names they
+    // are shown with. The free Lite data file has the ones shown first.
+    private const ENTERPRISE_PROPERTIES = [
+        'Hardware Vendor' => 'hardwarevendor',
+        'Hardware Name' => 'hardwarename',
+        'Device Type' => 'devicetype'];
+
+    // This collection contains the various input values that will
+    // be passed to the device detection algorithm.
+    private $evidenceValues = [
+        // A User-Agent from a mobile device.
+        [
+            'header.user-agent' => 'Mozilla/5.0 (Linux; Android 9; SAMSUNG SM-G960U) ' .
+                'AppleWebKit/537.36 (KHTML, like Gecko) ' .
+                'SamsungBrowser/10.1 Chrome/71.0.3578.99 Mobile Safari/537.36'],
+        // A User-Agent from a desktop device.
+        [
+            'header.user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' .
+                'AppleWebKit/537.36 (KHTML, like Gecko) ' .
+                'Chrome/78.0.3904.108 Safari/537.36'],
+        // Evidence values from a Windows 11 device using a browser
+        // that supports User-Agent Client Hints.
+        [
+            'header.user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' .
+                'AppleWebKit/537.36 (KHTML, like Gecko) ' .
+                'Chrome/98.0.4758.102 Safari/537.36',
+            'header.sec-ch-ua-mobile' => '?0',
+            'header.sec-ch-ua' => '" Not A; Brand";v="99", "Chromium";v="98", ' .
+                '"Google Chrome";v="98"',
+            'header.sec-ch-ua-platform' => '"Windows"',
+            'header.sec-ch-ua-platform-version' => '"14.0.0"']
+    ];
+
+    /**
+     * In this example, we use the DeviceDetectionPipelineBuilder
+     * and configure it in code. For more information about
+     * pipelines in general see the documentation at
+     * https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run.
+     *
+     * @param \fiftyone\pipeline\core\Logger $logger
+     */
+    public function run($logger, callable $output)
+    {
+        // The engine is the one the extension builds when PHP starts, from
+        // the FiftyOneDegreesHashEngine.* php.ini settings, so it takes no
+        // settings here, and it always holds the whole data file in memory.
+        // See the documentation for more detail on this and other
+        // configuration options:
+        // https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+        // https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+        // https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=run
+        $engine = new DeviceDetectionOnPremise();
+        $pipeline = (new PipelineBuilder())
+            ->add($engine)
+            ->addLogger($logger)
+            ->build();
+
+        // The pipeline is closed in the finally block. An application
+        // normally builds one pipeline, uses it for every detection, and
+        // closes it when it stops.
+        try {
+            ExampleUtils::checkDataFile($pipeline->getElement('device'), $logger);
+
+            // carry out some sample detections
+            $needsEnterprise = false;
+            foreach ($this->evidenceValues as &$values) {
+                $needsEnterprise =
+                    $this->analyseEvidence($values, $pipeline, $output) ||
+                    $needsEnterprise;
+            }
+            if ($needsEnterprise) {
+                $output('');
+                $output(ExampleUtils::getEnterpriseNote(self::CONTACT_US));
+            }
+        } finally {
+            $pipeline->close();
+        }
+    }
+
+    public function outputValue($name, $value, &$message)
+    {
+        // Individual result values have a wrapper called
+        // `AspectPropertyValue`. This functions similarly to
+        // a null-able type.
+        // If the value has not been set then trying to access the
+        // `value` method will throw an exception.
+        // `AspectPropertyValue` also includes the `no_value_message`
+        // method, which describes why the value has not been set.
+        if ($value->hasValue) {
+            $shown = is_bool($value->value)
+                ? ($value->value ? 'True' : 'False')
+                : $value->value;
+            $message[] = "\t{$name}: {$shown}";
+        } else {
+            $message[] = "\t{$name}: {$value->noValueMessage}";
+        }
+    }
+
+    private function analyseEvidence($evidence, $pipeline, callable $output)
+    {
+        // FlowData is a data structure that is used to convey
+        // information required for detection and the results of the
+        // detection through the pipeline.
+        // Information required for detection is called "evidence"
+        // and usually consists of a number of HTTP Header field
+        // values, in this case represented by a dictionary of header
+        // name/value entries.
+        // Closing the FlowData, which the finally block does, releases the
+        // results of the detection straight away, rather than when the
+        // garbage collector next runs.
+        $data = $pipeline->createFlowData();
+        try {
+            $message = [];
+
+            // List the evidence
+            $message[] = 'Input values:';
+            foreach ($evidence as $key => $value) {
+                $message[] = "\t{$key}: {$value}";
+            }
+
+            $output(implode("\n", $message));
+
+            // Add the evidence values to the flow data
+            $data->evidence->setArray($evidence);
+
+            // Process the flow data.
+            $data->process();
+
+            $message = [];
+            $message[] = 'Results:';
+
+            // Now that it's been processed, the flow data will have
+            // been populated with the result. In this case, we want
+            // information about the device, which we can get by
+            // asking for a result matching named "device"
+            $device = $data->device;
+
+            // Display the results of the detection, which are called
+            // device properties. See the property dictionary at
+            // https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-onpremise-classes-gettingstartedconsole.php&utm_term=analyseevidence
+            // for details of all available properties.
+            $this->outputValue('Mobile Device', $device->ismobile, $message);
+            $this->outputValue('Platform Name', $device->platformname, $message);
+            $this->outputValue('Platform Version', $device->platformversion, $message);
+            $this->outputValue('Browser Name', $device->browsername, $message);
+            $this->outputValue('Browser Version', $device->browserversion, $message);
+
+            // The engine says which properties its data file has, and the
+            // value of a property it does not have is not read.
+            $engine = $pipeline->getElement('device');
+            $needsEnterprise = false;
+            foreach (self::ENTERPRISE_PROPERTIES as $name => $property) {
+                $value = ExampleUtils::getEnterpriseValue($engine, $device, $property);
+                $needsEnterprise = $needsEnterprise ||
+                    $value === ExampleUtils::NEEDS_ENTERPRISE;
+                $message[] = "\t{$name}: {$value}";
+            }
+            $output(implode("\n", $message));
+
+            return $needsEnterprise;
+        } finally {
+            $data->close();
+        }
+    }
+}

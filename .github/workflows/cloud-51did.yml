@@ -1,0 +1,71 @@
+name: Cloud 51Did Tests
+
+# Runs the live cloud 51Did integration test
+# (pipeline/did/tests/DidClientLiveTest.php), which runs each test once for
+# every resource key in its keys() data provider, read under the key's own
+# name.
+#
+# The keys are named one by one rather than passed as toJSON(secrets),
+# because a step given every secret is held for manual approval, so the
+# nightly never ran. The resource keys and the license key come from
+# organization secrets. A new resource key therefore
+# needs a line here as well as a row in the test's data provider.
+#
+# The test skips a key that is not set, so a run with no keys is green and
+# proves nothing. That is deliberate, because a pull request from a fork has
+# no secrets, and it is the reason the test names each key it skips.
+#
+# One PHP version rather than the matrix the nightly runs, because this
+# exercises the cloud service rather than the language.
+
+on:
+  workflow_dispatch:
+  # Nightly as well, because a pull_request run only ever checks the package
+  # against the cloud as it stood that day. A released package is not checked
+  # again, so a field the cloud starts writing, stops writing or changes goes
+  # unnoticed until a customer finds it. That is what happened when the cloud
+  # service began writing the Terms byte. The six 51Did packages are
+  # staggered ten minutes apart so they do not all ask production at once.
+  schedule:
+    - cron: '40 5 * * *'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pipeline/did/**'
+      - '.github/workflows/cloud-51did.yml'
+
+jobs:
+  cloud-51did:
+    name: Cloud 51Did
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pipeline/did
+    steps:
+      - uses: actions/checkout@v4
+      # Only the owid-php submodule, which the package takes its OWID source
+      # from. The others hold the C code and the data files.
+      - name: Checkout the OWID submodule
+        run: git submodule update --init owid-php
+      - uses: shivammathur/setup-php@v2
+        with:
+          # The lowest version the package supports, so the cloud path is
+          # proven on the oldest runtime a deployment might use.
+          php-version: '8.1'
+          extensions: mbstring, openssl, json
+      # In the package folder, so the package's own composer.json and its
+      # path repository to owid-php are used, as a consumer of the package
+      # would resolve it.
+      - run: composer install --no-interaction --no-progress
+      - name: Cloud 51Did test for each resource key
+        env:
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}
+          _51DEGREES_RESOURCE_KEY_BESPOKE: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_51DID }}
+          # The service only opens a sealed result for a license key of the
+          # account whose resource key sealed it, so the test gives this
+          # license key only to the resource key of the same suffix.
+          _51DEGREES_LICENSE_KEY_51DID: ${{ secrets._51DEGREES_LICENSE_KEY_51DID }}
+          # The cloud service the tests call. Unset, they call the public one.
+          _51DEGREES_CLOUD_ENDPOINT: ${{ vars._51DEGREES_CLOUD_ENDPOINT }}
+        run: php vendor/bin/phpunit --testdox tests/DidClientLiveTest.php

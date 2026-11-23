@@ -1,0 +1,83 @@
+{
+    "name": "51degrees/fiftyone.ipintelligence",
+    "description": "IP Intelligence and IP geolocation for PHP, built on the 51Degrees Pipeline API. Finds an IP address's likely location (country, region, town, and coordinates), connection type, and network, using the 51Degrees cloud service or a data file on your server. An alternative to MaxMind and IPinfo.",
+    "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=composer.json&utm_term=homepage",
+    "keywords":
+    [
+        "ip",
+        "ip intelligence",
+        "geolocation",
+        "geoip",
+        "country",
+        "asn",
+        "network",
+        "51degrees",
+        "ip-intelligence",
+        "ip-geolocation",
+        "ip-lookup",
+        "ip-to-country",
+        "maxmind",
+        "ipinfo"
+    ],
+    "authors":
+    [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2",
+    "type": "library",
+    "support":
+    {
+        "source": "https://github.com/51Degrees/51degrees-php",
+        "docs": "https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.ipintelligence&utm_term=documentation"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories":
+    [
+        {
+            "type": "path",
+            "url": "../pipeline/translation",
+            "options": { "symlink": true }
+        }
+    ],
+    "require":
+    {
+        "php": ">=8.0",
+        "51degrees/fiftyone.pipeline.core": "^4.5.206",
+        "51degrees/fiftyone.pipeline.engines": "4.*",
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "^4.5.208",
+        "51degrees/fiftyone.pipeline.translation": "*"
+    },
+    "require-dev":
+    {
+        "phpunit/phpunit": "*",
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10",
+        "51degrees/fiftyone.devicedetection": "4.*"
+    },
+    "autoload":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\ipintelligence\\": "src/"
+        }
+    },
+    "autoload-dev":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\ipintelligence\\tests\\": "tests/",
+            "fiftyone\\pipeline\\ipintelligence\\examples\\classes\\": "examples/classes/"
+        }
+    },
+    "config":
+    {
+        "allow-plugins":
+        {
+            "nodejs-php-fallback/nodejs-php-fallback": false
+        }
+    }
+}

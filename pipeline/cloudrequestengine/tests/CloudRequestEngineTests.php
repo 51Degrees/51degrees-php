@@ -1,0 +1,685 @@
+<?php
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+namespace fiftyone\pipeline\cloudrequestengine\tests;
+
+use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
+use fiftyone\pipeline\cloudrequestengine\Constants;
+use fiftyone\pipeline\cloudrequestengine\HttpClient;
+use fiftyone\pipeline\core\Logger;
+use fiftyone\pipeline\core\PipelineBuilder;
+use PHPUnit\Framework\Attributes\After;
+use PHPUnit\Framework\Attributes\Before;
+use PHPUnit\Framework\Attributes\DataProvider;
+
+class CloudRequestEngineTests extends CloudRequestEngineTestsBase
+{
+    public const testEndPoint = 'http://testEndPoint/';
+    public const testEnvVarEndPoint = 'http://testEnvVarEndPoint/';
+
+    /**
+     * Test the explicit setting of cloudEndPoint via constructor take
+     * precedence over environment variable settings.
+     */
+    public function testConfigPrecedenceExplicitSettings()
+    {
+        $httpClient = $this->mockHttp();
+
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient,
+            'cloudEndPoint' => CloudRequestEngineTests::testEndPoint
+        ]);
+
+        $this->assertSame(self::testEndPoint, $engine->baseURL);
+    }
+
+    /**
+     * Test the environment variable settings of cloud endpoint take
+     * precedence over the default value.
+     */
+    public function testConfigPrecedenceEnvironmentVariableSettings()
+    {
+        $httpClient = $this->mockHttp();
+
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=' . CloudRequestEngineTests::testEnvVarEndPoint));
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient
+        ]);
+
+        $this->assertSame(self::testEnvVarEndPoint, $engine->baseURL);
+    }
+
+    /**
+     * Test that the default end point is used if no other methods is used.
+     */
+    public function testConfigPrecedenceDefaultSettings()
+    {
+        $httpClient = $this->mockHttp();
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient
+        ]);
+
+        $this->assertSame(Constants::BASE_URL_DEFAULT, $engine->baseURL);
+    }
+
+    /**
+     * Test that the constant names the variable the endpoint is read from.
+     */
+    public function testEndPointConstantNamesTheVariable()
+    {
+        $this->assertSame('_51DEGREES_CLOUD_ENDPOINT', Constants::CLOUD_ENDPOINT_VARIABLE);
+    }
+
+    /**
+     * Test that base URL is appended with slash if does not end with one.
+     */
+    public function testBaseUrlNoSlash()
+    {
+        $httpClient = $this->mockHttp();
+
+        $testNoSlashUrl = 'http://localhost';
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient,
+            'cloudEndPoint' => $testNoSlashUrl]);
+
+        $this->assertSame($testNoSlashUrl . '/', $engine->baseURL);
+    }
+
+    // Data Provider for testGetSelectedEvidence
+    public static function provider_testGetSelectedEvidence()
+    {
+        return [
+            [
+                [
+                    'query.User-Agent' => 'iPhone',
+                    'header.User-Agent' => 'iPhone'
+                ],
+                'query',
+                [
+                    'query.User-Agent' => 'iPhone'
+                ]
+            ],
+            [
+                [
+                    'header.User-Agent' => 'iPhone',
+                    'a.User-Agent' => 'iPhone',
+                    'z.User-Agent' => 'iPhone'
+                ],
+                'other',
+                [
+                    'z.User-Agent' => 'iPhone',
+                    'a.User-Agent' => 'iPhone'
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * Test evidence of specific type is returned from all
+     * the evidence passed, if type is not from query, header
+     * or cookie then evidences are returned sorted in descending order.
+     *
+     * @dataProvider provider_testGetSelectedEvidence
+     * @param mixed $evidence
+     * @param mixed $type
+     * @param mixed $expectedValue
+     */
+    #[DataProvider('provider_testGetSelectedEvidence')]
+    public function testGetSelectedEvidence($evidence, $type, $expectedValue)
+    {
+        $httpClient = $this->mockHttp();
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient
+        ]);
+
+        $result = $engine->getSelectedEvidence($evidence, $type);
+        $this->assertSame($expectedValue, $result);
+    }
+
+    // Data Provider for testGetContent_nowarning
+    public static function provider_testGetContent_nowarning()
+    {
+        return [
+            [
+                [
+                    'query.User-Agent' => 'query-iPhone',
+                    'header.user-agent' => 'header-iPhone'
+                ],
+                'query-iPhone'
+            ],
+            [
+                [
+                    'query.User-Agent' => 'query-iPhone',
+                    'cookie.User-Agent' => 'cookie-iPhone'
+                ],
+                'query-iPhone'
+            ],
+            [
+                [
+                    'query.User-Agent' => 'query-iPhone',
+                    'a.User-Agent' => 'a-iPhone'
+                ],
+                'query-iPhone'
+            ]
+        ];
+    }
+
+    /**
+     * Test Content to send in the POST request is generated as
+     * per the precedence rule of The evidence keys. Verify that query
+     * evidence overwrite other evidences without any warning logged.
+     *
+     * @dataProvider provider_testGetContent_nowarning
+     * @param mixed $evidence
+     * @param mixed $expectedValue
+     */
+    #[DataProvider('provider_testGetContent_nowarning')]
+    public function testGetContent_nowarning($evidence, $expectedValue)
+    {
+        $httpClient = $this->mockHttp();
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient
+        ]);
+
+        $pipeline = new PipelineBuilder();
+
+        $pipeline = $pipeline->add($engine)->build();
+
+        $data = $pipeline->createFlowData();
+
+        foreach ($evidence as $key => $value) {
+            $data->evidence->set($key, $value);
+        }
+
+        $result = $engine->getContent($data);
+        $this->assertSame($expectedValue, $result['User-Agent']);
+    }
+
+    // Data Provider for testGetContent_warnings
+    public static function provider_testGetContent_warnings()
+    {
+        return [
+            [
+                [
+                    'header.User-Agent' => 'header-iPhone',
+                    'cookie.User-Agent' => 'cookie-iPhone'
+                ],
+                'header-iPhone'
+            ],
+            [
+                [
+                    'a.User-Agent' => 'a-iPhone',
+                    'b.User-Agent' => 'b-iPhone',
+                    'z.User-Agent' => 'z-iPhone'
+                ],
+                'a-iPhone'
+            ],
+            [
+                [
+                    'query.User-Agent' => 'query-iPhone',
+                    'header.User-Agent' => 'header-iPhone',
+                    'cookie.User-Agent' => 'cookie-iPhone',
+                    'a.User-Agent' => 'a-iPhone'
+                ],
+                'query-iPhone'
+            ]
+        ];
+    }
+
+    /**
+     * Test Content to send in the POST request is generated as
+     * per the precedence rule of The evidence keys. These are
+     * added to the evidence in reverse order, if there is conflict then
+     * the queryData value is overwritten and warnings are logged.
+     *
+     * @dataProvider provider_testGetContent_warnings
+     * @param mixed $evidence
+     * @param mixed $expectedValue
+     */
+    #[DataProvider('provider_testGetContent_warnings')]
+    public function testGetContent_warnings($evidence, $expectedValue)
+    {
+        $httpClient = $this->mockHttp();
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient
+        ]);
+
+        $pipeline = new PipelineBuilder();
+
+        $pipeline = $pipeline->add($engine)->build();
+
+        $data = $pipeline->createFlowData();
+
+        foreach ($evidence as $key => $value) {
+            $data->evidence->set($key, $value);
+        }
+
+        $this->assertSame($expectedValue, @$engine->getContent($data)['User-Agent']);
+
+        // register handler for user-level errors generated by trigger_error()
+        set_error_handler(function ($errno, $errstr) {
+            $this->assertEquals(E_USER_WARNING, $errno);
+            $this->assertStringContainsString('evidence conflicts with', $errstr);
+        }, E_USER_WARNING);
+
+        $engine->getContent($data);
+
+        restore_error_handler();
+    }
+
+    // Data Provider for testGetContent_case_insensitive
+    public static function provider_testGetContent_case_insensitive()
+    {
+        return [
+            [
+                [
+                    'query.User-Agent' => 'iPhone1',
+                    'Query.user-agent' => 'iPhone2'
+                ],
+                'iPhone2'
+            ],
+            [
+                [
+                    'a.User-Agent' => 'iPhone1',
+                    'A.user-agent' => 'iPhone2'
+                ],
+                'iPhone2'
+            ]
+        ];
+    }
+
+    /**
+     * Test Content to send in the POST request is generated as
+     * per the precedence rule of The evidence keys. Verify that
+     * comparison is case-insensitive and evidence values will be
+     * overwritten without any warning logged.
+     *
+     * @dataProvider provider_testGetContent_case_insensitive
+     * @param mixed $evidence
+     * @param mixed $expectedValue
+     */
+    #[DataProvider('provider_testGetContent_case_insensitive')]
+    public function testGetContent_case_insensitive($evidence, $expectedValue)
+    {
+        $httpClient = $this->mockHttp();
+
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $httpClient
+        ]);
+
+        $pipeline = new PipelineBuilder();
+
+        $pipeline = $pipeline->add($engine)->build();
+
+        $data = $pipeline->createFlowData();
+
+        foreach ($evidence as $key => $value) {
+            $data->evidence->set($key, $value);
+        }
+
+        $result = $engine->getContent($data);
+        $this->assertSame($expectedValue, $result['User-Agent']);
+    }
+
+    /**
+     * The name sent to the cloud service is everything after the first dot,
+     * as the .NET engine sends it. Several evidence names have a dot of
+     * their own, among them 'query.id.usage', which a 51Did depends on, and
+     * cutting at the last dot sent it as 'usage', which the cloud service
+     * does not read.
+     */
+    public function testGetContent_keyKeepsEverythingAfterThePrefix()
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        $data->evidence->set('query.id.usage', 'personalized');
+        $data->evidence->set('query.robotstxt.train', 'no');
+        $data->evidence->set('header.user-agent', 'iPhone');
+
+        $result = $engine->getContent($data);
+
+        $this->assertSame(
+            [
+                'user-agent' => 'iPhone',
+                'id.usage' => 'personalized',
+                'robotstxt.train' => 'no'
+            ],
+            $result
+        );
+    }
+
+    /**
+     * The header route to a 51Did is cut in the same place. The cloud
+     * service lists 'header.id.usage', 'header.id.email' and
+     * 'header.id.salt' alongside the query forms, and each was sent under
+     * the name after its last dot before this change.
+     */
+    public function testGetContent_headerKeyKeepsEverythingAfterThePrefix()
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        $data->evidence->set('header.id.usage', 'personalized');
+
+        $result = $engine->getContent($data);
+
+        $this->assertSame(['id.usage' => 'personalized'], $result);
+    }
+
+    /**
+     * A prefix the engine does not group, such as the 'derived.id.usage'
+     * the cloud service lists, reaches addQueryData through the 'other'
+     * branch of getSelectedEvidence rather than one of the three prefix
+     * branches, and is cut in the same place.
+     */
+    public function testGetContent_otherPrefixKeyKeepsEverythingAfterThePrefix()
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        $data->evidence->set('derived.id.usage', 'personalized');
+
+        $result = $engine->getContent($data);
+
+        $this->assertSame(['id.usage' => 'personalized'], $result);
+    }
+
+    /**
+     * A key with no dot at all has no prefix to remove, so the whole key is
+     * the name sent. Limiting the split to two parts leaves one part for
+     * such a key, and end() returns it; reading part one instead would send
+     * every unprefixed evidence name empty.
+     */
+    public function testGetContent_keyWithNoSeparatorIsSentWhole()
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        $data->evidence->set('51D_ProfileIds', '12345');
+
+        $result = $engine->getContent($data);
+
+        $this->assertSame(['51D_ProfileIds' => '12345'], $result);
+    }
+
+    /**
+     * The engine sends only the Evidence the cloud accepts, never
+     * 'resource', 'license', 'licence' or 'values' from Evidence, as the
+     * Processing section of cloud-request-engine.md says. The body's
+     * 'resource' is the configured Resource Key, and other Evidence is sent
+     * with the usual precedence.
+     */
+    public function testEvidenceNeverSuppliesResourceLicenseOrValues()
+    {
+        $sent = [];
+        $keys = '["query.resource","query.license","query.licence","query.values",' .
+            '"header.resource","cookie.license","query.other",' .
+            '"header.other","cookie.cookie-only"]';
+        $client = $this->createMock(HttpClient::class);
+        $client->method('makeCloudRequest')->willReturnCallback(
+            function () use (&$sent, $keys) {
+                $args = func_get_args();
+                if (strpos($args[1], 'evidencekeys') !== false) {
+                    return $keys;
+                }
+                if (strpos($args[1], 'resource_key.json') !== false) {
+                    $sent[] = ['url' => $args[1], 'content' => $args[2]];
+                }
+
+                return CloudRequestEngineTests::getResponse(...$args);
+            }
+        );
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $client
+        ]);
+
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        $data->evidence->set('query.Resource', 'evidence_resource');
+        $data->evidence->set('query.LICENSE', 'evidence_license');
+        $data->evidence->set('query.Licence', 'evidence_licence');
+        $data->evidence->set('query.Values', 'evidence_values');
+        $data->evidence->set('header.resource', 'header_resource');
+        $data->evidence->set('cookie.License', 'cookie_license');
+        $data->evidence->set('query.other', 'query_other');
+        $data->evidence->set('header.other', 'header_other');
+        $data->evidence->set('cookie.cookie-only', 'cookie_only');
+        $data->process();
+
+        $this->assertCount(1, $sent);
+        $this->assertStringEndsWith(
+            CloudRequestEngineTests::resourceKey . '.json?',
+            $sent[0]['url']
+        );
+        parse_str($sent[0]['content'], $fields);
+        $this->assertSame('query_other', $fields['other']);
+        $this->assertSame('cookie_only', $fields['cookie-only']);
+        $this->assertSame(CloudRequestEngineTests::resourceKey, $fields['resource']);
+        foreach (['license', 'licence', 'values'] as $name) {
+            $this->assertArrayNotHasKey($name, $fields);
+        }
+        $this->assertStringNotContainsString('evidence_', $sent[0]['content']);
+        $this->assertStringNotContainsString('header_resource', $sent[0]['content']);
+        $this->assertStringNotContainsString('cookie_license', $sent[0]['content']);
+    }
+
+    /**
+     * evidence.md lists query, header, cookie, server, fiftyone and location
+     * from highest to lowest precedence, and ranks any other prefix
+     * alphabetically after them. Each pair of prefixes gives one name, set
+     * higher first so the order set cannot decide it, and the higher
+     * prefix's value is the one sent.
+     */
+    public function testGetContent_eachPrefixWinsOverEveryLaterOne()
+    {
+        $order = ['query', 'header', 'cookie', 'server', 'fiftyone',
+            'location', 'apple', 'zebra'];
+        $evidence = [];
+        foreach ($order as $i => $higher) {
+            foreach (array_slice($order, $i + 1) as $lower) {
+                $name = "n-{$higher}-{$lower}";
+                $evidence[] = ["{$higher}.{$name}", $higher];
+                $evidence[] = ["{$lower}.{$name}", $lower];
+            }
+        }
+
+        $result = $this->precedenceContent($evidence);
+
+        $wrong = [];
+        foreach ($order as $i => $higher) {
+            foreach (array_slice($order, $i + 1) as $lower) {
+                $name = "n-{$higher}-{$lower}";
+                $sent = $result[$name] ?? null;
+                if ($sent !== $higher) {
+                    $wrong[] = "{$name} sent " . var_export($sent, true);
+                }
+            }
+        }
+        $this->assertSame([], $wrong);
+    }
+
+    /**
+     * Evidence keys ignore letter case, so Location ranks as location and
+     * SERVER as server.
+     */
+    public function testGetContent_aPrefixRanksTheSameInAnyLetterCase()
+    {
+        $result = $this->precedenceContent([
+            ['fiftyone.b', 'fiftyone'],
+            ['Location.b', 'location'],
+            ['SERVER.c', 'server'],
+            ['Location.c', 'location']
+        ]);
+
+        $this->assertSame('fiftyone', $result['b']);
+        $this->assertSame('server', $result['c']);
+    }
+
+    /**
+     * Other prefixes rank alphabetically by the prefix, so ab comes before
+     * ab-c, although the key ab-c.n sorts before ab.n because a hyphen
+     * sorts before a dot.
+     */
+    public function testGetContent_otherPrefixesRankByThePrefixAlone()
+    {
+        $result = $this->precedenceContent([
+            ['ab.n', 'ab'],
+            ['ab-c.n', 'ab-c']
+        ]);
+
+        $this->assertSame('ab', $result['n']);
+    }
+
+    /**
+     * The name is sent in the letter case of the Evidence key, as .NET,
+     * Java, Node and Python send it, rather than lower-cased.
+     */
+    public function testGetContent_theNameKeepsTheLetterCaseGiven()
+    {
+        $result = $this->precedenceContent([
+            ['cookie.51D_Experiment', 'b'],
+            ['header.Sec-CH-UA-Platform', 'Windows']
+        ]);
+
+        $this->assertSame('b', $result['51D_Experiment'] ?? null);
+        $this->assertSame('Windows', $result['Sec-CH-UA-Platform'] ?? null);
+        $this->assertArrayNotHasKey('51d_experiment', $result);
+        $this->assertArrayNotHasKey('sec-ch-ua-platform', $result);
+    }
+
+    /**
+     * Evidence keys ignore letter case, so header.User-Agent and
+     * query.user-agent name the same value. The name is sent once, spelled
+     * as the winning key spells it.
+     */
+    public function testGetContent_oneNameInTwoLetterCasesIsSentOnce()
+    {
+        $result = $this->precedenceContent([
+            ['header.User-Agent', 'from the header'],
+            ['query.user-agent', 'from the query'],
+            ['server.X-Thing', 'from the server'],
+            ['fiftyone.x-thing', 'from fiftyone']
+        ]);
+
+        $names = array_values(array_filter(
+            array_keys($result),
+            function ($name): bool {
+                return in_array(
+                    strtolower((string) $name),
+                    ['user-agent', 'x-thing'],
+                    true
+                );
+            }
+        ));
+        sort($names);
+        $this->assertSame(['X-Thing', 'user-agent'], $names);
+        $this->assertSame('from the query', $result['user-agent']);
+        $this->assertSame('from the server', $result['X-Thing']);
+    }
+
+    /**
+     * Unsets both environment variables before and after each test, so
+     * that neither is left over from another test or taken from the
+     * environment the tests run in.
+     *
+     * @before
+     * @after
+     */
+    #[Before]
+    #[After]
+    protected function clearEndPointVariables()
+    {
+        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE));
+    }
+
+    /**
+     * A logger that keeps the level and the message of every entry.
+     */
+    private static function memoryLogger(): Logger
+    {
+        return new class ('trace') extends Logger {
+            /** @var array<string> */
+            public array $levels = [];
+
+            /** @var array<string> */
+            public array $messages = [];
+
+            public function logInternal(array $log): void
+            {
+                $this->levels[] = $log['level'];
+                $this->messages[] = $log['message'];
+            }
+        };
+    }
+
+    /**
+     * The content the engine builds for the evidence given, with the
+     * conflict warnings it raises silenced.
+     *
+     * @param array<array{string, string}> $evidence keys and values, set in
+     * order
+     * @return array<string, int|string>
+     */
+    private function precedenceContent(array $evidence): array
+    {
+        $engine = new CloudRequestEngine([
+            'resourceKey' => CloudRequestEngineTests::resourceKey,
+            'httpClient' => $this->mockHttp()
+        ]);
+        $data = (new PipelineBuilder())->add($engine)->build()->createFlowData();
+        foreach ($evidence as [$key, $value]) {
+            $data->evidence->set($key, $value);
+        }
+
+        return @$engine->getContent($data);
+    }
+}

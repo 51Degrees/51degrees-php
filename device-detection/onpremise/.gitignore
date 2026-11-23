@@ -1,0 +1,4 @@
+vendor
+composer.lock
+performance-tests/build
+*.cache

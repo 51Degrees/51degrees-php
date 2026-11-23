@@ -1,0 +1,76 @@
+{
+    "name": "51degrees/fiftyone.devicedetection",
+    "description": "Device Detection and User-Agent parser for PHP, built on the 51Degrees Pipeline API. Detects the device, browser, operating system, and crawlers from the User-Agent and User-Agent Client Hints, using the 51Degrees cloud service. An alternative to UAParser.js, DeviceAtlas, and WURFL.",
+    "keywords":
+    [
+        "user agent",
+        "mobile",
+        "device",
+        "browser",
+        "platform",
+        "crawler",
+        "desktop",
+        "parser",
+        "devicedetection",
+        "51degrees",
+        "device-detection",
+        "user-agent",
+        "user-agent-parser",
+        "client-hints",
+        "browser-detection",
+        "mobile-detection",
+        "crawler-detection",
+        "wurfl",
+        "deviceatlas"
+    ],
+    "authors":
+    [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2",
+    "type": "library",
+    "homepage": "https://51degrees.com/device-detection?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=homepage",
+    "support":
+    {
+        "source": "https://github.com/51Degrees/51degrees-php",
+        "docs": "https://51degrees.com/documentation/_device_detection__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=documentation"
+    },
+    "require":
+    {
+        "php": ">=7.4",
+        "51degrees/fiftyone.pipeline.core": "4.*",
+        "51degrees/fiftyone.pipeline.engines": "4.*",
+        "51degrees/fiftyone.pipeline.cloudrequestengine": "^4.5.208"
+    },
+    "require-dev":
+    {
+        "phpunit/phpunit": "*",
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\devicedetection\\": "src/"
+        }
+    },
+    "autoload-dev":
+    {
+        "psr-4":
+        {
+            "fiftyone\\pipeline\\devicedetection\\tests\\": "tests/",
+            "fiftyone\\pipeline\\devicedetection\\examples\\cloud\\classes\\": "examples/cloud/classes"
+        }
+    },
+    "config":
+    {
+        "allow-plugins":
+        {
+            "nodejs-php-fallback/nodejs-php-fallback": false
+        }
+    }
+}

@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+# Generates the Device Detection PHP wrapper (src/php8/hash_wrap.cxx and
+# src/php8/php_FiftyOneDegreesHashEngine.h) from hash-php.i with SWIG, the
+# same version that generated the IP Intelligence wrapper.
+#
+#   generate-wrapper.sh           rewrite the committed wrapper
+#   generate-wrapper.sh --check   fail if the committed wrapper differs
+#
+# The C++ sources come from the cxx submodule at the root of the repository.
+# The wrapper is never edited by hand, so a change to hash-php.i or to cxx
+# is followed by running this script and committing the result.
+
+set -eu
+
+SWIG_VERSION=4.5.1
+MODULE=FiftyOneDegreesHashEngine
+
+here=$(cd "$(dirname "$0")" && pwd)
+root=$(cd "$here/../../.." && pwd)
+mode=write
+if [ "${1:-}" = "--check" ]; then
+    mode=check
+elif [ $# -gt 0 ]; then
+    echo "usage: $0 [--check]" >&2
+    exit 2
+fi
+
+found=$(swig -version 2>/dev/null | sed -n 's/^SWIG Version //p')
+if [ "$found" != "$SWIG_VERSION" ]; then
+    echo "SWIG $SWIG_VERSION is required, found '${found:-none}'." >&2
+    exit 1
+fi
+if [ ! -d "$root/cxx/src/dd/hash" ]; then
+    echo "The cxx submodule is missing, run: git submodule update --init cxx" >&2
+    exit 1
+fi
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+# hash-php.i includes cxx/src/... relative to the folder SWIG runs in.
+mkdir -p "$work/cxx" "$work/raw"
+cp -R "$root/cxx/src" "$work/cxx/src"
+cp "$here/hash-php.i" "$work/"
+(
+    cd "$work"
+    swig -c++ -php -module "$MODULE" -outdir raw -o raw/hash_wrap.cxx \
+        hash-php.i
+)
+
+# SWIG writes the path of its install folder into comments. Keep only the part
+# that is the same on every machine, so the output does not depend on where
+# SWIG is installed.
+mkdir -p "$work/out"
+sed -E 's#/\*@SWIG:[^,]*/share/swig/#/*@SWIG:share/swig/#' \
+    "$work/raw/hash_wrap.cxx" > "$work/out/hash_wrap.cxx"
+cp "$work/raw/php_$MODULE.h" "$work/out/"
+
+status=0
+for name in hash_wrap.cxx "php_$MODULE.h"; do
+    if [ "$mode" = write ]; then
+        cp "$work/out/$name" "$here/src/php8/$name"
+    elif ! diff -u "$here/src/php8/$name" "$work/out/$name" > "$work/diff"
+    then
+        echo "src/php8/$name differs from what hash-php.i generates:" >&2
+        head -n 40 "$work/diff" >&2
+        status=1
+    fi
+done
+
+if [ "$mode" = check ] && [ "$status" -ne 0 ]; then
+    echo "Run on-premise/generate-wrapper.sh and commit the result." >&2
+fi
+exit "$status"

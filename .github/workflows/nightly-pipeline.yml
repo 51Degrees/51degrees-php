@@ -1,0 +1,70 @@
+name: Nightly Pipeline
+
+# Each package has its own version, and the publish releases only the packages
+# that changed since their last release, with the packages that depend on
+# them. Packagist reads the mirrors, which mirror.yml and did-publish.yml tag
+# when the publish pushes each package's tag here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        type: boolean
+        default: false
+      allow-version-bump:
+        description: 'Publish even though the version moves the major or minor place'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 1 * * *'
+
+jobs:
+  # The publish builds main, which the pull requests into rc do not change, so
+  # it runs first and has the runners before the pull request builds do.
+  Publish:
+    name: Nightly Publish
+    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      allow-version-bump: ${{ inputs.allow-version-bump || false }}
+      cache-assets: true
+    secrets: inherit
+
+  SubmoduleUpdate:
+    name: Nightly Submodule Update
+    uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+    secrets: inherit
+
+  PackageUpdate:
+    if: ${{ !cancelled() }}
+    needs: SubmoduleUpdate
+    name: Nightly Package Update
+    uses: 51Degrees/common-ci/.github/workflows/nightly-package-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+    secrets: inherit
+
+  PullRequests:
+    if: ${{ !cancelled() }}
+    needs: [Publish, SubmoduleUpdate, PackageUpdate]
+    name: Nightly Pull Requests
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      cache-assets: true
+      # The on-premise packages compile native extensions and load
+      # multi-gigabyte data files, and every package runs in each leg.
+      build-test-timeout-minutes: 300
+      # One configuration that fails does not cancel the others.
+      fail-fast: false
+    secrets: inherit

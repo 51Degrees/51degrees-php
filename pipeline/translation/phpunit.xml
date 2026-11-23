@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="vendor/autoload.php"
+         colors="true">
+  <testsuites>
+    <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
+      <file>tests/TranslationEngineConfigTests.php</file>
+      <file>tests/TranslationEvidenceCaseTests.php</file>
+      <file>tests/TranslationEngineBuilderTests.php</file>
+      <file>tests/MultipleEnginesTests.php</file>
+      <file>tests/MissingTranslationErrorsTests.php</file>
+      <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

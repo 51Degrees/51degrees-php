@@ -1,0 +1,104 @@
+name: PHP wrapper check
+
+on:
+  pull_request:
+    paths:
+      - 'device-detection/onpremise/on-premise/**'
+      - 'ip-intelligence/on-premise/**'
+      - 'cxx'
+      - '.github/workflows/php-wrapper-check.yml'
+  push:
+    branches:
+      - main
+      - rc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  device-detection-wrapper:
+    name: Device Detection wrapper matches hash-php.i
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout cxx
+        run: git submodule update --init cxx
+
+      # The version the package's own generate-wrapper.sh requires.
+      - name: Read the SWIG version
+        id: swig-version
+        run: echo "version=$(sed -n 's/^SWIG_VERSION=//p' device-detection/onpremise/on-premise/generate-wrapper.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore SWIG
+        id: swig-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/swig
+          key: swig-${{ steps.swig-version.outputs.version }}-${{ runner.os }}
+
+      - name: Build SWIG ${{ steps.swig-version.outputs.version }}
+        if: steps.swig-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison autoconf automake libpcre2-dev
+          git clone --depth 1 --branch "v${{ steps.swig-version.outputs.version }}" \
+            https://github.com/swig/swig.git swig-src
+          cd swig-src
+          ./autogen.sh
+          ./configure --prefix="$HOME/swig"
+          make -j"$(nproc)"
+          make install
+
+      - name: Check the committed wrapper
+        run: |
+          export PATH="$HOME/swig/bin:$PATH"
+          swig -version
+          sh device-detection/onpremise/on-premise/generate-wrapper.sh --check
+
+  ip-intelligence-wrapper:
+    name: IP Intelligence wrapper matches ipi-php.i
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout cxx
+        run: git submodule update --init cxx
+
+      # The version the package's own generate-wrapper.sh requires.
+      - name: Read the SWIG version
+        id: swig-version
+        run: echo "version=$(sed -n 's/^SWIG_VERSION=//p' ip-intelligence/on-premise/generate-wrapper.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore SWIG
+        id: swig-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/swig
+          key: swig-${{ steps.swig-version.outputs.version }}-${{ runner.os }}
+
+      - name: Build SWIG ${{ steps.swig-version.outputs.version }}
+        if: steps.swig-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison autoconf automake libpcre2-dev
+          git clone --depth 1 --branch "v${{ steps.swig-version.outputs.version }}" \
+            https://github.com/swig/swig.git swig-src
+          cd swig-src
+          ./autogen.sh
+          ./configure --prefix="$HOME/swig"
+          make -j"$(nproc)"
+          make install
+
+      - name: Check the committed wrapper
+        run: |
+          export PATH="$HOME/swig/bin:$PATH"
+          swig -version
+          sh ip-intelligence/on-premise/generate-wrapper.sh --check

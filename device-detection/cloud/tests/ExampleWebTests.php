@@ -1,0 +1,240 @@
+<?php
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+namespace fiftyone\pipeline\devicedetection\tests;
+
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
+use fiftyone\pipeline\devicedetection\tests\classes\Constants;
+use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * @requires OS Linux
+ */
+#[RequiresOperatingSystem('Linux')]
+class ExampleWebTests extends TestCase
+{
+    public static $process;
+
+    public static function setUpBeforeClass(): void
+    {
+        foreach (self::pipelineFiles() as $stale) {
+            unlink($stale);
+        }
+
+        // The example reads the key under the name a person sets, so the
+        // server is started with the key of the tests under that name.
+        $key = ResourceKeys::find(Constants::RESOURCE_ENV_VAR);
+        $previous = getenv(ExampleUtils::RESOURCE_KEY_ENV_VAR);
+        if ($key !== null) {
+            putenv(ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $key);
+        }
+        try {
+            self::$process = new Process('php -S localhost:5151 examples/cloud/gettingStartedWeb.php');
+            self::$process->start();
+        } finally {
+            putenv($previous === false
+                ? ExampleUtils::RESOURCE_KEY_ENV_VAR
+                : ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $previous);
+        }
+        sleep(5);
+        if (self::$process->status()) {
+            shell_exec('lsof -i tcp:5151 1>/dev/null 2>&1');
+            echo "Getting Started Web example has started running.\n";
+        } else {
+            throw new \Exception("Could not start the Getting Started Web example. \n");
+        }
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        // stop server
+        if (self::$process->stop()) {
+            echo "\nProcess stopped for Getting Started Web example. \n";
+        }
+    }
+
+    public function testGettingStartedWeb()
+    {
+        $requestHeaders = Constants::UA_HEADER . Constants::CHROME_UA . '\r\n';
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => $requestHeaders
+            ]
+        ]);
+
+        $data = @file_get_contents(Constants::URL, false, $context);
+        $responseHeaders = self::parseHeaders($http_response_header);
+
+        $this->assertSame(200, $responseHeaders['response_code']);
+        // The device id is rendered into the page from the server-side results.
+        // An id of all zeros means nothing was matched, so check for a real one.
+        $this->assertSame(1, preg_match('/[0-9]+-[0-9]+-[0-9]+-[0-9]+/', $data, $deviceId));
+        $this->assertNotSame('0-0-0-0', $deviceId[0]);
+        // The page ends with the links to find out more.
+        $this->assertStringContainsString('<div id="find-out-more">', $data);
+    }
+
+    /**
+     * The page references the client-side script with a script tag, so the
+     * example must serve the JavaScript built by the pipeline at that path
+     * rather than falling through to the HTML page.
+     */
+    public function testClientSideJavaScript()
+    {
+        $requestHeaders = Constants::UA_HEADER . Constants::CHROME_UA . '\r\n';
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => $requestHeaders
+            ]
+        ]);
+
+        $data = @file_get_contents(Constants::URL . '51Degrees.core.js', false, $context);
+        $responseHeaders = self::parseHeaders($http_response_header);
+
+        $this->assertSame(200, $responseHeaders['response_code']);
+        $this->assertStringStartsWith('application/x-javascript', $responseHeaders['Content-Type']);
+        // The generated script declares the object used to access the results on
+        // the client side. The HTML page is not returned, so has no head element.
+        $this->assertStringContainsString('window.fod', $data);
+        $this->assertStringNotContainsString('<head', $data);
+    }
+
+    /**
+     * The script carries a weak ETag, and a browser revalidating with it
+     * gets a 304 with the same ETag, as the cache header detail of the web
+     * integration specification and RFC 9110 section 13.1.2 ask.
+     */
+    public function testClientSideJavaScriptRevalidates()
+    {
+        $headers = Constants::UA_HEADER . Constants::CHROME_UA . "\r\n";
+
+        $first = self::getHeaders(Constants::URL . '51Degrees.core.js', $headers);
+        $this->assertSame(200, $first['response_code']);
+        $this->assertSame('max-age=1800, private', $first['Cache-Control']);
+        $this->assertMatchesRegularExpression('/^W\/"[0-9a-f]{32}"$/', $first['ETag']);
+
+        $again = self::getHeaders(
+            Constants::URL . '51Degrees.core.js',
+            $headers . 'If-None-Match: ' . $first['ETag'] . "\r\n"
+        );
+        $this->assertSame(304, $again['response_code']);
+        $this->assertSame($first['ETag'], $again['ETag']);
+        // A 304 has no content, so it carries no PHP default Content-Type.
+        $this->assertArrayNotHasKey(
+            'content-type',
+            array_change_key_case($again, CASE_LOWER)
+        );
+    }
+
+    /**
+     * The headers of the response to a GET, whatever its status.
+     *
+     * @param string $url
+     * @param string $headers
+     * @return array
+     */
+    private static function getHeaders($url, $headers)
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => $headers,
+                'ignore_errors' => true
+            ]
+        ]);
+        @file_get_contents($url, false, $context);
+
+        return self::parseHeaders($http_response_header);
+    }
+
+    /**
+     * The page builds its pipeline for each request and keeps no copy of it
+     * in a file, because a pipeline read back from a file keeps the resource
+     * key it was built with.
+     */
+    public function testGettingStartedWebLeavesNoPipelineBehind()
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => Constants::UA_HEADER . Constants::CHROME_UA . "\r\n"
+            ]
+        ]);
+
+        $data = @file_get_contents(Constants::URL, false, $context);
+
+        $this->assertNotFalse($data, 'The page did not answer.');
+        $this->assertSame([], self::pipelineFiles());
+    }
+
+    /**
+     * Every serialized pipeline file in the examples folder, in the folders
+     * below it, and beside it, as a name built without a separator lands
+     * beside its folder rather than in it.
+     *
+     * @return string[]
+     */
+    private static function pipelineFiles(): array
+    {
+        $examples = __DIR__ . '/../examples';
+        $found = array_merge(
+            (array) glob($examples . '/*.pipeline'),
+            (array) glob($examples . '/*/*.pipeline'),
+            (array) glob($examples . '/*/*/*.pipeline'),
+            (array) glob(dirname($examples) . '/*.pipeline')
+        );
+
+        return array_values(array_filter($found, 'is_file'));
+    }
+
+    /**
+     * Converts response headers string to an indexed array.
+     *
+     * @param array $headers
+     * @return array
+     */
+    private static function parseHeaders($headers)
+    {
+        $head = [];
+        foreach ($headers as $k => $v) {
+            $t = explode(':', $v, 2);
+            if (isset($t[1])) {
+                $head[trim($t[0])] = trim($t[1]);
+            } else {
+                $head[] = $v;
+                if (preg_match('#HTTP/[0-9\\.]+\\s+([0-9]+)#', $v, $out)) {
+                    $head['response_code'] = intval($out[1]);
+                }
+            }
+        }
+
+        return $head;
+    }
+}

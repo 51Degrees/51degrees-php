@@ -1,0 +1,51 @@
+{
+    "name": "51degrees/fiftyone.devicedetection",
+    "description": "Device Detection and User-Agent parser for PHP, built on the 51Degrees Pipeline API. Detects the device, browser, operating system, and crawlers from the User-Agent and User-Agent Client Hints. Runs on-premise, reading a data file on your server. An alternative to UAParser.js, DeviceAtlas, and WURFL.",
+    "homepage": "https://51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=composer.json&utm_term=homepage",
+    "keywords": [
+        "51degrees",
+        "device-detection",
+        "user-agent",
+        "user-agent-parser",
+        "client-hints",
+        "browser-detection",
+        "mobile-detection",
+        "crawler-detection",
+        "wurfl",
+        "deviceatlas"
+    ],
+    "authors" : [
+        {
+            "name": "51Degrees Engineering",
+            "email": "engineering@51degrees.com"
+        }
+    ],
+    "license": "EUPL-1.2",    
+    "type": "library",
+    "support":
+    {
+        "source": "https://github.com/51Degrees/51degrees-php",
+        "docs": "https://51degrees.com/documentation/_device_detection__index.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=documentation"
+    },
+    "require": {
+        "php": ">=8.0",
+        "51degrees/fiftyone.pipeline.core": "^4.5.206",
+        "51degrees/fiftyone.pipeline.engines": "4.*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "*",
+        "friendsofphp/php-cs-fixer": "^3.39",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "fiftyone\\pipeline\\devicedetection\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "fiftyone\\pipeline\\devicedetection\\tests\\": "tests/",
+            "fiftyone\\pipeline\\devicedetection\\examples\\onpremise\\classes\\": "examples/onpremise/classes/"
+        }
+    }
+}

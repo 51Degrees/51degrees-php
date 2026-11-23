@@ -36,9 +36,10 @@ use PHPUnit\Framework\TestCase;
  * tests. The browser tests need a browser, so the steps that follow them
  * are checked only as far as a program can take them.
  *
- * Every test is skipped with no resource key. The tests of the flow are
- * skipped where the resource key does not include the HumanConfidence
- * property, and the page is then checked for the link to contact us.
+ * Every test is skipped with no resource key, naming the variable. The
+ * tests of the flow fail where the resource key does not include the
+ * HumanConfidence property, as a test that cannot see a real level has
+ * proved nothing. The page is then checked for the link to contact us.
  */
 class HumanConfidenceWebTests extends TestCase
 {
@@ -192,7 +193,7 @@ class HumanConfidenceWebTests extends TestCase
      */
     public function testPageShowsTheThreeSteps()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $answer = self::get('/');
 
@@ -251,12 +252,12 @@ class HumanConfidenceWebTests extends TestCase
     /**
      * The first step. The example asks the cloud service with the headers
      * of the request it was sent, and answers with the level the cloud
-     * service gave, and the source Passive when the key's properties list
-     * the source.
+     * service gave and the source Passive, as the key of the tests carries
+     * every property.
      */
     public function testPassive()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $answer = self::get('/passive', Constants::UA_HEADER . Constants::CHROME_UA . "\r\n");
 
@@ -266,9 +267,7 @@ class HumanConfidenceWebTests extends TestCase
         $this->assertIsArray($json, self::printed($answer));
         $this->assertArrayNotHasKey('error', $json, self::printed($answer));
         $this->assertContains($json['humanConfidence'] ?? null, self::LEVELS, self::printed($answer));
-        if (isset(self::$properties[self::SOURCE_PROPERTY])) {
-            $this->assertSame('Passive', $json['source'] ?? null, self::printed($answer));
-        }
+        $this->assertSame('Passive', $json['source'] ?? null, self::printed($answer));
     }
 
     /**
@@ -277,7 +276,7 @@ class HumanConfidenceWebTests extends TestCase
      */
     public function testPassiveAnswerCarriesTheSourcePassive()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $derived = self::passiveAnswer((string) self::$key);
 
@@ -308,7 +307,7 @@ class HumanConfidenceWebTests extends TestCase
      */
     public function testRedeemOfAValueThatWasNotSealedGivesNoLevel()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $answer = self::request('/redeem', [
             'method' => 'POST',
@@ -336,19 +335,25 @@ class HumanConfidenceWebTests extends TestCase
     }
 
     /**
-     * Skips the test where the resource key does not include the
-     * HumanConfidence property, and fails where the cloud service did not
-     * say which properties it includes.
+     * Fails where the resource key does not include the HumanConfidence
+     * property, or where the cloud service did not say which properties it
+     * includes.
+     *
+     * @param null|array<string, bool> $properties The names, in lower case,
+     * of the properties the resource key includes, or null where the cloud
+     * service did not list them
      */
-    private function skipWithoutTheProperty(): void
+    public static function assertIncludesTheProperty(?array $properties): void
     {
-        $this->assertNotNull(self::$properties, self::notListedMessage());
-        if (!isset(self::$properties[self::PROPERTY])) {
-            $this->markTestSkipped(
-                'The resource key in ' . Constants::RESOURCE_ENV_VAR .
-                ' does not include the HumanConfidence property.'
-            );
-        }
+        self::assertNotNull($properties, self::notListedMessage());
+        self::assertArrayHasKey(
+            self::PROPERTY,
+            $properties,
+            'The resource key in ' . Constants::RESOURCE_ENV_VAR .
+            ' does not include the HumanConfidence property, so the ' .
+            'example would show its contact us link rather than a level. ' .
+            'Set the variable to a key that includes it.'
+        );
     }
 
     /**

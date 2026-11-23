@@ -51,11 +51,6 @@ $script:PlatformPrefixes = @(
     'PATH_INFO', 'HTTPS'
 )
 
-# The names the shared browser suite, selenium-api-tests, reads, which the
-# browser runs here set for it. They change when that suite reads
-# _51DEGREES_ names.
-$script:BrowserSuiteNames = @('EXAMPLE_URL', 'EXAMPLE_LANG')
-
 # Each way a name is read or set, with the name in the group 'name'. A name
 # given to a helper, held in a constant named for a variable, or set in
 # phpunit.xml counts as well as a direct read, because each is read later.
@@ -118,8 +113,7 @@ function Test-NameAllowed([string]$Name) {
     if ($Name.StartsWith($script:Prefix, [StringComparison]::Ordinal)) {
         return $true
     }
-    if ($script:PlatformNames -contains $Name -or
-        $script:BrowserSuiteNames -contains $Name) {
+    if ($script:PlatformNames -contains $Name) {
         return $true
     }
     foreach ($prefix in $script:PlatformPrefixes) {

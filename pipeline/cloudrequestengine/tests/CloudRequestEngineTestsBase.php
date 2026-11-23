@@ -29,7 +29,6 @@ use PHPUnit\Framework\TestCase;
 
 class CloudRequestEngineTestsBase extends TestCase
 {
-    public const expectedUrl = 'https://cloud.51degrees.com/api/v4/resource_key.json';
     public const jsonResponse = '{"device":{"value":"1"}}';
     public const evidenceKeysResponse = '["query.User-Agent","header.User-Agent",' .
         '"cookie.User-Agent","query.id.usage","header.id.usage",' .

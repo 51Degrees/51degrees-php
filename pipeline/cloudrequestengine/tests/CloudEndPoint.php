@@ -35,20 +35,22 @@ class CloudEndPoint
 {
     /**
      * The value of the _51DEGREES_CLOUD_ENDPOINT environment variable when
-     * it is set and not blank, otherwise the default address, ending with
-     * a slash as the engine makes it.
+     * it is set and not empty in PHP's sense, as the engine checks it,
+     * otherwise the default address, ending with a slash as the engine
+     * makes it.
      */
     public static function expected(): string
     {
         $address = EnvironmentVariable::read(
             Constants::CLOUD_ENDPOINT_VARIABLE
         );
-        if ($address === '') {
+        if (empty($address)) {
             $address = Constants::BASE_URL_DEFAULT;
         }
         if (substr($address, -1) !== '/') {
             $address .= '/';
         }
+
         return $address;
     }
 }

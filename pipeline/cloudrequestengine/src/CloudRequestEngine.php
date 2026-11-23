@@ -117,7 +117,10 @@ class CloudRequestEngine extends Engine
      *    to ask for, as an array or one comma separated string. Required
      *    with a licenseKey on its own. Beside a resourceKey the cloud
      *    service adds them to the properties the resource key carries.
-     * 2) a cloudEndPoint to overwrite the default baseurl
+     * 2) a cloudEndPoint, the address of the cloud service. When it is
+     *    blank, the _51DEGREES_CLOUD_ENDPOINT environment variable is
+     *    used, and when that is blank too, the default address. Blank
+     *    means unset, empty or only white space.
      * 3) a cloudRequestOrigin to use when sending requests to cloud.
      * 4) discoveryResults, what getDiscoveryResults() gave after an earlier
      *    build with the same keys and cloudEndPoint, so that the engine
@@ -156,24 +159,7 @@ class CloudRequestEngine extends Engine
         $this->requestedProperties = self::propertyNames($settings['requestedProperties'] ?? null);
         $this->refuseInvalidCredentials();
 
-        if (isset($settings['cloudEndPoint'])) {
-            $this->baseURL = $settings['cloudEndPoint'];
-        } else {
-            // Check if base URL is set via environment variable
-            $envVarUrl = getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
-            if (empty($envVarUrl)) {
-                // Use default if nothing else is set
-                $this->baseURL = Constants::BASE_URL_DEFAULT;
-            } else {
-                $this->baseURL = $envVarUrl;
-            }
-        }
-
-        // Make sure the base URL end with '/'
-        $length = strlen($this->baseURL);
-        if ($length > 0 && substr($this->baseURL, $length - 1) != '/') {
-            $this->baseURL = $this->baseURL . '/';
-        }
+        $this->baseURL = self::cloudAddress($settings['cloudEndPoint'] ?? null);
 
         $this->httpClient = $settings['httpClient'] ?? new HttpClient();
         $timeoutSeconds = self::timeoutSetting($settings['timeoutSeconds'] ?? null);
@@ -917,6 +903,28 @@ class CloudRequestEngine extends Engine
                 implode(', ', $notCovered)
             ));
         }
+    }
+
+    /**
+     * The address of the cloud service, ending with a slash. The
+     * cloudEndPoint setting comes first, then the
+     * _51DEGREES_CLOUD_ENDPOINT environment variable, then the default.
+     * A value that is absent, empty or only whitespace counts as blank and
+     * passes to the next, and any other value is used as given.
+     *
+     * @param mixed $setting The cloudEndPoint setting
+     */
+    private static function cloudAddress($setting): string
+    {
+        $address = (string) ($setting ?? '');
+        if (trim($address) === '') {
+            $address = (string) getenv(Constants::CLOUD_ENDPOINT_VARIABLE);
+        }
+        if (trim($address) === '') {
+            $address = Constants::BASE_URL_DEFAULT;
+        }
+
+        return substr($address, -1) === '/' ? $address : $address . '/';
     }
 
     /**

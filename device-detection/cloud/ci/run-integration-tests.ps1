@@ -66,8 +66,9 @@ try {
 
     # The contract tests open the example that is already running, which was
     # given its key and its cloud service above, so they need neither.
-    $env:EXAMPLE_URL = "http://localhost:$port"
-    $env:EXAMPLE_LANG = 'php'
+    # Without _51DEGREES_EXAMPLE_URL the suite launches an example of its own.
+    ${env:_51DEGREES_EXAMPLE_URL} = "http://localhost:$port"
+    ${env:_51DEGREES_EXAMPLE_LANG} = 'php'
     # Normal verbosity prints each test's time, passed or failed.
     dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"
 } catch {

@@ -111,7 +111,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '$_SERVER[''HTTP_USER_AGENT'']' }
         @{ Line = '$_SERVER["REMOTE_ADDR"] = "0.0.0.0";' }
         @{ Line = '          key: ${{ secrets.GITHUB_TOKEN }}' }
-        @{ Line = '$env:EXAMPLE_URL = "http://localhost:$port"' }
+        @{ Line = '${env:_51DEGREES_EXAMPLE_URL} = "http://localhost:$port"' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
         # Windows reads a platform's name in any case.
         @{ Line = '$env:Path = "$dir;$env:Path"' }

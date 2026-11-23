@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\HumanConfidenceWeb;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
+use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -107,6 +108,30 @@ class HumanConfidenceWebStandInTests extends TestCase
             ['source' => null, 'humanConfidence' => 'Medium'],
             self::passive('level-only-key')
         );
+    }
+
+    /**
+     * A key without the HumanConfidence property cannot show a level, so
+     * the live tests that need one fail, naming the variable, rather than
+     * skip.
+     */
+    public function testLiveTestsFailForAKeyWithoutTheProperty()
+    {
+        $this->expectException(AssertionFailedError::class);
+        $this->expectExceptionMessage(Constants::RESOURCE_ENV_VAR);
+
+        HumanConfidenceWebTests::assertIncludesTheProperty(['humanconfidencesource' => true]);
+    }
+
+    /**
+     * Where the cloud service did not list the key's properties, the live
+     * tests fail, as nothing shows the key includes the property.
+     */
+    public function testLiveTestsFailWhereThePropertiesWereNotListed()
+    {
+        $this->expectException(AssertionFailedError::class);
+
+        HumanConfidenceWebTests::assertIncludesTheProperty(null);
     }
 
     /**

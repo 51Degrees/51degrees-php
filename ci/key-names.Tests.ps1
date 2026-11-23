@@ -185,4 +185,29 @@ Describe 'The keys the workflows set' {
             })
         $lines | Should -BeNullOrEmpty
     }
+
+    # Every resource key is an organization secret, so no line of any
+    # workflow, a step input or a run script as well as an env entry, reads a
+    # _51DEGREES_RESOURCE_KEY name as an organization variable.
+    It 'read no resource key as an organization variable on any line' {
+        @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Include *.yml, *.yaml -Recurse |
+            Select-String -Pattern '\bvars\s*(\.|\[\s*.)_51DEGREES_RESOURCE_KEY' |
+            ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }) |
+            Should -BeNullOrEmpty
+    }
+
+    It 'finds a resource key read as an organization variable in <Line>' -ForEach @(
+        @{ Line = '          key: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}' }
+        @{ Line = '          run: echo "${{ vars._51DEGREES_RESOURCE_KEY_PRO }}"' }
+        @{ Line = "          key: `${{ vars['_51DEGREES_RESOURCE_KEY_51DID'] }}" }
+    ) {
+        $Line | Should -Match '\bvars\s*(\.|\[\s*.)_51DEGREES_RESOURCE_KEY'
+    }
+
+    It 'leaves <Line> alone' -ForEach @(
+        @{ Line = '          key: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}' }
+        @{ Line = '          url: ${{ vars._51DEGREES_CLOUD_ENDPOINT }}' }
+    ) {
+        $Line | Should -Not -Match '\bvars\s*(\.|\[\s*.)_51DEGREES_RESOURCE_KEY'
+    }
 }

@@ -1475,6 +1475,7 @@ DISABLE_INDEX          = YES
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
 GENERATE_TREEVIEW      = YES
+HTML_INDEX_NOINDEX     = YES
 
 # The HIDE_TREEVIEW_ROOT tag is used to remove the root node from the tree view.
 # When not hidden, the tree root will be PROJECT_NAME. If the tree root is set

@@ -23,25 +23,45 @@
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @requires OS Linux
  */
+#[RequiresOperatingSystem('Linux')]
 class ExampleWebTests extends TestCase
 {
     public static $process;
 
     public static function setUpBeforeClass(): void
     {
-        // start server
-        self::$process = new Process('php -S localhost:3000 examples/cloud/gettingStartedWeb.php');
-        self::$process->start();
+        foreach (self::pipelineFiles() as $stale) {
+            unlink($stale);
+        }
+
+        // The example reads the key under the name a person sets, so the
+        // server is started with the key of the tests under that name.
+        $key = ResourceKeys::find(Constants::RESOURCE_ENV_VAR);
+        $previous = getenv(ExampleUtils::RESOURCE_KEY_ENV_VAR);
+        if ($key !== null) {
+            putenv(ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $key);
+        }
+        try {
+            self::$process = new Process('php -S localhost:5151 examples/cloud/gettingStartedWeb.php');
+            self::$process->start();
+        } finally {
+            putenv($previous === false
+                ? ExampleUtils::RESOURCE_KEY_ENV_VAR
+                : ExampleUtils::RESOURCE_KEY_ENV_VAR . '=' . $previous);
+        }
         sleep(5);
         if (self::$process->status()) {
-            shell_exec('lsof -i tcp:3000 1>/dev/null 2>&1');
+            shell_exec('lsof -i tcp:5151 1>/dev/null 2>&1');
             echo "Getting Started Web example has started running.\n";
         } else {
             throw new \Exception("Could not start the Getting Started Web example. \n");
@@ -75,6 +95,8 @@ class ExampleWebTests extends TestCase
         // An id of all zeros means nothing was matched, so check for a real one.
         $this->assertSame(1, preg_match('/[0-9]+-[0-9]+-[0-9]+-[0-9]+/', $data, $deviceId));
         $this->assertNotSame('0-0-0-0', $deviceId[0]);
+        // The page ends with the links to find out more.
+        $this->assertStringContainsString('<div id="find-out-more">', $data);
     }
 
     /**
@@ -150,6 +172,46 @@ class ExampleWebTests extends TestCase
         @file_get_contents($url, false, $context);
 
         return self::parseHeaders($http_response_header);
+    }
+
+    /**
+     * The page builds its pipeline for each request and keeps no copy of it
+     * in a file, because a pipeline read back from a file keeps the resource
+     * key it was built with.
+     */
+    public function testGettingStartedWebLeavesNoPipelineBehind()
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => Constants::UA_HEADER . Constants::CHROME_UA . "\r\n"
+            ]
+        ]);
+
+        $data = @file_get_contents(Constants::URL, false, $context);
+
+        $this->assertNotFalse($data, 'The page did not answer.');
+        $this->assertSame([], self::pipelineFiles());
+    }
+
+    /**
+     * Every serialized pipeline file in the examples folder, in the folders
+     * below it, and beside it, as a name built without a separator lands
+     * beside its folder rather than in it.
+     *
+     * @return string[]
+     */
+    private static function pipelineFiles(): array
+    {
+        $examples = __DIR__ . '/../examples';
+        $found = array_merge(
+            (array) glob($examples . '/*.pipeline'),
+            (array) glob($examples . '/*/*.pipeline'),
+            (array) glob($examples . '/*/*/*.pipeline'),
+            (array) glob(dirname($examples) . '/*.pipeline')
+        );
+
+        return array_values(array_filter($found, 'is_file'));
     }
 
     /**

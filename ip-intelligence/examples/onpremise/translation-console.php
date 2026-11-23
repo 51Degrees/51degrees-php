@@ -35,3 +35,5 @@ use fiftyone\pipeline\ipintelligence\examples\classes\TranslationConsoleOnPremis
 ExampleUtils::startWithEngine($argv);
 
 (new TranslationConsoleOnPremise())->run(STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

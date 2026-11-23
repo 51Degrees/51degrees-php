@@ -31,6 +31,48 @@ base language (`en`), resolution stops and the values are left untranslated
 (the source data is already English). A two letter candidate falls back to the
 first available locale that starts with it (`fr` matches `fr_FR`).
 
+## Building in code
+
+`TranslationEngineBuilder` builds the engine with the options of the
+Translation Engine specification.
+
+- `setSourceElementDataKey`, the element whose values are translated.
+  Required.
+- `addSource`, a source file. A path with a `*` or `?` wildcard adds every
+  file it matches, and a relative path is resolved against the working
+  directory. Given a name and contents, it adds the contents with nothing
+  read from disk.
+- `addTranslation`, a property of the source element and the property its
+  translation goes in.
+- `setFixedLanguage`, a locale to always translate into, such as `en_GB`.
+  Otherwise the locale comes from the evidence.
+- `setMissingTranslationBehavior`, being `Original` (the default),
+  `EmptyString` or `FlowError`, in any case.
+- `setElementDataKey`, the engine's own element data key, `translation`
+  unless set. Translation engines with the same key add their properties to
+  one element data, as the specification says, so engines whose properties
+  are to be read apart each need their own.
+
+Each source is named `[name].[locale].yml` or `[name].[locale].yaml`, such as
+`countries.fr_FR.yml`, and holds one `source: translation` line for each
+value. The locale in the name is the language the file holds.
+
+```php
+use fiftyone\pipeline\translation\MissingTranslationBehavior;
+use fiftyone\pipeline\translation\TranslationEngineBuilder;
+
+$countryTranslation = (new TranslationEngineBuilder())
+    ->setSourceElementDataKey('ip')
+    ->addSource('country-langs/*.yml')
+    ->addTranslation('Country', 'CountryTranslated')
+    ->setMissingTranslationBehavior(MissingTranslationBehavior::ORIGINAL)
+    ->build();
+```
+
+`build()` refuses an engine that would translate nothing, being one with no
+source element, no translation, no source, or no source for its fixed
+language, and `addSource` refuses a source whose name gives no locale.
+
 ## Configuration file
 
 `PipelineBuilder::buildFromConfig` builds the engine from a configuration file,
@@ -73,6 +115,7 @@ files rather than settings.
 ## Classes
 
 - `TranslationEngine` - the base pipeline engine.
+- `TranslationEngineBuilder` - builds a `TranslationEngine` in code.
 - `Translator` - translates a value using one locale's map.
 - `Languages` - Accept-Language parsing and locale resolution.
 - `MissingTranslationBehavior` - Original, EmptyString or FlowError.

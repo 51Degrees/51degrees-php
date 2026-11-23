@@ -28,10 +28,27 @@ namespace fiftyone\pipeline\core;
 /**
  * Stores information created by a FlowElement based on FlowData.
  * Stored in FlowData.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#element-data
  */
 class ElementData
 {
     public FlowElement $flowElement;
+
+    /**
+     * Whether the FlowElements that write the data have finished
+     * processing, when a write through the data throws.
+     */
+    private bool $writesFinished = false;
+
+    /**
+     * The properties set through the data by name. They are kept here, not
+     * as properties of the object, so that every write, the first or a
+     * later one, goes through __set.
+     *
+     * @var array<string, mixed>
+     */
+    private array $properties = [];
 
     public function __construct(FlowElement $flowElement)
     {
@@ -39,11 +56,85 @@ class ElementData
     }
 
     /**
+     * A property set through the data, or else the value of that name.
+     *
      * @return mixed
      */
     public function __get(string $key)
     {
+        if (array_key_exists($key, $this->properties)) {
+            return $this->properties[$key];
+        }
+
         return $this->get($key);
+    }
+
+    /**
+     * ElementData is written only by the FlowElement that provides it, or
+     * the FlowElements that share it, while they process, so setting a
+     * property through it once they have finished throws.
+     *
+     * @param mixed $value
+     * @throws \Exception once the FlowElements that write it have finished
+     */
+    public function __set(string $key, $value): void
+    {
+        $this->checkWritesNotFinished($key);
+        $this->properties[$key] = $value;
+    }
+
+    /**
+     * Whether a property was set through the data. It has no types, so
+     * subclasses that answer for their own values keep their signatures.
+     *
+     * @param string $key
+     * @return bool
+     */
+    public function __isset($key)
+    {
+        return isset($this->properties[$key]);
+    }
+
+    /**
+     * Removes a property set through the data, which is a write, so it
+     * throws once the FlowElements that write the data have finished.
+     *
+     * @throws \Exception once the FlowElements that write it have finished
+     */
+    public function __unset(string $key): void
+    {
+        $this->checkWritesNotFinished($key);
+        unset($this->properties[$key]);
+    }
+
+    /**
+     * Throws once the FlowElements that write the data have finished. Every
+     * method that writes the data calls this first.
+     *
+     * @param string $key the name being written, for the message
+     * @throws \Exception once the FlowElements that write it have finished
+     */
+    protected function checkWritesNotFinished(string $key): void
+    {
+        if ($this->writesFinished) {
+            throw new \Exception(sprintf(
+                Messages::ELEMENT_DATA_FINISHED,
+                $key,
+                $this->flowElement->dataKey
+            ));
+        }
+    }
+
+    /**
+     * Records whether the FlowElements that write the data have finished.
+     * The FlowData calls this as each FlowElement starts and finishes.
+     *
+     * @internal Only the FlowData calls this. Calling it from anywhere else
+     * can open finished data for writing again.
+     */
+    public function setWritesFinished(bool $finished): void
+    {
+        $this->writesFinished = $finished;
     }
 
     /**
@@ -70,27 +161,70 @@ class ElementData
     }
 
     /**
-     * Helper method to get property as a string.
+     * The value of a Property as a string. For an AspectPropertyValue it is
+     * the value held.
+     *
+     * @throws \Exception when the Property is not there, has no value, in
+     *   which case the message is the reason, or is not a single value
      */
     public function getAsString(string $key): string
     {
-        return strval($this->get($key));
+        return strval($this->singleValue($key, 'a string'));
     }
 
     /**
-     * Helper method to get property as a float.
+     * The value of a Property as a float. For an AspectPropertyValue it is
+     * the value held.
+     *
+     * @throws \Exception when the Property is not there, has no value, in
+     *   which case the message is the reason, or is not a single value
      */
     public function getAsFloat(string $key): float
     {
-        return floatval($this->get($key));
+        return floatval($this->singleValue($key, 'a float'));
     }
 
     /**
-     * Helper method to get property as an int.
+     * The value of a Property as an int. For an AspectPropertyValue it is
+     * the value held.
+     *
+     * @throws \Exception when the Property is not there, has no value, in
+     *   which case the message is the reason, or is not a single value
      */
     public function getAsInteger(string $key): int
     {
-        return intval($this->get($key));
+        return intval($this->singleValue($key, 'an integer'));
+    }
+
+    /**
+     * The single value of a Property, from inside an AspectPropertyValue
+     * where it is one, for the typed getters to convert.
+     *
+     * @param string $type The type asked for, for the message
+     * @return bool|float|int|string
+     * @throws \Exception when the Property is not there, has no value or is
+     *   not a single value
+     */
+    private function singleValue(string $key, string $type)
+    {
+        $value = $this->get($key);
+        if ($value === null) {
+            throw new \Exception(sprintf(
+                Messages::PROPERTY_NOT_FOUND,
+                $key,
+                $this->flowElement->dataKey
+            ));
+        }
+
+        if ($value instanceof AspectPropertyValue) {
+            $value = $value->value;
+        }
+
+        if (!is_scalar($value)) {
+            throw new \Exception(sprintf(Messages::PROPERTY_NOT_SCALAR, $key, $type));
+        }
+
+        return $value;
     }
 
     /**

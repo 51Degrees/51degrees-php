@@ -47,6 +47,8 @@ use fiftyone\pipeline\core\Pipeline;
  * string with commas between the entries, where an entry holding a comma
  * is wrapped in double quotes. DerivedPropertyElementBuilder adds scripts
  * in code.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/derived-property-element.md
  */
 class DerivedPropertyElement extends FlowElement
 {
@@ -155,7 +157,7 @@ class DerivedPropertyElement extends FlowElement
     {
         // Another derived property element earlier in the pipeline shares
         // the element data, as the properties of both are under `derived`.
-        $data = $flowData->data[self::DATA_KEY] ?? null;
+        $data = $flowData->tryGet(self::DATA_KEY);
         if (!($data instanceof DerivedPropertyData)) {
             $data = new DerivedPropertyData($this);
             $flowData->setElementData($data);
@@ -588,16 +590,7 @@ class DerivedPropertyElement extends FlowElement
      */
     private static function elementData(FlowData $flowData, string $key): ?ElementData
     {
-        if (isset($flowData->data[$key])) {
-            return $flowData->data[$key];
-        }
-        foreach ($flowData->data as $dataKey => $data) {
-            if (strcasecmp((string) $dataKey, $key) === 0) {
-                return $data;
-            }
-        }
-
-        return null;
+        return $flowData->tryGet($key);
     }
 
     /**

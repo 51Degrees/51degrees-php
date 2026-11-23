@@ -19,6 +19,19 @@ on:
     - cron: '0 1 * * *'
 
 jobs:
+  # The publish builds main, which the pull requests into rc do not change, so
+  # it runs first and has the runners before the pull request builds do.
+  Publish:
+    name: Nightly Publish
+    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      allow-version-bump: ${{ inputs.allow-version-bump || false }}
+      cache-assets: true
+    secrets: inherit
+
   SubmoduleUpdate:
     name: Nightly Submodule Update
     uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@main
@@ -26,8 +39,7 @@ jobs:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
+    secrets: inherit
 
   PackageUpdate:
     if: ${{ !cancelled() }}
@@ -38,12 +50,11 @@ jobs:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
+    secrets: inherit
 
   PullRequests:
     if: ${{ !cancelled() }}
-    needs: [SubmoduleUpdate, PackageUpdate]
+    needs: [Publish, SubmoduleUpdate, PackageUpdate]
     name: Nightly Pull Requests
     uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
     with:
@@ -54,29 +65,6 @@ jobs:
       # The on-premise packages compile native extensions and load
       # multi-gigabyte data files, and every package runs in each leg.
       build-test-timeout-minutes: 300
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      CsvUrl: ${{ secrets.CSV_URL }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-
-  Publish:
-    if: ${{ !cancelled() }}
-    needs: PullRequests
-    name: Nightly Publish
-    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
-    with:
-      repo-name: ${{ github.event.repository.name }}
-      org-name: ${{ github.event.repository.owner.login }}
-      dryrun: ${{ inputs.dryrun || false }}
-      allow-version-bump: ${{ inputs.allow-version-bump || false }}
-      cache-assets: true
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      CsvUrl: ${{ secrets.CSV_URL }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+      # One configuration that fails does not cancel the others.
+      fail-fast: false
+    secrets: inherit

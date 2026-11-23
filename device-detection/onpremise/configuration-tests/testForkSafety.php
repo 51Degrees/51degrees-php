@@ -50,13 +50,20 @@
  * Exit code 0 means the contrast was demonstrated. Any other code means the
  * expected behaviour was not observed.
  *
- * Inputs (env vars, with argv fallbacks):
- *   _51DEGREES_DD_PATH  path to a .hash data file   (argv[1], or the module's configured data_file)
- *   _51DEGREES_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
+ * Inputs, from the environment:
+ *   _51DEGREES_DD_PATH        path to a .hash data file
+ *   _51DEGREES_EVIDENCE_YAML  path to a YAML evidence file, such as
+ *                             20000 Evidence Records.yml, whose
+ *                             header.user-agent values are detected
  *
- * The names these replaced are still read, as deprecated names, when the
- * variable is not set.
+ * Without the evidence file the test refuses to run, with exit code 2, as
+ * for a missing data file, because a few User-Agents do not always show the
+ * streaming profile's wrong results, so the outcome would come and go.
  */
+
+require_once __DIR__ . '/../tests/classes/EvidenceRecords.php';
+
+use fiftyone\pipeline\devicedetection\tests\classes\EvidenceRecords;
 
 const CHILDREN = 8;     // forked workers that all share the inherited handles
 const ITERATIONS = 40;  // passes over the User-Agent list per worker
@@ -65,6 +72,10 @@ const ITERATIONS = 40;  // passes over the User-Agent list per worker
 // round is repeated until corruption is seen, up to this many times.
 const STREAMING_ROUNDS = 6;
 const CRASH_WEIGHT = 250; // a worker killed by a signal is the strongest possible corruption signal
+// A round of workers normally ends in well under a minute. A worker still
+// running after this many seconds is stuck, so it is killed and counted
+// rather than left to hold the job until the workflow's own time limit.
+const WORKER_TIME_LIMIT = 300;
 
 function fail(string $message, int $code = 2): void
 {
@@ -72,42 +83,14 @@ function fail(string $message, int $code = 2): void
     exit($code);
 }
 
-/**
- * The value of an environment variable, read by its name and, when that is
- * not set or is empty, by the deprecated name it replaced, whose use is
- * reported on standard error.
- */
-function readVariable(string $name, string $deprecated): string
-{
-    $value = (string) getenv($name);
-    if ($value !== '') {
-        return $value;
-    }
-
-    $value = (string) getenv($deprecated);
-    if ($value !== '') {
-        fwrite(STDERR, "A value was read from the environment variable {$deprecated}, " .
-            "which is deprecated. {$name} replaces it, so set that to the same value.\n");
-    }
-
-    return $value;
+$dataFile = (string) getenv('_51DEGREES_DD_PATH');
+$evidenceFile = (string) getenv('_51DEGREES_EVIDENCE_YAML');
+if ($evidenceFile === '' || !is_file($evidenceFile)) {
+    fail("evidence file not found (set _51DEGREES_EVIDENCE_YAML): '{$evidenceFile}'");
 }
 
-$dataFile = readVariable('_51DEGREES_DD_PATH', 'FIFTYONE_DATA_FILE') ?: ($argv[1] ?? '');
-$uaCsv = readVariable('_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV') ?: ($argv[3] ?? '');
-
-// The extension defines the engine classes itself, so no wrapper file is
-// loaded for this variable.
-if ((string) getenv('FIFTYONE_WRAPPER') !== '') {
-    fwrite(STDERR, 'The environment variable FIFTYONE_WRAPPER is deprecated and ' .
-        "nothing replaces it. No wrapper file is loaded, so stop setting it.\n");
-}
-
-if ($dataFile === '' && function_exists('ini_get')) {
-    $dataFile = (string) ini_get('FiftyOneDegreesHashEngine.data_file');
-}
 if ($dataFile === '' || !is_file($dataFile)) {
-    fail("data file not found (set _51DEGREES_DD_PATH or pass it as the first argument): '{$dataFile}'");
+    fail("data file not found (set _51DEGREES_DD_PATH): '{$dataFile}'");
 }
 
 if (!function_exists('pcntl_fork')) {
@@ -118,25 +101,14 @@ if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
 }
 
 // Load a set of User-Agents to detect. The exact values do not matter, only
-// that there are enough distinct ones to exercise the data file.
-$userAgents = [];
-if ($uaCsv !== '' && is_file($uaCsv)) {
-    $handle = fopen($uaCsv, 'r');
-    while (($line = fgets($handle)) !== false && count($userAgents) < 200) {
-        $line = trim($line, " \t\r\n\"");
-        if ($line !== '' && stripos($line, 'user-agent') !== 0) {
-            $userAgents[] = $line;
-        }
-    }
-    fclose($handle);
-}
+// that there are enough distinct ones to exercise the data file, so the
+// first USER_AGENTS distinct values are taken.
+const USER_AGENTS = 200;
+$userAgents = array_slice(array_values(array_unique(
+    EvidenceRecords::values($evidenceFile, 'header.user-agent', PHP_INT_MAX)
+)), 0, USER_AGENTS);
 if (count($userAgents) === 0) {
-    $userAgents = [
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114',
-        'Mozilla/5.0 (Linux; Android 10; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0 Mobile Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15',
-    ];
+    fail("the evidence file holds no User-Agents: '{$evidenceFile}'");
 }
 
 /**
@@ -233,8 +205,13 @@ function detectionWorker(EngineHashSwig $engine, array $userAgents): int
  * run them concurrently, and total the corruption they observe. The parent does
  * not detect, so that a worker crash (a signal) is contained and reported
  * rather than taking the whole test down.
+ *
+ * Each worker is waited for until WORKER_TIME_LIMIT seconds after the round
+ * started. A worker still running then is killed and added to $stuck, which
+ * fails the test, since a corrupt read must end in a wrong answer, an
+ * exception or a crash, never in a worker that does not end.
  */
-function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
+function runForkedWorkers(EngineHashSwig $engine, array $userAgents, int &$stuck): int
 {
     $pids = [];
     for ($i = 0; $i < CHILDREN; $i++) {
@@ -250,8 +227,27 @@ function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
     }
 
     $total = 0;
+    $deadline = microtime(true) + WORKER_TIME_LIMIT;
     foreach ($pids as $pid) {
-        pcntl_waitpid($pid, $status);
+        $status = 0;
+        while (($waited = pcntl_waitpid($pid, $status, WNOHANG)) === 0) {
+            if (microtime(true) >= $deadline) {
+                break;
+            }
+            usleep(100000);
+        }
+        if ($waited === 0) {
+            // Still running at the time limit, so kill it and collect it.
+            fwrite(STDERR, "testForkSafety: worker {$pid} was still running after " .
+                WORKER_TIME_LIMIT . " seconds and was killed\n");
+            killWorker($pid);
+            pcntl_waitpid($pid, $status);
+            $stuck++;
+            continue;
+        }
+        if ($waited === -1) {
+            fail("pcntl_waitpid failed for worker {$pid}");
+        }
         if (pcntl_wifexited($status)) {
             $total += pcntl_wexitstatus($status);
         } elseif (pcntl_wifsignaled($status)) {
@@ -262,6 +258,19 @@ function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
     return $total;
 }
 
+/**
+ * Kill a worker that has not ended. posix_kill is used where the posix
+ * extension is loaded, and the kill command otherwise.
+ */
+function killWorker(int $pid): void
+{
+    if (function_exists('posix_kill')) {
+        posix_kill($pid, SIGKILL);
+    } else {
+        exec('kill -9 ' . $pid);
+    }
+}
+
 echo "Fork-safety reproduction (issue #38)\n";
 echo 'Data file: ' . $dataFile . "\n";
 echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterations: ' . ITERATIONS . "\n\n";
@@ -270,24 +279,28 @@ echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterat
 $streaming = buildEngine($dataFile, 'Balanced');
 $streamingHandles = openDataFileHandles($dataFile);
 $streamingCorruption = 0;
+$streamingStuck = 0;
 $streamingRounds = 0;
 while ($streamingCorruption < 1 && $streamingRounds < STREAMING_ROUNDS) {
-    $streamingCorruption += runForkedWorkers($streaming, $userAgents);
+    $streamingCorruption += runForkedWorkers($streaming, $userAgents, $streamingStuck);
     $streamingRounds++;
 }
 echo "Streaming (Balanced):\n";
 echo '  open data-file handles: ' . handlesLabel($streamingHandles) . "\n";
-echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s))\n\n";
+echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s))\n";
+echo "  workers killed at the time limit: {$streamingStuck}\n\n";
 unset($streaming);
 gc_collect_cycles();
 
 // --- In-memory (MaxPerformance) profile: expected to be safe across a fork ---
 $inMemory = buildEngine($dataFile, 'MaxPerformance');
 $inMemoryHandles = openDataFileHandles($dataFile);
-$inMemoryCorruption = runForkedWorkers($inMemory, $userAgents);
+$inMemoryStuck = 0;
+$inMemoryCorruption = runForkedWorkers($inMemory, $userAgents, $inMemoryStuck);
 echo "In memory (MaxPerformance):\n";
 echo '  open data-file handles: ' . handlesLabel($inMemoryHandles) . "\n";
-echo "  corruption events across fork: {$inMemoryCorruption}\n\n";
+echo "  corruption events across fork: {$inMemoryCorruption}\n";
+echo "  workers killed at the time limit: {$inMemoryStuck}\n\n";
 unset($inMemory);
 gc_collect_cycles();
 
@@ -306,6 +319,14 @@ if ($streamingCorruption < 1) {
 }
 if ($inMemoryCorruption !== 0) {
     $failures[] = "expected the in-memory profile to be fork-safe, but observed {$inMemoryCorruption} corruption events";
+}
+// A worker that did not end is a defect in either profile: a corrupt read
+// must give a wrong answer, an exception or a crash, which are counted above.
+if ($streamingStuck > 0) {
+    $failures[] = "{$streamingStuck} streaming worker(s) did not end within " . WORKER_TIME_LIMIT . ' seconds and were killed';
+}
+if ($inMemoryStuck > 0) {
+    $failures[] = "{$inMemoryStuck} in-memory worker(s) did not end within " . WORKER_TIME_LIMIT . ' seconds and were killed';
 }
 
 if (count($failures) > 0) {

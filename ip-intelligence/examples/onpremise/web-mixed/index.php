@@ -182,6 +182,10 @@ if (!ExampleUtils::findDeviceDetectionOnPremise()) {
             ->add($ipEngine)
             ->build();
 
+        // A Flow Data is for this one request. PHP runs each request on one
+        // thread, so nothing else uses it at the same time. A Flow Data
+        // must not be used by two threads at once, so never keep one for
+        // another request or hand it to another thread.
         $flowData = $pipeline->createFlowData();
         $flowData->evidence->setArray($evidence);
         $result = $flowData->process();
@@ -345,6 +349,8 @@ foreach ($evidence as $k => $v) {
             </details>
         </div>
         <?php endif; ?>
+
+        <?= \fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils::getFindOutMoreHtml(__FILE__) ?>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

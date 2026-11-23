@@ -106,7 +106,10 @@ pipeline. See `examples/cloud/mixed/` and `examples/onpremise/mixed/`.
 
 The on-premise mixed examples load both extensions in one PHP, the Device
 Detection one with its own data file setting, and take the Device Detection
-on-premise classes from `device-detection/onpremise` beside this package. The
+on-premise classes from `device-detection/onpremise` beside this package.
+When PHP built no Device Detection engine, the mixed console example and
+the launcher below give it the data file that `_51DEGREES_DD_PATH` names, or
+else the free Lite file, downloaded when it is missing. The
 IP Intelligence extension's classes start with `FiftyOneDegreesIpi` so that
 the two extensions' classes never share a name, as
 [OnPremise.md](OnPremise.md) explains.
@@ -127,6 +130,7 @@ In-repo under `examples/`:
 | `onpremise/performance-console.php` | On-premise | Measure lookups per second. |
 | `onpremise/suspicious-console.php` | On-premise | Flag IP addresses that look suspicious. |
 | `onpremise/translation-console.php` | On-premise | List the countries an IP address is most likely in. |
+| `onpremise/dataupdate-console.php` | On-premise | Reload the data file after it is replaced with a newer one. |
 | `onpremise/mixed/gettingstarted-console.php` | On-premise | Device detection + IP intelligence. |
 | `onpremise/web/index.php` | On-premise | Web page with the country list. |
 | `onpremise/web-mixed/index.php` | On-premise | Web page with device detection + IP intelligence. |
@@ -154,6 +158,22 @@ Enterprise data file has as needing it, and gives a link to
 about a copy. The suspicious and translation examples need those properties
 throughout, so with a free data file they say which and stop.
 
+A web example cannot start PHP again, so start it with the launcher,
+`examples/onpremise/serve.php`, which finds the data file in the same way and
+starts the PHP built-in server on port 5151 with it. Run this from the root
+of the repository, and open http://localhost:5151/.
+
+```bash
+php ip-intelligence/examples/onpremise/serve.php web
+```
+
+`web-mixed` in place of `web` starts the page that also uses Device
+Detection. It needs that extension loaded as well, and the launcher gives it
+the Device Detection data file that `_51DEGREES_DD_PATH` names, or else the
+free Lite file, downloaded when it is missing. A data file or a port can
+follow the example's name. For real use, set the data file in php.ini, so
+that the web server builds the engine once when it starts.
+
 ## Tests
 
 ```bash
@@ -162,7 +182,7 @@ vendor/bin/phpunit
 ```
 
 Cloud tests run offline against a mocked HTTP client. A live cloud test runs when
-the `resource_key` environment variable is set. On-premise tests run when the
+the `_51DEGREES_RESOURCE_KEY_BESPOKE` environment variable is set. On-premise tests run when the
 native extension is built and an `.ipi` data file is available, and are
 skipped otherwise. Set `_51DEGREES_IPI_PATH`, place a file under `assets/`,
 or download the Lite file into `cxx/data/ip-intelligence` at the root of the

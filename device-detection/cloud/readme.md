@@ -27,6 +27,8 @@ to use the Cloud API. You can create resource keys using our
 
 **Note: Examples run on Linux and macOS. We don't test on Windows environments as it is a rare choice for PHP.**
 
+The examples and tests are in the [51degrees-php repository](https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud), not in the package Composer installs, so clone the repository to run them.
+
 To run the examples, you will need PHP and composer installed.
 Once these are available, install (or update) the dependencies required by the examples. 
 Navigate to the repository root and execute:
@@ -49,7 +51,7 @@ Now navigate to the examples directory and start a PHP server with the relevant 
 For example:
 
 ```
-_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php -S localhost:3000 cloud/gettingStartedWeb.php
+_51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php -S localhost:5151 cloud/gettingStartedWeb.php
 ```
 
 or to run in a terminal
@@ -58,8 +60,8 @@ or to run in a terminal
 _51DEGREES_RESOURCE_KEY=YOUR_RESOURCE_KEY php cloud/gettingStartedConsole.php
 ```
 
-This will start a local web server listening on port 3000. 
-Open your web browser and browse to http://localhost:3000/ to see the example in action.
+This will start a local web server listening on port 5151. 
+Open your web browser and browse to http://localhost:5151/ to see the example in action.
 
 The table below describes the examples that are available.
 

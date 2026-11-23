@@ -57,9 +57,7 @@ use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 // Check if there is a resource key in the environment variable and use
 // it if there is one. (This is used for automated testing)
 $resourceKey = EnvironmentVariable::read(
-    Constants::RESOURCE_KEY_VARIABLE,
-    Constants::RESOURCE_KEY_ENV_VAR,
-    "!!YOUR_RESOURCE_KEY!!"
+    Constants::RESOURCE_KEY_VARIABLE
 );
 if ($resourceKey === '') {
     $resourceKey = "!!YOUR_RESOURCE_KEY!!";
@@ -67,12 +65,13 @@ if ($resourceKey === '') {
 
 if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
-    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . '<br/>';
-    $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://51degrees.com/configure/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=resource-key-required' . '<br/>';
+    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . Constants::lineBreak();
+    $message .= 'Create a resource key with the properties required by this example ';
+    $message .= 'at https://51degrees.com/configure/gGc3T5pT?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-gettingstarted.php&utm_term=resource-key-required' . Constants::lineBreak();
     $message .= 'Once complete, populate the environment variable ';
-    $message .= 'mentioned at the start of this message with the key.' . '<br/>';
+    $message .= 'mentioned at the start of this message with the key.' . Constants::lineBreak();
     echo $message;
+    Constants::printFindOutMore(__FILE__);
 
     return;
 }
@@ -111,9 +110,11 @@ $country = $flowData->location->country;
 
 if ($country->hasValue) {
     echo "Which country is the location [" . $latitude . "," . $longitude . "] in?";
-    echo "<br />";
+    echo Constants::lineBreak();
     echo $flowData->location->country->value;
 } else {
     // Echo out why the value isn't meaningful
     echo $country->noValueMessage;
 }
+
+Constants::printFindOutMore(__FILE__);

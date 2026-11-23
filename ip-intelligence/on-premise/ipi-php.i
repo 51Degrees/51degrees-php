@@ -27,6 +27,37 @@
  * FiftyOneDegreesIpIntelligenceEngine.
  */
 
+/*
+ * The engine is built once, when PHP starts, and is supported only where PHP
+ * serves each request from a process forked after that, as Apache with the
+ * prefork MPM and php-fpm do. A thread-safe (ZTS) PHP would share the engine
+ * between threads instead, so the build stops here. The wrapper includes
+ * php.h first, which defines ZTS for a thread-safe PHP.
+ */
+%{
+#ifdef ZTS
+#error "The 51Degrees IP intelligence extension needs a non-thread-safe (NTS) PHP, and this PHP is thread-safe (ZTS). Build it for Apache with the prefork MPM and mod_php, or for php-fpm, with a non-thread-safe PHP."
+#endif
+%}
+
+/*
+ * A weighted list's get returns a copy of the weighted value, which the PHP
+ * object owns. SWIG would return a reference into the list, and a list that
+ * is itself a returned value, as in $w->getValue()->get(0)->getValue(), is
+ * freed by PHP as soon as get returns, leaving the reference pointing at
+ * freed memory.
+ */
+%define IPI_RETURN_COPY(TYPE)
+%typemap(out, phptype="SWIGTYPE") const TYPE & {
+  SWIG_SetPointerZval($result, (void *)new TYPE(*$1), $1_descriptor, 1);
+}
+%enddef
+IPI_RETURN_COPY(WeightedValue< std::string >)
+IPI_RETURN_COPY(WeightedValue< std::vector< uint8_t > >)
+IPI_RETURN_COPY(WeightedValue< bool >)
+IPI_RETURN_COPY(WeightedValue< int >)
+IPI_RETURN_COPY(WeightedValue< double >)
+
 %include "cxx/src/ipi/ipi.i"
 
 /*
@@ -67,11 +98,14 @@
             sizeof(zend_class_entry *) *
             (zend_hash_num_elements(CG(class_table)) + 1));
         zend_string *key;
-        zend_class_entry *ce;
+        /* The table holds untyped pointers, and C++ converts one to a
+           class entry only with a cast, which clang insists on. */
+        void *entry;
         if (classes == NULL) {
             return;
         }
-        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, ce) {
+        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, entry) {
+            zend_class_entry *ce = static_cast<zend_class_entry *>(entry);
             if (key != NULL &&
                 ce->type == ZEND_INTERNAL_CLASS &&
                 ce->info.internal.module != NULL &&
@@ -179,7 +213,21 @@ EngineIpi *ipi_engine;
         } else {
             ipi_engine_properties = new RequiredPropertiesConfig();
         }
-        ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        try {
+            ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        }
+        catch (const std::exception &e) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names. %s",
+                filePath, e.what());
+        }
+        catch (...) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names.",
+                filePath);
+        }
     }
 }
 
@@ -194,4 +242,12 @@ EngineIpi *ipi_engine;
     if (ipi_engine != NULL) { delete ipi_engine; ipi_engine = NULL; }
     if (ipi_engine_properties != NULL) { delete ipi_engine_properties; ipi_engine_properties = NULL; }
     if (ipi_engine_config != NULL) { delete ipi_engine_config; ipi_engine_config = NULL; }
+
+    /*
+     * The settings leave with the extension. PHP removes them itself only for
+     * an extension with no shutdown function, and when a request that loaded
+     * this one with dl() ends, PHP frees their names, so settings left behind
+     * are read after they are freed when PHP stops.
+     */
+    UNREGISTER_INI_ENTRIES();
 }

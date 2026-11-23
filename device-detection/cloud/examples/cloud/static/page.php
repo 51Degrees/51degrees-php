@@ -133,7 +133,7 @@
                 <?php
                     foreach ($flowdata->evidence->getAll() as $key => $value)
                     {
-                        if ($flowdata->pipeline->getElement("cloud")->getEvidenceKeyFilter()->filterEvidenceKey($key))
+                        if ($flowdata->pipeline->getElement("cloud-response")->getEvidenceKeyFilter()->filterEvidenceKey($key))
                         {
                             $output("<tr class='c-eg-table__row c-eg-table__row--used'>");
                         }
@@ -211,6 +211,8 @@
     <?php $output('  <p class="c-eg-message__text">Want to try on-premise? <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-static-page.php&utm_term=try-on-premise">Contact us</a> to discuss requirements.</p>'); ?>
     <?php $output('  <a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-static-page.php&utm_term=try-on-premise">Contact us</a>'); ?>
     <?php $output('</div>'); ?>
+
+    <?php $output(ExampleUtils::getFindOutMoreHtml(__FILE__)); ?>
 </div>
 
 <!--

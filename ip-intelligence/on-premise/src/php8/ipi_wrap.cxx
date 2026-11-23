@@ -1313,6 +1313,11 @@ template <typename T> T SwigValueInit() {
 
 
 
+#ifdef ZTS
+#error "The 51Degrees IP intelligence extension needs a non-thread-safe (NTS) PHP, and this PHP is thread-safe (ZTS). Build it for Apache with the prefork MPM and mod_php, or for php-fpm, with a non-thread-safe PHP."
+#endif
+
+
 #include "cxx/src/ipi/EngineIpi.hpp"
 
 using namespace FiftyoneDegrees::Common;
@@ -1624,11 +1629,14 @@ SWIGINTERN int ResultsIpi_copyValueAsUTF8String(ResultsIpi *self,int requiredPro
             sizeof(zend_class_entry *) *
             (zend_hash_num_elements(CG(class_table)) + 1));
         zend_string *key;
-        zend_class_entry *ce;
+        /* The table holds untyped pointers, and C++ converts one to a
+           class entry only with a cast, which clang insists on. */
+        void *entry;
         if (classes == NULL) {
             return;
         }
-        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, ce) {
+        ZEND_HASH_FOREACH_STR_KEY_PTR(CG(class_table), key, entry) {
+            zend_class_entry *ce = static_cast<zend_class_entry *>(entry);
             if (key != NULL &&
                 ce->type == ZEND_INTERNAL_CLASS &&
                 ce->info.internal.module != NULL &&
@@ -14914,9 +14922,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_std__string_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< std::string >(*result), SWIGTYPE_p_WeightedValueT_std__string_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -15696,9 +15704,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_std__vectorT_uint8_t_t_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< std::vector< uint8_t > >(*result), SWIGTYPE_p_WeightedValueT_std__vectorT_uint8_t_t_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -16478,9 +16486,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_bool_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< bool >(*result), SWIGTYPE_p_WeightedValueT_bool_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -17260,9 +17268,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_int_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< int >(*result), SWIGTYPE_p_WeightedValueT_int_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -18042,9 +18050,9 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,get) {
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  
-  SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_WeightedValueT_double_t, 0);
-  
+  {
+    SWIG_SetPointerZval(return_value, (void *)new WeightedValue< double >(*result), SWIGTYPE_p_WeightedValueT_double_t, 1);
+  }
   fail: SWIGUNUSED;
   return;
 }
@@ -26811,7 +26819,21 @@ SWIG_php_minit {
         } else {
             ipi_engine_properties = new RequiredPropertiesConfig();
         }
-        ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        try {
+            ipi_engine = new EngineIpi(filePath, ipi_engine_config, ipi_engine_properties);
+        }
+        catch (const std::exception &e) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names. %s",
+                filePath, e.what());
+        }
+        catch (...) {
+            php_error_docref(NULL, E_WARNING,
+                "No IP intelligence engine was built from '%s', which "
+                "FiftyOneDegreesIpIntelligenceEngine.data_file names.",
+                filePath);
+        }
     }
 
   /* oinit subsection */
@@ -27574,6 +27596,14 @@ PHP_MSHUTDOWN_FUNCTION(FiftyOneDegreesIpIntelligenceEngine)
     if (ipi_engine != NULL) { delete ipi_engine; ipi_engine = NULL; }
     if (ipi_engine_properties != NULL) { delete ipi_engine_properties; ipi_engine_properties = NULL; }
     if (ipi_engine_config != NULL) { delete ipi_engine_config; ipi_engine_config = NULL; }
+
+    /*
+     * The settings leave with the extension. PHP removes them itself only for
+     * an extension with no shutdown function, and when a request that loaded
+     * this one with dl() ends, PHP frees their names, so settings left behind
+     * are read after they are freed when PHP stops.
+     */
+    UNREGISTER_INI_ENTRIES();
 
   return SUCCESS;
 }

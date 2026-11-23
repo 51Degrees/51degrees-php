@@ -20,6 +20,10 @@ CI builds the extensions on Linux and macOS only (`Get-SkipReason` in
 for Linux on Windows. So on Windows, clone and run everything inside WSL, and
 use the Linux commands below.
 
+The extensions' `config.m4` files build the C++ without `-fpermissive`, which
+would let g++ turn some errors into warnings, so code that clang refuses on
+macOS fails on Linux too, where pull request builds run.
+
 ### Prerequisites
 
 - Git.
@@ -64,9 +68,9 @@ sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash 51Degrees-LiteV41.ipi
 ```
 
 The script keeps a file that is already there, and with no names it downloads
-every free file. The Device Detection engine reads its file when PHP starts and
-never downloads it, so download it first. The IP Intelligence example downloads
-the Lite file itself when it finds no data file.
+every free file. Each on-premise console example also downloads its Lite file
+itself when it finds no data file, so this step only saves waiting for the
+download when the example first runs.
 
 #### Check the files
 
@@ -87,11 +91,39 @@ make
 cd ..
 ```
 
-The engine loads its data file when PHP starts, from the
-`FiftyOneDegreesHashEngine.data_file` setting, so the example takes no data
-file argument. Write the settings `ci/build-project.ps1` writes into a
-`php.ini` in `device-detection/onpremise`, then install the package's own
-dependencies, as CI does for this package.
+Install the package's own dependencies, as CI does for this package, and run
+the example with the extension loaded by `-d`, as for IP Intelligence below.
+
+```bash
+composer install
+php -d extension="$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so" examples/onpremise/gettingStartedConsole.php
+```
+
+The engine is built when PHP starts, from the
+`FiftyOneDegreesHashEngine.data_file` setting. With no setting, PHP starts
+with no engine, and the example takes the data file its first argument names,
+then the one the `_51DEGREES_DD_PATH` environment variable names, then the
+Lite file in `cxx/data/device-detection`, which it downloads when it is
+missing (`getDataFile` in `examples/onpremise/classes/ExampleUtils.php`). It
+then runs again in a PHP started with that file. Before the example's own
+output it writes to standard error
+`No device detection engine was built when PHP started, so the example runs again in a PHP that builds one from`
+followed by the file, then the command, after the download's own lines when
+it downloads the file.
+
+A web example cannot start PHP again, so start it with the launcher, which
+finds the data file in the same way and starts the PHP built-in server on
+port 5151 with it, passing on the `-d extension=...` it was given. Open
+http://localhost:5151/ and stop the server with Ctrl+C.
+
+```bash
+php -d extension="$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so" examples/onpremise/serve.php gettingStartedWeb.php
+```
+
+To have PHP build the engine once when it starts, as a web server needs, write
+the settings `ci/build-project.ps1` writes into a `php.ini` in
+`device-detection/onpremise`, and run PHP reading that file as well as its own
+settings, as `ci/run-unit-tests.ps1` sets `PHP_INI_SCAN_DIR`.
 
 ```bash
 cat > php.ini <<EOF
@@ -99,13 +131,6 @@ extension = "$PWD/on-premise/modules/FiftyOneDegreesHashEngine.so"
 FiftyOneDegreesHashEngine.data_file = "$PWD/../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 FiftyOneDegreesHashEngine.allow_unmatched = false
 EOF
-composer install
-```
-
-Run the example with PHP reading that file as well as its own settings, as
-`ci/run-unit-tests.ps1` sets `PHP_INI_SCAN_DIR`.
-
-```bash
 PHP_INI_SCAN_DIR=":$PWD" php examples/onpremise/gettingStartedConsole.php
 cd ../..
 ```
@@ -133,6 +158,14 @@ php -d extension="$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
 cd ..
 ```
 
+Start the IP Intelligence web example from the repository root with its
+launcher, which finds the data file as the next paragraph says and starts
+the PHP built-in server on port 5151 with it. Open http://localhost:5151/.
+
+```bash
+php -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web
+```
+
 The example uses the argument when that file is there. Otherwise it takes the
 file the `_51DEGREES_IPI_PATH` environment variable names, then any `.ipi`
 file in `ip-intelligence/assets`, then a file in `cxx/data/ip-intelligence`
@@ -155,11 +188,33 @@ BOTH="-d extension=$PWD/../device-detection/onpremise/on-premise/modules/FiftyOn
  -d extension=$PWD/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
  -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
 php $BOTH examples/onpremise/mixed/gettingstarted-console.php
-php $BOTH -S 127.0.0.1:8080 -t examples/onpremise/web-mixed
 cd ..
 ```
 
-`tests/MixedExamplesTests.php` runs both, in each order, in CI.
+With the two extensions loaded and no data file setting for one engine or
+both, the console example finds a data file for each engine PHP did not
+build, as the launcher below does, and runs again in a PHP started with
+them. Before its own output it writes to standard error
+`No IP intelligence or device detection engine was built when PHP started, so the example runs again in a PHP that builds them from`
+followed by the two files and the settings to put in php.ini, then the
+command, after the download's own lines when it downloads a file. Where the
+system does not give
+PHP's own command line, as on macOS, the new PHP is started without the
+`-d extension=...` options, so load the extensions from php.ini there.
+
+Start the mixed web page from the repository root with the launcher, loading
+only the two extensions. The launcher finds both data files, downloading the
+free Lite files when they are missing, and starts the PHP built-in server on
+port 5151 with them. Open http://localhost:5151/.
+
+```bash
+php -d extension="$PWD/device-detection/onpremise/on-premise/modules/FiftyOneDegreesHashEngine.so" -d extension="$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so" ip-intelligence/examples/onpremise/serve.php web-mixed
+```
+
+`tests/MixedExamplesTests.php` runs the mixed console example and the mixed
+web page with both extensions in each order, and the console example with no
+data file set for one engine or both, and `tests/ServeWebExamplesTests.php`
+starts both web pages with the launcher, in CI.
 
 ### Correct output
 
@@ -172,9 +227,13 @@ download ends.
 The Device Detection example processes three sets of evidence. For each it
 prints `Input values:` and the evidence, then `Results:` with `Mobile Device`,
 `Platform Name`, `Platform Version`, `Browser Name` and `Browser Version`, all
-of which the Lite file has. It prints nothing about the data file, because
-the messages go to `fiftyone\pipeline\core\Logger`, whose `logInternal` writes
-nothing.
+of which the Lite file has, then `Hardware Vendor`, `Hardware Name` and
+`Device Type`, which only the Enterprise data file has, so with the Lite file
+they read `needs the Enterprise data file`. After the three it prints
+`Some of these properties need the Enterprise data file. Contact us for a copy
+at` and the tagged contact page. It prints nothing about the data file,
+because the messages go to a `fiftyone\pipeline\core\Logger` given no
+`file` setting, which writes nothing.
 
 The IP Intelligence example looks up four addresses, being
 `116.154.188.222`, `1.3.32.31`, `45.236.48.61` and
@@ -182,10 +241,20 @@ The IP Intelligence example looks up four addresses, being
 with the address, then `Results:` with the 16 properties in `OUTPUT_PROPERTIES`,
 from `RegisteredName` to `TimeZoneOffset`. A weighted value prints as the
 value followed by its raw weighting in brackets. The Lite file has only
-RegisteredCountry, RegisteredName and RegisteredOwner. `outputProperty` in
-`examples/classes/ExampleUtils.php` catches the error a missing property
-raises, so the other lines read `(not available - ...)` and the example
-carries on.
+RegisteredCountry, RegisteredName and RegisteredOwner, so the other lines read
+`needs the Enterprise data file` (`outputEnterpriseProperty` in
+`examples/classes/ExampleUtils.php`). After the four it prints the same
+sentence and contact page as the Device Detection example.
+
+Every example, console or web, cloud or on-premise, ends with a `Find out
+more` section, a heading underlined with hyphens and then one `label: address`
+line for each link, or the same list at the foot of a web page. A cloud
+example run with no resource key prints where to create one and then the same
+section. Each package's helper (`ExampleUtils` in Device Detection and IP
+Intelligence, `Constants` in location) writes it, the pipeline and 51Did
+examples write their own, and every 51degrees.com link an example prints
+carries `utm_source=code&utm_medium=example`, the campaign `51degrees-php` and
+the example's file as `utm_content`.
 
 The paid data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-php&utm_content=agents.md&utm_term=correct-output)
@@ -198,6 +267,12 @@ resource key, which a person creates in the configurator, so ask for one if
 none is set. The Device Detection example says a key with the properties it
 needs can be created
 [here](https://51degrees.com/configure/g3gMZdPY?utm_source=github&utm_medium=docs&utm_campaign=51degrees-php&utm_content=agents.md&utm_term=cloud-examples).
+
+Run with no resource key, every cloud example, console or web page, names
+`_51DEGREES_RESOURCE_KEY`, gives a tagged link to the configurator, where a
+key is created, and ends with Find out more. It then ends successfully, a
+console example with exit status 0 and a web page with HTTP status 200, so
+that CI runs every cloud example with nothing set.
 
 `device-detection/cloud/readme.md` runs the example from the package's
 `examples` folder after a `composer install` in the package.
@@ -214,26 +289,50 @@ The example reads `_51DEGREES_RESOURCE_KEY`, or takes the key as its first
 argument. It prints the same `Input values:` and
 `Results:` blocks. The IP Intelligence cloud example,
 `ip-intelligence/examples/cloud/gettingstarted-console.php`, takes the key as
-its first argument or from `resource_key`, after a `composer install` in
+its first argument or from `_51DEGREES_RESOURCE_KEY`, after a `composer install` in
 `ip-intelligence`.
+
+### Pipeline examples
+
+The examples of `pipeline/engines`, `pipeline/cloudrequestengine` and
+`pipeline/derivedproperty` need no extension, no data file, no resource key
+and no network. Each runs from its package folder after a `composer install`
+there. Two of them make the star sign engines the Pipeline API specification
+asks for, `pipeline/engines/examples/OnPremiseEngine.php` from a data file
+beside it and `pipeline/cloudrequestengine/examples/CloudEngine.php` from a
+service it starts on the same machine with PHP's built-in web server.
+`pipeline/derivedproperty/examples/DerivedProperty.php` computes properties
+with derived property scripts, from code and from a configuration file.
+
+```bash
+cd pipeline/derivedproperty
+composer install
+php examples/DerivedProperty.php
+cd ../..
+```
 
 ### Pitfalls
 
 - **No vendor folder in the package.** Every example loads the
   `vendor/autoload.php` of its own package, which the root `composer install`
   does not create. Run `composer install` in the package folder, as above.
-  After one in `device-detection/cloud`, the root `ci/build-project.ps1`
-  refuses to run until that `vendor` folder is removed, as "CI" below says.
-- **The extension or the data file setting is missing.** The Device Detection
-  engine reads both from PHP's settings when PHP starts, so run the example
-  with `PHP_INI_SCAN_DIR` as above, and keep the data file where `php.ini`
-  says. Without its `-d extension=...`, the IP Intelligence example stops
-  with `The FiftyOneDegreesIpIntelligenceEngine extension is not loaded`.
+  After one in `device-detection/cloud`, or in a pipeline package, the root
+  `ci/build-project.ps1` refuses to run until that `vendor` folder is
+  removed, as "CI" below says.
+- **The extension is not loaded.** Each on-premise example needs its
+  extension, from `php.ini` or `-d extension=...` as above. Without it, the
+  Device Detection example stops with
+  `The FiftyOneDegreesHashEngine extension is not loaded` and the IP
+  Intelligence example with
+  `The FiftyOneDegreesIpIntelligenceEngine extension is not loaded`.
 - **A data file that is not there.** `cxx/data` holds a `.link` for each file
-  rather than the file. The Device Detection engine cannot start without its
-  file, so download it before running the example. The IP Intelligence
-  example downloads its file, so it needs the network and the tools under
-  "Prerequisites". Check the file sizes as above.
+  rather than the file. Each on-premise example downloads its Lite file when
+  it is missing, so it needs the network and the tools under "Prerequisites".
+  A `php.ini` naming a Device Detection data file that is missing, or that
+  the engine cannot be built from, leaves PHP with no engine and a warning
+  when it starts, and the example then runs again with the file it finds,
+  unless that is the file `php.ini` names.
+  Check the file sizes as above.
 - **A wrapper from another SWIG.** Running `swig` by hand, or with a version
   other than 4.5.1, rewrites the committed `src/php8` files, which
   `git status` then shows as modified. An IP Intelligence wrapper from SWIG
@@ -244,24 +343,57 @@ its first argument or from `resource_key`, after a `composer install` in
   its shell scripts and the `config.m4` files that `phpize` reads get Windows
   line endings, which a Linux shell does not expect. Clone inside WSL rather
   than using a Windows checkout from WSL.
-- **What CI does not test.** CI runs the examples' classes through PHPUnit
-  (the packages' `tests/ExampleTests.php`), not the example scripts. It
-  tests Device Detection with a paid data file (`ci/run-unit-tests.ps1` skips
-  the tests without one), and IP Intelligence with the Lite file that
-  `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
+- **What CI tests.** CI runs the example scripts, each in its own PHP as a
+  person runs them, with no settings beyond php.ini naming a free data file.
+  `device-detection/onpremise/tests/ExamplesWithoutSettingsTests.php` runs
+  every Device Detection on-premise example, `ip-intelligence/tests` runs the
+  IP Intelligence on-premise ones in `ExamplesWithoutSettingsTests.php` and
+  `WebExamplesWithoutSettingsTests.php`, and the `ExamplesWithoutKeyTests.php`
+  of `device-detection/cloud`, `ip-intelligence` and `location` run every
+  cloud example with no resource key. The `tests/ExampleTests.php` of
+  `pipeline/core`, `pipeline/engines`, `pipeline/cloudrequestengine` and
+  `pipeline/derivedproperty`, and 51Did's `tests/ExamplesTest.php`, run
+  theirs the same way. Each checks
+  that the example ends with Find out more and that every 51degrees.com link
+  it prints is tagged. `device-detection/onpremise/tests/StartWithoutDataFileTests.php`
+  and `ip-intelligence/tests/ServeWebExamplesTests.php` also run the Device
+  Detection console examples and both packages' web examples, through their
+  launchers, with nothing set at all, so the data file is found or downloaded,
+  and `ip-intelligence/tests/MixedExamplesTests.php` runs the mixed console
+  example the same way.
+  The cloud examples' classes also run with a key, or
+  against a mocked cloud service for IP Intelligence, in each package's
+  `tests/ExampleTests.php`. Without the TAC data file, as in a build with no
+  secrets, the Device Detection on-premise `ci/run-unit-tests.ps1` runs its
+  `WithoutTacFile` suite, the unit tests that need no TAC data file, which
+  include every test of its examples with no settings. `location` runs its
+  examples with no resource key in its `Unit` suite, which needs no key.
+  `device-detection/onpremise/tests/WebExampleReloadTests.php` serves the web
+  example with `_51DEGREES_DD_PATH` naming another file than the one php.ini
+  names, so the first request reloads the engine. Neither
+  on-premise package is built on Windows or on PHP 7.4. IP Intelligence uses
+  the Lite file that `ci/fetch-assets.ps1` links into `ip-intelligence/assets`.
+  CI's asset cache holds every free data file the examples look for, and the
+  packages' `ci/fetch-assets.ps1` scripts link the cached copies into
+  `cxx/data` under the data repository's names, so the tests that run the
+  examples with nothing set find them there rather than downloading them.
+  `ip-intelligence/tests/DownloadDataFileTests.php` and
+  `device-detection/onpremise/tests/DownloadDataFileTests.php` still
+  download the free ASN file and the free Device Detection Lite file from
+  nothing, with the examples' own code, and say so plainly when the
+  distributor refuses one.
 
 ## Environment variable names
 
-[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.md)
-holds every environment variable name that the packages, tests, examples and
-CI scripts of every language read, with what each name holds and the
-deprecated names each replaced. The list decides. Use the names it gives, and
-when a change needs a new name, or reads an old name again, change
-[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.json)
-in common-ci in the same piece of work. This repository's own name
-check, [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1), still keeps a
-list of its own. Where the two differ, common-ci's list is the one to
-follow.
+[`environment-variables.md`](environment-variables.md) lists every
+environment variable name that the packages, tests, examples, CI scripts and
+workflows of this repository read or set, with what each holds. Only names
+that start with `_51DEGREES_` are read, apart from the ones the operating
+system, the runner, PHP or another tool defines, which
+[`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1)
+lists and checks on every pull request. A change that needs a new name adds it
+to the list in the same piece of work. A name that is no longer read is named
+in the pull request that removes it, never in the code.
 
 ## Directories
 
@@ -274,7 +406,8 @@ follow.
   Its `scripts` folder is a copy of the `scripts` folder of the
   `derived-properties` submodule at the root, and its tests run the
   submodule's case files, so never edit a script there. Change the script in
-  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`.
+  derived-properties, then run `pipeline/derivedproperty/ci/update-packages.ps1`,
+  which also rewrites the compiled scripts in its `compiled` folder.
 - `device-detection/cloud`: `51degrees/fiftyone.devicedetection`
 - `device-detection/onpremise`: `51degrees/fiftyone.devicedetection` (same name, path repository only)
 - `location`: `51degrees/fiftyone.geolocation`
@@ -324,10 +457,21 @@ cd pipeline/core
 `location` and `ip-intelligence` sit one level higher, so there the root
 `vendor` is `../vendor`.
 
-Check the suite names in the package's `phpunit.xml`. `location` has
-only `Integration`.
+Check the suite names in the package's `phpunit.xml`. In `location`, `Unit`
+holds the examples run with no resource key and `Integration` the tests that
+need one. `device-detection/onpremise` also has `WithoutTacFile`, the unit
+tests that need no TAC data file.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
+
+PHPUnit 9 reads test metadata (a data provider, a requirement, a hook, a
+process setting) from doc comments, PHPUnit 10 and 11 read attributes
+first, and PHPUnit 12 reads attributes only. Each package allows any
+PHPUnit, so a test gives each annotation its attribute from
+`PHPUnit\Framework\Attributes` as well, imported with `use`.
+[`ci/check-test-attributes.ps1`](ci/check-test-attributes.ps1) fails on an
+annotation with no attribute, and the Test attributes workflow runs it on
+every pull request.
 
 ## CI
 
@@ -338,10 +482,42 @@ mirrors, and which packages test against the root `vendor` and which install
 their own, and `ci/packages.ps1` describes the fields. Add a package there,
 not in the workflows.
 
+`ci/select-options.ps1` chooses the entries a pull request runs. The standard
+set is PHP 8.5 and 7.4 on Linux and PHP 8.3 on Windows, with the Selenium
+contract on 8.5 alone. A change to a `composer.json`, a `ci/` folder or a file
+outside the package folders adds the other PHP versions on Linux. macOS and
+performance run only when `rc` itself or the release pull request is built,
+which `.github/workflows/release-pull-request.yml` does on every entry.
+
+Both on-premise extensions register SWIG's pointer classes, such as
+`SWIG\_p_byte`, under the same names, so the second to load replaces the
+first's. The Native extensions under Valgrind workflow
+(`.github/workflows/extensions-valgrind.yml`) loads both in each order and
+runs `ci/read-pointer-classes.php` under Valgrind on a pull request that
+changes either extension or `cxx`, and fails on any memory error.
+
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a
 `composer install` run inside the package stops it, as the tests would then
 use that copy.
+
+No job of the build matrix downloads a free data file. common-ci's Configure
+job fetches every asset the packages' `ci/fetch-assets.ps1` scripts list into
+the run's asset cache, and each job's Fetch Assets step links the cached copies
+into `cxx/data`, beside the data repository's links, where the examples and
+tests look. After the tests, `ci/check-no-data-file-downloads.ps1` fails the
+job when a file beside a link is not itself a link, which means a test or an
+example downloaded it, and names the file to add to a package's list. The cache
+key covers only the root `ci/fetch-assets.ps1`
+([common-ci#329](https://github.com/51Degrees/common-ci/issues/329)), so a
+file added to a package's list is fetched in each job's Fetch Assets step
+until a cache filled from the new list is restored. The tests of the
+download itself are the `Download` suites in `ip-intelligence/phpunit.xml`
+and `device-detection/onpremise/phpunit.xml`, which run once, in
+`.github/workflows/data-file-download.yml`, and in no matrix job. To
+run the tests on your own machine without downloading, link or copy the free
+files you already have into `cxx/data/device-detection` and
+`cxx/data/ip-intelligence` under the data repository's names.
 
 ## Versions
 

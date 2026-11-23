@@ -25,11 +25,13 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @requires OS Linux
  */
+#[RequiresOperatingSystem('Linux')]
 class ExampleWebTests extends TestCase
 {
     public static $process;
@@ -37,7 +39,7 @@ class ExampleWebTests extends TestCase
     public static function setUpBeforeClass(): void
     {
         // start server
-        self::$process = new Process('php -S localhost:3000 examples/onpremise/gettingStartedWeb.php');
+        self::$process = new Process('php -S localhost:5151 examples/onpremise/gettingStartedWeb.php');
         self::$process->start();
         if (self::$process->status()) {
             sleep(1);

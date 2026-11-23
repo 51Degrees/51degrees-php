@@ -34,6 +34,8 @@ use fiftyone\pipeline\core\ElementDataDictionary;
  * produce has no value and a message naming every source property that was
  * missing. Names are matched without regard to case, and the keys of
  * asDictionary are lower case, as for the other elements.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/derived-property-element.md
  */
 class DerivedPropertyData extends ElementDataDictionary
 {
@@ -50,8 +52,16 @@ class DerivedPropertyData extends ElementDataDictionary
         parent::__construct($flowElement, []);
     }
 
+    /**
+     * Sets the value of a derived property. Only the derived property
+     * elements write the data, while they process, so this throws once
+     * they have finished.
+     *
+     * @throws \Exception once the elements that write the data have finished
+     */
     public function setValue(string $name, AspectPropertyValue $value): void
     {
+        $this->checkWritesNotFinished($name);
         $key = strtolower($name);
         $this->contents[$key] = $value;
         $this->names[$key] = $name;

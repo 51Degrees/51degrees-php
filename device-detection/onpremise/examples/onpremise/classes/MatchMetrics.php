@@ -125,8 +125,11 @@ class MatchMetrics
             $output('--- Listing all available properties, by component, by property ' .
                 'name ---');
             $output('For a discussion of what the match properties mean, see: ' .
-                '/documentation/4.5/_device_detection__hash' .
-                '.html#DeviceDetection_Hash_DataSetProduction');
+                ExampleUtils::getTaggedLink(
+                    'documentation/_device_detection__hash.html',
+                    __FILE__,
+                    'match-properties'
+                ) . '#DeviceDetection_Hash_DataSetProduction');
 
             // retrieve the available properties from the hash engine. The properties
             // available depends on

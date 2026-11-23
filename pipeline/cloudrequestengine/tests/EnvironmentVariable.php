@@ -26,57 +26,17 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\cloudrequestengine\tests;
 
 /**
- * Reads an environment variable by its name and, when that is not set or
- * is empty, by the deprecated name it replaced.
+ * Reads an environment variable by its name.
  */
 class EnvironmentVariable
 {
-    // Written to the PHP error log once for each deprecated name a value
-    // was read from. The deprecated name is given first, then the name
-    // that replaces it.
-    public const MESSAGE_DEPRECATED =
-        'A value was read from the environment variable %s, which is ' .
-        'deprecated. %s replaces it, so set that to the same value.';
-
-    /** @var array<string, bool> The deprecated names already reported */
-    private static $reported = [];
-
     /**
-     * The variable's value, or an empty string when neither name holds
-     * one. The deprecated name is read only when the name gives nothing.
+     * The variable's value, or an empty string when it is not set.
      *
      * @param string $name The variable's name
-     * @param string $deprecated The name it replaced
-     * @param string $placeholder A value that counts as not set, which is
-     * how a phpunit.xml file marks a value nobody has filled in
      */
-    public static function read(
-        string $name,
-        string $deprecated,
-        string $placeholder = ''
-    ): string {
-        $value = self::value($name, $placeholder);
-        if ($value !== '') {
-            return $value;
-        }
-
-        $value = self::value($deprecated, $placeholder);
-        if ($value !== '' && !isset(self::$reported[$deprecated])) {
-            self::$reported[$deprecated] = true;
-            error_log(sprintf(self::MESSAGE_DEPRECATED, $deprecated, $name));
-        }
-
-        return $value;
-    }
-
-    private static function value(string $name, string $placeholder): string
+    public static function read(string $name): string
     {
-        $value = getenv($name);
-        if ($value === false) {
-            $value = $_ENV[$name] ?? '';
-        }
-        $value = (string) $value;
-
-        return $value === $placeholder ? '' : $value;
+        return (string) getenv($name);
     }
 }

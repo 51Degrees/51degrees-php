@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\engines;
  * A simple cache class which has a get and set method
  * Can be added to an engine to cache its results for specific evidence
  * This base class needs to be extended to form an actual cache.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/caching.md#cache-implementation
  */
 class DataKeyedCache
 {

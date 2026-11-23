@@ -53,7 +53,6 @@
 
 require(__DIR__ . "/../../vendor/autoload.php");
 
-use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\devicedetection\DeviceDetectionPipelineBuilder;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 
@@ -69,14 +68,15 @@ if (empty($resourceKey)) {
 }
 
 if (empty($resourceKey)) {
-    $message = 'No resource key specified in the environment variable or query parameter ';
-    $message .= "'" . ExampleUtils::RESOURCE_KEY_ENV_VAR . "'." . PHP_EOL;
-    $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=resource-key-required' . '<br/>';
+    $message = "No resource key specified in the environment variable '" .
+        ExampleUtils::RESOURCE_KEY_ENV_VAR . "' or the query parameter '" .
+        ExampleUtils::RESOURCE_KEY_QUERY_PARAM . "'." . PHP_EOL;
+    $message .= 'Create a resource key with the properties required by this example ';
+    $message .= 'at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=resource-key-required' . PHP_EOL;
     $message .= 'Once complete, populate the environment variable or query parameter ';
-    $message .= 'mentioned at the start of this message with the key.' . '<br/>';
-    
-    ExampleUtils::logErrorAndExit(new Logger('info'), $message);
+    $message .= 'mentioned at the start of this message with the key.';
+
+    ExampleUtils::endWithoutResourceKey($message, __FILE__);
 }
 
 $builder = new DeviceDetectionPipelineBuilder(array(
@@ -146,3 +146,5 @@ failuretomatch_checkifmobile($pipeline, $iPhoneUA);
 
 $badUserAgent = 'xyfga';
 failuretomatch_checkifmobile($pipeline, $badUserAgent);
+
+ExampleUtils::printFindOutMore(__FILE__);

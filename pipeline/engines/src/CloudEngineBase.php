@@ -26,8 +26,26 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\engines;
 
 /**
- * Intermediary between Engine and CloudEngine classes. This exists only so that
+ * Intermediary between Engine and CloudEngine classes. This exists so that
  * the MissingPropertyService can check whether an engine is an instance of a
- * CloudEngine.
+ * CloudEngine, and whether it has its property metadata.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#cloud-aspect-engine
  */
-class CloudEngineBase extends Engine {}
+class CloudEngineBase extends Engine
+{
+    /**
+     * Whether the engine has loaded its property metadata, being the
+     * properties the Resource Key gives it, which is an empty list where the
+     * key includes no product for the engine. An engine that has not yet
+     * read the property list sets this false, so that a missing property is
+     * not put down to the Resource Key.
+     */
+    public bool $propertyMetadataLoaded = true;
+
+    /**
+     * Whether the request for the property list failed, so that the engine
+     * has not loaded its property metadata because of a failed request.
+     */
+    public bool $propertyListRequestFailed = false;
+}

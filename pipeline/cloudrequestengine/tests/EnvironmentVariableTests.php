@@ -28,9 +28,8 @@ namespace fiftyone\pipeline\cloudrequestengine\tests;
 use PHPUnit\Framework\TestCase;
 
 /**
- * A variable is read by its name first and, when that is not set or is
- * empty, by the deprecated name it replaced, whose use is reported once.
- * Each constant that held a deprecated name keeps its name and its value.
+ * A variable is read by its name only.
+ * Each constant that names a variable holds that name.
  */
 class EnvironmentVariableTests extends TestCase
 {
@@ -50,141 +49,35 @@ class EnvironmentVariableTests extends TestCase
         $this->previous = [];
     }
 
-    public function testNameIsReadBeforeTheDeprecatedName(): void
+    public function testNameIsRead(): void
     {
-        $this->set('_51DEGREES_TEST_BOTH', 'new');
-        $this->set('OLD_TEST_BOTH', 'old');
+        $this->set('_51DEGREES_TEST_SET', 'new');
 
-        $logged = $this->logged(function (): void {
-            $this->assertSame(
-                'new',
-                EnvironmentVariable::read('_51DEGREES_TEST_BOTH', 'OLD_TEST_BOTH')
-            );
-        });
-        $this->assertSame([], $logged);
+        $this->assertSame('new', EnvironmentVariable::read('_51DEGREES_TEST_SET'));
     }
 
-    public function testDeprecatedNameIsReadWhenTheNameIsNotSet(): void
+    public function testNameNotSetGivesAnEmptyString(): void
     {
         $this->set('_51DEGREES_TEST_UNSET', null);
-        $this->set('OLD_TEST_UNSET', 'old');
 
-        $this->logged(function (): void {
-            $this->assertSame(
-                'old',
-                EnvironmentVariable::read('_51DEGREES_TEST_UNSET', 'OLD_TEST_UNSET')
-            );
-        });
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testDeprecatedNameIsReadWhenTheNameIsEmpty(): void
+    public function testAValueOnlyInTheEnvArrayIsNotRead(): void
     {
-        $this->set('_51DEGREES_TEST_EMPTY', '');
-        $this->set('OLD_TEST_EMPTY', 'old');
+        $this->set('_51DEGREES_TEST_UNSET', null);
+        $_ENV['_51DEGREES_TEST_UNSET'] = 'not-in-the-environment';
 
-        $this->logged(function (): void {
-            $this->assertSame(
-                'old',
-                EnvironmentVariable::read('_51DEGREES_TEST_EMPTY', 'OLD_TEST_EMPTY')
-            );
-        });
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testNeitherNameSetGivesAnEmptyString(): void
+    public function testConstantsHoldTheVariableNames(): void
     {
-        $this->set('_51DEGREES_TEST_NEITHER', null);
-        $this->set('OLD_TEST_NEITHER', null);
-
-        $logged = $this->logged(function (): void {
-            $this->assertSame(
-                '',
-                EnvironmentVariable::read('_51DEGREES_TEST_NEITHER', 'OLD_TEST_NEITHER')
-            );
-        });
-        $this->assertSame([], $logged);
-    }
-
-    public function testPlaceholderCountsAsNotSet(): void
-    {
-        $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
-        $this->set('OLD_TEST_PLACEHOLDER', 'old');
-
-        $this->logged(function (): void {
-            $this->assertSame('old', EnvironmentVariable::read(
-                '_51DEGREES_TEST_PLACEHOLDER',
-                'OLD_TEST_PLACEHOLDER',
-                '!!NOT_SET!!'
-            ));
-        });
-
-        $this->set('OLD_TEST_PLACEHOLDER', '!!NOT_SET!!');
-        $this->assertSame('', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            'OLD_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
-    }
-
-    public function testDeprecatedNameInUseIsReportedOnce(): void
-    {
-        $this->set('_51DEGREES_TEST_ONCE', null);
-        $this->set('OLD_TEST_ONCE', 'old');
-
-        $logged = $this->logged(function (): void {
-            EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
-            EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
-        });
-
-        $this->assertCount(1, $logged);
-        $this->assertStringContainsString('OLD_TEST_ONCE', $logged[0]);
-        $this->assertStringContainsString('deprecated', $logged[0]);
-        $this->assertStringContainsString('_51DEGREES_TEST_ONCE', $logged[0]);
-    }
-
-    public function testKeyIsReadFromItsDeprecatedName(): void
-    {
-        $this->set('_51DEGREES_RESOURCE_KEY', '!!YOUR_RESOURCE_KEY!!');
-        $this->set('resource_key', 'old-key');
-
-        $this->logged(function (): void {
-            $this->assertSame('old-key', EnvironmentVariable::read(
-                CloudRequestEngineTestsBase::RESOURCE_KEY_ENV_VAR,
-                constant(CloudRequestEngineTestsBase::class . '::OLD_RESOURCE_KEY_ENV_VAR'),
-                '!!YOUR_RESOURCE_KEY!!'
-            ));
-        });
-    }
-
-    public function testDeprecatedConstantHoldsTheOldName(): void
-    {
-        $this->assertDeprecatedConstant(
-            CloudRequestEngineTestsBase::class,
-            'OLD_RESOURCE_KEY_ENV_VAR',
-            'resource_key'
-        );
         $this->assertVariableConstant(
             CloudRequestEngineTestsBase::class,
             'RESOURCE_KEY_ENV_VAR',
-            '_51DEGREES_RESOURCE_KEY'
+            '_51DEGREES_RESOURCE_KEY_BESPOKE'
         );
-    }
-
-    /**
-     * Checks that a constant still has its name and its value, and is
-     * marked deprecated.
-     *
-     * @param class-string $class
-     */
-    private function assertDeprecatedConstant(
-        string $class,
-        string $constant,
-        string $value
-    ): void {
-        $this->assertTrue(defined($class . '::' . $constant), $constant);
-        $this->assertSame($value, constant($class . '::' . $constant));
-        $comment = (string) (new \ReflectionClassConstant($class, $constant))
-            ->getDocComment();
-        $this->assertStringContainsString('@deprecated', $comment, $constant);
     }
 
     /**
@@ -212,29 +105,5 @@ class EnvironmentVariableTests extends TestCase
         }
         putenv($value === null ? $name : $name . '=' . $value);
         unset($_ENV[$name]);
-    }
-
-    /**
-     * Runs the action and returns the lines it wrote to the PHP error log.
-     * The log is pointed at a file from inside the test, because PHPUnit
-     * points it at a file of its own while a test runs.
-     *
-     * @return string[]
-     */
-    private function logged(callable $action): array
-    {
-        $log = (string) tempnam(sys_get_temp_dir(), 'env');
-        $previous = ini_set('error_log', $log);
-        try {
-            $action();
-
-            return array_values(array_filter(
-                array_map('trim', (array) file($log)),
-                'strlen'
-            ));
-        } finally {
-            ini_set('error_log', (string) $previous);
-            unlink($log);
-        }
     }
 }

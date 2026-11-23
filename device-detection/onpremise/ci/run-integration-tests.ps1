@@ -1,8 +1,16 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName
+    [string]$RepoName,
+    # False, from select-options.ps1, on every entry of a pull request but
+    # one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 $ErrorActionPreference = 'Stop'
+
+if (-not $SeleniumContract) {
+    Write-Host "Another entry runs the Selenium contract tests for this pull request."
+    return
+}
 
 # The shared Selenium contract tests need DeviceType and the JavaScript
 # overrides for screen size, which the Lite data file does not have, so they
@@ -19,13 +27,13 @@ if (!(Test-Path $dataFile)) {
 # data file from _51DEGREES_DD_PATH, and that is set to the same file here so
 # the two agree. Because they name the same file, useDataFileFromEnv finds
 # the engine already loaded from it and returns without reloading, so this
-# run does not cover the reload itself.
+# run does not cover the reload itself. tests/WebExampleReloadTests.php does.
 $sep = [IO.Path]::PathSeparator
 $env:PHP_INI_SCAN_DIR = "$sep$PWD/$RepoName"
 [Environment]::SetEnvironmentVariable('_51DEGREES_DD_PATH', $dataFile)
 
 # 8096 is the port the cloud example uses in the cloud repository's CI, and
-# the unit and configuration tests use 3000 and 3002, so use another one.
+# the unit and configuration tests use 5151 and 3002, so use another one.
 $port = 8097
 $example = $null
 
@@ -55,15 +63,13 @@ try {
         throw "The on-premise web example did not start on port $port"
     }
 
-    # The suite reads the cloud address at start up and needs a resource key
-    # to be set, even though the on-premise example uses neither. The tests
-    # pass both to the example they start, and an example given in
-    # EXAMPLE_URL is already running, so nothing is sent anywhere.
-    $env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-    $env:PAID_RESOURCE_KEY = "not-used-by-the-on-premise-example"
-    $env:EXAMPLE_URL = "http://localhost:$port"
-    $env:EXAMPLE_LANG = 'php'
-    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract
+    # The contract tests open the example that is already running, so they
+    # need no cloud address and no resource key.
+    # Without _51DEGREES_EXAMPLE_URL the suite launches an example of its own.
+    ${env:_51DEGREES_EXAMPLE_URL} = "http://localhost:$port"
+    ${env:_51DEGREES_EXAMPLE_LANG} = 'php'
+    # Normal verbosity prints each test's time, passed or failed.
+    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"
     if ($LASTEXITCODE -ne 0) {
         throw "The Selenium contract tests failed against the on-premise web example"
     }

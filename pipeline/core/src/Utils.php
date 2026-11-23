@@ -25,6 +25,13 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\core;
 
+/**
+ * The web integration of a Pipeline, which sets the response headers the
+ * Pipeline's elements ask for and builds the responses to requests for
+ * the client-side JavaScript and JSON.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/web-integration.md
+ */
 class Utils
 {
     /**
@@ -78,6 +85,108 @@ class Utils
     private const OWS = " \t";
 
     /**
+     * The Flow Data the last call to processWebRequest() kept. A PHP that
+     * builds its state afresh for every request starts each one without it.
+     * A PHP that serves one request after another, as a worker does, keeps
+     * it until the next call replaces it.
+     */
+    private static ?FlowData $requestFlowData = null;
+
+    /**
+     * Whether the Flow Data of the request is closed when PHP finishes the
+     * request.
+     */
+    private static bool $closeAtShutdown = false;
+
+    /**
+     * Handle a web request with the Pipeline. A Flow Data is created, the
+     * request's Evidence is added to it with
+     * Evidence::setFromWebRequest(), and it is processed. The processed
+     * Flow Data is then kept, where any other part of the application
+     * reads it with getFlowData() without being handed it. It is closed
+     * when PHP finishes the request, or when a later call replaces it, as
+     * in a PHP that serves one request after another. There it is kept
+     * until that later call, so see getFlowData() for a request that does
+     * not call this.
+     *
+     * A Flow Data is not safe to use from several threads at once, and
+     * must not be used by two threads at once. The caller is responsible
+     * for any locking, so code that hands the Flow Data to another thread
+     * coordinates that itself.
+     *
+     * Requests for the client-side JavaScript and JSON need a Flow Data
+     * that has not been processed, so answer those with
+     * javascriptResponse() and jsonResponse() instead.
+     *
+     * @param \fiftyone\pipeline\core\Pipeline $pipeline The Pipeline, built
+     * once for the request
+     * @param null|array<string, string> $server The request's server values,
+     * $_SERVER when not given
+     * @param null|array<string, string> $cookies The request's cookies,
+     * $_COOKIE when not given
+     * @param null|array<string, string> $query The request's form
+     * parameters, read from the request when not given
+     * @return \fiftyone\pipeline\core\FlowData The processed Flow Data
+     */
+    public static function processWebRequest(
+        Pipeline $pipeline,
+        ?array $server = null,
+        ?array $cookies = null,
+        ?array $query = null
+    ): FlowData {
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->setFromWebRequest($server, $cookies, $query);
+
+        // A PHP that serves one request after another, as a worker does,
+        // keeps this state between them, so the Flow Data this one replaces
+        // is closed here rather than when that PHP stops.
+        $replaced = self::$requestFlowData;
+
+        // Kept before processing, so that a Pipeline that throws still
+        // leaves the request's Flow Data, with its errors, to be read. Kept
+        // before the replaced one is closed too, so an error from closing it
+        // still leaves this one to be read.
+        self::$requestFlowData = $flowData;
+        if (!self::$closeAtShutdown) {
+            self::$closeAtShutdown = true;
+            register_shutdown_function(static function (): void {
+                if (self::$requestFlowData !== null) {
+                    self::$requestFlowData->close();
+                }
+            });
+        }
+
+        try {
+            return $flowData->process();
+        } finally {
+            if ($replaced !== null) {
+                $replaced->close();
+            }
+        }
+    }
+
+    /**
+     * The Flow Data the last call to processWebRequest() processed, or null
+     * when there has been none. A PHP that builds its state afresh for every
+     * request starts each one with none. A PHP that serves one request after
+     * another, as a worker does, keeps it between them, so a request there
+     * that has not called processWebRequest() gets the previous request's
+     * Flow Data. Call processWebRequest() first in every request that reads
+     * it.
+     *
+     * So these methods suit a PHP that handles one request at a time in each
+     * process or thread. In a runtime that interleaves requests in one
+     * thread, such as one that runs them as coroutines, the next request's
+     * call to processWebRequest() closes and replaces the Flow Data an
+     * earlier request may still use. Code there passes on the Flow Data that
+     * processWebRequest() returns instead of reading it here.
+     */
+    public static function getFlowData(): ?FlowData
+    {
+        return self::$requestFlowData;
+    }
+
+    /**
      * Answer a request for the client-side JavaScript with the JavaScript
      * the Pipeline's JavaScript Builder Element writes, and the cache
      * headers of the web integration specification.
@@ -96,6 +205,8 @@ class Utils
      * request is processed and gets a 200 with Cache-Control
      * 'max-age=1800, private', or the max age given, and the ETag, or
      * 'private, no-cache' and no ETag when processing recorded errors.
+     * When the JavaScript Builder Element itself failed, the script is
+     * empty.
      *
      * @param \fiftyone\pipeline\core\FlowData $flowData The request's
      * FlowData, with its Evidence set and not yet processed
@@ -115,7 +226,9 @@ class Utils
             $maxAgeSeconds,
             'application/x-javascript',
             static function (FlowData $flowData): string {
-                return (string) $flowData->javascriptbuilder->javascript;
+                $data = self::dataUnlessFailed($flowData, 'javascriptbuilder');
+
+                return $data === null ? '' : (string) $data->javascript;
             }
         );
     }
@@ -123,7 +236,8 @@ class Utils
     /**
      * Answer a request from the client-side JavaScript with the JSON the
      * Pipeline's JSON Builder Element writes, in the same way as
-     * javascriptResponse().
+     * javascriptResponse(). When the JSON Bundler Element itself failed,
+     * the JSON is an empty object.
      *
      * @param \fiftyone\pipeline\core\FlowData $flowData The request's
      * FlowData, with its Evidence set and not yet processed
@@ -143,23 +257,32 @@ class Utils
             $maxAgeSeconds,
             'application/json',
             static function (FlowData $flowData): string {
-                return (string) json_encode($flowData->jsonbundler->json);
+                $data = self::dataUnlessFailed($flowData, 'jsonbundler');
+
+                return $data === null ? '{}' : (string) json_encode($data->json);
             }
         );
     }
 
     /**
-     * Set response headers in the response object (e.g. Accept-CH).
+     * Set response headers in the response object (e.g. Accept-CH). When
+     * the Set Headers Element failed during processing, no header is set,
+     * and the FlowData's errors hold why.
      *
      * @param \fiftyone\pipeline\core\FlowData $flowData A processed FlowData instance to get the response header values from
      */
     public static function setResponseHeader(FlowData $flowData): void
     {
-        $setHeaderElementKey = Constants::SETHEADER_ELEMENT_KEY;
-        $setHeaderDataKey = Constants::SETHEADER_DATA_KEY;
+        $data = self::dataUnlessFailed(
+            $flowData,
+            Constants::SETHEADER_ELEMENT_KEY
+        );
+        if ($data === null) {
+            return;
+        }
 
         // Get response headers dictionary containing key values to be set in response
-        $responseHeaderDict = $flowData->{$setHeaderElementKey}->{$setHeaderDataKey};
+        $responseHeaderDict = $data->{Constants::SETHEADER_DATA_KEY};
 
         foreach ($responseHeaderDict as $responseKey => $responseValue) {
             $responseValue = str_replace(',', ', ', $responseValue);
@@ -168,6 +291,27 @@ class Utils
                 header("{$responseKey}: {$responseValue}");
             }
         }
+    }
+
+    /**
+     * The data of the element under the key, or null when that element
+     * recorded an error in the FlowData's errors during processing. The
+     * errors are read here, before FlowData::get(), which throws for an
+     * element that failed and added no data.
+     *
+     * @throws \Exception When no element in the Pipeline has the key, as
+     *   FlowData::get() does
+     */
+    private static function dataUnlessFailed(
+        FlowData $flowData,
+        string $key
+    ): ?ElementData {
+        $element = $flowData->pipeline->getElement($key);
+        if (isset($flowData->errors[$element->dataKey])) {
+            return null;
+        }
+
+        return $flowData->get($key);
     }
 
     /**

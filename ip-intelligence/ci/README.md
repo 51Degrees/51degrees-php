@@ -14,7 +14,7 @@ scripts below are therefore deliberate no-ops.
 | Script | Called by | Purpose |
 |---|---|---|
 | `setup-environment.ps1` | build-and-test, publish prebuild/test | Set up the PHP version for the build. |
-| `fetch-assets.ps1` | Configure (prefetch), build-and-test, publish test | Download the `.ipi` data files. Must declare **only** parameters named after workflow secrets - the `prefetch_assets` action passes nothing else. |
+| `fetch-assets.ps1` | Configure (prefetch), build-and-test, publish test | Download the `.ipi` data files, and link the free ones into `cxx/data/ip-intelligence`, where the examples look for them with nothing set. Must declare **only** parameters named after workflow secrets - the `prefetch_assets` action passes nothing else. |
 | `build-project.ps1` | build-and-test | Build the native on-premise extension from the committed SWIG wrapper, clone the translation package, then run the standard PHP build. |
 | `run-unit-tests.ps1` | build-and-test | Run the PHPUnit `Unit` suite. |
 | `run-integration-tests.ps1` | build-and-test, publish test | Run the PHPUnit `Integration` suite with a resource key. |
@@ -28,14 +28,21 @@ scripts below are therefore deliberate no-ops.
 | `options.json` | Configure | The build matrix, as an **array** of entries - `common-ci` feeds it to `strategy.matrix.options` and reads `Image`, `Language` and `LanguageVersion` from each. `RunPerformance` is `false` everywhere: enabling it turns on ComparePerformance, which would find no results. |
 
 `generate-accessors.ps1` is absent because there is no `nightly-data-file-change`
-workflow here - PHP reads properties by name and generates no accessor classes.
+workflow here - PHP asks for properties by name and generates no accessor classes.
 
 ## Required secrets / keys
 
-- `resource_key` — a 51Degrees cloud resource key authorised for IP intelligence
+`common-ci` puts each organization secret the workflows pass with
+`secrets: inherit`, and each organization variable, into the environment
+under its own name before these scripts run.
+
+- `_51DEGREES_RESOURCE_KEY_BESPOKE`, an organization variable holding a
+  51Degrees cloud resource key that
+  carries every property the tests ask for, including the IP intelligence
   (`ip.*`) properties, used by the live cloud and mixed-cloud tests.
-- An IP intelligence licence key (for the distributor) is only needed for
-  automatic data-file updates, which the tests do not exercise.
+- `_51DEGREES_LICENSE_KEY`, an organization secret holding the data license, with which `fetch-assets.ps1`
+  has the Enterprise data file downloaded from the Distributor as IPIV41
+  IPIV4Enterprise. Without it only the free data files are fetched.
 
 ## Notes
 

@@ -24,10 +24,31 @@
 namespace fiftyone\pipeline\devicedetection;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\core\ProvidesValuesAsString;
 use fiftyone\pipeline\engines\AspectData;
 
-class SwigData extends AspectData
+/**
+ * Extension of AspectData that reads each property from the results the
+ * SWIG wrapper of the on-premise device detection engine gives.
+ *
+ * The data file holds every value as a string, which the native results
+ * parse into the type the property declares. get() gives the parsed value
+ * and getValueAsString() the string as stored.
+ *
+ * SwigData, and the native results it holds, is not safe to use from
+ * several threads at once, because reading a value writes into the native
+ * results, and SwigData takes no lock. The caller is responsible for
+ * thread-safe access, so a caller that shares an instance between threads
+ * coordinates that itself.
+ */
+class SwigData extends AspectData implements ProvidesValuesAsString
 {
+    /**
+     * The names of the C library's match methods, in the order of its
+     * fiftyoneDegreesHashMatchMethod values, which getMethod returns.
+     */
+    private const MATCH_METHODS = ['NONE', 'PERFORMANCE', 'COMBINED', 'PREDICTIVE'];
+
     private $result;
 
     public function __construct($engine, $result)
@@ -63,6 +84,32 @@ class SwigData extends AspectData
         return parent::get($key);
     }
 
+    /**
+     * Get the string the data file holds for a property, as well as the
+     * parsed value get() gives. For example, "Unknown" in a Boolean property
+     * is false through get() and "Unknown" here. A property with no value,
+     * or one the data does not hold, is reported as get() reports it.
+     * @throws \Exception
+     */
+    public function getValueAsString(string $key): AspectPropertyValue
+    {
+        if ($this->result === null) {
+            throw new \Exception(Messages::RESULTS_CLOSED);
+        }
+
+        try {
+            $result = $this->getStoredString($key);
+        } catch (\Exception $e) {
+            $result = null;
+        }
+
+        if ($result === null) {
+            return $this->missingPropertyService->check($key, $this->flowElement);
+        }
+
+        return $result;
+    }
+
     public function __isset($key)
     {
         return $this->flowElement->findProperty($key) !== null;
@@ -73,7 +120,7 @@ class SwigData extends AspectData
         $property = $this->flowElement->findProperty($key);
 
         if ($property !== null) {
-            if ($property['category'] == 'DeviceMetrics') {
+            if ($property['category'] === DeviceDetectionOnPremise::METRICS_CATEGORY) {
                 switch ($property['name']) {
                     case 'MatchedNodes':
                         $result = new AspectPropertyValue(
@@ -100,10 +147,15 @@ class SwigData extends AspectData
                         );
                         break;
                     case 'UserAgents':
+                        // Each matched User-Agent once, as more than one
+                        // result can give the same one.
                         $useragents = [];
                         $count = $this->result->getUserAgents();
                         for ($i = 0; $i < $count; ++$i) {
-                            $useragents[] = $this->result->getUserAgent($i);
+                            $useragent = $this->result->getUserAgent($i);
+                            if (!in_array($useragent, $useragents, true)) {
+                                $useragents[] = $useragent;
+                            }
                         }
                         $result = new AspectPropertyValue(
                             null,
@@ -113,7 +165,7 @@ class SwigData extends AspectData
                     case 'Method':
                         $result = new AspectPropertyValue(
                             null,
-                            $this->result->getDifference()
+                            self::MATCH_METHODS[$this->result->getMethod()] ?? 'NONE'
                         );
                         break;
                     case 'Iterations':
@@ -158,5 +210,36 @@ class SwigData extends AspectData
 
             return $result;
         }
+    }
+
+    /**
+     * The stored string of a property, or null when the data does not hold
+     * the property. A match metric is worked out for each request rather
+     * than stored, so only a string metric, whose value is the same either
+     * way, gives one.
+     */
+    private function getStoredString(string $key): ?AspectPropertyValue
+    {
+        $property = $this->flowElement->findProperty($key);
+
+        if ($property === null) {
+            return null;
+        }
+
+        if ($property['category'] === DeviceDetectionOnPremise::METRICS_CATEGORY) {
+            if ($property['type'] === 'String') {
+                return $this->getInternal($key);
+            }
+
+            return new AspectPropertyValue(
+                sprintf(Messages::METRIC_NOT_STORED, $property['name'])
+            );
+        }
+
+        $value = $this->result->getValueAsString($property['name']);
+
+        return $value->hasValue()
+            ? new AspectPropertyValue(null, $value->getValue())
+            : new AspectPropertyValue($value->getNoValueMessage());
     }
 }

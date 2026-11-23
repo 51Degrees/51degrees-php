@@ -68,9 +68,15 @@ class RequestTests extends TestCase
             return $values;
         };
         $values = $read();
+        $database = new ReflectionProperty($pipeline, 'propertyDatabase');
+        // Reflection reads a private property before PHP 8.1 only once it
+        // is made accessible.
+        if (PHP_VERSION_ID < 80100) {
+            $database->setAccessible(true);
+        }
         $built = [
             'table' => (new ReflectionProperty($engine, 'properties'))->isInitialized($engine),
-            'database' => (new ReflectionProperty($pipeline, 'propertyDatabase'))->isInitialized($pipeline),
+            'database' => $database->isInitialized($pipeline),
         ];
         $types = ['string' => 'String', 'int' => 'Integer', 'bool' => 'Boolean',
             'double' => 'Double', 'javascript' => 'JavaScript', 'string[]' => 'Array'];
@@ -217,7 +223,7 @@ class RequestTests extends TestCase
             array_keys($metrics)
         );
         foreach ($metrics as $metric) {
-            $this->assertSame('DeviceMetrics', $metric['category']);
+            $this->assertSame('Device Metrics', $metric['category']);
         }
         $this->assertSame(
             $printed['expected'],

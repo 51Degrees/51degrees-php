@@ -34,14 +34,14 @@ $PSNativeCommandUseErrorActionPreference = $true
 $VersionPattern = '^\d+\.\d+\.\d+$'
 
 function Get-MirrorUrl([string]$Mirror) {
-    if ($env:MIRROR_PUSH_TOKEN) {
-        return "https://x-access-token:$($env:MIRROR_PUSH_TOKEN)@github.com/$Owner/$Mirror.git"
+    if ($env:_51DEGREES_MIRROR_PUSH_TOKEN) {
+        return "https://x-access-token:$($env:_51DEGREES_MIRROR_PUSH_TOKEN)@github.com/$Owner/$Mirror.git"
     }
     return "https://github.com/$Owner/$Mirror.git"
 }
 
-if ($Push -eq $true -and -not $env:MIRROR_PUSH_TOKEN) {
-    throw 'MIRROR_PUSH_TOKEN is not set'
+if ($Push -eq $true -and -not $env:_51DEGREES_MIRROR_PUSH_TOKEN) {
+    throw '_51DEGREES_MIRROR_PUSH_TOKEN is not set'
 }
 # Without the grafts a split can take this repository's whole history, and
 # pushing it would copy the repository into the mirror.

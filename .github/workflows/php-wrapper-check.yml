@@ -16,9 +16,6 @@ on:
 permissions:
   contents: read
 
-env:
-  SWIG_VERSION: 4.5.1
-
 jobs:
   device-detection-wrapper:
     name: Device Detection wrapper matches hash-php.i
@@ -32,19 +29,24 @@ jobs:
       - name: Checkout cxx
         run: git submodule update --init cxx
 
+      # The version the package's own generate-wrapper.sh requires.
+      - name: Read the SWIG version
+        id: swig-version
+        run: echo "version=$(sed -n 's/^SWIG_VERSION=//p' device-detection/onpremise/on-premise/generate-wrapper.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Restore SWIG
         id: swig-cache
         uses: actions/cache@v4
         with:
           path: ~/swig
-          key: swig-${{ env.SWIG_VERSION }}-${{ runner.os }}
+          key: swig-${{ steps.swig-version.outputs.version }}-${{ runner.os }}
 
-      - name: Build SWIG ${{ env.SWIG_VERSION }}
+      - name: Build SWIG ${{ steps.swig-version.outputs.version }}
         if: steps.swig-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y bison autoconf automake libpcre2-dev
-          git clone --depth 1 --branch "v${SWIG_VERSION}" \
+          git clone --depth 1 --branch "v${{ steps.swig-version.outputs.version }}" \
             https://github.com/swig/swig.git swig-src
           cd swig-src
           ./autogen.sh
@@ -70,19 +72,24 @@ jobs:
       - name: Checkout cxx
         run: git submodule update --init cxx
 
+      # The version the package's own generate-wrapper.sh requires.
+      - name: Read the SWIG version
+        id: swig-version
+        run: echo "version=$(sed -n 's/^SWIG_VERSION=//p' ip-intelligence/on-premise/generate-wrapper.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Restore SWIG
         id: swig-cache
         uses: actions/cache@v4
         with:
           path: ~/swig
-          key: swig-${{ env.SWIG_VERSION }}-${{ runner.os }}
+          key: swig-${{ steps.swig-version.outputs.version }}-${{ runner.os }}
 
-      - name: Build SWIG ${{ env.SWIG_VERSION }}
+      - name: Build SWIG ${{ steps.swig-version.outputs.version }}
         if: steps.swig-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y bison autoconf automake libpcre2-dev
-          git clone --depth 1 --branch "v${SWIG_VERSION}" \
+          git clone --depth 1 --branch "v${{ steps.swig-version.outputs.version }}" \
             https://github.com/swig/swig.git swig-src
           cd swig-src
           ./autogen.sh

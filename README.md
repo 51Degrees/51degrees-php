@@ -179,7 +179,9 @@ Each package's `phpunit.xml` names its test suites. Some packages differ:
   root autoloader maps its namespace to `device-detection/cloud`.
 
 The tests that use the cloud need a Resource Key. See each package's readme
-for the keys and data files its tests use.
+for the keys and data files its tests use, and
+[environment-variables.md](environment-variables.md) for every environment
+variable the packages, examples, tests and CI read.
 
 ## Building the on-premise extensions
 
@@ -196,6 +198,9 @@ phpize
 ./configure
 make
 ```
+
+Both extensions need a non-thread-safe (NTS) PHP, and the build stops with an
+error against a thread-safe (ZTS) one.
 
 The package [readme](device-detection/onpremise/readme.md) lists the build
 requirements and how to install the extension.

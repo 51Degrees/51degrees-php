@@ -26,9 +26,15 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
+use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\Pipeline;
+use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\Messages;
 use fiftyone\pipeline\ipintelligence\SwigData;
+use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubLegacyWeightedValue;
+use fiftyone\pipeline\ipintelligence\tests\classes\StubNamedNativeEngine;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubSwigEngine;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubSwigList;
 use fiftyone\pipeline\ipintelligence\tests\classes\StubSwigResult;
@@ -38,7 +44,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Unit tests for SwigData's conversion of native results into
- * AspectPropertyValues.
+ * AspectPropertyValues, and the positions it reads them at.
  *
  * The stubs under tests/classes stand in for the SWIG wrapped objects, so
  * these paths run without the native extension or a data file - which the
@@ -46,6 +52,23 @@ use PHPUnit\Framework\TestCase;
  */
 class SwigDataTests extends TestCase
 {
+    /**
+     * The names a stand-in native engine is created with, and their types.
+     */
+    private const CREATED_TYPES = [
+        'RegisteredCountry' => 'WeightedString',
+        'RegisteredName' => 'String',
+    ];
+
+    /**
+     * A later data set, which holds RegisteredName at another place and has
+     * RegisteredOwner, which the engine was not created with.
+     */
+    private const LATER_TYPES = [
+        'RegisteredName' => 'String',
+        'RegisteredOwner' => 'String',
+    ];
+
     public function testWeightedListUsesNativeShortRawWeight(): void
     {
         $data = $this->buildData(
@@ -165,6 +188,99 @@ class SwigDataTests extends TestCase
     }
 
     /**
+     * Latitude and Longitude are converted from a Declination and an Azimuth,
+     * so their numbers are given to 3 decimal places, rounding a half away
+     * from zero, whichever accessor reads them. A stored Declination of 6751
+     * converts to 90 * 6751 / 32767, and a stored Azimuth of 4274 to
+     * 180 * 4274 / 32767.
+     */
+    public function testLatitudeAndLongitudeAreGivenToThreeDecimalPlaces(): void
+    {
+        $latitude = 90 * 6751 / 32767;
+        $longitude = 180 * 4274 / 32767;
+        $this->assertSame(18.542741172521133, $latitude);
+        $this->assertSame(23.47849971007416, $longitude);
+
+        foreach (['WeightedDouble', 'WeightedSingle'] as $type) {
+            $data = $this->buildData(
+                [
+                    'latitude' => ['name' => 'Latitude', 'type' => $type],
+                    'longitude' => ['name' => 'Longitude', 'type' => $type],
+                ],
+                [
+                    'Latitude' => new StubSwigValue(true, new StubSwigList([
+                        new StubWeightedValue($latitude, 49152),
+                        new StubWeightedValue(-$latitude, 16383),
+                    ])),
+                    'Longitude' => new StubSwigValue(true, new StubSwigList([
+                        new StubWeightedValue($longitude, 65535),
+                    ])),
+                ]
+            );
+
+            $this->assertSame(
+                [
+                    ['value' => 18.543, 'rawweighting' => 49152],
+                    ['value' => -18.543, 'rawweighting' => 16383],
+                ],
+                $data->getInternal('latitude')->value,
+                $type
+            );
+            $this->assertSame(
+                [['value' => 23.478, 'rawweighting' => 65535]],
+                $data->getInternal('longitude')->value,
+                $type
+            );
+        }
+
+        foreach (['Double', 'Single'] as $type) {
+            $data = $this->buildData(
+                [
+                    'latitude' => ['name' => 'Latitude', 'type' => $type],
+                    'longitude' => ['name' => 'Longitude', 'type' => $type],
+                ],
+                [
+                    'Latitude' => new StubSwigValue(true, $latitude),
+                    'Longitude' => new StubSwigValue(true, -$longitude),
+                ]
+            );
+
+            $this->assertSame(18.543, $data->getInternal('latitude')->value, $type);
+            $this->assertSame(-23.478, $data->getInternal('longitude')->value, $type);
+        }
+    }
+
+    /**
+     * A number that is not a Latitude or a Longitude keeps every place it
+     * has, and a coordinate with no value keeps its message.
+     */
+    public function testOtherNumbersAreNotRounded(): void
+    {
+        $data = $this->buildData(
+            [
+                'other' => ['name' => 'Other', 'type' => 'WeightedDouble'],
+                'single' => ['name' => 'Single', 'type' => 'Double'],
+                'latitude' => ['name' => 'Latitude', 'type' => 'WeightedSingle'],
+            ],
+            [
+                'Other' => new StubSwigValue(true, new StubSwigList([
+                    new StubWeightedValue(0.123456789, 65535),
+                ])),
+                'Single' => new StubSwigValue(true, 18.542741172521133),
+                'Latitude' => new StubSwigValue(false, null, 'No location for this IP.'),
+            ]
+        );
+
+        $this->assertSame(
+            [['value' => 0.123456789, 'rawweighting' => 65535]],
+            $data->getInternal('other')->value
+        );
+        $this->assertSame(18.542741172521133, $data->getInternal('single')->value);
+        $this->assertFalse($data->getInternal('latitude')->hasValue);
+        $this->assertSame('No location for this IP.', $data->getInternal('latitude')->noValueMessage);
+    }
+
+    /**
      * Mcc is weighted even though its metadata type is "string".
      */
     public function testMccIsTreatedAsWeightedDespiteItsStringType(): void
@@ -217,29 +333,166 @@ class SwigDataTests extends TestCase
     }
 
     /**
-     * Every accessor is handed the property's name, because PHP builds the
-     * engine class on every request and a table from names to indexes would
-     * be built on every request too.
+     * Every accessor is handed the position the engine gives for the name,
+     * which is its place in the names the engine was created with.
      */
-    public function testEveryReadGoesByName(): void
+    public function testEveryReadGoesByPosition(): void
     {
         $properties = [
             'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
             'iscrawler' => ['name' => 'IsCrawler', 'type' => 'Bool'],
             'mcc' => ['name' => 'Mcc', 'type' => 'String'],
         ];
-        $result = new StubSwigResult([
-            'RegisteredName' => new StubSwigValue(true, 'An ISP'),
-            'IsCrawler' => new StubSwigValue(true, false),
-            'Mcc' => new StubSwigValue(true, new StubSwigList([new StubWeightedValue('234', 65535)])),
-        ]);
-        $data = new SwigData(new StubSwigEngine($properties), $result);
+        $positions = ['iscrawler' => 0, 'mcc' => 1, 'registeredname' => 2];
+        $result = new StubSwigResult(
+            [
+                'RegisteredName' => new StubSwigValue(true, 'An ISP'),
+                'IsCrawler' => new StubSwigValue(true, false),
+                'Mcc' => new StubSwigValue(true, new StubSwigList([new StubWeightedValue('234', 65535)])),
+            ],
+            ['IsCrawler', 'Mcc', 'RegisteredName']
+        );
+        $data = new SwigData(new StubSwigEngine($properties, $positions), $result);
 
         $this->assertSame('An ISP', $data->getInternal('registeredname')->value);
         $this->assertFalse($data->getInternal('iscrawler')->value);
         $this->assertSame([['value' => '234', 'rawweighting' => 65535]], $data->getInternal('mcc')->value);
 
-        $this->assertSame(['RegisteredName', 'IsCrawler', 'Mcc'], $result->requestedKeys);
+        $this->assertSame([2, 0, 1], $result->requestedKeys);
+    }
+
+    /**
+     * A name the engine has no position for is read at no position, which
+     * the native code answers with no value and its invalid property
+     * message.
+     */
+    public function testANameWithNoPositionHasNoValue(): void
+    {
+        $result = new StubSwigResult(
+            ['RegisteredName' => new StubSwigValue(true, 'An ISP')],
+            ['RegisteredName']
+        );
+        $data = new SwigData(
+            new StubSwigEngine(
+                [
+                    'registeredname' => ['name' => 'RegisteredName', 'type' => 'String'],
+                    'registeredowner' => ['name' => 'RegisteredOwner', 'type' => 'String'],
+                ],
+                ['registeredname' => 0]
+            ),
+            $result
+        );
+
+        $value = $data->getInternal('registeredowner');
+
+        $this->assertFalse($value->hasValue);
+        $this->assertSame(StubSwigResult::INVALID_PROPERTY, $value->noValueMessage);
+        $this->assertSame([-1], $result->requestedKeys);
+    }
+
+    /**
+     * A read through the engine class goes at the position of the name in
+     * the names the native engine was created with.
+     */
+    public function testAReadThroughTheEngineGoesByPosition(): void
+    {
+        $native = self::namedNative();
+        $flowData = self::process(self::pipeline(self::engineOver($native)));
+
+        $this->assertSame('An ISP', $flowData->ip->get('registeredname')->value);
+        $this->assertSame(
+            [['value' => 'GB', 'rawweighting' => 65535]],
+            $flowData->ip->get('RegisteredCountry')->value
+        );
+        $this->assertSame([1, 0], $native->results[0]->requestedKeys);
+    }
+
+    /**
+     * The positions are taken from the native engine once, and a refresh
+     * keeps them, so a read after it names the same property, even when the
+     * native engine then gives a later data set's names.
+     */
+    public function testThePositionsAreTakenOnceAndKeptThroughARefresh(): void
+    {
+        $native = self::namedNative();
+        $engine = self::engineOver($native);
+        $pipeline = self::pipeline($engine);
+
+        $before = self::process($pipeline);
+        $this->assertSame('An ISP', $before->ip->get('RegisteredName')->value);
+        $engine->refreshData();
+        $after = self::process($pipeline);
+        $this->assertSame('An ISP', $after->ip->get('RegisteredName')->value);
+
+        $this->assertSame([1], $native->results[0]->requestedKeys);
+        $this->assertSame([1], $native->results[1]->requestedKeys);
+        $this->assertSame(1, $native->requiredReads);
+    }
+
+    /**
+     * A property that only a later data set has gets no position until the
+     * engine is created again, and the others keep theirs.
+     */
+    public function testAPropertyOnlyALaterDataSetHasGetsNoPosition(): void
+    {
+        $engine = self::engineOver(self::namedNative());
+
+        $this->assertSame(0, $engine->getPosition('RegisteredCountry'));
+        $this->assertSame(1, $engine->getPosition('registeredname'));
+        $this->assertSame(-1, $engine->getPosition('RegisteredOwner'));
+
+        $engine->refreshData();
+
+        $this->assertSame(0, $engine->getPosition('RegisteredCountry'));
+        $this->assertSame(1, $engine->getPosition('registeredname'));
+        $this->assertSame(-1, $engine->getPosition('RegisteredOwner'));
+    }
+
+    private static function namedNative(): StubNamedNativeEngine
+    {
+        return new StubNamedNativeEngine(
+            self::CREATED_TYPES,
+            [
+                'RegisteredCountry' => new StubSwigValue(true, new StubSwigList([
+                    new StubWeightedValue('GB', 65535),
+                ])),
+                'RegisteredName' => new StubSwigValue(true, 'An ISP'),
+            ],
+            self::LATER_TYPES
+        );
+    }
+
+    /**
+     * The engine class over a stand-in native engine, set up as its
+     * constructor sets it up once the native engine is built.
+     */
+    private static function engineOver(StubNamedNativeEngine $native): IpIntelligenceOnPremise
+    {
+        $engine = (new \ReflectionClass(IpIntelligenceOnPremise::class))
+            ->newInstanceWithoutConstructor();
+        $engine->engine = $native;
+        (function (): void {
+            $this->initEngineMetaData();
+        })->call($engine);
+
+        return $engine;
+    }
+
+    private static function pipeline(IpIntelligenceOnPremise $engine): Pipeline
+    {
+        return (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+        ]))->add($engine)->build();
+    }
+
+    private static function process(Pipeline $pipeline): FlowData
+    {
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+        $flowData->process();
+
+        return $flowData;
     }
 
     /**

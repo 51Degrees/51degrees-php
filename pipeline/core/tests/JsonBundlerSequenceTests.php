@@ -90,10 +90,7 @@ class JsonBundlerSequenceTests extends TestCase
         }
         $builder->add(new JsonBundlerElement());
         $builder->add(new JavascriptBuilderElement([]));
-        $pipeline = $builder->build();
-        $pipeline->suppressProcessExceptions = true;
-
-        return $pipeline->createFlowData();
+        return $builder->build()->createFlowData();
     }
 
     public function testFailsWithoutASequenceElement()

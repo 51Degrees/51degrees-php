@@ -24,6 +24,7 @@
 require(__DIR__ . "/../vendor/autoload.php");
 
 use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
+use fiftyone\pipeline\devicedetection\tests\classes\EvidenceRecords;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\JsonBundlerElement;
@@ -52,10 +53,11 @@ $device = new DeviceDetectionOnPremise();
 $builder = new PipelineBuilder(array("addJavaScriptBuilder" => false));
 $pipeline = $builder->add($device)->build();
 
+// The parts of the web request every detection shares. Each evidence record
+// adds its own headers.
 $server = array(
     "HTTP_ACCEPT" => "*/*",
     "HTTP_HOST" => "127.0.0.1:3000",
-    "HTTP_USER_AGENT" => "PLACEHOLDER",
     "REMOTE_ADDR" => "127.0.0.1",
     "REQUEST_METHOD" => "GET",
     "REQUEST_URI" => "/process",
@@ -67,30 +69,45 @@ $server = array(
 
 
 if ($argc < 2) {
-    fwrite(STDERR, "Usage: $argv[0] [-o|--output] /path/to/user_agents_file.csv\n");
+    fwrite(STDERR, "Usage: $argv[0] [-o|--output] \"/path/to/20000 Evidence Records.yml\"\n");
     exit(1);
 }
 
-$userAgentsFile = null;
+$evidenceFile = null;
 $output = false;
 
 for ($i = 1; $i < $argc; ++$i) {
     if ($argv[$i] == "-o" || $argv[$i] == "--output") {
         $output = true;
     } else {
-        $userAgentsFile = $argv[$i];
+        $evidenceFile = $argv[$i];
     }
 }
 
-$userAgents = file($userAgentsFile, FILE_IGNORE_NEW_LINES) or exit(1);
+// Each record of the YAML evidence file as the web request headers it
+// carries, such as header.user-agent as HTTP_USER_AGENT.
+$requests = array();
+foreach (EvidenceRecords::read((string) $evidenceFile) as $record) {
+    $request = $server;
+    foreach ($record as $key => $value) {
+        if (strpos($key, "header.") === 0) {
+            $name = strtoupper(str_replace("-", "_", substr($key, strlen("header."))));
+            $request["HTTP_" . $name] = $value;
+        }
+    }
+    $requests[] = $request;
+}
+if (count($requests) === 0) {
+    fwrite(STDERR, "No evidence records in '$evidenceFile'\n");
+    exit(1);
+}
 
 // The pipeline is closed in the finally block once the detections have been
 // timed.
 try {
     $startTime = hrtime(true);
-    foreach ($userAgents as $ua) {
-        $server["HTTP_USER_AGENT"] = $ua;
-        process($pipeline, $server);
+    foreach ($requests as $request) {
+        process($pipeline, $request);
     }
     $timeNS = hrtime(true) - $startTime;
     $timeMS = $timeNS / 1e6;
@@ -98,10 +115,10 @@ try {
 
     if ($output) {
         echo json_encode(array(
-            "Detections" => count($userAgents),
-            "DetectionsPerSecond" => count($userAgents) / $timeS,
+            "Detections" => count($requests),
+            "DetectionsPerSecond" => count($requests) / $timeS,
             "RuntimeSeconds" => $timeS,
-            "AvgMillisecsPerDetection" => $timeMS / count($userAgents),
+            "AvgMillisecsPerDetection" => $timeMS / count($requests),
         ), JSON_PRETTY_PRINT), "\n";
     }
 } finally {

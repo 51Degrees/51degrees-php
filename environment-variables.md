@@ -10,8 +10,9 @@ runner, PHP or another tool defines, which that script lists.
 
 ## Keys
 
-In CI each key is filled from the organization secret of exactly its name,
-which common-ci puts into the environment under that name.
+In CI each resource key is filled from the organization variable of exactly
+its name, and each license key from the organization secret of exactly its
+name. common-ci puts each one into the environment under that name.
 
 | Name | What it holds | Read by |
 | --- | --- | --- |
@@ -55,7 +56,8 @@ names when those tests read them.
 ## Adding a name
 
 A new name starts with `_51DEGREES_`, holds one thing, and is added to this
-list in the same change. A key gets an organization secret of exactly its
+list in the same change. A resource key gets an organization variable of
+exactly its name, and a license key an organization secret of exactly its
 name. A setting only this repository uses lives in this repository's own
 files rather than in a variable, as the SWIG version does in each
 `on-premise/generate-wrapper.sh`. Names that are no longer read are listed in

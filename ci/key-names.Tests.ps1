@@ -1,9 +1,10 @@
 # Tests that the CI scripts read their keys only under the _51DEGREES_ names.
 #
 # The workflows pass their secrets to common-ci with 'secrets: inherit', and
-# common-ci puts each secret into the environment under its own name before
-# any script of this repository runs. So no script here takes a key as a
-# parameter, and a workflow that sets a key gives it the secret of the same
+# common-ci puts each secret and organization variable into the environment
+# under its own name before any script of this repository runs. So no script
+# here takes a key as a parameter, and a workflow that sets a key gives it the
+# organization variable (a resource key) or secret (a license key) of the same
 # name.
 #
 # Each package script is copied into the test drive at its path in the
@@ -171,14 +172,16 @@ Describe 'Running the integration tests' {
 }
 
 Describe 'The keys the workflows set' {
-    # Each key is filled from the organization secret of exactly its name,
-    # so no workflow copies one key into another name.
-    It 'are each given the secret of the same name' {
+    # Each resource key is filled from the organization variable of exactly
+    # its name, and each license key from the organization secret of exactly
+    # its name, so no workflow copies one key into another name.
+    It 'are each given the variable or secret of the same name' {
         $lines = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Filter *.yml |
             Select-String -Pattern '^\s*(_51DEGREES_(?:RESOURCE|LICENSE)_KEY\w*)\s*:' |
             ForEach-Object {
                 $name = $_.Matches[0].Groups[1].Value
-                if ($_.Line -notmatch (':\s*\$\{\{\s*secrets\.' + $name + '\s*\}\}\s*$')) {
+                $store = if ($name -like '_51DEGREES_RESOURCE_KEY*') { 'vars' } else { 'secrets' }
+                if ($_.Line -notmatch (':\s*\$\{\{\s*' + $store + '\.' + $name + '\s*\}\}\s*$')) {
                     "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())"
                 }
             })

@@ -317,9 +317,10 @@ abstract class HumanConfidenceWebTestCase extends TestCase
     }
 
     /**
-     * The derived part of the cloud service's answer to the request the
-     * example makes in the first step, sent with a browser's User-Agent and
-     * naming the two properties.
+     * The derived part of the cloud service's answer to a passive request
+     * with a browser's User-Agent that names the two properties. The
+     * example's own passive request names none, so its answer holds only
+     * what the key's saved list of properties gives.
      *
      * @return array<string, mixed>
      */
@@ -342,6 +343,39 @@ abstract class HumanConfidenceWebTestCase extends TestCase
         self::assertArrayNotHasKey('errors', $json, str_replace($key, '<key>', $body));
 
         return is_array($json['derived'] ?? null) ? $json['derived'] : [];
+    }
+
+    /**
+     * The cloud service's answer to a form posted to a path below its API
+     * base, whatever its status.
+     *
+     * @param array<string, string> $fields
+     * @return array{status: int, body: string}
+     */
+    protected static function postToCloud(string $path, array $fields): array
+    {
+        $context = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'content' => http_build_query($fields),
+            'ignore_errors' => true,
+            'timeout' => self::CLOUD_TIMEOUT_SECONDS
+        ]]);
+        $stream = @fopen(self::$endpoint . $path, 'r', false, $context);
+        self::assertNotFalse($stream, self::$serviceName . ' did not answer ' . $path . '.');
+        $lines = stream_get_meta_data($stream)['wrapper_data'] ?? [];
+        $body = (string) stream_get_contents($stream);
+        fclose($stream);
+
+        // The last status line is the answer's own, after any redirect.
+        $status = -1;
+        foreach ((array) $lines as $line) {
+            if (preg_match('~^HTTP/\S+ (\d{3})~', (string) $line, $code) === 1) {
+                $status = (int) $code[1];
+            }
+        }
+
+        return ['status' => $status, 'body' => $body];
     }
 
     protected static function notListedMessage(): string

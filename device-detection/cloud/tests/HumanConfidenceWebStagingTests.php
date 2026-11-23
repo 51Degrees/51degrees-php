@@ -29,8 +29,8 @@ use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
 
 /**
  * The Human Confidence tests of what the staging cloud service serves and
- * the production one does not, being HumanConfidenceSource and the redeem
- * of a sealed value. They call the service CLOUD_STAGING_ENDPOINT names,
+ * the production one does not, being HumanConfidenceSource and the Human
+ * Confidence redeem. They call the service CLOUD_STAGING_ENDPOINT names,
  * with the resource key in RESOURCE_KEY_BESPOKE_STAGING, and skip, naming
  * the variable, when either is not set. Only CI sets the two, in
  * .github/workflows/cloud-human-confidence.yml, which runs the Staging
@@ -40,6 +40,9 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 {
     // Where the cloud service says why HumanConfidenceSource has no value.
     private const SOURCE_NULL_REASON = 'humanconfidencesourcenullreason';
+
+    // A value the cloud service did not seal, for the redeem.
+    private const NOT_SEALED = 'not-a-sealed-value';
 
     protected static function resourceKeyVariable(): string
     {
@@ -57,16 +60,18 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
         return null;
     }
 
-    // None, so the example redeems with no key and the cloud service
-    // answers it the same wherever the tests run.
+    // None, so the example's redeem sends the cloud service no key, which
+    // it refuses the same way wherever the tests run.
     protected static function licenseKey(): ?string
     {
         return null;
     }
 
     /**
-     * The answer the example reads in the first step carries the source
-     * Passive, because no browser tests have run, and a plain level.
+     * The cloud service's answer to a passive request that names both
+     * properties carries the source Passive, because no browser tests have
+     * run, and a plain level. The example's own passive request names no
+     * properties, so this checks the cloud service and not the example.
      */
     public function testPassiveAnswerCarriesTheSourcePassive()
     {
@@ -100,25 +105,52 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
     }
 
     /**
-     * The third step, with a value the cloud service did not seal. The
-     * cloud service has a redeem, so the example passes on what the cloud
-     * service said rather than an error of its own, and never a level.
+     * The cloud service's redeem, asked with the resource key, answers a
+     * value it did not seal as unreadable, with no level.
      */
-    public function testRedeemOfAValueThatWasNotSealedGivesNoLevel()
+    public function testRedeemOfAValueThatWasNotSealedIsUnreadable()
+    {
+        $this->skipWithoutTheProperty();
+
+        $answer = self::postToCloud('hc/redeem', [
+            'resource' => self::$key,
+            'value' => self::NOT_SEALED
+        ]);
+
+        $message = str_replace(
+            self::$key,
+            '<key>',
+            "HTTP status {$answer['status']}.\nBody:\n{$answer['body']}"
+        );
+        $this->assertSame(200, $answer['status'], $message);
+        $json = json_decode($answer['body'], true);
+        $this->assertIsArray($json, $message);
+        $this->assertSame('unreadable', $json['result'] ?? null, $message);
+        $this->assertArrayNotHasKey('humanConfidence', $json, $message);
+    }
+
+    /**
+     * The third step through the example, with no license key and a value
+     * the cloud service did not seal. The example sends the cloud service
+     * no key, so the redeem refuses it, and the example passes the refusal
+     * on with its status rather than an error of its own.
+     */
+    public function testExampleRedeemWithoutALicenseKeyPassesOnTheRefusal()
     {
         $this->skipWithoutTheProperty();
 
         $answer = self::request('/redeem', [
             'method' => 'POST',
             'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-            'content' => http_build_query(['value' => 'not-a-sealed-value'])
+            'content' => http_build_query(['value' => self::NOT_SEALED])
         ]);
 
-        $this->assertNotSame(500, $answer['status'], self::printed($answer));
-        $this->assertNotSame('', trim($answer['body']), self::printed($answer));
         $this->assertNoFault($answer);
+        $this->assertSame(401, $answer['status'], self::printed($answer));
         $json = json_decode($answer['body'], true);
         $this->assertIsArray($json, self::printed($answer));
+        $this->assertIsArray($json['errors'] ?? null, self::printed($answer));
+        $this->assertNotEmpty($json['errors'], self::printed($answer));
         $this->assertArrayNotHasKey('error', $json, self::printed($answer));
         $this->assertArrayNotHasKey('humanConfidence', $json, self::printed($answer));
     }

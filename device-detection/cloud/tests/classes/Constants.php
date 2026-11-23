@@ -29,8 +29,9 @@ class Constants
     // tests ask for.
     public const RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY_BESPOKE';
 
-    // A resource key outside the Bespoke product, which the Human
-    // Confidence tests expect to get no HumanConfidenceSource.
+    // A resource key on the Basic product, which does not offer
+    // HumanConfidenceSource, so the Human Confidence tests expect it to get
+    // none.
     public const BASIC_RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY_BASIC';
 
     // The license key the Accept-CH tests ask the cloud for one property at

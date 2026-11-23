@@ -28,20 +28,21 @@
 
 // The answer for each resource key.
 $answers = [
-    // A key in the Bespoke product, asked before any browser tests have run.
-    'bespoke-key' => ['derived' => [
+    // A key whose products offer HumanConfidenceSource, such as Pro or
+    // Bespoke, asked before any browser tests have run.
+    'source-key' => ['derived' => [
         'humanconfidence' => 'Medium',
         'humanconfidencesource' => 'Passive'
     ]],
-    // A key outside the Bespoke product that has neither property.
-    'outside-bespoke-key' => ['derived' => [
+    // A Basic key, as the Basic product offers neither property.
+    'basic-key' => ['derived' => [
         'humanconfidence' => null,
         'humanconfidencenullreason' => 'The key does not give this property a value.',
         'humanconfidencesource' => null,
         'humanconfidencesourcenullreason' => 'The key does not give this property a value.'
     ]],
-    // A key outside the Bespoke product that has the level and no source.
-    'outside-bespoke-level-key' => ['derived' => [
+    // A key whose products offer the level and not the source.
+    'level-only-key' => ['derived' => [
         'humanconfidence' => 'Medium',
         'humanconfidencesource' => null,
         'humanconfidencesourcenullreason' => 'The key does not give this property a value.'

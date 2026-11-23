@@ -242,7 +242,8 @@ class HumanConfidenceWebTests extends TestCase
     /**
      * The first step. The example asks the cloud service with the headers
      * of the request it was sent, and answers with the level the cloud
-     * service gave.
+     * service gave, and the source Passive when the key's properties list
+     * the source.
      */
     public function testPassive()
     {
@@ -256,6 +257,9 @@ class HumanConfidenceWebTests extends TestCase
         $this->assertIsArray($json, self::printed($answer));
         $this->assertArrayNotHasKey('error', $json, self::printed($answer));
         $this->assertContains($json['humanConfidence'] ?? null, self::LEVELS, self::printed($answer));
+        if (isset(self::$properties[self::SOURCE_PROPERTY])) {
+            $this->assertSame('Passive', $json['source'] ?? null, self::printed($answer));
+        }
     }
 
     /**
@@ -273,9 +277,10 @@ class HumanConfidenceWebTests extends TestCase
     }
 
     /**
-     * A resource key outside the Bespoke product gets no source.
+     * The Basic product does not offer HumanConfidenceSource, so a Basic
+     * key gets no source.
      */
-    public function testKeyOutsideBespokeGetsNoSource()
+    public function testBasicKeyGetsNoSource()
     {
         $key = ResourceKeys::find(Constants::BASIC_RESOURCE_ENV_VAR);
         if ($key === null) {

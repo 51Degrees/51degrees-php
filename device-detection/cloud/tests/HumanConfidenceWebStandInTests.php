@@ -71,38 +71,39 @@ class HumanConfidenceWebStandInTests extends TestCase
     }
 
     /**
-     * A key in the Bespoke product gets the source Passive, as no browser
-     * tests have run, and the level the cloud service gave.
+     * A key whose products offer HumanConfidenceSource gets the source
+     * Passive, as no browser tests have run, and the level the cloud
+     * service gave.
      */
     public function testPassiveGivesTheSourceTheCloudServiceGave()
     {
         $this->assertSame(
             ['source' => 'Passive', 'humanConfidence' => 'Medium'],
-            self::passive('bespoke-key')
+            self::passive('source-key')
         );
     }
 
     /**
-     * A key outside the Bespoke product is answered with neither property,
-     * and the example makes up neither.
+     * A Basic key is answered with neither property, as the Basic product
+     * offers neither, and the example makes up neither.
      */
-    public function testPassiveForAKeyOutsideBespokeGivesNoSource()
+    public function testPassiveForABasicKeyGivesNoSource()
     {
         $this->assertSame(
             ['source' => null, 'humanConfidence' => null],
-            self::passive('outside-bespoke-key')
+            self::passive('basic-key')
         );
     }
 
     /**
-     * A key outside the Bespoke product that has the level is answered
+     * A key whose products offer the level and not the source is answered
      * with the level and no source, and the example makes up no source.
      */
-    public function testPassiveForAKeyOutsideBespokeWithALevelGivesNoSource()
+    public function testPassiveForAKeyWithOnlyTheLevelGivesNoSource()
     {
         $this->assertSame(
             ['source' => null, 'humanConfidence' => 'Medium'],
-            self::passive('outside-bespoke-level-key')
+            self::passive('level-only-key')
         );
     }
 

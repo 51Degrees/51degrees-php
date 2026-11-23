@@ -12,7 +12,9 @@ The following secrets are required:
 * `_51DEGREES_LICENSE_KEY_BESPOKE` - [license key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for the Accept-CH tests, which ask the cloud for one property each with it
     * Without it, those tests are skipped, naming it.
 
-The following organization variable is required:
+The following organization variables are required:
 * `_51DEGREES_RESOURCE_KEY_BESPOKE` - [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for integration tests, carrying every property the tests ask for
     * Example: `R4nd0m-S7r1ng`
     * Without it, the integration tests are skipped, with a warning naming it.
+* `_51DEGREES_RESOURCE_KEY_BASIC` - [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) on the Basic product, for the Human Confidence test that checks a key whose products do not offer `HumanConfidenceSource` gets none
+    * Without it, the Basic test skips, naming it.

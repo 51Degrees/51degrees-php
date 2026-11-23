@@ -10,6 +10,7 @@
       <file>tests/CloudPipelineOrderTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/ExamplesWithoutKeyTests.php</file>
+      <file>tests/HumanConfidenceWebStandInTests.php</file>
       <file>tests/HighEntropyValuesExampleTests.php</file>
       <file>tests/WebExampleFlowDataTests.php</file>
       <file>tests/HardwareProfileDataTests.php</file>

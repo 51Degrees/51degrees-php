@@ -67,6 +67,11 @@ class HumanConfidenceWebTests extends TestCase
     private const PROPERTY = 'humanconfidence';
     private const SOURCE_PROPERTY = 'humanconfidencesource';
 
+    // The properties the tests name when they ask the cloud service
+    // themselves, so the answer carries both whatever the key's own list
+    // of properties holds.
+    private const PROPERTIES = 'derived.humanconfidence,derived.humanconfidencesource';
+
     // The levels a passive result can be.
     private const LEVELS = ['High', 'Medium', 'Low'];
 
@@ -236,8 +241,9 @@ class HumanConfidenceWebTests extends TestCase
 
     /**
      * The first step. The example asks the cloud service with the headers
-     * of the request it was sent, and answers with the source and the level
-     * the cloud service gave.
+     * of the request it was sent, and answers with the level the cloud
+     * service gave, and the source Passive when the key's properties list
+     * the source.
      */
     public function testPassive()
     {
@@ -254,6 +260,36 @@ class HumanConfidenceWebTests extends TestCase
         if (isset(self::$properties[self::SOURCE_PROPERTY])) {
             $this->assertSame('Passive', $json['source'] ?? null, self::printed($answer));
         }
+    }
+
+    /**
+     * The answer the example reads in the first step carries the source
+     * Passive, because no browser tests have run, and a plain level.
+     */
+    public function testPassiveAnswerCarriesTheSourcePassive()
+    {
+        $this->skipWithoutTheProperty();
+
+        $derived = self::passiveAnswer((string) self::$key);
+
+        $this->assertSame('Passive', $derived[self::SOURCE_PROPERTY] ?? null, (string) json_encode($derived));
+        $this->assertContains($derived[self::PROPERTY] ?? null, self::LEVELS, (string) json_encode($derived));
+    }
+
+    /**
+     * The Basic product does not offer HumanConfidenceSource, so a Basic
+     * key gets no source.
+     */
+    public function testBasicKeyGetsNoSource()
+    {
+        $key = ResourceKeys::find(Constants::BASIC_RESOURCE_ENV_VAR);
+        if ($key === null) {
+            $this->markTestSkipped(ResourceKeys::missingMessage(Constants::BASIC_RESOURCE_ENV_VAR));
+        }
+
+        $derived = self::passiveAnswer($key);
+
+        $this->assertNull($derived[self::SOURCE_PROPERTY] ?? null, (string) json_encode($derived));
     }
 
     /**
@@ -389,6 +425,34 @@ class HumanConfidenceWebTests extends TestCase
         }
 
         return $names;
+    }
+
+    /**
+     * The derived part of the cloud service's answer to the request the
+     * example makes in the first step, sent with a browser's User-Agent and
+     * naming the two properties.
+     *
+     * @return array<string, mixed>
+     */
+    private static function passiveAnswer(string $key): array
+    {
+        $context = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'content' => http_build_query([
+                'user-agent' => Constants::CHROME_UA,
+                'values' => self::PROPERTIES
+            ]),
+            'ignore_errors' => true,
+            'timeout' => self::CLOUD_TIMEOUT_SECONDS
+        ]]);
+        $body = @file_get_contents(self::endpoint() . rawurlencode($key) . '.json', false, $context);
+        self::assertNotFalse($body, 'The cloud service at ' . self::endpoint() . ' did not answer.');
+        $json = json_decode($body, true);
+        self::assertIsArray($json, 'The cloud service did not answer with JSON.');
+        self::assertArrayNotHasKey('errors', $json, str_replace($key, '<key>', $body));
+
+        return is_array($json['derived'] ?? null) ? $json['derived'] : [];
     }
 
     private static function notListedMessage(): string

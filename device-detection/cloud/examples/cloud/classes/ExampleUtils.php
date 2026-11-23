@@ -40,6 +40,13 @@ class ExampleUtils
     // The environment variable that can name the cloud service to use.
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
+    // The Data Key of the engine that gives the hardware profiles.
+    private const HARDWARE_DATA_KEY = 'hardware';
+
+    // The configurator page holding exactly the properties the TAC and
+    // native model examples need.
+    private const HARDWARE_LOOKUP_CONFIGURATION = 'configure/QKyYH5XT';
+
     // The repository every example lists under "Find out more".
     private const FIND_OUT_MORE_REPOSITORIES = [
         'This example' =>
@@ -276,36 +283,51 @@ class ExampleUtils
     }
 
     /**
-     * Read the list of hardware profiles from the 'hardware' element data.
+     * Whether the resource key lacks the hardware lookup that the TAC and
+     * native model examples need. The hardware engine's properties are the
+     * ones the cloud service lists for the key, and the key carries the
+     * lookup when they include Profiles. When the list could not be read,
+     * the answer is not known, so this gives false and the lookups go
+     * ahead and report the failure.
      *
-     * An empty list is returned when the resource key has no access to the
-     * hardware aspect at all, because reading a property that is not there
-     * raises an exception rather than returning an empty list.
-     *
-     * @param mixed $hardware The 'hardware' element data
-     * @return array<int, mixed>
+     * @param \fiftyone\pipeline\core\Pipeline $pipeline
+     * @return bool
      */
-    public static function getProfiles($hardware)
+    public static function lacksHardwareLookup($pipeline)
     {
-        try {
-            $profiles = $hardware->profiles;
-        } catch (\Exception $e) {
-            return [];
-        }
+        $hardware = $pipeline->getElement(self::HARDWARE_DATA_KEY);
 
-        return is_array($profiles) ? $profiles : [];
+        return $hardware->propertyMetadataLoaded && !array_key_exists(
+            'profiles',
+            array_change_key_case($hardware->getProperties())
+        );
     }
 
     /**
-     * The line printed when a lookup returned no device profiles at all.
+     * The line the TAC and native model examples print in place of their
+     * lookups when the resource key lacks the hardware lookup, with links
+     * to create a key that has it and to contact us about it.
      *
+     * @param string $exampleFile The example's file, __FILE__
      * @return string
      */
-    public static function getNoProfilesMessage()
+    public static function getNoHardwareLookupMessage($exampleFile)
     {
-        return "\tNo device profiles were returned. The current resource " .
-            'key does not include the hardware properties this example ' .
-            'needs. See https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-classes-exampleutils.php&utm_term=no-profiles';
+        return 'The resource key does not include HardwarePlatform.Profiles, ' .
+            'the hardware lookup this example needs, so no devices are ' .
+            'listed. Create a resource key that includes it at ' .
+            self::getTaggedLink(
+                self::HARDWARE_LOOKUP_CONFIGURATION,
+                $exampleFile,
+                'no-hardware-lookup'
+            ) .
+            ', or contact us about it at ' .
+            self::getTaggedLink(
+                'contact-us',
+                $exampleFile,
+                'no-hardware-lookup'
+            ) .
+            '.';
     }
 
     /**

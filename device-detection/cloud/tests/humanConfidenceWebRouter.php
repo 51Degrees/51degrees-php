@@ -21,7 +21,8 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-// Serves the Human Confidence web example for HumanConfidenceWebTests, as
+// Serves the Human Confidence web example for the tests built on
+// classes/HumanConfidenceWebTestCase.php, as
 // examples/cloud/humanConfidenceWeb.php serves it, with one more setting,
 // the timeout the tests give a request to the cloud service. It is far
 // above anything measured on a runner, because a test must not fail when

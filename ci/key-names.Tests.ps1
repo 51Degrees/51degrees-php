@@ -186,6 +186,23 @@ Describe 'The keys the workflows set' {
         $lines | Should -BeNullOrEmpty
     }
 
+    # The two names only CI uses, for the Human Confidence tests that need
+    # the staging cloud service, are each filled from the organization
+    # variable or secret of exactly their name, the resource key from a
+    # secret.
+    It '<Name> is given the organization <Kind> of the same name' -ForEach @(
+        @{ Name = 'CLOUD_STAGING_ENDPOINT'; Kind = 'variable'; Context = 'vars' }
+        @{ Name = 'RESOURCE_KEY_BESPOKE_STAGING'; Kind = 'secret'; Context = 'secrets' }
+    ) {
+        $set = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Filter *.yml |
+            Select-String -Pattern ('^\s*' + $Name + '\s*:'))
+        $set | Should -Not -BeNullOrEmpty
+        @($set | Where-Object {
+            $_.Line -notmatch (':\s*\$\{\{\s*' + $Context + '\.' + $Name + '\s*\}\}\s*$')
+        } | ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }) |
+            Should -BeNullOrEmpty
+    }
+
     # Every resource key is an organization secret, so no line of any
     # workflow, a step input or a run script as well as an env entry, reads a
     # _51DEGREES_RESOURCE_KEY name as an organization variable.

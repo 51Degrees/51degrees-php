@@ -389,7 +389,7 @@ cd ../..
 environment variable name that the packages, tests, examples, CI scripts and
 workflows of this repository read or set, with what each holds. Only names
 that start with `_51DEGREES_` are read, apart from the ones the operating
-system, the runner, PHP or another tool defines, and the secrets only CI
+system, the runner, PHP or another tool defines, and the names only CI
 uses, which
 [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1)
 lists and checks on every pull request. A change that needs a new name adds it
@@ -461,7 +461,12 @@ cd pipeline/core
 Check the suite names in the package's `phpunit.xml`. In `location`, `Unit`
 holds the examples run with no resource key and `Integration` the tests that
 need one. `device-detection/onpremise` also has `WithoutTacFile`, the unit
-tests that need no TAC data file.
+tests that need no TAC data file. `device-detection/cloud` also has
+`Staging`, the Human Confidence tests of what the staging cloud service
+serves and the production one does not. Only
+`.github/workflows/cloud-human-confidence.yml` runs it, with
+`CLOUD_STAGING_ENDPOINT` and `RESOURCE_KEY_BESPOKE_STAGING`, two names only
+CI sets.
 `device-detection/onpremise` is not in the root `composer.json`, so the
 root autoloader does not load its `src`.
 

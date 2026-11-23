@@ -1,9 +1,9 @@
 # Every environment variable this repository reads or sets, and every secret
 # and organization variable its workflows read, has a name that starts with
 # _51DEGREES_. The only other names are the ones the operating system, the
-# runner, PHP or another tool defines, which are listed below. A name that
-# starts with a digit, as the 51Degrees names once did, is refused wherever it
-# appears, because a POSIX shell cannot set it.
+# runner, PHP or another tool defines, and the names only CI uses, which are
+# listed below. A name that starts with a digit, as the 51Degrees names once
+# did, is refused wherever it appears, because a POSIX shell cannot set it.
 #
 # This reads every file git tracks, which leaves out build output and the
 # submodules. Dot-sourcing the script defines Find-EnvironmentNameProblem
@@ -43,11 +43,15 @@ $script:PlatformNames = @(
     'phpts'
 )
 
-# Secrets only CI uses. No customer sets them, so they take no _51DEGREES_
-# prefix, and each is named for what it does and read from the organization
-# secret of exactly that name.
-$script:CiSecretNames = @(
+# The names only CI uses. No customer sets them, so they have no _51DEGREES_
+# prefix, and each name says what it holds. Each is read from the
+# organization secret or variable of exactly that name.
+$script:CiNames = @(
     'MIRROR_PUSH_TOKEN'
+    # The staging cloud service and a Bespoke key it accepts, for the Human
+    # Confidence tests of what it serves and the production one does not.
+    'CLOUD_STAGING_ENDPOINT'
+    'RESOURCE_KEY_BESPOKE_STAGING'
 )
 
 # Prefixes of names that a platform defines, being the runner's own, the web
@@ -114,7 +118,7 @@ function Test-ShellFile([string]$Path) {
 
 # True when a name may be read or set here. A platform's name is compared in
 # any case, because Windows reads an environment variable name in any case.
-# A _51DEGREES_ name and a CI secret's name are compared as written, because
+# A _51DEGREES_ name and a name only CI uses are compared as written, because
 # Linux and macOS read a name in another case as another name.
 function Test-NameAllowed([string]$Name) {
     if ($Name.StartsWith($script:Prefix, [StringComparison]::Ordinal)) {
@@ -123,7 +127,7 @@ function Test-NameAllowed([string]$Name) {
     if ($script:PlatformNames -contains $Name) {
         return $true
     }
-    if ($script:CiSecretNames -ccontains $Name) {
+    if ($script:CiNames -ccontains $Name) {
         return $true
     }
     foreach ($prefix in $script:PlatformPrefixes) {
@@ -230,9 +234,9 @@ Write-Output ("$read paths read, $($skipped.Count) skipped as not files: " +
 if ($found.Count -gt 0) {
     Write-Output ($found | Sort-Object -Unique)
     throw ("$($found.Count) names are read or set that do not start with " +
-        "$($script:Prefix) and are not a platform's own or a CI secret's, or " +
+        "$($script:Prefix) and are not a platform's own or one only CI uses, or " +
         'start with the digit, which a POSIX shell cannot set.')
 }
 
 Write-Output ("Every name read or set starts with $($script:Prefix), or is " +
-    'a platform name or a CI secret, and none starts with the digit.')
+    'a platform name or a name only CI uses, and none starts with the digit.')

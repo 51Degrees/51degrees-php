@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\devicedetection\examples\cloud\classes;
 
+use fiftyone\pipeline\cloudrequestengine\Constants as CloudRequestConstants;
 use fiftyone\pipeline\core\AspectPropertyValue;
 
 class ExampleUtils
@@ -43,8 +44,8 @@ class ExampleUtils
     // The Data Key of the engine that gives the hardware profiles.
     private const HARDWARE_DATA_KEY = 'hardware';
 
-    // The configurator page holding exactly the properties the TAC and
-    // native model examples need.
+    // The Cloud Configurator page holding exactly the properties the TAC
+    // and native model examples need.
     private const HARDWARE_LOOKUP_CONFIGURATION = 'configure/QKyYH5XT';
 
     // The repository every example lists under "Find out more".
@@ -286,20 +287,30 @@ class ExampleUtils
      * Whether the resource key lacks the hardware lookup that the TAC and
      * native model examples need. The hardware engine's properties are the
      * ones the cloud service lists for the key, and the key carries the
-     * lookup when they include Profiles. When the list could not be read,
-     * the answer is not known, so this gives false and the lookups go
-     * ahead and report the failure.
+     * lookup when they include Profiles. When the list could not be read
+     * while the pipeline was built, the Cloud Request Engine is asked for
+     * it again, so the answer always comes from the list itself.
      *
      * @param \fiftyone\pipeline\core\Pipeline $pipeline
      * @return bool
+     * @throws \Exception the cloud service's error when the list still
+     *   cannot be read
      */
     public static function lacksHardwareLookup($pipeline)
     {
         $hardware = $pipeline->getElement(self::HARDWARE_DATA_KEY);
+        $properties = $hardware->getProperties();
 
-        return $hardware->propertyMetadataLoaded && !array_key_exists(
+        if (!$hardware->propertyMetadataLoaded) {
+            $products = $pipeline
+                ->getElement(CloudRequestConstants::DATA_KEY)
+                ->getEngineProperties();
+            $properties = $products[self::HARDWARE_DATA_KEY] ?? [];
+        }
+
+        return !array_key_exists(
             'profiles',
-            array_change_key_case($hardware->getProperties())
+            array_change_key_case($properties)
         );
     }
 

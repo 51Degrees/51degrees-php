@@ -182,7 +182,7 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::dataRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame(
             ['User-Agent' => 'iPhone', 'resource' => self::resourceKey],
             $fields
@@ -191,7 +191,7 @@ class CredentialsTests extends TestCase
         [$type, $url, $fields] = self::propertiesRequest($result['requests']);
         $this->assertSame('GET', $type);
         $this->assertSame(
-            Constants::BASE_URL_DEFAULT . 'accessibleProperties?resource=' . self::resourceKey,
+            CloudEndPoint::expected() . 'accessibleProperties?resource=' . self::resourceKey,
             $url
         );
         $this->assertSame([], $fields);
@@ -207,14 +207,14 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::propertiesRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . 'accessibleProperties', $url);
+        $this->assertSame(CloudEndPoint::expected() . 'accessibleProperties', $url);
         $this->assertSame(
             ['resource' => self::resourceKey, 'license' => self::licenseKey],
             $fields
         );
 
         [, $url, $fields] = self::dataRequest($result['requests']);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
@@ -232,7 +232,7 @@ class CredentialsTests extends TestCase
 
         $this->assertSame([], $result['thrown']);
         [, $url, $fields] = self::dataRequest($result['requests']);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
@@ -250,7 +250,7 @@ class CredentialsTests extends TestCase
 
         $this->assertSame([], $result['thrown']);
         [, $url, $fields] = self::dataRequest($result['requests']);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
@@ -260,7 +260,7 @@ class CredentialsTests extends TestCase
         [$type, $url] = self::propertiesRequest($result['requests']);
         $this->assertSame('GET', $type);
         $this->assertSame(
-            Constants::BASE_URL_DEFAULT . 'accessibleProperties?resource=' . self::resourceKey,
+            CloudEndPoint::expected() . 'accessibleProperties?resource=' . self::resourceKey,
             $url
         );
     }
@@ -275,7 +275,7 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::dataRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . 'json', $url);
+        $this->assertSame(CloudEndPoint::expected() . 'json', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'license' => self::licenseKey,
@@ -293,12 +293,12 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::propertiesRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . 'accessibleProperties', $url);
+        $this->assertSame(CloudEndPoint::expected() . 'accessibleProperties', $url);
         $this->assertSame(['license' => self::licenseKey], $fields);
         $this->assertArrayHasKey('ismobile', $result['engine']->flowElementProperties['device']);
 
         $this->assertContains(
-            ['GET', Constants::BASE_URL_DEFAULT . 'evidencekeys', []],
+            ['GET', CloudEndPoint::expected() . 'evidencekeys', []],
             $result['requests']
         );
         $this->assertSame(

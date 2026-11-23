@@ -26,23 +26,90 @@
 // cloud service does for a resource key without the hardware lookup, and
 // the evidence keys, and anything else with 404. It writes each request to
 // standard error after REQUEST_MARKER, so a test can see what was asked.
+// For two resource keys the accessible properties request fails with 500,
+// the first time it is made or every time. For one more the key has the
+// hardware lookup and every lookup matches no device.
 
 const REQUEST_MARKER = 'Stand-in request: ';
 
-// The cloud service's answer for a resource key with no hardware product,
-// cut down to one device property.
-$accessibleProperties = [
-    'Products' => [
-        'device' => [
-            'DataTier' => 'CloudV5Basic',
-            'Properties' => [[
-                'Name' => 'IsMobile',
-                'Type' => 'Boolean',
-                'Category' => 'Device',
-                'DelayExecution' => false
-            ]]
-        ]
-    ]
+// The resource keys whose accessible properties request fails, and the
+// error the stand-in gives.
+const FAILS_ONCE_KEY = 'fails-once-key';
+const FAILS_ALWAYS_KEY = 'fails-always-key';
+const FAILURE = 'Stand-in failure';
+
+// The resource key that has the hardware lookup, whose lookups match no
+// device.
+const NO_DEVICES_KEY = 'no-devices-key';
+
+/**
+ * Whether the accessible properties request for the key fails this time.
+ * The first failure for FAILS_ONCE_KEY is recorded in a file in the
+ * document root, which each test makes empty.
+ */
+function failsNow(string $key): bool
+{
+    if ($key === FAILS_ALWAYS_KEY) {
+        return true;
+    }
+    if ($key !== FAILS_ONCE_KEY) {
+        return false;
+    }
+    $failed = $_SERVER['DOCUMENT_ROOT'] . '/failed-once';
+    if (file_exists($failed)) {
+        return false;
+    }
+    touch($failed);
+
+    return true;
+}
+
+// The device product the cloud service lists for every key, cut down to
+// one property. A key without the hardware lookup has only this product.
+$device = [
+    'DataTier' => 'CloudV5Basic',
+    'Properties' => [[
+        'Name' => 'IsMobile',
+        'Type' => 'Boolean',
+        'Category' => 'Device',
+        'DelayExecution' => false
+    ]]
+];
+
+// The hardware product the cloud service lists for a key that has the
+// hardware lookup, cut down to the properties the examples print.
+$hardware = [
+    'DataTier' => 'CloudV5Bespoke',
+    'Properties' => [[
+        'Name' => 'Profiles',
+        'Type' => 'Array',
+        'Category' => '',
+        'ItemProperties' => [
+            [
+                'Name' => 'HardwareVendor',
+                'Type' => 'String',
+                'Category' => 'Name',
+                'DelayExecution' => false,
+                'EvidenceProperties' => []
+            ],
+            [
+                'Name' => 'HardwareModel',
+                'Type' => 'String',
+                'Category' => 'Name',
+                'DelayExecution' => false,
+                'EvidenceProperties' => []
+            ],
+            [
+                'Name' => 'HardwareName',
+                'Type' => 'Array',
+                'Category' => 'Name',
+                'DelayExecution' => false,
+                'EvidenceProperties' => []
+            ]
+        ],
+        'DelayExecution' => false,
+        'EvidenceProperties' => []
+    ]]
 ];
 
 // Some of the evidence keys the cloud service lists, including the ones
@@ -63,12 +130,29 @@ $path = strtolower((string) parse_url($uri, PHP_URL_PATH));
 header('Content-Type: application/json');
 
 if ($method === 'GET' && $path === '/api/v4/accessibleproperties') {
-    echo json_encode($accessibleProperties);
+    $key = (string) ($_GET['resource'] ?? '');
+    if (failsNow($key)) {
+        http_response_code(500);
+        echo json_encode(['errors' => [FAILURE]]);
+
+        return;
+    }
+    $products = ['device' => $device];
+    if ($key === NO_DEVICES_KEY) {
+        $products['hardware'] = $hardware;
+    }
+    echo json_encode(['Products' => $products]);
 
     return;
 }
 if ($method === 'GET' && $path === '/api/v4/evidencekeys') {
     echo json_encode($evidenceKeys);
+
+    return;
+}
+// The cloud service's answer to a lookup that matches no device.
+if ($method === 'POST' && $path === '/api/v4/' . NO_DEVICES_KEY . '.json') {
+    echo json_encode(['hardware' => ['profiles' => []]]);
 
     return;
 }

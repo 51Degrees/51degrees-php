@@ -36,6 +36,7 @@ use fiftyone\pipeline\devicedetection\examples\cloud\classes\MetadataConsole;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\NativeModelLookupConsole;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\TacLookupConsole;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
+use fiftyone\pipeline\devicedetection\tests\classes\HardwareLookupOutput;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
 use PHPUnit\Framework\TestCase;
 
@@ -58,13 +59,6 @@ class ExampleTests extends TestCase
     // The values the TAC and native model examples look up.
     private const TACS = ['35925406', '86386802'];
     private const NATIVE_MODELS = ['SC-03L', 'iPhone11,8'];
-
-    // What the TAC and native model examples print when the resource key
-    // lacks the hardware lookup.
-    private const NO_HARDWARE_LOOKUP = 'does not include HardwarePlatform.Profiles';
-
-    // How the examples print a property with no value, before its reason.
-    private const NO_VALUE = 'Unknown';
 
     // Text that shows an example printed a programming fault rather than a
     // result. An example that reaches any of these is broken, however
@@ -241,9 +235,9 @@ class ExampleTests extends TestCase
     }
 
     /**
-     * Fails when the TAC or native model example said the resource key
-     * lacks the hardware lookup, and otherwise when any value it looks up
-     * lists no device with a vendor and a model under its heading.
+     * Fails, with HardwareLookupOutput's reason, when the TAC or native
+     * model example said the resource key lacks the hardware lookup or
+     * listed no device with a vendor and a model for a value it looks up.
      *
      * @param string $output Everything the example wrote
      * @param string $lookup The lookup, such as 'TAC lookup'
@@ -256,77 +250,10 @@ class ExampleTests extends TestCase
         string $subject,
         array $values
     ): void {
-        if (strpos($output, self::NO_HARDWARE_LOOKUP) !== false) {
-            $this->fail(
-                'The resource key in ' . Constants::RESOURCE_ENV_VAR .
-                ' does not include HardwarePlatform.Profiles, which the ' .
-                "{$lookup} needs.\n{$output}"
-            );
+        $failure = HardwareLookupOutput::failure($output, $lookup, $subject, $values);
+        if ($failure !== null) {
+            $this->fail($failure);
         }
-
-        $lines = explode("\n", $output);
-        foreach ($values as $value) {
-            $heading = array_search(
-                "Which devices are associated with the {$subject} '{$value}'?",
-                $lines,
-                true
-            );
-            // The device lines are the tab indented lines under the heading.
-            $listed = false;
-            $at = $heading === false ? count($lines) : $heading + 1;
-            while (isset($lines[$at]) && strpos($lines[$at], "\t") === 0) {
-                if (self::hasVendorAndModel(substr($lines[$at], 1))) {
-                    $listed = true;
-                }
-                $at++;
-            }
-            $this->assertTrue(
-                $listed,
-                'No device with a vendor and a model was listed for the ' .
-                "{$subject} '{$value}'.\n{$output}"
-            );
-        }
-    }
-
-    /**
-     * Whether a device line, '<vendor> <name> (<model>)', has a vendor and
-     * a model. The vendor is the text before the first space and the model
-     * the text inside the final parentheses, and neither may be empty or a
-     * property with no value, which the examples print as 'Unknown' and
-     * its reason.
-     */
-    private static function hasVendorAndModel(string $line): bool
-    {
-        $line = rtrim($line);
-        $space = strpos($line, ' ');
-        if ($space === false || substr($line, -1) !== ')') {
-            return false;
-        }
-
-        // Find the parenthesis that opens the final one, as a model that
-        // has no value holds its reason in parentheses of its own.
-        $depth = 0;
-        for ($open = strlen($line) - 1; $open >= 0; $open--) {
-            if ($line[$open] === ')') {
-                $depth++;
-            } elseif ($line[$open] === '(' && --$depth === 0) {
-                break;
-            }
-        }
-        if ($open < 0) {
-            return false;
-        }
-
-        $vendor = substr($line, 0, $space);
-        $model = trim(substr($line, $open + 1, -1));
-
-        foreach ([$vendor, $model] as $part) {
-            if ($part === '' || strpos($part, self::NO_VALUE) === 0) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**

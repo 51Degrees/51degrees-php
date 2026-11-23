@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\cloudrequestengine\CloudRequestException;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\NativeModelLookupConsole;
@@ -36,14 +37,47 @@ use PHPUnit\Framework\TestCase;
  * cloud service does for a resource key without the hardware lookup. Each
  * example must say so in one line that is not indented, with tagged links
  * to create a key that has the lookup and to contact us, list no lookups,
- * ask the stand-in for no lookup, and end normally. The examples run as a
- * person runs them, each in its own PHP, and their classes run as
- * ExampleTests runs them, so no real key and no network are needed.
+ * ask the stand-in for no lookup, and end normally. That holds too when the
+ * request for the key's properties fails once, and when it fails every time
+ * the example must end with the cloud service's error instead. A key with
+ * the hardware lookup whose lookups match no device must get a line saying
+ * so under each heading. The examples run as a person runs them, each in
+ * its own PHP, and their classes run as ExampleTests runs them, so no real
+ * key and no network are needed.
  */
 class HardwareLookupStandInTests extends TestCase
 {
-    // A resource key for the stand-in, which answers every key the same.
+    // The resource keys the stand-in knows. It answers the first with the
+    // properties of a key without the hardware lookup, and fails the
+    // request for the properties of the second once and of the third every
+    // time. The fourth has the hardware lookup, and its lookups match no
+    // device.
     private const STAND_IN_KEY = 'stand-in-key';
+    private const FAILS_ONCE_KEY = 'fails-once-key';
+    private const FAILS_ALWAYS_KEY = 'fails-always-key';
+    private const NO_DEVICES_KEY = 'no-devices-key';
+
+    // The values each example looks up, the subject its headings name, and
+    // the line it prints under a heading when a lookup matches no device.
+    private const LOOKUPS = [
+        self::TAC_SCRIPT => [
+            ['35925406', '86386802'],
+            'TAC',
+            'No devices are associated with this TAC.'
+        ],
+        self::NATIVE_MODEL_SCRIPT => [
+            ['SC-03L', 'iPhone11,8'],
+            'native model name',
+            'No devices are associated with this native model name.'
+        ]
+    ];
+
+    // The error the stand-in gives when a request fails.
+    private const FAILURE = 'Stand-in failure';
+
+    // The examples, as scripts.
+    private const TAC_SCRIPT = 'cloud/tacLookupConsole.php';
+    private const NATIVE_MODEL_SCRIPT = 'cloud/nativeModelLookupConsole.php';
 
     // How long the stand-in has to start listening.
     private const START_SECONDS = 30;
@@ -59,6 +93,9 @@ class HardwareLookupStandInTests extends TestCase
     private const NO_HARDWARE_LOOKUP =
         'The resource key does not include HardwarePlatform.Profiles, ' .
         'the hardware lookup this example needs, so no devices are listed. ';
+
+    // Text only that line holds.
+    private const NOT_INCLUDED = 'does not include HardwarePlatform.Profiles';
 
     // The start of the two links that line must hold.
     private const CONFIGURE =
@@ -84,13 +121,23 @@ class HardwareLookupStandInTests extends TestCase
     /** @var string The file the stand-in's standard error goes to */
     private $cloudErrors = '';
 
+    /** @var string The stand-in's document root, where it keeps its state */
+    private $cloudRoot = '';
+
+    /** @var string[] What an example's class wrote, one line per call */
+    private $lines = [];
+
     protected function setUp(): void
     {
         $this->cloudErrors = (string) tempnam(sys_get_temp_dir(), 'stand-in');
+        $this->cloudRoot = (string) tempnam(sys_get_temp_dir(), 'stand-in');
+        unlink($this->cloudRoot);
+        mkdir($this->cloudRoot);
         $this->cloudAddress = self::freeAddress();
         $this->cloud = self::serve(
             $this->cloudAddress,
             __DIR__ . '/hardwareLookupStandInCloud.php',
+            $this->cloudRoot,
             $this->cloudErrors
         );
     }
@@ -102,16 +149,20 @@ class HardwareLookupStandInTests extends TestCase
         if (is_file($this->cloudErrors)) {
             unlink($this->cloudErrors);
         }
+        if (is_dir($this->cloudRoot)) {
+            array_map('unlink', (array) glob($this->cloudRoot . '/*'));
+            rmdir($this->cloudRoot);
+        }
     }
 
     public function testTacLookupConsole()
     {
-        $this->runExampleAgainstStandIn('cloud/tacLookupConsole.php');
+        $this->runScriptForKeyWithoutLookup(self::TAC_SCRIPT, self::STAND_IN_KEY, 1);
     }
 
     public function testNativeModelLookupConsole()
     {
-        $this->runExampleAgainstStandIn('cloud/nativeModelLookupConsole.php');
+        $this->runScriptForKeyWithoutLookup(self::NATIVE_MODEL_SCRIPT, self::STAND_IN_KEY, 1);
     }
 
     /**
@@ -119,23 +170,7 @@ class HardwareLookupStandInTests extends TestCase
      */
     public function testTacLookupConsoleClass()
     {
-        $config = json_decode(
-            (string) file_get_contents(__DIR__ . '/../examples/cloud/tacLookupConsole.json'),
-            true
-        );
-        ExampleUtils::setResourceKeyInConfig($config, self::STAND_IN_KEY);
-
-        $output = $this->runClass(function ($record) use ($config) {
-            (new TacLookupConsole())->run(
-                $config,
-                new Logger('info'),
-                $record,
-                $this->cloudEndPoint()
-            );
-        });
-
-        $this->assertSaysTheKeyLacksTheLookup($output, $output);
-        $this->assertNoLookupWasAskedFor();
+        $this->runClassForKeyWithoutLookup(self::TAC_SCRIPT, self::STAND_IN_KEY, 1);
     }
 
     /**
@@ -143,54 +178,248 @@ class HardwareLookupStandInTests extends TestCase
      */
     public function testNativeModelLookupConsoleClass()
     {
-        $output = $this->runClass(function ($record) {
-            (new NativeModelLookupConsole())->run(
-                self::STAND_IN_KEY,
-                new Logger('info'),
-                $record,
-                $this->cloudEndPoint()
-            );
-        });
-
-        $this->assertSaysTheKeyLacksTheLookup($output, $output);
-        $this->assertNoLookupWasAskedFor();
+        $this->runClassForKeyWithoutLookup(self::NATIVE_MODEL_SCRIPT, self::STAND_IN_KEY, 1);
     }
 
     /**
-     * Runs the example in its own PHP with the stand-in as its cloud
-     * service and checks it ended with exit status 0, said the key lacks
-     * the lookup, ended with Find out more and asked for no lookup.
+     * The example asks for the properties again when the request made as
+     * the pipeline was built failed, and decides from the answer.
      */
-    private function runExampleAgainstStandIn(string $script): void
+    public function testTacLookupConsoleWhenThePropertiesFailOnce()
     {
-        $run = ExampleRun::run(
-            __DIR__ . "/../examples/{$script}",
-            [],
-            [],
-            [
-                ExampleUtils::RESOURCE_KEY_ENV_VAR => self::STAND_IN_KEY,
-                ExampleUtils::CLOUD_ENDPOINT_VARIABLE => $this->cloudEndPoint()
-            ]
-        );
+        $this->runScriptForKeyWithoutLookup(self::TAC_SCRIPT, self::FAILS_ONCE_KEY, 2);
+    }
+
+    public function testNativeModelLookupConsoleWhenThePropertiesFailOnce()
+    {
+        $this->runScriptForKeyWithoutLookup(self::NATIVE_MODEL_SCRIPT, self::FAILS_ONCE_KEY, 2);
+    }
+
+    public function testTacLookupConsoleClassWhenThePropertiesFailOnce()
+    {
+        $this->runClassForKeyWithoutLookup(self::TAC_SCRIPT, self::FAILS_ONCE_KEY, 2);
+    }
+
+    public function testNativeModelLookupConsoleClassWhenThePropertiesFailOnce()
+    {
+        $this->runClassForKeyWithoutLookup(self::NATIVE_MODEL_SCRIPT, self::FAILS_ONCE_KEY, 2);
+    }
+
+    /**
+     * When the properties cannot be read at all, the example ends with the
+     * cloud service's error, and says nothing about the key.
+     */
+    public function testTacLookupConsoleWhenThePropertiesAlwaysFail()
+    {
+        $this->runScriptWhenThePropertiesAlwaysFail(self::TAC_SCRIPT);
+    }
+
+    public function testNativeModelLookupConsoleWhenThePropertiesAlwaysFail()
+    {
+        $this->runScriptWhenThePropertiesAlwaysFail(self::NATIVE_MODEL_SCRIPT);
+    }
+
+    public function testTacLookupConsoleClassWhenThePropertiesAlwaysFail()
+    {
+        $this->runClassWhenThePropertiesAlwaysFail(self::TAC_SCRIPT);
+    }
+
+    public function testNativeModelLookupConsoleClassWhenThePropertiesAlwaysFail()
+    {
+        $this->runClassWhenThePropertiesAlwaysFail(self::NATIVE_MODEL_SCRIPT);
+    }
+
+    /**
+     * A key with the hardware lookup whose lookups match no device gets a
+     * line saying so under each heading.
+     */
+    public function testTacLookupConsoleWhenNoDeviceMatches()
+    {
+        $this->runWhenNoDeviceMatches(self::TAC_SCRIPT);
+    }
+
+    public function testNativeModelLookupConsoleWhenNoDeviceMatches()
+    {
+        $this->runWhenNoDeviceMatches(self::NATIVE_MODEL_SCRIPT);
+    }
+
+    /**
+     * Runs the example in its own PHP and then its class with a key whose
+     * lookups match no device, and checks each ended normally, printed each
+     * heading with the line for no devices under it and nothing saying the
+     * key lacks the lookup, and asked for every lookup.
+     */
+    private function runWhenNoDeviceMatches(string $script): void
+    {
+        [$values, $subject, $noDevices] = self::LOOKUPS[$script];
+
+        $run = $this->runScript($script, self::NO_DEVICES_KEY);
+        $this->assertSame(0, $run->status, $run->printed());
+        $this->assertNoDevicesListed($run->output, $subject, $values, $noDevices, $run->printed());
+        $run->assertEndsWithFindOutMore();
+        $this->assertRequests(1, count($values));
+
+        $output = $this->runClass($script, self::NO_DEVICES_KEY);
+        $this->assertNoDevicesListed($output, $subject, $values, $noDevices, $output);
+        $this->assertRequests(2, 2 * count($values));
+    }
+
+    /**
+     * Checks each value's heading is followed by the line for no devices,
+     * after a tab, and by no other device line, and that nothing says the
+     * key lacks the lookup.
+     *
+     * @param string[] $values
+     */
+    private function assertNoDevicesListed(
+        string $output,
+        string $subject,
+        array $values,
+        string $noDevices,
+        string $printed
+    ): void {
+        $lines = explode("\n", $output);
+        foreach ($values as $value) {
+            $heading = array_search(
+                "Which devices are associated with the {$subject} '{$value}'?",
+                $lines,
+                true
+            );
+            $this->assertNotFalse($heading, $printed);
+            $this->assertSame("\t{$noDevices}", $lines[$heading + 1] ?? null, $printed);
+            $this->assertStringStartsNotWith("\t", $lines[$heading + 2] ?? '', $printed);
+        }
+        $this->assertStringNotContainsString(self::NOT_INCLUDED, $output, $printed);
+    }
+
+    /**
+     * Runs the example in its own PHP with the key and checks it ended with
+     * exit status 0, said the key lacks the lookup, ended with Find out
+     * more, asked for the properties the given number of times and asked
+     * for no lookup.
+     */
+    private function runScriptForKeyWithoutLookup(
+        string $script,
+        string $key,
+        int $propertyRequests
+    ): void {
+        $run = $this->runScript($script, $key);
 
         $this->assertSame(0, $run->status, $run->printed());
         $this->assertSaysTheKeyLacksTheLookup($run->output, $run->printed());
         $run->assertEndsWithFindOutMore();
-        $this->assertNoLookupWasAskedFor();
+        $this->assertRequests($propertyRequests);
     }
 
     /**
-     * Runs an example's class, which must return normally, and gives
-     * everything it wrote, one line per call.
+     * Runs the example's class with the key, which must return normally,
+     * and checks it said the key lacks the lookup, asked for the properties
+     * the given number of times and asked for no lookup.
      */
-    private function runClass(callable $example): string
-    {
-        $lines = [];
-        $example(function ($line) use (&$lines) {
-            $lines[] = $line;
-        });
+    private function runClassForKeyWithoutLookup(
+        string $script,
+        string $key,
+        int $propertyRequests
+    ): void {
+        $output = $this->runClass($script, $key);
 
-        return implode("\n", $lines);
+        $this->assertSaysTheKeyLacksTheLookup($output, $output);
+        $this->assertRequests($propertyRequests);
+    }
+
+    /**
+     * Runs the example in its own PHP with a key whose properties cannot be
+     * read, and checks it failed with the cloud service's error, said
+     * nothing about the key and asked for no lookup.
+     */
+    private function runScriptWhenThePropertiesAlwaysFail(string $script): void
+    {
+        $run = $this->runScript($script, self::FAILS_ALWAYS_KEY);
+
+        $this->assertNotSame(0, $run->status, $run->printed());
+        $this->assertStringContainsString(
+            self::FAILURE,
+            $run->output . $run->errors,
+            $run->printed()
+        );
+        $this->assertStringNotContainsString(self::NOT_INCLUDED, $run->output, $run->printed());
+        $this->assertRequests(2);
+    }
+
+    /**
+     * Runs the example's class with a key whose properties cannot be read,
+     * and checks it threw the cloud service's error, said nothing about the
+     * key and asked for no lookup.
+     */
+    private function runClassWhenThePropertiesAlwaysFail(string $script): void
+    {
+        try {
+            $this->runClass($script, self::FAILS_ALWAYS_KEY);
+            $this->fail(
+                "The example did not end with the cloud service's error.\n" .
+                implode("\n", $this->lines)
+            );
+        } catch (CloudRequestException $e) {
+            $this->assertStringContainsString(self::FAILURE, $e->getMessage());
+        }
+
+        $output = implode("\n", $this->lines);
+        $this->assertStringNotContainsString(self::NOT_INCLUDED, $output, $output);
+        $this->assertRequests(2);
+    }
+
+    /**
+     * Runs the example in its own PHP, as a person runs it, with the key
+     * and the stand-in as its cloud service.
+     */
+    private function runScript(string $script, string $key): ExampleRun
+    {
+        return ExampleRun::run(
+            __DIR__ . "/../examples/{$script}",
+            [],
+            [],
+            [
+                ExampleUtils::RESOURCE_KEY_ENV_VAR => $key,
+                ExampleUtils::CLOUD_ENDPOINT_VARIABLE => $this->cloudEndPoint()
+            ]
+        );
+    }
+
+    /**
+     * Runs the class of the example, as ExampleTests does, with the key and
+     * the stand-in passed as its cloud service, and gives everything it
+     * wrote, one line per call. What it wrote is also kept in $lines, for
+     * when it throws.
+     */
+    private function runClass(string $script, string $key): string
+    {
+        $this->lines = [];
+        $record = function ($line) {
+            $this->lines[] = $line;
+        };
+
+        if ($script === self::TAC_SCRIPT) {
+            $config = json_decode(
+                (string) file_get_contents(__DIR__ . '/../examples/cloud/tacLookupConsole.json'),
+                true
+            );
+            ExampleUtils::setResourceKeyInConfig($config, $key);
+            (new TacLookupConsole())->run(
+                $config,
+                new Logger('info'),
+                $record,
+                $this->cloudEndPoint()
+            );
+        } else {
+            (new NativeModelLookupConsole())->run(
+                $key,
+                new Logger('info'),
+                $record,
+                $this->cloudEndPoint()
+            );
+        }
+
+        return implode("\n", $this->lines);
     }
 
     /**
@@ -215,10 +444,11 @@ class HardwareLookupStandInTests extends TestCase
     }
 
     /**
-     * Checks the stand-in was asked for the accessible properties, so the
-     * example used it, and was asked for no lookup.
+     * Checks the stand-in was asked for the accessible properties the given
+     * number of times, which also shows the example used it, and for the
+     * given number of lookups, none unless given.
      */
-    private function assertNoLookupWasAskedFor(): void
+    private function assertRequests(int $propertyRequests, int $lookups = 0): void
     {
         $paths = [];
         foreach (file($this->cloudErrors, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
@@ -229,13 +459,16 @@ class HardwareLookupStandInTests extends TestCase
         }
         $asked = implode("\n", $paths);
 
-        $this->assertNotEmpty(
+        $this->assertCount(
+            $propertyRequests,
             preg_grep(self::PROPERTIES_PATH, $paths),
-            "The stand-in was not asked for the accessible properties.\n{$asked}"
+            "The stand-in was not asked for the accessible properties " .
+            "{$propertyRequests} times.\n{$asked}"
         );
-        $this->assertEmpty(
+        $this->assertCount(
+            $lookups,
             preg_grep(self::LOOKUP_PATH, $paths),
-            "The stand-in was asked for a lookup.\n{$asked}"
+            "The stand-in was not asked for {$lookups} lookups.\n{$asked}"
         );
     }
 
@@ -263,16 +496,16 @@ class HardwareLookupStandInTests extends TestCase
     }
 
     /**
-     * Serves a script with PHP's built-in server, writing its standard
-     * error to a file, and waits until it listens.
+     * Serves a script with PHP's built-in server from the document root,
+     * writing its standard error to a file, and waits until it listens.
      *
      * @return resource
      */
-    private static function serve(string $address, string $script, string $errors)
+    private static function serve(string $address, string $script, string $root, string $errors)
     {
         $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
         $process = proc_open(
-            [PHP_BINARY, '-S', $address, $script],
+            [PHP_BINARY, '-S', $address, '-t', $root, $script],
             [0 => ['pipe', 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $errors, 'w']],
             $pipes,
             dirname($script)

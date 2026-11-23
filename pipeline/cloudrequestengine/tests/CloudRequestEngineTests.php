@@ -122,7 +122,10 @@ class CloudRequestEngineTests extends CloudRequestEngineTestsBase
     {
         $this->assertSame(Constants::BASE_URL_DEFAULT, CloudEndPoint::expected());
 
-        $this->assertTrue(putenv(Constants::CLOUD_ENDPOINT_VARIABLE . '=http://testEnvVarEndPoint'));
+        $this->assertTrue(putenv(
+            Constants::CLOUD_ENDPOINT_VARIABLE . '='
+            . rtrim(self::testEnvVarEndPoint, '/')
+        ));
         $engine = new CloudRequestEngine([
             'resourceKey' => CloudRequestEngineTests::resourceKey,
             'httpClient' => $this->mockHttp()

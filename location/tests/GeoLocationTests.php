@@ -26,7 +26,7 @@ namespace fiftyone\pipeline\geolocation\tests;
 // Fake remote address for web integration
 $_SERVER['REMOTE_ADDR'] = '0.0.0.0';
 
-use fiftyone\pipeline\core\ElementData;
+use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\geolocation\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
 use fiftyone\pipeline\geolocation\tests\classes\TestKeys;
@@ -46,19 +46,13 @@ class GeoLocationTests extends TestCase
     protected $testLat = '51.4578261';
     protected $testLon = '-0.975922996290084';
 
-    // For some reason, the value of the 'county' property returned
-    // by the call to the cloud is always null on the build agent,
-    // despite working correctly locally.
-    // After spending the best part of a day trying to resolve this,
-    // we've  decided to exclude the county property from this test
-    // for the moment.
     protected $expectedProperties = [
         'location' => [
             'building',
             'streetnumber',
             'road',
             'town',
-            // "county",
+            'county',
             'region',
             'state',
             'zipcode',
@@ -153,7 +147,7 @@ class GeoLocationTests extends TestCase
      * value, or a reason it has none. The cloud service returns only the
      * properties the key includes, so the others are not checked.
      *
-     * @param ElementData $result The element's data
+     * @param AspectDataDictionary $result The element's data
      * @param array<string, array<string, mixed>> $keyProperties The
      *   properties the cloud service lists for the key, by lower case name
      * @param string $dataKey The element's data key

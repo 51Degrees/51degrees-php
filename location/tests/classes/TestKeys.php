@@ -28,8 +28,9 @@ namespace fiftyone\pipeline\geolocation\tests\classes;
  */
 class TestKeys
 {
-    // The resource key that carries every property the tests ask for. An
-    // example's test gives it to the example under the name the example
-    // reads.
+    // The resource key the cloud tests use. The tests check only the
+    // properties the cloud service lists for it, and fail when it lists
+    // none of them. An example's test gives it to the example under the
+    // name the example reads.
     public const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY_BESPOKE';
 }

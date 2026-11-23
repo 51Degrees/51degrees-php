@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 # here has its own version, see packages.ps1. Every package about to be
 # published goes through the shared steps/check-version-bump.ps1, run from the
 # common-ci root, against its own "<package>/<version>" tags. That refuses a
-# major or minor move unless ALLOW_VERSION_BUMP is 'true'.
+# major or minor move unless _51DEGREES_ALLOW_VERSION_BUMP is 'true'.
 
 Write-Host "The publish worked out $Version, the highest version it releases. Each package is checked on its own."
 

@@ -12,7 +12,8 @@ $ErrorActionPreference = "Stop"
 # published goes through the shared steps/check-release-interval.ps1, run
 # from the common-ci root, against its own "<package>/<version>" tags, so
 # each package gets at most one new version a week. That reads
-# ALLOW_EARLY_RELEASE and WEEKLY_RELEASES_FROM from the environment.
+# _51DEGREES_ALLOW_EARLY_RELEASE and _51DEGREES_WEEKLY_RELEASES_FROM from the
+# environment.
 
 $refused = @()
 foreach ($release in @(Get-ReleasePlan $RepoName)) {

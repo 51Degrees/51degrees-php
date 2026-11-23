@@ -1,5 +1,6 @@
 # Publishes the release of pipeline-php-did (51degrees/fiftyone.pipeline.did)
-# for each version tag of this repository.
+# for each of the package's release tags here, such as
+# fiftyone.pipeline.did/4.5.207.
 #
 # The package cannot be released as the plain split that mirror.yml tags for
 # the other packages. main keeps the OWID library as a git submodule and
@@ -15,10 +16,11 @@
 # which is the commit mirror.yml puts on the mirror's main. So the mirror
 # shows the release on top of the source it came from.
 #
-# The version is the repository's, chosen by common-ci when it publishes, so
-# this package is released with every other package under the same number.
-# common-ci refuses a version that moves the major or minor place before it
-# tags, so that check is not repeated here.
+# The version is the package's own. The publish tags this repository
+# fiftyone.pipeline.did/<version> when the package changed since its last
+# release, and this workflow tags the mirror <version>. common-ci refuses a
+# version that moves the major or minor place before it tags, so that check
+# is not repeated here.
 #
 # Run it by hand to rehearse: it assembles and checks the package from the
 # chosen branch, pushes nothing, and keeps the assembled package as an
@@ -28,7 +30,7 @@ name: Publish pipeline-php-did
 
 on:
   push:
-    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    tags: ['fiftyone.pipeline.did/[0-9]+.[0-9]+.[0-9]+']
   workflow_dispatch:
     inputs:
       version:
@@ -59,7 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            version="$GITHUB_REF_NAME"
+            version="${GITHUB_REF_NAME#fiftyone.pipeline.did/}"
             dryrun=false
           else
             version="$_51DEGREES_INPUT_VERSION"
@@ -81,7 +83,7 @@ jobs:
           fetch-depth: 0
           # The GITHUB_TOKEN header the checkout would leave behind is sent
           # to every github.com URL and would replace
-          # _51DEGREES_MIRROR_PUSH_TOKEN on the mirror push.
+          # MIRROR_PUSH_TOKEN on the mirror push.
           persist-credentials: false
 
       # Only this package's submodule. The others are large (the C
@@ -94,11 +96,11 @@ jobs:
         if: steps.release.outputs.dryrun != 'true'
         env:
           _51DEGREES_VERSION: ${{ steps.release.outputs.version }}
-          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "$_51DEGREES_MIRROR_PUSH_TOKEN" ]; then
-            echo "::error::Secret _51DEGREES_MIRROR_PUSH_TOKEN is not set"
+          if [ -z "$MIRROR_PUSH_TOKEN" ]; then
+            echo "::error::Secret MIRROR_PUSH_TOKEN is not set"
             exit 1
           fi
           git fetch origin main
@@ -106,7 +108,7 @@ jobs:
             echo "::error::tag $_51DEGREES_VERSION is not on main"
             exit 1
           }
-          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
+          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
           pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
           top=$(git ls-remote --tags "$mirror" | awk '{ print $2 }' |
             sed -e 's|^refs/tags/||' -e 's|\^{}$||' | { grep -E "$pattern" || true; } | sort -V | tail -1)
@@ -171,8 +173,8 @@ jobs:
             -m "Release $version" \
             -m "Assembled from $split (pipeline/did/ at $source_commit) with the OWID source copied in.")"
           # The tag is made here, in the checkout, only so the archive check
-          # below reads exactly what is pushed. This repository's own tag
-          # of the same name was made by common-ci and is not touched.
+          # below reads exactly what is pushed. It is never pushed to this
+          # repository.
           git tag -f -a "$version" -m "Release $version" "$commit"
           git show --stat --oneline "$commit"
           echo "tree=$tree" >> "$GITHUB_OUTPUT"
@@ -203,10 +205,10 @@ jobs:
         env:
           _51DEGREES_VERSION: ${{ steps.release.outputs.version }}
           _51DEGREES_TREE: ${{ steps.build.outputs.tree }}
-          _51DEGREES_MIRROR_PUSH_TOKEN: ${{ secrets._51DEGREES_MIRROR_PUSH_TOKEN }}
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
         run: |
           set -euo pipefail
-          mirror="https://x-access-token:${_51DEGREES_MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
+          mirror="https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/pipeline-php-did.git"
           if git ls-remote --exit-code --tags "$mirror" "refs/tags/$_51DEGREES_VERSION" > /dev/null; then
             git fetch --no-tags "$mirror" "refs/tags/$_51DEGREES_VERSION"
             published="$(git rev-parse 'FETCH_HEAD^{tree}')"

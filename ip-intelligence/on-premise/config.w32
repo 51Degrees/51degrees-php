@@ -19,11 +19,12 @@ if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
         // Common compile defines - must match the cxx CMake build and config.m4.
         // REDUCED_FILE changes on-disk struct layouts, so it has to match the
         // cxx submodule's build of the IP intelligence copy of common.
+        // Warnings are at level 4 and are errors, as in the cxx build.
         ADD_FLAG("CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE",
             "/DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 " +
             "/DFIFTYONE_DEGREES_REDUCED_FILE=1 " +
             "/D_CRT_SECURE_NO_WARNINGS /D_UNICODE /DUNICODE /std:c++17 /EHsc " +
-            "/wd4127 /wd4456 /wd4701 /wd4703 /wd4706");
+            "/W4 /WX");
 
         // The committed wrapper, which generate-wrapper.sh writes with SWIG
         // 4.5.1 and the class prefix, as config.m4 uses.

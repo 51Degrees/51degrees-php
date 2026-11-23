@@ -10,8 +10,8 @@ dnl same names, built with different settings, and a PHP that loads
 dnl extensions without RTLD_DEEPBIND, as PHP 8.5 on Linux does, would
 dnl otherwise bind this extension's calls to the other's copy.
 VISIBILITY="-fvisibility=hidden"
-CFLAGS="$CFLAGS $VISIBILITY -std=gnu11 -Wall -Werror -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
-CXXFLAGS="${CXXFLAGS} $VISIBILITY -std=gnu++17 -Wall -Werror -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
+CFLAGS="$CFLAGS $VISIBILITY -std=gnu11 -Wall -Werror"
+CXXFLAGS="${CXXFLAGS} $VISIBILITY -std=gnu++17 -Wall -Werror"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

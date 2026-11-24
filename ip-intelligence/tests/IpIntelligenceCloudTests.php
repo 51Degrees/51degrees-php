@@ -181,6 +181,7 @@ class IpIntelligenceCloudTests extends TestCase
     /**
      * Live integration test - only runs when a real resource key has been
      * supplied via the _51DEGREES_RESOURCE_KEY_BESPOKE environment variable.
+     * It requires a CountryCode value for a known address.
      */
     public function testLiveCloud(): void
     {
@@ -228,13 +229,19 @@ class IpIntelligenceCloudTests extends TestCase
         $flowData->evidence->set('query.client-ip-51d', Constants::IPV4_ADDRESS);
         $result = $flowData->process();
 
-        // The country property should be present and authorised for the key.
-        $country = $result->ip->get('country');
-        $this->assertNotNull($country);
-        if ($country->hasValue) {
-            $this->assertNotNull($country->value);
-        } else {
-            $this->assertNotNull($country->noValueMessage);
-        }
+        // The key carries every IP Intelligence property, so the cloud must
+        // answer with a country code for this address. An answer with only
+        // the reason there is no value fails, because that is what a key
+        // without the IP Intelligence product gets.
+        $countryCode = $result->ip->get('countrycode');
+        $this->assertTrue(
+            $countryCode->hasValue,
+            'The cloud answered without CountryCode (' .
+                ($countryCode->noValueMessage ?? 'no reason given') .
+                '), which is what a key that does not carry the ip ' .
+                'product gets.'
+        );
+        $this->assertIsString($countryCode->value);
+        $this->assertNotSame('', $countryCode->value);
     }
 }

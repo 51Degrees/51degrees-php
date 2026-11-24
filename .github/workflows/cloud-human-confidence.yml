@@ -3,9 +3,9 @@ name: Cloud Human Confidence Tests
 # Runs the Staging suite of device-detection/cloud
 # (tests/HumanConfidenceWebStagingTests.php), the Human Confidence tests of
 # what the staging cloud service serves and the production one does not,
-# being HumanConfidenceSource and the Human Confidence redeem. The other
-# Human Confidence tests are in the Integration suite, which common-ci runs
-# against _51DEGREES_CLOUD_ENDPOINT.
+# being a passive level, HumanConfidenceSource and the Human Confidence
+# redeem. The other Human Confidence tests are in the Integration suite,
+# which common-ci runs against _51DEGREES_CLOUD_ENDPOINT.
 #
 # The tests call the service CLOUD_STAGING_ENDPOINT names, an organization
 # variable, with the Bespoke key in RESOURCE_KEY_BESPOKE_STAGING and the

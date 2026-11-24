@@ -41,6 +41,11 @@ class HumanConfidenceWeb
     // The property the Resource Key must include.
     private const PROPERTY = 'HumanConfidence';
 
+    // The properties the passive call reads, named in its request. Both
+    // are named, so a Resource Key whose own list of properties holds
+    // HumanConfidence but not HumanConfidenceSource still gets the source.
+    private const PASSIVE_VALUES = 'derived.humanconfidence,derived.humanconfidencesource';
+
     /** @var string */
     private $resourceKey = '';
 
@@ -220,8 +225,8 @@ class HumanConfidenceWeb
 
     /**
      * Passive: this server asks the cloud for the visitor, with the
-     * visitor's headers and IP address, and reads the plain level from the
-     * answer.
+     * visitor's headers and IP address, naming the two properties it reads,
+     * and reads the source and the plain level from the answer.
      *
      * @return array<string, null|string>
      */
@@ -251,6 +256,8 @@ class HumanConfidenceWeb
             if ($ip !== '') {
                 $evidence['client-ip'] = $ip;
             }
+            // Named after the headers, so no header can replace them.
+            $evidence['values'] = self::PASSIVE_VALUES;
 
             $answer = $this->request(
                 'POST',

@@ -36,7 +36,8 @@ use PHPUnit\Framework\TestCase;
  *
  * Every test is skipped, naming the variable, when the resource key or the
  * cloud service is not set. The tests that need the HumanConfidence
- * property are skipped where the resource key does not include it.
+ * property fail where the resource key does not include it, as a test that
+ * cannot see a real level has proved nothing.
  */
 abstract class HumanConfidenceWebTestCase extends TestCase
 {
@@ -66,8 +67,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
     // of properties holds.
     private const PROPERTIES = 'derived.humanconfidence,derived.humanconfidencesource';
 
-    // The levels a passive result can be.
-    protected const LEVELS = ['High', 'Medium', 'Low', 'Unknown'];
+    // The levels a passive result can be. Unknown is not one, as an answer
+    // of Unknown gives no level.
+    protected const LEVELS = ['High', 'Medium', 'Low'];
 
     // Text that shows the example printed a programming fault rather than
     // an answer.
@@ -241,19 +243,25 @@ abstract class HumanConfidenceWebTestCase extends TestCase
     }
 
     /**
-     * Skips the test where the resource key does not include the
-     * HumanConfidence property, and fails where the cloud service did not
-     * say which properties it includes.
+     * Fails where the resource key does not include the HumanConfidence
+     * property, or where the cloud service did not say which properties it
+     * includes.
+     *
+     * @param null|array<string, bool> $properties The names, in lower case,
+     * of the properties the resource key includes, or null where the cloud
+     * service did not list them
      */
-    protected function skipWithoutTheProperty(): void
+    public static function assertIncludesTheProperty(?array $properties): void
     {
-        $this->assertNotNull(self::$properties, self::notListedMessage());
-        if (!isset(self::$properties[self::PROPERTY])) {
-            $this->markTestSkipped(
-                'The resource key in ' . static::resourceKeyVariable() .
-                ' does not include the HumanConfidence property.'
-            );
-        }
+        self::assertNotNull($properties, static::notListedMessage());
+        self::assertArrayHasKey(
+            self::PROPERTY,
+            $properties,
+            'The resource key in ' . static::resourceKeyVariable() .
+            ' does not include the HumanConfidence property, so the ' .
+            'example would show its contact us link rather than a level. ' .
+            'Set the variable to a key that includes it.'
+        );
     }
 
     /**
@@ -318,9 +326,8 @@ abstract class HumanConfidenceWebTestCase extends TestCase
 
     /**
      * The derived part of the cloud service's answer to a passive request
-     * with a browser's User-Agent that names the two properties. The
-     * example's own passive request names none, so its answer holds only
-     * what the key's saved list of properties gives.
+     * with a browser's User-Agent that names the two properties, as the
+     * example's own passive request does.
      *
      * @return array<string, mixed>
      */

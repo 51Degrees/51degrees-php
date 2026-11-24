@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\HumanConfidenceWeb;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
+use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -98,15 +99,71 @@ class HumanConfidenceWebStandInTests extends TestCase
 
     /**
      * A key whose own property list holds HumanConfidence alone, as keys
-     * made before the source existed do, is answered with the level and no
-     * source member, and the example makes up no source.
+     * made before the source existed do, gets the source only when the
+     * request names it. The example's passive request names both
+     * properties, as Java's does, so it gives the source Passive.
      */
-    public function testPassiveForAKeyWithOnlyTheLevelGivesNoSource()
+    public function testPassiveNamesTheSourceSoAKeyWithOnlyTheLevelGetsIt()
     {
         $this->assertSame(
-            ['source' => null, 'humanConfidence' => 'Medium'],
+            ['source' => 'Passive', 'humanConfidence' => 'Medium'],
             self::passive('level-only-key')
         );
+    }
+
+    /**
+     * A key without the HumanConfidence property cannot show a level, so
+     * the live tests that need one fail, naming the variable, rather than
+     * skip.
+     */
+    public function testLiveTestsFailForAKeyWithoutTheProperty()
+    {
+        $message = self::failure(function () {
+            HumanConfidenceWebTests::assertIncludesTheProperty(['humanconfidencesource' => true]);
+        });
+
+        $this->assertStringContainsString(Constants::RESOURCE_ENV_VAR, $message);
+        $this->assertStringContainsString('HumanConfidence property', $message);
+    }
+
+    /**
+     * Where the cloud service did not list the key's properties, the live
+     * tests fail, naming the variable, as nothing shows the key includes
+     * the property.
+     */
+    public function testLiveTestsFailWhereThePropertiesWereNotListed()
+    {
+        $message = self::failure(function () {
+            HumanConfidenceWebTests::assertIncludesTheProperty(null);
+        });
+
+        $this->assertStringContainsString(Constants::RESOURCE_ENV_VAR, $message);
+    }
+
+    /**
+     * The staging tests fail the same way, naming their own variable.
+     */
+    public function testStagingTestsFailForAKeyWithoutTheProperty()
+    {
+        $message = self::failure(function () {
+            HumanConfidenceWebStagingTests::assertIncludesTheProperty(['humanconfidencesource' => true]);
+        });
+
+        $this->assertStringContainsString(Constants::STAGING_RESOURCE_ENV_VAR, $message);
+        $this->assertStringContainsString('HumanConfidence property', $message);
+    }
+
+    /**
+     * The message of the assertion the function fails.
+     */
+    private static function failure(callable $assertion): string
+    {
+        try {
+            $assertion();
+        } catch (AssertionFailedError $failure) {
+            return $failure->getMessage();
+        }
+        self::fail('The assertion passed.');
     }
 
     /**

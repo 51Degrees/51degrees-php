@@ -150,13 +150,13 @@ PHP has no YAML reader of its own, so the package uses
 The tests run every case file in the `tests` folder of derived-properties,
 which is the `derived-properties` submodule at the root of this repository,
 including the scripts under `tests/invalid` that must be refused. From the
-repository root:
+repository root, with PHPUnit 9.6:
 
 ```bash
 git submodule update --init derived-properties
 composer install
 cd pipeline/derivedproperty
-../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit
+phpunit --testsuite Unit
 ```
 
 `ci/update-packages.ps1` moves the submodule to the head of derived-properties,

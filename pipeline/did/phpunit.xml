@@ -2,8 +2,9 @@
      PHPUnit's own warnings and deprecations and risky tests, and the log
      names the test that raised each one. The package needs PHP 8.1, so its
      own PHPUnit is 10.5 or later, and the attributes are those of PHPUnit
-     10.5, which the later versions also take. -->
-<phpunit bootstrap="vendor/autoload.php"
+     10.5, which the later versions also take. tests/bootstrap.php fails the
+     run on a warning, notice or deprecation from a PHP the tests start. -->
+<phpunit bootstrap="tests/bootstrap.php"
          failOnWarning="true"
          failOnNotice="true"
          failOnDeprecation="true"

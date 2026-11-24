@@ -427,13 +427,15 @@ class HardwareLookupStandInTests extends TestCase
 
     /**
      * Runs the example in its own PHP, as a person runs it, with the key
-     * and the stand-in as its cloud service.
+     * and the stand-in as its cloud service. PHP shows its errors on
+     * standard error whatever php.ini says, so an error that ends the
+     * example is in what it wrote.
      */
     private function runScript(string $script, string $key): ExampleRun
     {
         return ExampleRun::run(
             __DIR__ . "/../examples/{$script}",
-            [],
+            ['-d', 'display_errors=stderr'],
             [],
             [
                 ExampleUtils::RESOURCE_KEY_ENV_VAR => $key,

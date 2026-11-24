@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test-attributes:
-    name: Every PHPUnit annotation in a test has its attribute
+    name: Every PHPUnit annotation has its attribute and every configuration fails on warnings
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

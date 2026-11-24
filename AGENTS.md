@@ -452,11 +452,15 @@ publish checks before it tags anything.
 git submodule update --init --recursive
 composer install
 cd pipeline/core
-../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit
+phpunit --testsuite Unit
 ```
 
-`location` and `ip-intelligence` sit one level higher, so there the root
-`vendor` is `../vendor`.
+`phpunit` here is PHPUnit 9.6, the version CI runs, whose attributes the
+`phpunit.xml` files use. Each loads the package's `tests/bootstrap.php`,
+which uses the package's own `vendor` folder, or the root one where the
+package has none. `pipeline/did` runs the PHPUnit Composer installs, 10.5
+or later, as `../../vendor/bin/phpunit`, and its `phpunit.xml` has the
+PHPUnit 10.5 attributes.
 
 Check the suite names in the package's `phpunit.xml`. In `location`, `Unit`
 holds the examples run with no resource key and `Integration` the tests that

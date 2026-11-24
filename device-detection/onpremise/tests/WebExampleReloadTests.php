@@ -125,9 +125,9 @@ class WebExampleReloadTests extends TestCase
      */
     public function testReloadsFromTheDataFilePhpIniNames()
     {
-        $named = realpath(
-            (string) get_cfg_var(ExampleUtils::DATA_FILE_SETTING)
-        );
+        // realpath() gives the current folder for an empty path.
+        $setting = (string) get_cfg_var(ExampleUtils::DATA_FILE_SETTING);
+        $named = $setting === '' ? false : realpath($setting);
         if ($named === false || $named === $this->liteDataFile()) {
             $this->markTestSkipped(
                 'php.ini names no data file other than the Lite file.'

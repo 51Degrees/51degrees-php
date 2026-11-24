@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
+use fiftyone\pipeline\tests\ChildPhp;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -175,8 +176,9 @@ class ServeWebExamplesTests extends TestCase
 
     /**
      * The environment of the PHP started. Its settings folders are the
-     * system's own and the one holding the php.ini that loads the
-     * extensions. The variables that name a data file are left out.
+     * system's own, the one tests/bootstrap.php writes and the one holding
+     * the php.ini that loads the extensions. The variables that name a data
+     * file are left out.
      *
      * @return array<string, string>
      */
@@ -189,7 +191,9 @@ class ServeWebExamplesTests extends TestCase
         );
         $environment['PHP_INI_SCAN_DIR'] = implode(
             PATH_SEPARATOR,
-            array_filter([PHP_CONFIG_FILE_SCAN_DIR, $settings])
+            array_filter(
+                [PHP_CONFIG_FILE_SCAN_DIR, ChildPhp::folder(), $settings]
+            )
         );
 
         return $environment;

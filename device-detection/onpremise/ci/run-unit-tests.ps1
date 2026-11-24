@@ -21,11 +21,22 @@ if (!(Test-Path assets/TAC-HashV41.hash)) {
     if ($LASTEXITCODE -eq 0) {
         $options += '--display-warnings'
     }
+    # php.ini names the TAC data file, and PHP warns of the missing file
+    # each time it starts, which fails the run. The suite reads a copy
+    # without that setting, so PHP starts with the extension and no engine
+    # and gives no warning.
+    $settings = Join-Path ([IO.Path]::GetTempPath()) "without-tac-$PID"
+    New-Item -ItemType Directory -Force -Path $settings | Out-Null
+    Get-Content $RepoName/php.ini |
+        Where-Object { $_ -notmatch '^\s*FiftyOneDegreesHashEngine\.data_file\s*=' } |
+        Set-Content (Join-Path $settings 'php.ini')
+    $env:PHP_INI_SCAN_DIR = "$sep$settings"
     Push-Location $RepoName
     try {
         phpunit $options --testsuite WithoutTacFile --log-junit test-results/unit/$RepoName/tests.xml
     } finally {
         Pop-Location
+        Remove-Item -Recurse -Force $settings
     }
     exit $LASTEXITCODE
 }

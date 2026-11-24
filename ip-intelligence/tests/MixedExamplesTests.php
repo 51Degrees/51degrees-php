@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\tests\classes\ExampleRun;
+use fiftyone\pipeline\tests\ChildPhp;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -324,7 +325,9 @@ class MixedExamplesTests extends TestCase
             ],
             ['PHP_INI_SCAN_DIR' => implode(
                 PATH_SEPARATOR,
-                array_filter([PHP_CONFIG_FILE_SCAN_DIR, $folder])
+                array_filter(
+                    [PHP_CONFIG_FILE_SCAN_DIR, ChildPhp::folder(), $folder]
+                )
             )]
         );
         $text = $run->output;
@@ -576,18 +579,23 @@ class MixedExamplesTests extends TestCase
     }
 
     /**
-     * The variable that makes PHP read only its own ini files, so that the
-     * settings given are the only ones that load the extensions.
+     * The variable that makes PHP read only its own ini files and the one
+     * tests/bootstrap.php writes, so that the settings given are the only
+     * ones that load the extensions.
      *
      * @return array<string, string>
      */
     private function onlyPhpIniFiles(): array
     {
-        return ['PHP_INI_SCAN_DIR' => PHP_CONFIG_FILE_SCAN_DIR];
+        return ['PHP_INI_SCAN_DIR' => implode(
+            PATH_SEPARATOR,
+            array_filter([PHP_CONFIG_FILE_SCAN_DIR, ChildPhp::folder()])
+        )];
     }
 
     /**
-     * The environment of the tests, with PHP reading only its own ini files.
+     * The environment of the tests, with PHP reading only its own ini files
+     * and the one tests/bootstrap.php writes.
      *
      * @return array<string, string>
      */

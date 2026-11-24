@@ -162,15 +162,20 @@ submodules, delete those two folders from `cxx` in an existing clone.
 
 ## Tests
 
-Run the unit tests of one package with the root autoloader:
+Run the unit tests of one package from its folder with PHPUnit 9.6, the
+version CI runs, such as the
+[PHPUnit 9.6 PHAR](https://phar.phpunit.de/phpunit-9.6.phar):
 
 ```bash
 cd pipeline/core
-../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit
+phpunit --testsuite Unit
 ```
 
-`location` and `ip-intelligence` sit one level higher, so there the root
-`vendor` is `../vendor`.
+Each package's `phpunit.xml` loads its `tests/bootstrap.php`, which uses the
+package's own `vendor` folder, or the root one where the package has none.
+`pipeline/did` is the exception, as CI runs it with the PHPUnit Composer
+installs, 10.5 or later, so there run `../../vendor/bin/phpunit --testsuite
+Unit`.
 
 Each package's `phpunit.xml` names its test suites. Some packages differ:
 

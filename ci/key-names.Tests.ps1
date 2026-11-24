@@ -1,4 +1,6 @@
-# Tests that the CI scripts read their keys only under the _51DEGREES_ names.
+# Tests that the CI scripts read their keys only under the _51DEGREES_ names,
+# and that the scripts fetching the data files name them under the
+# _51DEGREES_ names the examples read.
 #
 # The workflows pass their secrets to common-ci with 'secrets: inherit', and
 # common-ci puts each secret and organization variable into the environment
@@ -131,6 +133,51 @@ Describe 'Fetching the data files' {
         $result = Invoke-Sandboxed (New-Sandbox $Script)
         $result.Output | Should -Match '_51DEGREES_LICENSE_KEY'
         @($result.Call.Arguments) | Should -Not -Contain $Asset
+    }
+}
+
+Describe 'The data file each fetch names' {
+    BeforeEach { Save-KeyVariables; $env:GITHUB_JOB = 'Test' }
+    AfterEach { Restore-KeyVariables; Remove-Item Env:GITHUB_JOB -ErrorAction Ignore }
+
+    # The shared step's stand-in fetches nothing, so the files it would
+    # fetch are put in the assets folder first. The data repository's
+    # folder is made for the links the scripts put there.
+    It '<Script> sets <Variable> to <Expected>' -ForEach @(
+        @{ Script = 'device-detection/onpremise/ci/fetch-assets.ps1'; Variable = '_51DEGREES_DD_PATH'
+            License = $false; Fetched = @('51Degrees-LiteV4.1.hash')
+            Expected = 'assets/51Degrees-LiteV4.1.hash' }
+        @{ Script = 'device-detection/onpremise/ci/fetch-assets.ps1'; Variable = '_51DEGREES_DD_PATH'
+            License = $true; Fetched = @('TAC-HashV41.hash', '51Degrees-LiteV4.1.hash')
+            Expected = 'assets/TAC-HashV41.hash' }
+        @{ Script = 'ip-intelligence/ci/fetch-assets.ps1'; Variable = '_51DEGREES_IPI_PATH'
+            License = $false; Fetched = @('51Degrees-LiteIpiV41.ipi')
+            Expected = '../repo/ip-intelligence/assets/51Degrees-LiteIpiV41.ipi' }
+    ) {
+        if ($License) { $env:_51DEGREES_LICENSE_KEY = 'license-for-the-test' }
+        $sandbox = New-Sandbox $Script
+        $assets = New-Item -ItemType Directory (Join-Path $sandbox.Work 'assets') -Force
+        $Fetched | ForEach-Object { Set-Content (Join-Path $assets $_) 'data' }
+        $repo = Join-Path $sandbox.Work '..' 'repo'
+        New-Item -ItemType Directory (Join-Path $repo 'cxx' 'data' 'device-detection'),
+            (Join-Path $repo 'cxx' 'data' 'ip-intelligence') -Force | Out-Null
+
+        $result = Invoke-Sandboxed $sandbox
+        $value = [Environment]::GetEnvironmentVariable($Variable)
+        $value | Should -Not -BeNullOrEmpty -Because $result.Output
+        [IO.Path]::GetFullPath($value) |
+            Should -Be ([IO.Path]::GetFullPath((Join-Path $sandbox.Work $Expected)))
+        Test-Path -LiteralPath $value | Should -BeTrue
+    }
+
+    It '<_> leaves the variable unset when no data file was fetched' -ForEach @(
+        'device-detection/onpremise/ci/fetch-assets.ps1'
+        'ip-intelligence/ci/fetch-assets.ps1'
+    ) {
+        $result = Invoke-Sandboxed (New-Sandbox $_)
+        $result.Output | Should -Match 'is not set'
+        $env:_51DEGREES_DD_PATH | Should -BeNullOrEmpty
+        $env:_51DEGREES_IPI_PATH | Should -BeNullOrEmpty
     }
 }
 

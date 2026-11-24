@@ -99,13 +99,14 @@ class HumanConfidenceWebStandInTests extends TestCase
 
     /**
      * A key whose own property list holds HumanConfidence alone, as keys
-     * made before the source existed do, is answered with the level and no
-     * source member, and the example makes up no source.
+     * made before the source existed do, gets the source only when the
+     * request names it. The example's passive request names both
+     * properties, as Java's does, so it gives the source Passive.
      */
-    public function testPassiveForAKeyWithOnlyTheLevelGivesNoSource()
+    public function testPassiveNamesTheSourceSoAKeyWithOnlyTheLevelGetsIt()
     {
         $this->assertSame(
-            ['source' => null, 'humanConfidence' => 'Medium'],
+            ['source' => 'Passive', 'humanConfidence' => 'Medium'],
             self::passive('level-only-key')
         );
     }
@@ -150,22 +151,6 @@ class HumanConfidenceWebStandInTests extends TestCase
 
         $this->assertStringContainsString(Constants::STAGING_RESOURCE_ENV_VAR, $message);
         $this->assertStringContainsString('HumanConfidence property', $message);
-    }
-
-    /**
-     * The example's passive request names no properties, so it gets the
-     * source only where the key's own list holds HumanConfidenceSource. A
-     * staging key without it fails the example's passive test, naming the
-     * property and the variable.
-     */
-    public function testStagingTestsFailForAKeyWithoutTheSource()
-    {
-        $message = self::failure(function () {
-            HumanConfidenceWebStagingTests::assertIncludesTheSource(['humanconfidence' => true]);
-        });
-
-        $this->assertStringContainsString(Constants::STAGING_RESOURCE_ENV_VAR, $message);
-        $this->assertStringContainsString('HumanConfidenceSource property', $message);
     }
 
     /**

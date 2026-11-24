@@ -72,8 +72,8 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
     /**
      * The cloud service's answer to a passive request that names both
      * properties carries the source Passive, because no browser tests have
-     * run, and a plain level. The example's own passive request names no
-     * properties, so this checks the cloud service and not the example.
+     * run, and a plain level. This checks the cloud service, with no
+     * example, so a failure here is the cloud service's or the key's.
      */
     public function testPassiveAnswerCarriesTheSourcePassive()
     {
@@ -89,13 +89,12 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
      * The first step through the example. The example asks the cloud
      * service with the headers of the request it was sent, and answers with
      * the source Passive, as no browser tests have run, and a plain level.
-     * Its request names no properties, so it gets the source only where the
-     * key's own list of properties holds HumanConfidenceSource.
+     * Its request names both properties, as Java's does, so it gets the
+     * source whether or not the key's own list of properties holds it.
      */
     public function testExamplePassiveGivesTheSourcePassiveAndAPlainLevel()
     {
         self::assertIncludesTheProperty(self::$properties);
-        self::assertIncludesTheSource(self::$properties);
 
         $answer = self::get('/passive', Constants::UA_HEADER . Constants::CHROME_UA . "\r\n");
 
@@ -178,27 +177,5 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
         $this->assertNotEmpty($json['errors'], self::printed($answer));
         $this->assertArrayNotHasKey('error', $json, self::printed($answer));
         $this->assertArrayNotHasKey('humanConfidence', $json, self::printed($answer));
-    }
-
-    /**
-     * Fails where the resource key does not include the
-     * HumanConfidenceSource property, or where the cloud service did not
-     * say which properties it includes.
-     *
-     * @param null|array<string, bool> $properties The names, in lower case,
-     * of the properties the resource key includes, or null where the cloud
-     * service did not list them
-     */
-    public static function assertIncludesTheSource(?array $properties): void
-    {
-        self::assertNotNull($properties, static::notListedMessage());
-        self::assertArrayHasKey(
-            self::SOURCE_PROPERTY,
-            $properties,
-            'The resource key in ' . static::resourceKeyVariable() .
-            ' does not include the HumanConfidenceSource property, so the ' .
-            "example's passive answer would carry no source. Set the " .
-            'variable to a key that includes it.'
-        );
     }
 }

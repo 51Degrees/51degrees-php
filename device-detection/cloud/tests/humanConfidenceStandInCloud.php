@@ -42,10 +42,17 @@ $answers = [
         'humanconfidencesource' => null
     ]],
     // A key whose own property list holds HumanConfidence alone, as keys
-    // made before the source existed do, answered with no source member.
+    // made before the source existed do. Its products offer the source, so
+    // a request that names it gets it, and one that does not gets no
+    // source member.
     'level-only-key' => ['derived' => [
         'humanconfidence' => 'Medium'
     ]]
+];
+
+// The source each key gets when the request names it.
+$named = [
+    'level-only-key' => ['humanconfidencesource' => 'Passive']
 ];
 
 $path = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -57,7 +64,12 @@ if ($path === '/api/v4/evidencekeys') {
     return;
 }
 if (preg_match('~^/api/v4/([^/]+)\.json$~', $path, $match) === 1 && isset($answers[$match[1]])) {
-    echo json_encode($answers[$match[1]]);
+    $answer = $answers[$match[1]];
+    $values = array_map('strtolower', array_map('trim', explode(',', (string) ($_POST['values'] ?? ''))));
+    if (isset($named[$match[1]]) && in_array('derived.humanconfidencesource', $values, true)) {
+        $answer['derived'] += $named[$match[1]];
+    }
+    echo json_encode($answer);
 
     return;
 }

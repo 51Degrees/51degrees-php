@@ -326,9 +326,8 @@ abstract class HumanConfidenceWebTestCase extends TestCase
 
     /**
      * The derived part of the cloud service's answer to a passive request
-     * with a browser's User-Agent that names the two properties. The
-     * example's own passive request names none, so its answer holds only
-     * what the key's saved list of properties gives.
+     * with a browser's User-Agent that names the two properties, as the
+     * example's own passive request does.
      *
      * @return array<string, mixed>
      */

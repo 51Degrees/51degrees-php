@@ -117,21 +117,68 @@ class HumanConfidenceWebStandInTests extends TestCase
      */
     public function testLiveTestsFailForAKeyWithoutTheProperty()
     {
-        $this->expectException(AssertionFailedError::class);
-        $this->expectExceptionMessage(Constants::RESOURCE_ENV_VAR);
+        $message = self::failure(function () {
+            HumanConfidenceWebTests::assertIncludesTheProperty(['humanconfidencesource' => true]);
+        });
 
-        HumanConfidenceWebTests::assertIncludesTheProperty(['humanconfidencesource' => true]);
+        $this->assertStringContainsString(Constants::RESOURCE_ENV_VAR, $message);
+        $this->assertStringContainsString('HumanConfidence property', $message);
     }
 
     /**
      * Where the cloud service did not list the key's properties, the live
-     * tests fail, as nothing shows the key includes the property.
+     * tests fail, naming the variable, as nothing shows the key includes
+     * the property.
      */
     public function testLiveTestsFailWhereThePropertiesWereNotListed()
     {
-        $this->expectException(AssertionFailedError::class);
+        $message = self::failure(function () {
+            HumanConfidenceWebTests::assertIncludesTheProperty(null);
+        });
 
-        HumanConfidenceWebTests::assertIncludesTheProperty(null);
+        $this->assertStringContainsString(Constants::RESOURCE_ENV_VAR, $message);
+    }
+
+    /**
+     * The staging tests fail the same way, naming their own variable.
+     */
+    public function testStagingTestsFailForAKeyWithoutTheProperty()
+    {
+        $message = self::failure(function () {
+            HumanConfidenceWebStagingTests::assertIncludesTheProperty(['humanconfidencesource' => true]);
+        });
+
+        $this->assertStringContainsString(Constants::STAGING_RESOURCE_ENV_VAR, $message);
+        $this->assertStringContainsString('HumanConfidence property', $message);
+    }
+
+    /**
+     * The example's passive request names no properties, so it gets the
+     * source only where the key's own list holds HumanConfidenceSource. A
+     * staging key without it fails the example's passive test, naming the
+     * property and the variable.
+     */
+    public function testStagingTestsFailForAKeyWithoutTheSource()
+    {
+        $message = self::failure(function () {
+            HumanConfidenceWebStagingTests::assertIncludesTheSource(['humanconfidence' => true]);
+        });
+
+        $this->assertStringContainsString(Constants::STAGING_RESOURCE_ENV_VAR, $message);
+        $this->assertStringContainsString('HumanConfidenceSource property', $message);
+    }
+
+    /**
+     * The message of the assertion the function fails.
+     */
+    private static function failure(callable $assertion): string
+    {
+        try {
+            $assertion();
+        } catch (AssertionFailedError $failure) {
+            return $failure->getMessage();
+        }
+        self::fail('The assertion passed.');
     }
 
     /**

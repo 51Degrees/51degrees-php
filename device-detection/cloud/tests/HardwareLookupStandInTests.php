@@ -41,7 +41,8 @@ use PHPUnit\Framework\TestCase;
  * request for the key's properties fails once, and when it fails every time
  * the example must end with the cloud service's error instead. A key with
  * the hardware lookup whose lookups match no device must get a line saying
- * so under each heading. The examples run as a person runs them, each in
+ * so under each heading, also when the request for its properties fails
+ * once. The examples run as a person runs them, each in
  * its own PHP, and their classes run as ExampleTests runs them, so no real
  * key and no network are needed.
  */
@@ -50,12 +51,13 @@ class HardwareLookupStandInTests extends TestCase
     // The resource keys the stand-in knows. It answers the first with the
     // properties of a key without the hardware lookup, and fails the
     // request for the properties of the second once and of the third every
-    // time. The fourth has the hardware lookup, and its lookups match no
-    // device.
+    // time. The last two have the hardware lookup, and their lookups match
+    // no device, and the request for the properties of the last fails once.
     private const STAND_IN_KEY = 'stand-in-key';
     private const FAILS_ONCE_KEY = 'fails-once-key';
     private const FAILS_ALWAYS_KEY = 'fails-always-key';
     private const NO_DEVICES_KEY = 'no-devices-key';
+    private const FAILS_ONCE_WITH_LOOKUP_KEY = 'fails-once-with-lookup-key';
 
     // The values each example looks up, the subject its headings name, and
     // the line it prints under a heading when a lookup matches no device.
@@ -235,33 +237,88 @@ class HardwareLookupStandInTests extends TestCase
      */
     public function testTacLookupConsoleWhenNoDeviceMatches()
     {
-        $this->runWhenNoDeviceMatches(self::TAC_SCRIPT);
+        $this->runScriptWhenNoDeviceMatches(self::TAC_SCRIPT, self::NO_DEVICES_KEY, 1);
     }
 
     public function testNativeModelLookupConsoleWhenNoDeviceMatches()
     {
-        $this->runWhenNoDeviceMatches(self::NATIVE_MODEL_SCRIPT);
+        $this->runScriptWhenNoDeviceMatches(self::NATIVE_MODEL_SCRIPT, self::NO_DEVICES_KEY, 1);
+    }
+
+    public function testTacLookupConsoleClassWhenNoDeviceMatches()
+    {
+        $this->runClassWhenNoDeviceMatches(self::TAC_SCRIPT, self::NO_DEVICES_KEY, 1);
+    }
+
+    public function testNativeModelLookupConsoleClassWhenNoDeviceMatches()
+    {
+        $this->runClassWhenNoDeviceMatches(self::NATIVE_MODEL_SCRIPT, self::NO_DEVICES_KEY, 1);
     }
 
     /**
-     * Runs the example in its own PHP and then its class with a key whose
-     * lookups match no device, and checks each ended normally, printed each
-     * heading with the line for no devices under it and nothing saying the
-     * key lacks the lookup, and asked for every lookup.
+     * A key with the hardware lookup is still taken as having it when the
+     * request for its properties made as the pipeline was built failed.
      */
-    private function runWhenNoDeviceMatches(string $script): void
+    public function testTacLookupConsoleWhenThePropertiesOfAKeyWithTheLookupFailOnce()
     {
+        $this->runScriptWhenNoDeviceMatches(self::TAC_SCRIPT, self::FAILS_ONCE_WITH_LOOKUP_KEY, 2);
+    }
+
+    public function testNativeModelLookupConsoleWhenThePropertiesOfAKeyWithTheLookupFailOnce()
+    {
+        $this->runScriptWhenNoDeviceMatches(self::NATIVE_MODEL_SCRIPT, self::FAILS_ONCE_WITH_LOOKUP_KEY, 2);
+    }
+
+    public function testTacLookupConsoleClassWhenThePropertiesOfAKeyWithTheLookupFailOnce()
+    {
+        $this->runClassWhenNoDeviceMatches(self::TAC_SCRIPT, self::FAILS_ONCE_WITH_LOOKUP_KEY, 2);
+    }
+
+    public function testNativeModelLookupConsoleClassWhenThePropertiesOfAKeyWithTheLookupFailOnce()
+    {
+        $this->runClassWhenNoDeviceMatches(self::NATIVE_MODEL_SCRIPT, self::FAILS_ONCE_WITH_LOOKUP_KEY, 2);
+    }
+
+    /**
+     * Runs the example in its own PHP with a key whose lookups match no
+     * device, and checks it ended with exit status 0, printed each heading
+     * with the line for no devices under it and nothing saying the key
+     * lacks the lookup, ended with Find out more, asked for the properties
+     * the given number of times and asked for every lookup.
+     */
+    private function runScriptWhenNoDeviceMatches(
+        string $script,
+        string $key,
+        int $propertyRequests
+    ): void {
         [$values, $subject, $noDevices] = self::LOOKUPS[$script];
 
-        $run = $this->runScript($script, self::NO_DEVICES_KEY);
+        $run = $this->runScript($script, $key);
+
         $this->assertSame(0, $run->status, $run->printed());
         $this->assertNoDevicesListed($run->output, $subject, $values, $noDevices, $run->printed());
         $run->assertEndsWithFindOutMore();
-        $this->assertRequests(1, count($values));
+        $this->assertRequests($propertyRequests, count($values));
+    }
 
-        $output = $this->runClass($script, self::NO_DEVICES_KEY);
+    /**
+     * Runs the example's class with a key whose lookups match no device,
+     * which must return normally, and checks it printed each heading with
+     * the line for no devices under it and nothing saying the key lacks the
+     * lookup, asked for the properties the given number of times and asked
+     * for every lookup.
+     */
+    private function runClassWhenNoDeviceMatches(
+        string $script,
+        string $key,
+        int $propertyRequests
+    ): void {
+        [$values, $subject, $noDevices] = self::LOOKUPS[$script];
+
+        $output = $this->runClass($script, $key);
+
         $this->assertNoDevicesListed($output, $subject, $values, $noDevices, $output);
-        $this->assertRequests(2, 2 * count($values));
+        $this->assertRequests($propertyRequests, count($values));
     }
 
     /**

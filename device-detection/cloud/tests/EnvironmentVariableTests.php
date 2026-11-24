@@ -110,6 +110,22 @@ class EnvironmentVariableTests extends TestCase
             'LICENSE_ENV_VAR',
             '_51DEGREES_LICENSE_KEY_BESPOKE'
         );
+        $this->assertVariableConstant(
+            Constants::class,
+            'BASIC_RESOURCE_ENV_VAR',
+            '_51DEGREES_RESOURCE_KEY_BASIC'
+        );
+        // The two names only CI sets, for the staging cloud service.
+        $this->assertVariableConstant(
+            Constants::class,
+            'STAGING_ENDPOINT_ENV_VAR',
+            'CLOUD_STAGING_ENDPOINT'
+        );
+        $this->assertVariableConstant(
+            Constants::class,
+            'STAGING_RESOURCE_ENV_VAR',
+            'RESOURCE_KEY_BESPOKE_STAGING'
+        );
     }
 
     /**

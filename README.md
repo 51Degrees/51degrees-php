@@ -175,6 +175,9 @@ cd pipeline/core
 Each package's `phpunit.xml` names its test suites. Some packages differ:
 
 - `location` has only an `Integration` suite.
+- `device-detection/cloud` has a `Staging` suite, the Human Confidence tests
+  of what the staging cloud service serves and the production one does not.
+  Only `.github/workflows/cloud-human-confidence.yml` runs it.
 - `device-detection/onpremise` is not in the root `composer.json`. The
   root autoloader maps its namespace to `device-detection/cloud`.
 

@@ -41,7 +41,9 @@ class HumanConfidenceWeb
     // The property the Resource Key must include.
     private const PROPERTY = 'HumanConfidence';
 
-    // The properties the passive call reads, named in its request.
+    // The properties the passive call reads, named in its request. Both
+    // are named, so a Resource Key whose own list of properties holds
+    // HumanConfidence but not HumanConfidenceSource still gets the source.
     private const PASSIVE_VALUES = 'derived.humanconfidence,derived.humanconfidencesource';
 
     /** @var string */

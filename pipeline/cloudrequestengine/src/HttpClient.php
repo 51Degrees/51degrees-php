@@ -95,6 +95,11 @@ class HttpClient
                 ]
             ]);
 
+            // Before PHP 8.4, PHP gives the response headers only in
+            // $http_response_header, and sets it only in a function that
+            // has that variable. Being set first, it is not read as the
+            // predefined variable PHP 8.5 deprecates.
+            $http_response_header = [];
             $data = @file_get_contents($url, false, $context);
 
             if ($data === false) {
@@ -113,10 +118,13 @@ class HttpClient
                 )));
             }
 
-            $statusCode = $this->getHttpCode($http_response_header);
+            $responseHeaders = function_exists('http_get_last_response_headers')
+                ? (http_get_last_response_headers() ?? [])
+                : $http_response_header;
+            $statusCode = $this->getHttpCode($responseHeaders);
 
             // Validate cloud response for errors.
-            $this->validateResponse($data, $statusCode, $http_response_header, $url);
+            $this->validateResponse($data, $statusCode, $responseHeaders, $url);
 
             return $data;
         }
@@ -150,7 +158,7 @@ class HttpClient
             // Without this the false went on to substr() and the caller saw
             // a type error naming this file instead.
             $error = curl_error($ch);
-            curl_close($ch);
+            self::closeCurl($ch);
 
             throw new CloudRequestException(LicenseKey::maskQuery(sprintf(
                 Constants::MESSAGE_REQUEST_FAILED,
@@ -170,9 +178,23 @@ class HttpClient
         // Validate cloud response body for errors.
         $this->validateResponse($bodyStr, $httpCode, $responseHeaders, $url);
 
-        curl_close($ch);
+        self::closeCurl($ch);
 
         return $bodyStr;
+    }
+
+    /**
+     * Closes a curl handle before PHP 8.0, where it is a resource. From PHP
+     * 8.0 it is an object, freed when the last reference to it goes, and
+     * PHP 8.5 deprecates curl_close().
+     *
+     * @param mixed $ch
+     */
+    private static function closeCurl($ch): void
+    {
+        if (PHP_VERSION_ID < 80000) {
+            curl_close($ch);
+        }
     }
 
     /**

@@ -924,6 +924,11 @@ final class DidClient
             $options['content'] = $body;
         }
         $context = stream_context_create(['http' => $options]);
+        // Before PHP 8.4, PHP gives the response headers only in
+        // $http_response_header, and sets it only in a function that has
+        // that variable. Being set first, it is not read as the predefined
+        // variable PHP 8.5 deprecates.
+        $http_response_header = [];
         // The @ keeps a connection failure from printing a warning, since
         // the false return is reported as an exception below.
         $response = @file_get_contents($url, false, $context);
@@ -931,10 +936,12 @@ final class DidClient
             throw new RuntimeException("No response from {$url}.");
         }
         $status = 0;
-        // PHP sets $http_response_header in the calling scope with the
-        // response headers, the status line first. A redirect leaves more
-        // than one status line, and the last is the answer.
-        foreach ($http_response_header ?? [] as $header) {
+        // The response headers, the status line first. A redirect leaves
+        // more than one status line, and the last is the answer.
+        $responseHeaders = function_exists('http_get_last_response_headers')
+            ? (http_get_last_response_headers() ?? [])
+            : $http_response_header;
+        foreach ($responseHeaders as $header) {
             if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $match)) {
                 $status = (int) $match[1];
             }

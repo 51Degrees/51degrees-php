@@ -214,7 +214,6 @@ class IpIntelligenceCloudTests extends TestCase
             curl_setopt($ch, CURLOPT_NOBODY, true);
             curl_exec($ch);
             $errno = curl_errno($ch);
-            curl_close($ch);
             if ($errno !== 0) {
                 $this->markTestSkipped(sprintf(
                     'Cloud endpoint not reachable in this environment (curl errno %d). ' .

@@ -209,7 +209,11 @@ class FlowDataTests extends TestCase
         // Takes the key out of the store alone, as a subclass of Evidence
         // can, leaving the spelling it was set with behind.
         $store = new \ReflectionProperty($flowData->evidence, 'evidence');
-        $store->setAccessible(true);
+        // Reflection writes a protected property before PHP 8.1 only once
+        // it is made accessible.
+        if (PHP_VERSION_ID < 80100) {
+            $store->setAccessible(true);
+        }
         $store->setValue($flowData->evidence, []);
 
         $raised = [];

@@ -57,7 +57,11 @@ class ClientIpTests extends TestCase
     private function clientIps(array $evidence, array $keys = self::KEYS): array
     {
         $method = new \ReflectionMethod(IpIntelligenceOnPremise::class, 'clientIpsFromEvidence');
-        $method->setAccessible(true);
+        // Reflection calls a private method before PHP 8.1 only once it is
+        // made accessible.
+        if (PHP_VERSION_ID < 80100) {
+            $method->setAccessible(true);
+        }
 
         return $method->invoke(null, $evidence, $keys);
     }

@@ -1,4 +1,17 @@
-<phpunit bootstrap="vendor/autoload.php">
+<!-- Every PHP error, warning, notice and deprecation fails the run, as do
+     risky tests. The attributes are those of PHPUnit 9.6, the version the
+     build matrix runs. -->
+<phpunit bootstrap="vendor/autoload.php"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         convertDeprecationsToExceptions="true"
+         failOnWarning="true"
+         failOnRisky="true">
+  <php>
+    <!-- Report every level, whatever php.ini sets. -->
+    <ini name="error_reporting" value="-1"/>
+  </php>
   <testsuites>
     <!-- Timed, so run only by ci/run-performance-tests.ps1. -->
     <testsuite name="Performance">

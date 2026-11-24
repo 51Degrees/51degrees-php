@@ -57,10 +57,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      # The PHPUnit common-ci gives the build matrix, whose attributes
+      # phpunit.xml uses, so a warning, notice or deprecation fails the
+      # suite here as it does there.
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
           extensions: mbstring, openssl, json
+          tools: phpunit:9.6.34
       # In the package folder, with the pipeline packages taken from this
       # checkout through composer.ci.json, as ci/run-integration-tests.ps1
       # installs the package for its browser tests. The package's own
@@ -91,10 +95,10 @@ jobs:
 
           $report = 'test-results/staging.xml'
           $names = 'test-results/staging.txt'
-          # The default output with --display-skipped prints each skip's
-          # reason, which --testdox leaves out. The test names are written
-          # as TestDox text and printed after.
-          php vendor/bin/phpunit --display-skipped --fail-on-warning `
+          # The default output with --verbose prints each skip's reason,
+          # which --testdox leaves out. The test names are written as
+          # TestDox text and printed after.
+          phpunit --verbose --fail-on-warning `
             --testsuite Staging --log-junit $report --testdox-text $names
           $status = $LASTEXITCODE
           if (Test-Path $names) { Get-Content $names }

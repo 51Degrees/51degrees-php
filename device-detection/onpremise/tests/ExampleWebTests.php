@@ -68,8 +68,9 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
+        $http_response_header = [];
         $data = @file_get_contents(Constants::URL, false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header);
+        $responseHeaders = self::parseHeaders(self::lastResponseHeaders($http_response_header));
 
         $this->assertSame(200, $responseHeaders['response_code']);
     }
@@ -91,8 +92,9 @@ class ExampleWebTests extends TestCase
         $page = @file_get_contents(Constants::URL, false, $context);
         $this->assertStringContainsString('<script src="/51Degrees.core.js"></script>', $page);
 
+        $http_response_header = [];
         $script = @file_get_contents(Constants::URL . '51Degrees.core.js', false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header);
+        $responseHeaders = self::parseHeaders(self::lastResponseHeaders($http_response_header));
 
         $this->assertSame(200, $responseHeaders['response_code']);
         $this->assertStringStartsWith('application/x-javascript', $responseHeaders['Content-Type']);
@@ -148,9 +150,30 @@ class ExampleWebTests extends TestCase
                 'ignore_errors' => true
             ]
         ]);
+        $http_response_header = [];
         @file_get_contents($url, false, $context);
 
-        return self::parseHeaders($http_response_header);
+        return self::parseHeaders(self::lastResponseHeaders($http_response_header));
+    }
+
+    /**
+     * The headers of the response file_get_contents() last read. PHP 8.4
+     * and later give them through http_get_last_response_headers(). Before
+     * that they are in $http_response_header, which PHP sets only in a
+     * function that has that variable, so the caller sets it to an empty
+     * array before the request and gives it here. Being set first, it is
+     * not read as the predefined variable PHP 8.5 deprecates.
+     *
+     * @param array<string> $headers the caller's $http_response_header
+     * @return array<string>
+     */
+    private static function lastResponseHeaders(array $headers): array
+    {
+        if (function_exists('http_get_last_response_headers')) {
+            return http_get_last_response_headers() ?? [];
+        }
+
+        return $headers;
     }
 
     /**

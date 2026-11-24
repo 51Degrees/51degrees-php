@@ -28,3 +28,8 @@ jobs:
       - name: Check the tests
         shell: pwsh
         run: ./ci/check-test-attributes.ps1
+
+      - name: Every PHPUnit configuration fails on warnings
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/phpunit-settings.Tests.ps1 -CI

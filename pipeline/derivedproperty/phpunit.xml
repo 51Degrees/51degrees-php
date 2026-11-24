@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Every PHP error, warning, notice and deprecation fails the run, as do
+     risky tests. The attributes are those of PHPUnit 9.6, the version the
+     build matrix runs. -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          bootstrap="vendor/autoload.php"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         convertDeprecationsToExceptions="true"
+         failOnWarning="true"
+         failOnRisky="true"
          colors="true">
+  <php>
+    <!-- Report every level, whatever php.ini sets. -->
+    <ini name="error_reporting" value="-1"/>
+  </php>
   <testsuites>
     <testsuite name="Unit">
       <file>tests/ReadOnlyTests.php</file>

@@ -168,8 +168,9 @@ class UACHCloudTests extends TestCase
         $url = $property === null
             ? Constants::URL . '?' . ExampleUtils::RESOURCE_KEY_QUERY_PARAM . '=' . urlencode($key)
             : Constants::LICENSE_URL . '?' . Constants::PROPERTY_QUERY_PARAM . '=' . urlencode($property);
+        $http_response_header = [];
         $body = @file_get_contents($url, false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header ?? []);
+        $responseHeaders = self::parseHeaders(self::lastResponseHeaders($http_response_header));
 
         $this->assertSame(200, $responseHeaders['response_code'] ?? null, (string) $body);
 
@@ -208,6 +209,26 @@ class UACHCloudTests extends TestCase
         }
 
         return $process;
+    }
+
+    /**
+     * The headers of the response file_get_contents() last read. PHP 8.4
+     * and later give them through http_get_last_response_headers(). Before
+     * that they are in $http_response_header, which PHP sets only in a
+     * function that has that variable, so the caller sets it to an empty
+     * array before the request and gives it here. Being set first, it is
+     * not read as the predefined variable PHP 8.5 deprecates.
+     *
+     * @param array<string> $headers the caller's $http_response_header
+     * @return array<string>
+     */
+    private static function lastResponseHeaders(array $headers): array
+    {
+        if (function_exists('http_get_last_response_headers')) {
+            return http_get_last_response_headers() ?? [];
+        }
+
+        return $headers;
     }
 
     /**

@@ -312,14 +312,25 @@ class HumanConfidenceWeb
     }
 
     /**
-     * Redeem: the page sends the sealed value, and this server redeems it
+     * Redeem: the page sends the sealed result, and this server redeems it
      * with the License Key. The answer goes back to the page as the cloud
      * gave it.
+     *
+     * The sealed result goes to the cloud as both sealedResult and value,
+     * with the same text, so the redeem works with a cloud service that
+     * reads either name. The page sends it as sealedResult, and value is
+     * still read from a page that sends the older name.
      */
     private function redeem(callable $output)
     {
-        $value = $_POST['value'] ?? '';
-        $fields = ['value' => is_string($value) ? $value : ''];
+        $sealedResult = $_POST['sealedResult'] ?? $_POST['value'] ?? '';
+        if (!is_string($sealedResult)) {
+            $sealedResult = '';
+        }
+        $fields = [
+            'sealedResult' => $sealedResult,
+            'value' => $sealedResult,
+        ];
         if ($this->licenseKey !== '') {
             $fields['license'] = $this->licenseKey;
         }

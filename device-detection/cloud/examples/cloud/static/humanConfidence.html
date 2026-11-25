@@ -105,22 +105,31 @@
     })
     .catch(function (error) { show("passive-level", String(error), FAIL); });
 
-  // Step 3. The server redeems the sealed value with its License Key.
-  function redeem(value) {
+  // Step 3. The server redeems the sealed result with its License Key.
+  function redeem(sealedResult) {
     var body = new URLSearchParams();
-    body.set("value", value);
+    body.set("sealedResult", sealedResult);
     return fetch("redeem", { method: "POST", body: body })
       .then(function (r) { return r.json(); });
   }
 
+  // What happened at redemption. A cloud service that sends status says
+  // so there. One that doesn't sends result for every outcome other than
+  // success, and the Value alone on success.
+  function statusOf(answer) {
+    return answer.status || answer.result
+      || (answer.humanConfidence ? "success" : "");
+  }
+
   function showRedeemed(answer) {
-    if (answer.humanConfidence) {
+    if (statusOf(answer) === "success") {
       show("redeem-detail", "redeemed " + answer.secondsSinceVerified
         + " s after the check", PASS);
       show("redeem-level", answer.humanConfidence,
         levelClass(answer.humanConfidence));
     } else {
-      show("redeem-detail", answer.result || answer.error || "no answer", FAIL);
+      show("redeem-detail", statusOf(answer) || answer.error || "no answer",
+        FAIL);
       show("redeem-level", "no level", NONE);
     }
   }
@@ -164,8 +173,7 @@
         again.onclick = function () {
           redeem(value).then(function (second) {
             document.getElementById("again-result").textContent =
-              " Second redeem: " + (second.result || second.humanConfidence
-                || second.error);
+              " Second redeem: " + (statusOf(second) || second.error);
           });
         };
       }).catch(function (error) {

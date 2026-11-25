@@ -32,8 +32,9 @@ namespace fiftyone\pipeline\did;
  *
  * The cloud also writes each word other than `success` to `context`, as it
  * did before `status` was added, so {@see RedeemResult::$context} still
- * reads those outcomes. Read this instead. A service that does not send
- * `status` leaves {@see RedeemResult::$status} null.
+ * reads those outcomes. Read this instead. For a service that does not
+ * send `status`, {@see RedeemResult::$status} is read from `context`, and a
+ * 503 is always {@see RedeemStatus::Unconfirmed}.
  */
 enum RedeemStatus: string
 {
@@ -70,5 +71,37 @@ enum RedeemStatus: string
             return null;
         }
         return self::tryFrom($value) ?? self::Unreadable;
+    }
+
+    /**
+     * The status of a redeem answer. A 503 is always
+     * {@see RedeemStatus::Unconfirmed}, whatever the body says. Otherwise
+     * it's read from `status` where the service sent one. A service that
+     * sends no `status` writes the failure word to `context`, so the
+     * status is then read from `context`. Any other `context` word this
+     * build knows is a verdict, so the sealed result was redeemed. A word
+     * it doesn't know, or no `context` at all, reads as
+     * {@see RedeemStatus::Unreadable}.
+     *
+     * @internal Used by {@see RedeemResult}.
+     */
+    public static function fromAnswer(
+        int $statusCode,
+        ?string $status,
+        string $context
+    ): self {
+        if ($statusCode === 503) {
+            return self::Unconfirmed;
+        }
+        if ($status !== null) {
+            return self::tryFrom($status) ?? self::Unreadable;
+        }
+        // The four failure words are both context words and status words.
+        // "success" is a status word only, so as a context it's unknown.
+        $verdict = ContextOutcome::tryFrom($context);
+        if ($verdict === null) {
+            return self::Unreadable;
+        }
+        return self::tryFrom($verdict->value) ?? self::Success;
     }
 }

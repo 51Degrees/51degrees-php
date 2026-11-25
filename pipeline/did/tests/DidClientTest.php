@@ -2109,7 +2109,9 @@ class DidClientTest extends TestCase
                 self::todaysMembers($after),
                 $name
             );
-            $this->assertNull($before->status, $name);
+            // A service that sends no status gives the same status, read
+            // from context and the HTTP status.
+            $this->assertSame($after->status, $before->status, $name);
             $this->assertNull($before->humanConfidence, $name);
             $this->assertNull($before->humanConfidenceNullReason, $name);
             $this->assertSame($now, $after->raw, $name);
@@ -2132,6 +2134,98 @@ class DidClientTest extends TestCase
             $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
             $this->assertSame($expected[$name], $result->status, $name);
         }
+    }
+
+    public function testRedeemReadsTheStatusFromContextWhenNoneIsSent(): void
+    {
+        $expected = [
+            'verified' => RedeemStatus::Success,
+            'mismatch' => RedeemStatus::Success,
+            'nocontext' => RedeemStatus::Success,
+            'notcheckable' => RedeemStatus::Success,
+            'misconfigured' => RedeemStatus::Success,
+            'invaliddate' => RedeemStatus::Success,
+            'expired' => RedeemStatus::Expired,
+            'replayed' => RedeemStatus::Replayed,
+            'unreadable' => RedeemStatus::Unreadable,
+            'unconfirmed' => RedeemStatus::Unconfirmed,
+            // "success" is a status word, never a context word.
+            'success' => RedeemStatus::Unreadable,
+            'somethingnew' => RedeemStatus::Unreadable,
+        ];
+        foreach ($expected as $context => $status) {
+            $this->queueJson(200, ['context' => $context]);
+            $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->assertSame($status, $result->status, $context);
+        }
+    }
+
+    public function testRedeemWithNoContextAndNoStatusIsUnreadable(): void
+    {
+        $this->queueJson(200, ['signature' => 'verified']);
+        $empty = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(RedeemStatus::Unreadable, $empty->status);
+
+        $this->queue(200, '<html>proxy</html>');
+        $html = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(RedeemStatus::Unreadable, $html->status);
+    }
+
+    public function testRedeem503IsUnconfirmedWhateverTheBodySays(): void
+    {
+        $bodies = [
+            'empty object' => '{}',
+            'not JSON' => '<html>busy</html>',
+            'empty' => '',
+            'success status' => json_encode([
+                'signature' => 'verified',
+                'context' => 'verified',
+                'status' => 'success',
+            ]),
+            'verdict only' => json_encode(['context' => 'verified']),
+            'other failure' => json_encode([
+                'context' => 'replayed',
+                'status' => 'replayed',
+            ]),
+        ];
+        foreach ($bodies as $name => $body) {
+            $this->queue(503, $body);
+            $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->assertSame(RedeemStatus::Unconfirmed, $result->status, $name);
+            $this->assertSame(
+                ContextOutcome::Unconfirmed,
+                $result->context,
+                $name
+            );
+            $this->assertSame(503, $result->statusCode, $name);
+            $this->assertSame($body, $result->raw, $name);
+        }
+    }
+
+    public function testARedeemResultBuiltWithoutAStatusReadsOne(): void
+    {
+        $replayed = new RedeemResult(
+            ContextOutcome::Replayed,
+            'replayed',
+            SignatureOutcome::Unknown,
+            null,
+            null,
+            null,
+            200,
+            '{"context":"replayed"}'
+        );
+        $this->assertSame(RedeemStatus::Replayed, $replayed->status);
+        $busy = new RedeemResult(
+            ContextOutcome::Unreadable,
+            '',
+            SignatureOutcome::Unknown,
+            null,
+            null,
+            null,
+            503,
+            '{}'
+        );
+        $this->assertSame(RedeemStatus::Unconfirmed, $busy->status);
     }
 
     public function testRedeemReadsAnUnknownStatusAsUnreadable(): void
@@ -2195,13 +2289,80 @@ class DidClientTest extends TestCase
         }
     }
 
-    public function testAHumanConfidenceWordIsReadInAnyCaseAndAnUnknownOneIsNot(): void
+    public function testAHumanConfidenceWordIsReadInAnyCaseAndAnUnknownOneIsAbsent(): void
     {
         $this->assertSame(HumanConfidence::Low, HumanConfidence::fromCloud('low'));
         $this->assertSame(HumanConfidence::High, HumanConfidence::fromCloud('HIGH'));
-        $this->assertNull(HumanConfidence::fromCloud('Unknown'));
-        $this->assertNull(HumanConfidence::fromCloud(''));
+        $this->assertSame(
+            HumanConfidence::Absent,
+            HumanConfidence::fromCloud('Unknown')
+        );
+        $this->assertSame(HumanConfidence::Absent, HumanConfidence::fromCloud(''));
         $this->assertNull(HumanConfidence::fromCloud(null));
+    }
+
+    public function testRedeemReadsAnUnknownHumanConfidenceWordAsAbsent(): void
+    {
+        $this->queueJson(200, [
+            'signature' => 'verified',
+            'context' => 'verified',
+            'humanConfidence' => 'VeryHigh',
+            'status' => 'success',
+        ]);
+        $unknown = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(HumanConfidence::Absent, $unknown->humanConfidence);
+        $this->assertSame('VeryHigh', $unknown->rawHumanConfidence);
+        $this->assertNull($unknown->humanConfidenceNullReason);
+
+        $this->queueJson(200, [
+            'signature' => 'verified',
+            'context' => 'verified',
+            'humanConfidence' => 3,
+            'status' => 'success',
+        ]);
+        $notAString = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(HumanConfidence::Absent, $notAString->humanConfidence);
+        $this->assertNull($notAString->rawHumanConfidence);
+    }
+
+    public function testRedeemReadsAMissingHumanConfidenceAsNotSent(): void
+    {
+        $this->queueJson(200, [
+            'signature' => 'verified',
+            'context' => 'verified',
+            'humanConfidenceNullReason' => self::NULL_REASON,
+            'status' => 'success',
+        ]);
+        $withheld = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertNull($withheld->humanConfidence);
+        $this->assertNull($withheld->rawHumanConfidence);
+        $this->assertSame(
+            self::NULL_REASON,
+            $withheld->humanConfidenceNullReason
+        );
+
+        $this->queue(
+            200,
+            '{"signature":"verified","context":"verified",'
+                . '"humanConfidence":null,"status":"success"}'
+        );
+        $null = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertNull($null->humanConfidence);
+        $this->assertNull($null->rawHumanConfidence);
+        $this->assertNull($null->humanConfidenceNullReason);
+    }
+
+    public function testRedeemKeepsTheHumanConfidenceWordAsSent(): void
+    {
+        $this->queueJson(200, [
+            'signature' => 'verified',
+            'context' => 'verified',
+            'humanConfidence' => 'medium',
+            'status' => 'success',
+        ]);
+        $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(HumanConfidence::Medium, $result->humanConfidence);
+        $this->assertSame('medium', $result->rawHumanConfidence);
     }
 
     public function testRedeemToArrayLeavesOutStatusAndHumanConfidence(): void
@@ -2390,6 +2551,42 @@ class DidClientTest extends TestCase
         foreach ($this->lastRequest()['headers'] as $header) {
             $this->assertStringStartsNotWith('X-51D-License-Key', $header);
         }
+    }
+
+    public function testVerifyDetailedReadsAnUnknownHumanConfidenceWordAsAbsent(): void
+    {
+        $this->queueJson(200, ['valid' => true, 'humanConfidence' => 'Maybe']);
+        $answer = $this->client()->verifyDetailed($this->someId());
+        $this->assertTrue($answer->valid);
+        $this->assertSame(HumanConfidence::Absent, $answer->humanConfidence);
+        $this->assertSame('Maybe', $answer->rawHumanConfidence);
+        $this->assertNull($answer->humanConfidenceNullReason);
+    }
+
+    public function testVerifyDetailedReadsAMissingHumanConfidenceAsNotSent(): void
+    {
+        $this->queueJson(200, [
+            'valid' => true,
+            'humanConfidenceNullReason' => self::NULL_REASON,
+        ]);
+        $withheld = $this->client()->verifyDetailed($this->someId());
+        $this->assertNull($withheld->humanConfidence);
+        $this->assertNull($withheld->rawHumanConfidence);
+        $this->assertSame(
+            self::NULL_REASON,
+            $withheld->humanConfidenceNullReason
+        );
+
+        $this->queueJson(200, ['valid' => true]);
+        $none = $this->client()->verifyDetailed($this->someId());
+        $this->assertNull($none->humanConfidence);
+        $this->assertNull($none->rawHumanConfidence);
+        $this->assertNull($none->humanConfidenceNullReason);
+
+        $this->queueJson(200, ['valid' => true, 'humanConfidence' => 'High']);
+        $high = $this->client()->verifyDetailed($this->someId());
+        $this->assertSame(HumanConfidence::High, $high->humanConfidence);
+        $this->assertSame('High', $high->rawHumanConfidence);
     }
 
     public function testVerifyDetailedReadsAnInvalidSignature(): void

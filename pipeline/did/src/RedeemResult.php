@@ -94,11 +94,13 @@ final class RedeemResult
 
     /**
      * What happened to the sealed result, from the `status` the cloud
-     * sends with every redeem answer. Null where the service sent no
-     * `status`. A word this build does not know reads as
-     * {@see RedeemStatus::Unreadable}.
+     * sends with every redeem answer. A 503 is always
+     * {@see RedeemStatus::Unconfirmed}, whatever the body says. Where the
+     * service sent no `status`, it's read from `context`, as
+     * {@see RedeemStatus::fromAnswer()} describes. A word this build does
+     * not know reads as {@see RedeemStatus::Unreadable}.
      */
-    public readonly ?RedeemStatus $status;
+    public readonly RedeemStatus $status;
 
     /**
      * The Human Confidence Value the 51Did carries, sent on success to a
@@ -112,6 +114,16 @@ final class RedeemResult
     public readonly ?string $humanConfidenceNullReason;
 
     /**
+     * The `humanConfidence` string exactly as the cloud sent it, so a word
+     * this build reads as {@see HumanConfidence::Absent} because it is not
+     * known is still visible. Null when the field was not sent.
+     */
+    public readonly ?string $rawHumanConfidence;
+
+    /**
+     * Where no status is given, it's read from the HTTP status and
+     * `$rawContext`, as {@see RedeemStatus::fromAnswer()} describes.
+     *
      * @param array<string, FactorOutcome>|null $factors
      */
     public function __construct(
@@ -125,7 +137,8 @@ final class RedeemResult
         string $raw,
         ?RedeemStatus $status = null,
         ?HumanConfidence $humanConfidence = null,
-        ?string $humanConfidenceNullReason = null
+        ?string $humanConfidenceNullReason = null,
+        ?string $rawHumanConfidence = null
     ) {
         $this->context = $context;
         $this->rawContext = $rawContext;
@@ -135,16 +148,19 @@ final class RedeemResult
         $this->secondsSinceVerified = $secondsSinceVerified;
         $this->statusCode = $statusCode;
         $this->raw = $raw;
-        $this->status = $status;
+        $this->status = $status
+            ?? RedeemStatus::fromAnswer($statusCode, null, $rawContext);
         $this->humanConfidence = $humanConfidence;
         $this->humanConfidenceNullReason = $humanConfidenceNullReason;
+        $this->rawHumanConfidence = $rawHumanConfidence;
     }
 
     /**
      * Builds the result from a redeem response. A body that is not a JSON
      * object, or one without a `context`, reads as
      * {@see ContextOutcome::Unreadable}, so nothing unexpected passes as a
-     * verdict.
+     * verdict. A 503 reads as {@see RedeemStatus::Unconfirmed} and
+     * {@see ContextOutcome::Unconfirmed}, whatever the body says.
      */
     public static function fromResponse(int $statusCode, string $body): self
     {
@@ -189,10 +205,13 @@ final class RedeemResult
         $status = isset($json['status']) && is_string($json['status'])
             ? $json['status']
             : null;
-        [$humanConfidence, $nullReason] = HumanConfidence::fromAnswer($json);
+        [$humanConfidence, $nullReason, $rawHumanConfidence] =
+            HumanConfidence::fromAnswer($json);
 
         return new self(
-            ContextOutcome::fromCloud($rawContext),
+            $statusCode === 503
+                ? ContextOutcome::Unconfirmed
+                : ContextOutcome::fromCloud($rawContext),
             $rawContext,
             SignatureOutcome::fromCloud($signature),
             $factors,
@@ -200,9 +219,10 @@ final class RedeemResult
             $seconds,
             $statusCode,
             $body,
-            RedeemStatus::fromCloud($status),
+            RedeemStatus::fromAnswer($statusCode, $status, $rawContext),
             $humanConfidence,
-            $nullReason
+            $nullReason,
+            $rawHumanConfidence
         );
     }
 

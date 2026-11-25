@@ -52,14 +52,17 @@ enum HumanConfidence: string
     /**
      * The 51Did carries no Value, because no Human Confidence Value was
      * available when it was made. Every 51Did made before the cloud
-     * carried the Value reads as Absent.
+     * carried the Value reads as Absent. So does a word this build doesn't
+     * know, so an unknown word never passes as High, Medium or Low.
      */
     case Absent = 'Absent';
 
     /**
      * Maps the cloud's `humanConfidence` string without regard to case,
-     * answering null when the cloud sent none or a word this build does
-     * not know, so an unknown word never passes as a Value.
+     * answering null when the cloud sent none. A word this build does not
+     * know reads as {@see HumanConfidence::Absent}, so an unknown word
+     * never passes as a Value and is never mistaken for a field that
+     * wasn't sent.
      */
     public static function fromCloud(?string $value): ?self
     {
@@ -72,29 +75,34 @@ enum HumanConfidence: string
             'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
             'abcdefghijklmnopqrstuvwxyz'
         ));
-        return self::tryFrom($word);
+        return self::tryFrom($word) ?? self::Absent;
     }
 
     /**
-     * Reads the Value and its null reason from a decoded 51Did endpoint
-     * answer.
+     * Reads the Value, its null reason and the raw word from a decoded
+     * 51Did endpoint answer. A `humanConfidence` that is present but is
+     * not a word this build knows, or is not a string at all, reads as
+     * {@see HumanConfidence::Absent}. One that is missing or null reads as
+     * null, and then the null reason says why where the cloud sent one.
      *
      * @internal Used by the package's own response classes.
      *
      * @param array<mixed> $json
-     * @return array{0: ?HumanConfidence, 1: ?string} The Value, and the
-     *     `humanConfidenceNullReason` text, each null when not sent.
+     * @return array{0: ?HumanConfidence, 1: ?string, 2: ?string} The
+     *     Value, the `humanConfidenceNullReason` text, and the
+     *     `humanConfidence` string as sent, each null when not sent.
      */
     public static function fromAnswer(array $json): array
     {
-        $value = isset($json['humanConfidence'])
-            && is_string($json['humanConfidence'])
-            ? self::fromCloud($json['humanConfidence'])
-            : null;
+        $sent = $json['humanConfidence'] ?? null;
+        $raw = is_string($sent) ? $sent : null;
+        $value = $sent === null
+            ? null
+            : ($raw === null ? self::Absent : self::fromCloud($raw));
         $reason = isset($json['humanConfidenceNullReason'])
             && is_string($json['humanConfidenceNullReason'])
             ? $json['humanConfidenceNullReason']
             : null;
-        return [$value, $reason];
+        return [$value, $reason, $raw];
     }
 }

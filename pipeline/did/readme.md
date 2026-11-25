@@ -434,8 +434,7 @@ try {
     }
     $redeemed->status;               // RedeemStatus: Success, Expired,
                                      // Replayed, Unconfirmed or
-                                     // Unreadable, or null from a service
-                                     // that sends no status
+                                     // Unreadable
     $redeemed->humanConfidence;      // HumanConfidence: High, Medium,
                                      // Low or Absent, or null
     $redeemed->humanConfidenceNullReason; // why there is no Value, or null
@@ -482,10 +481,13 @@ Every cryptographic failure comes back as the one word `unreadable`, by
 design, so the client does not try to distinguish them either.
 
 `status` says what happened to the sealed result: `success`, `expired`,
-`replayed`, `unconfirmed` or `unreadable`. It is null where the service
-sends no `status`, and a word the package does not know reads as
-`RedeemStatus::Unreadable`. On every status other than `success` the cloud
-still writes the same word to `context`, so `ContextOutcome::Expired`,
+`replayed`, `unconfirmed` or `unreadable`. A 503 is always `Unconfirmed`,
+whatever the body says. A word the package does not know reads as
+`RedeemStatus::Unreadable`. Where the service sends no `status`, it's read
+from `context`. The four failure words give those statuses, any other
+verdict the package knows gives `Success`, and a word it doesn't know, or
+no `context`, gives `Unreadable`. On every status other than `success` the
+cloud still writes the same word to `context`, so `ContextOutcome::Expired`,
 `Replayed`, `Unreadable` and `Unconfirmed` go on being read. They're
 obsolete, so read `status` for those outcomes instead.
 
@@ -495,7 +497,10 @@ Value, and `Absent` where it wasn't, which is every 51Did made before the
 cloud carried the Value. The cloud sends it on a successful redeem, and on
 a verify of a 51Did whose signature verifies. It sends it only to a call
 that presents a License Key valid for Human Confidence. Any other call
-gets `humanConfidenceNullReason` instead, saying why. `toArray()` leaves
+gets `humanConfidenceNullReason` instead, saying why, and
+`humanConfidence` is then null. A `humanConfidence` word the package
+doesn't know reads as `Absent`, never as null, and the word as sent stays
+on `rawHumanConfidence`. `toArray()` leaves
 out `status` and the Human Confidence fields, so a server that relays the
 answer to a page sends what it sent before.
 

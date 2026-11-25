@@ -50,6 +50,13 @@ final class VerifyResponse
     /** Why the cloud sent no Value, or null where it sent none. */
     public readonly ?string $humanConfidenceNullReason;
 
+    /**
+     * The `humanConfidence` string exactly as the cloud sent it, so a word
+     * this build reads as {@see HumanConfidence::Absent} because it is not
+     * known is still visible. Null when the field was not sent.
+     */
+    public readonly ?string $rawHumanConfidence;
+
     /** The HTTP status, 200 or 400. */
     public readonly int $statusCode;
 
@@ -61,13 +68,15 @@ final class VerifyResponse
         ?HumanConfidence $humanConfidence,
         ?string $humanConfidenceNullReason,
         int $statusCode,
-        string $raw
+        string $raw,
+        ?string $rawHumanConfidence = null
     ) {
         $this->valid = $valid;
         $this->humanConfidence = $humanConfidence;
         $this->humanConfidenceNullReason = $humanConfidenceNullReason;
         $this->statusCode = $statusCode;
         $this->raw = $raw;
+        $this->rawHumanConfidence = $rawHumanConfidence;
     }
 
     /**
@@ -80,13 +89,14 @@ final class VerifyResponse
         if (!is_array($json)) {
             $json = [];
         }
-        [$value, $reason] = HumanConfidence::fromAnswer($json);
+        [$value, $reason, $rawValue] = HumanConfidence::fromAnswer($json);
         return new self(
             ($json['valid'] ?? null) === true,
             $value,
             $reason,
             $statusCode,
-            $body
+            $body,
+            $rawValue
         );
     }
 }

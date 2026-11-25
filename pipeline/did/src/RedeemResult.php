@@ -38,13 +38,27 @@ use DateTimeZone;
  * {@see RedeemResult::$secondsSinceVerified} is how long ago that was by the
  * service's clock, in whole seconds. Both are present on the redeemed and
  * expired outcomes and null otherwise.
+ *
+ * {@see RedeemResult::$status} says what happened to the sealed result,
+ * and on {@see RedeemStatus::Success} the unsealed result is in
+ * {@see RedeemResult::$context}, {@see RedeemResult::$signature} and
+ * {@see RedeemResult::$factors}, with the Human Confidence Value the 51Did
+ * carries in {@see RedeemResult::$humanConfidence}. The cloud still writes
+ * every other status to `context`, so a caller that reads only
+ * {@see RedeemResult::$context} reads it as before.
  */
 final class RedeemResult
 {
     /** The format the cloud writes `verifiedAt` in, ISO 8601 UTC to the second. */
     public const VERIFIED_AT_FORMAT = 'Y-m-d\TH:i:s\Z';
 
-    /** The creator context verdict. */
+    /**
+     * The creator context verdict. On any status other than success it
+     * holds the same word as {@see RedeemResult::$status}, through the
+     * obsolete cases {@see ContextOutcome::Expired},
+     * {@see ContextOutcome::Replayed}, {@see ContextOutcome::Unreadable}
+     * and {@see ContextOutcome::Unconfirmed}.
+     */
     public readonly ContextOutcome $context;
 
     /**
@@ -79,6 +93,25 @@ final class RedeemResult
     public readonly string $raw;
 
     /**
+     * What happened to the sealed result, from the `status` the cloud
+     * sends with every redeem answer. Null where the service sent no
+     * `status`. A word this build does not know reads as
+     * {@see RedeemStatus::Unreadable}.
+     */
+    public readonly ?RedeemStatus $status;
+
+    /**
+     * The Human Confidence Value the 51Did carries, sent on success to a
+     * call that presented a License Key valid for Human Confidence. Null
+     * otherwise, and then {@see RedeemResult::$humanConfidenceNullReason}
+     * says why where the cloud sent a reason.
+     */
+    public readonly ?HumanConfidence $humanConfidence;
+
+    /** Why the cloud sent no Value, or null where it sent none. */
+    public readonly ?string $humanConfidenceNullReason;
+
+    /**
      * @param array<string, FactorOutcome>|null $factors
      */
     public function __construct(
@@ -89,7 +122,10 @@ final class RedeemResult
         ?DateTimeImmutable $verifiedAt,
         ?int $secondsSinceVerified,
         int $statusCode,
-        string $raw
+        string $raw,
+        ?RedeemStatus $status = null,
+        ?HumanConfidence $humanConfidence = null,
+        ?string $humanConfidenceNullReason = null
     ) {
         $this->context = $context;
         $this->rawContext = $rawContext;
@@ -99,6 +135,9 @@ final class RedeemResult
         $this->secondsSinceVerified = $secondsSinceVerified;
         $this->statusCode = $statusCode;
         $this->raw = $raw;
+        $this->status = $status;
+        $this->humanConfidence = $humanConfidence;
+        $this->humanConfidenceNullReason = $humanConfidenceNullReason;
     }
 
     /**
@@ -147,6 +186,11 @@ final class RedeemResult
             $seconds = (int) $json['secondsSinceVerified'];
         }
 
+        $status = isset($json['status']) && is_string($json['status'])
+            ? $json['status']
+            : null;
+        [$humanConfidence, $nullReason] = HumanConfidence::fromAnswer($json);
+
         return new self(
             ContextOutcome::fromCloud($rawContext),
             $rawContext,
@@ -155,7 +199,10 @@ final class RedeemResult
             $verifiedAt,
             $seconds,
             $statusCode,
-            $body
+            $body,
+            RedeemStatus::fromCloud($status),
+            $humanConfidence,
+            $nullReason
         );
     }
 
@@ -163,7 +210,10 @@ final class RedeemResult
      * The result in the cloud's own shape (`signature`, `context`,
      * `factors` when present, `verifiedAt`, `secondsSinceVerified`), for a
      * server that relays a redemption to a page as JSON. Fields the cloud
-     * did not send are left out, as the cloud leaves them out.
+     * did not send are left out, as the cloud leaves them out. `status`
+     * and the Human Confidence fields are not included, so the array is
+     * the same whichever service answered, and a Value read with the
+     * licence key does not reach the page unless the server adds it.
      *
      * @return array<string, mixed>
      */

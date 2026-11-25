@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\did\tests;
 
+use ArgumentCountError;
 use DateTimeImmutable;
 use DateTimeZone;
 use fiftyone\pipeline\did\CloudException;
@@ -34,9 +35,13 @@ use fiftyone\pipeline\did\FactorOutcome;
 use fiftyone\pipeline\did\FodId;
 use fiftyone\pipeline\did\FodIdLayout;
 use fiftyone\pipeline\did\FodIdParseStatus;
+use fiftyone\pipeline\did\HumanConfidence;
 use fiftyone\pipeline\did\NotSupportedException;
+use fiftyone\pipeline\did\RedeemResult;
+use fiftyone\pipeline\did\RedeemStatus;
 use fiftyone\pipeline\did\SignatureCheck;
 use fiftyone\pipeline\did\SignatureOutcome;
+use fiftyone\pipeline\did\VerifyResponse;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -1550,7 +1555,7 @@ class DidClientTest extends TestCase
             'secondsSinceVerified' => 2,
         ]);
         $fodId = $this->signedAt(self::at(self::T0), $this->keyA);
-        $this->client()->redeem($fodId, 'SEALED', 'CHALLENGE');
+        $this->client()->redeem($fodId, 'SEALED', 'TRANSACTION');
         $request = $this->lastRequest();
         $this->assertSame('POST', $request['method']);
         // The bare path. The cloud's POST route takes the resource key from
@@ -1563,8 +1568,10 @@ class DidClientTest extends TestCase
         $this->assertSame([
             'resource' => self::RESOURCE,
             '51did' => $fodId->asBase64Url(),
+            'sealedResult' => 'SEALED',
             'result' => 'SEALED',
-            'challenge' => 'CHALLENGE',
+            'transaction' => 'TRANSACTION',
+            'challenge' => 'TRANSACTION',
             'license' => self::LICENCE,
         ], $form);
         $this->assertContains(
@@ -1580,7 +1587,8 @@ class DidClientTest extends TestCase
         parse_str($this->lastRequest()['body'], $form);
         $this->assertArrayNotHasKey('license', $form);
         $this->assertSame(
-            ['resource', '51did', 'result', 'challenge'],
+            ['resource', '51did', 'sealedResult', 'result', 'transaction',
+                'challenge'],
             array_keys($form)
         );
     }
@@ -1948,6 +1956,466 @@ class DidClientTest extends TestCase
         );
         $this->expectException(RuntimeException::class);
         $client->redeem($this->someId(), 'SEALED', 'C');
+    }
+
+    // ----- Sealed result, transaction, status and Human Confidence -----
+
+    /** The message the cloud adds for the obsolete `result` input. */
+    private const OBSOLETE_RESULT = 'result is obsolete. Use sealedResult.';
+
+    /** The message the cloud adds for the obsolete `challenge` input. */
+    private const OBSOLETE_CHALLENGE =
+        'challenge is obsolete. Use transaction.';
+
+    /**
+     * The reason the cloud gives in place of the Value to a call without a
+     * License Key valid for Human Confidence.
+     */
+    private const NULL_REASON = 'humanConfidence is a paid feature. You '
+        . 'need a License Key valid for Human Confidence, presented on '
+        . 'this call, to retrieve it. Visit https://51degrees.com/pricing '
+        . 'for details';
+
+    /**
+     * Recorded redeem answers, each as the cloud wrote it before `status`
+     * was added and as it writes it now, with the HTTP status. The new
+     * answers add `status`, `humanConfidence` or
+     * `humanConfidenceNullReason` on success, and `obsolete` where the call
+     * used an obsolete name, and change nothing else.
+     *
+     * @return array<string, array{int, string, string}>
+     */
+    private static function redeemAnswers(): array
+    {
+        return [
+            'success with a Value' => [
+                200,
+                '{"signature":"verified","context":"verified",'
+                    . '"verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":2}',
+                '{"signature":"verified","context":"verified",'
+                    . '"humanConfidence":"High","status":"success",'
+                    . '"verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":2}',
+            ],
+            'success with factors and a null reason' => [
+                200,
+                '{"signature":"verified","context":"mismatch",'
+                    . '"factors":' . json_encode(self::NINE_FACTORS) . ','
+                    . '"verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":2}',
+                '{"signature":"verified","context":"mismatch",'
+                    . '"factors":' . json_encode(self::NINE_FACTORS) . ','
+                    . '"humanConfidenceNullReason":'
+                    . json_encode(self::NULL_REASON, JSON_UNESCAPED_SLASHES)
+                    . ',"status":"success",'
+                    . '"verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":2}',
+            ],
+            'success with Absent and obsolete names' => [
+                200,
+                '{"signature":"invalid","context":"verified",'
+                    . '"verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":0}',
+                '{"signature":"invalid","context":"verified",'
+                    . '"humanConfidence":"Absent","status":"success",'
+                    . '"verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":0,'
+                    . '"obsolete":["' . self::OBSOLETE_RESULT . '","'
+                    . self::OBSOLETE_CHALLENGE . '"]}',
+            ],
+            'expired' => [
+                200,
+                '{"context":"expired","verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":14}',
+                '{"context":"expired","status":"expired",'
+                    . '"verifiedAt":"2026-08-07T09:15:32Z",'
+                    . '"secondsSinceVerified":14}',
+            ],
+            'replayed' => [
+                200,
+                '{"context":"replayed"}',
+                '{"context":"replayed","status":"replayed"}',
+            ],
+            'unreadable with an obsolete name' => [
+                200,
+                '{"context":"unreadable"}',
+                '{"context":"unreadable","status":"unreadable",'
+                    . '"obsolete":["' . self::OBSOLETE_RESULT . '"]}',
+            ],
+            'unconfirmed' => [
+                503,
+                '{"context":"unconfirmed"}',
+                '{"context":"unconfirmed","status":"unconfirmed"}',
+            ],
+        ];
+    }
+
+    /**
+     * Runs the call and answers the `E_USER_DEPRECATED` messages it raised,
+     * so a test can show which obsolete names were reported.
+     *
+     * @return string[]
+     */
+    private static function deprecations(callable $call): array
+    {
+        $messages = [];
+        set_error_handler(
+            static function (int $level, string $message) use (&$messages): bool {
+                if ($level !== E_USER_DEPRECATED) {
+                    return false;
+                }
+                $messages[] = $message;
+                return true;
+            }
+        );
+        try {
+            $call();
+        } finally {
+            restore_error_handler();
+        }
+        return $messages;
+    }
+
+    /**
+     * Every member a redeem answer had before `status` was added, so two
+     * answers can be compared on exactly what today's callers read.
+     *
+     * @return array<string, mixed>
+     */
+    private static function todaysMembers(RedeemResult $result): array
+    {
+        return [
+            'context' => $result->context,
+            'rawContext' => $result->rawContext,
+            'signature' => $result->signature,
+            'factors' => $result->factors,
+            'verifiedAt' => $result->verifiedAt?->format(DATE_ATOM),
+            'secondsSinceVerified' => $result->secondsSinceVerified,
+            'statusCode' => $result->statusCode,
+            'toArray' => $result->toArray(),
+        ];
+    }
+
+    public function testEveryNewRedeemAnswerReadsAsTodaysDid(): void
+    {
+        foreach (self::redeemAnswers() as $name => [$code, $today, $now]) {
+            $this->queue($code, $today);
+            $before = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->queue($code, $now);
+            $after = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->assertSame(
+                self::todaysMembers($before),
+                self::todaysMembers($after),
+                $name
+            );
+            $this->assertNull($before->status, $name);
+            $this->assertNull($before->humanConfidence, $name);
+            $this->assertNull($before->humanConfidenceNullReason, $name);
+            $this->assertSame($now, $after->raw, $name);
+        }
+    }
+
+    public function testRedeemReadsStatusIntoItsOwnEnumeration(): void
+    {
+        $expected = [
+            'success with a Value' => RedeemStatus::Success,
+            'success with factors and a null reason' => RedeemStatus::Success,
+            'success with Absent and obsolete names' => RedeemStatus::Success,
+            'expired' => RedeemStatus::Expired,
+            'replayed' => RedeemStatus::Replayed,
+            'unreadable with an obsolete name' => RedeemStatus::Unreadable,
+            'unconfirmed' => RedeemStatus::Unconfirmed,
+        ];
+        foreach (self::redeemAnswers() as $name => [$code, , $now]) {
+            $this->queue($code, $now);
+            $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->assertSame($expected[$name], $result->status, $name);
+        }
+    }
+
+    public function testRedeemReadsAnUnknownStatusAsUnreadable(): void
+    {
+        $this->queueJson(200, ['context' => 'verified', 'status' => 'new']);
+        $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(RedeemStatus::Unreadable, $result->status);
+    }
+
+    public function testTheStatusesAreTheWordsTheCloudWrites(): void
+    {
+        $this->assertSame(
+            ['success', 'expired', 'replayed', 'unconfirmed', 'unreadable'],
+            array_map(
+                static fn (RedeemStatus $status): string => $status->value,
+                RedeemStatus::cases()
+            )
+        );
+    }
+
+    public function testRedeemReadsTheHumanConfidenceValue(): void
+    {
+        $answers = self::redeemAnswers();
+        $this->queue(200, $answers['success with a Value'][2]);
+        $high = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(HumanConfidence::High, $high->humanConfidence);
+        $this->assertNull($high->humanConfidenceNullReason);
+
+        $this->queue(200, $answers['success with Absent and obsolete names'][2]);
+        $absent = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertSame(HumanConfidence::Absent, $absent->humanConfidence);
+
+        $this->queue(200, $answers['success with factors and a null reason'][2]);
+        $withheld = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertNull($withheld->humanConfidence);
+        $this->assertSame(
+            self::NULL_REASON,
+            $withheld->humanConfidenceNullReason
+        );
+
+        $this->queue(200, $answers['expired'][2]);
+        $expired = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+        $this->assertNull($expired->humanConfidence);
+        $this->assertNull($expired->humanConfidenceNullReason);
+    }
+
+    public function testEachHumanConfidenceValueIsRead(): void
+    {
+        foreach (['High', 'Medium', 'Low', 'Absent'] as $word) {
+            $this->queueJson(200, [
+                'signature' => 'verified',
+                'context' => 'verified',
+                'humanConfidence' => $word,
+                'status' => 'success',
+            ]);
+            $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->assertSame(
+                HumanConfidence::from($word),
+                $result->humanConfidence
+            );
+        }
+    }
+
+    public function testAHumanConfidenceWordIsReadInAnyCaseAndAnUnknownOneIsNot(): void
+    {
+        $this->assertSame(HumanConfidence::Low, HumanConfidence::fromCloud('low'));
+        $this->assertSame(HumanConfidence::High, HumanConfidence::fromCloud('HIGH'));
+        $this->assertNull(HumanConfidence::fromCloud('Unknown'));
+        $this->assertNull(HumanConfidence::fromCloud(''));
+        $this->assertNull(HumanConfidence::fromCloud(null));
+    }
+
+    public function testRedeemToArrayLeavesOutStatusAndHumanConfidence(): void
+    {
+        $answers = self::redeemAnswers();
+        $this->queue(200, $answers['success with a Value'][2]);
+        $array = $this->client()->redeem($this->someId(), 'SEALED', 'C')
+            ->toArray();
+        $this->assertArrayNotHasKey('status', $array);
+        $this->assertArrayNotHasKey('humanConfidence', $array);
+        $this->assertArrayNotHasKey('obsolete', $array);
+    }
+
+    public function testRedeemByPositionRaisesNoDeprecation(): void
+    {
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        $messages = self::deprecations(
+            fn () => $this->client()->redeem($this->someId(), 'SEALED', 'T')
+        );
+        $this->assertSame([], $messages);
+        parse_str($this->lastRequest()['body'], $form);
+        $this->assertSame('SEALED', $form['sealedResult']);
+        $this->assertSame('T', $form['transaction']);
+    }
+
+    public function testRedeemByTheCurrentNames(): void
+    {
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        $messages = self::deprecations(
+            fn () => $this->client()->redeem(
+                fodId: $this->someId(),
+                sealedResult: 'SEALED',
+                transaction: 'T'
+            )
+        );
+        $this->assertSame([], $messages);
+        parse_str($this->lastRequest()['body'], $form);
+        // Both names go with the same values, so a service that reads
+        // only the older names still redeems.
+        $this->assertSame('SEALED', $form['sealedResult']);
+        $this->assertSame('SEALED', $form['result']);
+        $this->assertSame('T', $form['transaction']);
+        $this->assertSame('T', $form['challenge']);
+    }
+
+    public function testRedeemNeedsNoTransaction(): void
+    {
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        $this->client()->redeem($this->someId(), 'SEALED');
+        parse_str($this->lastRequest()['body'], $form);
+        $this->assertSame('', $form['transaction']);
+        $this->assertSame('', $form['challenge']);
+    }
+
+    public function testRedeemByTheObsoleteNamesStillWorksAndIsDeprecated(): void
+    {
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        $result = null;
+        $messages = self::deprecations(
+            function () use (&$result): void {
+                $result = $this->client()->redeem(
+                    fodId: $this->someId(),
+                    result: 'SEALED',
+                    challenge: 'T'
+                );
+            }
+        );
+        $this->assertSame([
+            'The result parameter of DidClient::redeem() is obsolete. '
+                . 'Use sealedResult.',
+            'The challenge parameter of DidClient::redeem() is obsolete. '
+                . 'Use transaction.',
+        ], $messages);
+        $this->assertSame(RedeemStatus::Replayed, $result->status);
+        parse_str($this->lastRequest()['body'], $form);
+        // Whichever names the caller used, the cloud gets both.
+        // Both names go with the same values, so a service that reads
+        // only the older names still redeems.
+        $this->assertSame('SEALED', $form['sealedResult']);
+        $this->assertSame('SEALED', $form['result']);
+        $this->assertSame('T', $form['transaction']);
+        $this->assertSame('T', $form['challenge']);
+    }
+
+    public function testRedeemPrefersTheCurrentNamesWhenBothArePassed(): void
+    {
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        $messages = self::deprecations(
+            fn () => $this->client()->redeem(
+                fodId: $this->someId(),
+                sealedResult: 'CURRENT',
+                transaction: 'NEW',
+                result: 'OLD',
+                challenge: 'OLDER'
+            )
+        );
+        $this->assertCount(2, $messages);
+        parse_str($this->lastRequest()['body'], $form);
+        $this->assertSame('CURRENT', $form['sealedResult']);
+        $this->assertSame('CURRENT', $form['result']);
+        $this->assertSame('NEW', $form['transaction']);
+        $this->assertSame('NEW', $form['challenge']);
+    }
+
+    public function testRedeemWithoutASealedResultIsRefusedBeforeAnyRequest(): void
+    {
+        try {
+            $this->client()->redeem($this->someId());
+            $this->fail('The redeem was accepted.');
+        } catch (ArgumentCountError $error) {
+            $this->assertStringContainsString(
+                'sealedResult',
+                $error->getMessage()
+            );
+        }
+        $this->assertCount(0, $this->requests);
+    }
+
+    public function testTheObsoleteContextOutcomesKeepTheirValues(): void
+    {
+        $this->assertSame('expired', ContextOutcome::Expired->value);
+        $this->assertSame('replayed', ContextOutcome::Replayed->value);
+        $this->assertSame('unreadable', ContextOutcome::Unreadable->value);
+        $this->assertSame('unconfirmed', ContextOutcome::Unconfirmed->value);
+    }
+
+    public function testVerifyReadsANewAnswerAsBefore(): void
+    {
+        $this->queueJson(200, [
+            'valid' => true,
+            'humanConfidenceNullReason' => self::NULL_REASON,
+        ]);
+        $this->assertTrue($this->client()->verify($this->someId()));
+        $this->queueJson(200, ['valid' => true, 'humanConfidence' => 'Low']);
+        $this->assertTrue($this->client()->verify($this->someId()));
+        $this->queueJson(400, ['valid' => false]);
+        $this->assertFalse($this->client()->verify($this->someId()));
+    }
+
+    public function testVerifySendsNoLicenceKey(): void
+    {
+        $this->queueJson(200, ['valid' => true]);
+        $this->client()->verify($this->someId());
+        foreach ($this->lastRequest()['headers'] as $header) {
+            $this->assertStringNotContainsString(self::LICENCE, $header);
+        }
+    }
+
+    public function testVerifyDetailedReadsTheHumanConfidenceValue(): void
+    {
+        $body = json_encode(['valid' => true, 'humanConfidence' => 'Medium']);
+        $this->queue(200, $body);
+        $fodId = $this->signedAt(self::at(self::T0), $this->keyA);
+        $answer = $this->client()->verifyDetailed($fodId);
+        $this->assertInstanceOf(VerifyResponse::class, $answer);
+        $this->assertTrue($answer->valid);
+        $this->assertSame(HumanConfidence::Medium, $answer->humanConfidence);
+        $this->assertNull($answer->humanConfidenceNullReason);
+        $this->assertSame(200, $answer->statusCode);
+        $this->assertSame($body, $answer->raw);
+        $request = $this->lastRequest();
+        // The licence key travels in a header and never in the URL.
+        $this->assertContains(
+            'X-51D-License-Key: ' . self::LICENCE,
+            $request['headers']
+        );
+        $this->assertStringNotContainsString(self::LICENCE, $request['url']);
+        $this->assertSame(
+            self::ENDPOINT . 'id/verify/' . self::RESOURCE
+                . '?51did=' . $fodId->asBase64Url()
+                . '&owid=' . $fodId->asBase64Url(),
+            $request['url']
+        );
+    }
+
+    public function testVerifyDetailedReadsTheNullReason(): void
+    {
+        $this->queueJson(200, [
+            'valid' => true,
+            'humanConfidenceNullReason' => self::NULL_REASON,
+        ]);
+        $answer = $this->client(null)->verifyDetailed($this->someId());
+        $this->assertTrue($answer->valid);
+        $this->assertNull($answer->humanConfidence);
+        $this->assertSame(self::NULL_REASON, $answer->humanConfidenceNullReason);
+        foreach ($this->lastRequest()['headers'] as $header) {
+            $this->assertStringStartsNotWith('X-51D-License-Key', $header);
+        }
+    }
+
+    public function testVerifyDetailedReadsAnInvalidSignature(): void
+    {
+        $this->queueJson(400, ['valid' => false]);
+        $answer = $this->client()->verifyDetailed($this->someId());
+        $this->assertFalse($answer->valid);
+        $this->assertNull($answer->humanConfidence);
+        $this->assertSame(400, $answer->statusCode);
+    }
+
+    public function testVerifyDetailedErrorsThrowAsVerifyDoes(): void
+    {
+        $this->queueJson(400, ['errors' => [self::NOT_A_51DID]]);
+        try {
+            $this->client()->verifyDetailed($this->someId());
+            $this->fail('Expected an InvalidArgumentException.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString(
+                self::NOT_A_51DID,
+                $exception->getMessage()
+            );
+        }
+        $this->queue(500, 'server error');
+        $this->expectException(CloudException::class);
+        $this->client()->verifyDetailed($this->someId());
     }
 
     // ----- Detailed offline verification -----

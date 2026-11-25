@@ -21,14 +21,57 @@ permissions:
   contents: read
 
 jobs:
+  # The check takes the free data files from the asset cache and never
+  # downloads them, so this job makes sure the cache holds them first.
+  # common-ci's fetch-assets looks for the day's entry that an earlier run of
+  # the pull request, rc or main saved, and downloads and saves the files
+  # only when there is none.
+  free-data-files:
+    name: Free data files in the asset cache
+    runs-on: ubuntu-latest
+    outputs:
+      key: ${{ steps.fetch.outputs.cache-key }}
+    steps:
+      - name: Fetch the free data files unless the cache has them
+        id: fetch
+        uses: 51Degrees/common-ci/actions/fetch-assets@build/fetch-assets-cache-key
+        with:
+          assets: |
+            51Degrees-LiteV4.1.hash
+            51Degrees-LiteIpiV41.ipi
+          cache: true
+          lazy: true
+
   valgrind:
     name: Both extensions in each order
+    needs: free-data-files
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      # The first job found or saved this entry, so a miss is a fault, never
+      # a reason to download the files here.
+      - name: Restore the free data files
+        uses: actions/cache/restore@v5
+        with:
+          key: ${{ needs.free-data-files.outputs.key }}
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+
+      - name: Check the free data files are in the cache
+        run: |
+          for file in 51Degrees-LiteV4.1.hash 51Degrees-LiteIpiV41.ipi; do
+            if [ ! -s "assets/$file" ]; then
+              echo "::error::$file is not in the asset cache entry the first" \
+                "job made sure of, and this check never downloads it."
+              exit 1
+            fi
+          done
+          ls -lL assets/51Degrees-LiteV4.1.hash assets/51Degrees-LiteIpiV41.ipi
 
       - name: Checkout cxx
         run: git submodule update --init --depth 1 cxx
@@ -59,41 +102,6 @@ jobs:
           }
           build device-detection/onpremise/on-premise ''
           build ip-intelligence/on-premise --enable-FiftyOneDegreesIpIntelligenceEngine
-
-      # The free data files come from the asset cache, never the Distributor.
-      # The Nightly Pipeline saves that cache on the default branch once
-      # a day, under a key that starts with the UTC date (common-ci's
-      # prefetch_assets), and a pull request's run can restore it from there.
-      # A run before that day's save takes the previous day's cache, as the
-      # free files change far less often than daily.
-      - name: Name the asset caches of today and yesterday
-        id: day
-        run: |
-          echo "today=$(date -u +%Y%m%d)-" >> "$GITHUB_OUTPUT"
-          echo "yesterday=$(date -u -d '1 day ago' +%Y%m%d)-" >> "$GITHUB_OUTPUT"
-
-      - name: Restore the asset cache
-        uses: actions/cache/restore@v5
-        with:
-          key: ${{ steps.day.outputs.today }}assets
-          restore-keys: |
-            ${{ steps.day.outputs.today }}
-            ${{ steps.day.outputs.yesterday }}
-          path: assets
-          enableCrossOsArchive: true
-
-      - name: Check the free data files are in the cache
-        run: |
-          for file in 51Degrees-LiteV4.1.hash 51Degrees-LiteIpiV41.ipi; do
-            if [ ! -s "assets/$file" ]; then
-              echo "::error::$file is in neither today's nor yesterday's" \
-                "asset cache, and this check never downloads it. The" \
-                "Nightly Pipeline saves the cache on the default branch" \
-                "each day, so run the check again once it has saved one."
-              exit 1
-            fi
-          done
-          ls -lL assets/51Degrees-LiteV4.1.hash assets/51Degrees-LiteIpiV41.ipi
 
       # PHP's own allocator is off so that Valgrind sees every allocation,
       # and PCRE's compiled patterns are off because Valgrind cannot see into

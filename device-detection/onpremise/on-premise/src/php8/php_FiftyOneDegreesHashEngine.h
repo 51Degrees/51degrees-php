@@ -328,6 +328,7 @@ PHP_METHOD(VectorUInt32Swig,__get);
 PHP_METHOD(VectorUInt32Swig,__isset);
 static PHP_METHOD(EngineHashSwig,getPublishedTime);
 static PHP_METHOD(EngineHashSwig,getUpdateAvailableTime);
+static PHP_METHOD(EngineHashSwig,getPublishedTimeFromFile);
 static PHP_METHOD(EngineHashSwig,getDataFilePath);
 static PHP_METHOD(EngineHashSwig,getDataFileTempPath);
 static PHP_METHOD(EngineHashSwig,refreshData);

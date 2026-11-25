@@ -24465,6 +24465,66 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getUpdateAvailableTime) {
 }
 
 
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getPublishedTimeFromFile) {
+  std::string *arg1 = 0 ;
+  std::string temp1 ;
+  zval args[1];
+  Date result;
+  
+  if(ZEND_NUM_ARGS() != 1 || zend_get_parameters_array_ex(1, args) != SUCCESS) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  
+  convert_to_string(&args[0]);
+  temp1.assign(Z_STRVAL(args[0]), Z_STRLEN(args[0]));
+  arg1 = &temp1;
+  
+  {
+    try {
+      result = EngineIpi::getPublishedTimeFromFile((std::string const &)*arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  {
+    Date * resultobj = new Date(result);
+    
+    
+    
+    
+    SWIG_SetPointerZval(return_value, (void *)resultobj, SWIGTYPE_p_Date, 1);
+  }
+  fail: SWIGUNUSED;
+  return;
+}
+
+
 static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getDataFilePath) {
   EngineIpi *arg1 = 0 ;
   std::string result;
@@ -25327,6 +25387,9 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineIpiSwig_getDataFilePath swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineIpiSwig_getDataFileTempPath swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineIpiSwig_getPublishedTime swig_arginfo_EngineBaseSwig_getPublishedTime
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineIpiSwig_getPublishedTimeFromFile, 0, 1, FiftyOneDegreesIpiDate, 0)
+ ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
+ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineIpiSwig_getUpdateAvailableTime swig_arginfo_EngineBaseSwig_getPublishedTime
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineIpiSwig_process, 0, 3, FiftyOneDegreesIpiResultsIpiSwig, MAY_BE_NULL)
  ZEND_ARG_OBJ_TYPE_MASK(0,arg1,FiftyOneDegreesIpiEvidenceIpiSwig|FiftyOneDegreesIpiSWIG\\_p_unsigned_char,MAY_BE_NULL|MAY_BE_STRING,NULL)
@@ -26323,6 +26386,7 @@ static const zend_function_entry class_EngineIpiSwig_functions[] = {
  PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,__construct,swig_arginfo_new_EngineIpiSwig,ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
  PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getPublishedTime,swig_arginfo_EngineIpiSwig_getPublishedTime,ZEND_ACC_PUBLIC)
  PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getUpdateAvailableTime,swig_arginfo_EngineIpiSwig_getUpdateAvailableTime,ZEND_ACC_PUBLIC)
+ PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getPublishedTimeFromFile,swig_arginfo_EngineIpiSwig_getPublishedTimeFromFile,ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
  PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getDataFilePath,swig_arginfo_EngineIpiSwig_getDataFilePath,ZEND_ACC_PUBLIC)
  PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,getDataFileTempPath,swig_arginfo_EngineIpiSwig_getDataFileTempPath,ZEND_ACC_PUBLIC)
  PHP_ME(FiftyOneDegreesIpiEngineIpiSwig,refreshData,swig_arginfo_EngineIpiSwig_refreshData,ZEND_ACC_PUBLIC)

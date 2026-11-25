@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Fetch the free data files unless the cache has them
         id: fetch
-        uses: 51Degrees/common-ci/actions/fetch-assets@main
+        uses: 51Degrees/common-ci/actions/fetch-assets@build/fetch-assets-restore-by-key
         with:
           assets: |
             51Degrees-LiteV4.1.hash
@@ -52,15 +52,25 @@ jobs:
         with:
           persist-credentials: false
 
-      # The first job found or saved this entry, so a miss is a fault, never
-      # a reason to download the files here.
+      # Without the key, fetch-assets would work out its own and could
+      # download, so the check stops instead.
+      - name: Stop when the first job gave no cache key
+        if: needs.free-data-files.outputs.key == ''
+        run: |
+          echo "::error::The first job gave no asset cache key, and this" \
+            "check never downloads a data file."
+          exit 1
+
+      # Given the key, fetch-assets restores the entry the first job found or
+      # saved, and fails rather than downloads when a file is missing.
       - name: Restore the free data files
-        uses: actions/cache/restore@v5
+        uses: 51Degrees/common-ci/actions/fetch-assets@build/fetch-assets-restore-by-key
         with:
-          key: ${{ needs.free-data-files.outputs.key }}
-          path: assets
-          enableCrossOsArchive: true
-          fail-on-cache-miss: true
+          assets: |
+            51Degrees-LiteV4.1.hash
+            51Degrees-LiteIpiV41.ipi
+          cache: true
+          cache-key: ${{ needs.free-data-files.outputs.key }}
 
       - name: Check the free data files are in the cache
         run: |

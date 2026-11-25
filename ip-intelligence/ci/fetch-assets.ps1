@@ -57,9 +57,10 @@ if (Test-Path -LiteralPath $dataFile) {
 # With nothing set, the examples look for the free files in the data
 # repository, where a fresh clone downloads them, so the cached copies are
 # linked there under the data repository's names rather than downloaded from
-# the distributor in every job. tests/DownloadDataFileTests.php still downloads
-# one from nothing. A package checked out on its own has no data repository
-# beside it, so nothing is linked there.
+# the distributor in every job. tests/DownloadDataFileTests.php downloads one
+# from nothing, from a stand-in for the distributor that serves the copy
+# linked here. A package checked out on its own has no data repository beside
+# it, so nothing is linked there.
 $data = "$PSScriptRoot/../../cxx/data/ip-intelligence"
 if (Test-Path $data) {
     foreach ($asset in $freeFiles.Keys) {

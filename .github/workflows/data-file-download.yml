@@ -1,8 +1,10 @@
 name: Data file download
 
-# The one job that downloads a free data file from the distributor, as an
-# example does in a fresh clone. The build matrix takes every free data file
-# from the run's asset cache, so the IP Intelligence Download suite runs here.
+# Downloads a free data file from nothing with the examples' own code, as an
+# example does in a fresh clone, from a stand-in for the distributor on the
+# runner rather than from the distributor. The stand-in serves the free files
+# from the asset cache, as the distributor sends them, so no step here
+# downloads a data file.
 on:
   pull_request:
   push:
@@ -31,6 +33,52 @@ jobs:
           git submodule update --init --depth 1 cxx
           git -C cxx submodule update --init --depth 1 data
 
+      # The free data files come from the asset cache, never the distributor.
+      # The Nightly Pipeline saves that cache on the default branch once
+      # a day, under a key that starts with the UTC date (common-ci's
+      # prefetch_assets), and a pull request's run can restore it from there.
+      # A run before that day's save takes the previous day's cache, as the
+      # free files change far less often than daily.
+      - name: Name the asset caches of today and yesterday
+        id: day
+        run: |
+          echo "today=$(date -u +%Y%m%d)-" >> "$GITHUB_OUTPUT"
+          echo "yesterday=$(date -u -d '1 day ago' +%Y%m%d)-" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the asset cache
+        uses: actions/cache/restore@v5
+        with:
+          key: ${{ steps.day.outputs.today }}assets
+          restore-keys: |
+            ${{ steps.day.outputs.today }}
+            ${{ steps.day.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+
+      # The tests serve the files the examples look for in the data
+      # repository, so the cached copies are linked there under the data
+      # repository's names, as the packages' ci/fetch-assets.ps1 scripts do.
+      - name: Link the free data files from the cache
+        run: |
+          link() {
+            if [ ! -s "assets/$1" ]; then
+              echo "::error::$1 is in neither today's nor yesterday's" \
+                "asset cache, and this job never downloads it. The" \
+                "Nightly Pipeline saves the cache on the default branch" \
+                "each day, so run the job again once it has saved one."
+              exit 1
+            fi
+            ln -sf "$PWD/assets/$1" "cxx/data/$2"
+            ls -lL "cxx/data/$2"
+          }
+          link 51Degrees-LiteV4.1.hash device-detection/51Degrees-LiteV4.1.hash
+          link 51Degrees-IPIV4AsnIpiV41.ipi ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
+
+      # Any request that still goes to the distributor fails rather than
+      # downloading.
+      - name: Block the distributor
+        run: echo '0.0.0.0 distributor.51degrees.com' | sudo tee -a /etc/hosts
+
       # The PHPUnit common-ci gives the build matrix.
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -55,3 +103,10 @@ jobs:
         run: |
           composer dump-autoload --dev
           phpunit --fail-on-warning --testsuite Download
+
+      # The tests download into a folder of their own, so a file beside a
+      # link in cxx/data that is not itself a link was downloaded here.
+      - name: Check no data file was downloaded
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: ./ci/check-no-data-file-downloads.ps1 -RepoName .

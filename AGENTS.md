@@ -378,10 +378,16 @@ cd ../..
   `cxx/data` under the data repository's names, so the tests that run the
   examples with nothing set find them there rather than downloading them.
   `ip-intelligence/tests/DownloadDataFileTests.php` and
-  `device-detection/onpremise/tests/DownloadDataFileTests.php` still
-  download the free ASN file and the free Device Detection Lite file from
-  nothing, with the examples' own code, and say so plainly when the
-  distributor refuses one.
+  `device-detection/onpremise/tests/DownloadDataFileTests.php` download
+  the free ASN file and the free Device Detection Lite file from nothing,
+  with the examples' own code, from a stand-in for the distributor on the
+  same machine (`tests/classes/DistributorStandIn.php`), never from the
+  distributor itself. The test writes the file's link with the stand-in's
+  address in place of the distributor's, and the stand-in serves the copy
+  linked into `cxx/data` gzip-compressed, with `Content-MD5` and
+  `Last-Modified`, as the distributor does. The test checks the request
+  the download made, that the saved file is the same as that copy, and
+  that it has the file's published date.
 
 ## Environment variable names
 
@@ -520,7 +526,11 @@ file added to a package's list is fetched in each job's Fetch Assets step
 until a cache filled from the new list is restored. The tests of the
 download itself are the `Download` suites in `ip-intelligence/phpunit.xml`
 and `device-detection/onpremise/phpunit.xml`, which run once, in
-`.github/workflows/data-file-download.yml`, and in no matrix job. To
+`.github/workflows/data-file-download.yml`, and in no matrix job. That job
+restores the free files from the asset cache, as
+`.github/workflows/extensions-valgrind.yml` does, and the tests download
+them from a stand-in for the distributor, so it downloads nothing either.
+They fail, rather than skip, when the free files are not in `cxx/data`. To
 run the tests on your own machine without downloading, link or copy the free
 files you already have into `cxx/data/device-detection` and
 `cxx/data/ip-intelligence` under the data repository's names.

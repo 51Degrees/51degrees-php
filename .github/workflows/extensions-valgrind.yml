@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Fetch the free data files unless the cache has them
         id: fetch
-        uses: 51Degrees/common-ci/actions/fetch-assets@build/fetch-assets-restore-by-key
+        uses: 51Degrees/common-ci/actions/fetch-assets@main
         with:
           assets: |
             51Degrees-LiteV4.1.hash
@@ -64,7 +64,7 @@ jobs:
       # Given the key, fetch-assets restores the entry the first job found or
       # saved, and fails rather than downloads when a file is missing.
       - name: Restore the free data files
-        uses: 51Degrees/common-ci/actions/fetch-assets@build/fetch-assets-restore-by-key
+        uses: 51Degrees/common-ci/actions/fetch-assets@main
         with:
           assets: |
             51Degrees-LiteV4.1.hash

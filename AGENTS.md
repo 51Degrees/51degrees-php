@@ -504,7 +504,8 @@ changes either extension or `cxx`, and fails on any memory error. Its first
 job makes sure the asset cache holds the two free Lite data files, with
 common-ci's `actions/fetch-assets`, which downloads and saves them only when
 the cache has no entry for the day. The check restores them from that entry
-and never downloads them, so a missing file fails the check.
+through the same action, given the first job's key, and never downloads
+them, so a missing file fails the check.
 
 `ci/build-project.ps1` writes a `vendor/autoload.php` into each package that
 tests against the root `vendor`. A package `vendor` folder from a

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Every PHP error, warning, notice and deprecation fails the run, as do
-     risky tests. The attributes are those of PHPUnit 9.6, the version the
-     build matrix runs. tests/bootstrap.php fails the run on a warning,
-     notice, deprecation or fatal error from a PHP the tests start, or one
-     PHPUnit does not handle. -->
+     risky and incomplete tests. The attributes are those of PHPUnit 9.6,
+     the version the build matrix runs. tests/bootstrap.php fails the run
+     on a warning, notice, deprecation or fatal error from a PHP the tests
+     start, or one PHPUnit does not handle. -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          bootstrap="tests/bootstrap.php"
          convertErrorsToExceptions="true"
@@ -12,6 +12,7 @@
          convertDeprecationsToExceptions="true"
          failOnWarning="true"
          failOnRisky="true"
+         failOnIncomplete="true"
          colors="true"
          cacheResult="false">
   <php>

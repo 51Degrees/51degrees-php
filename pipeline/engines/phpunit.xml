@@ -1,15 +1,16 @@
 <!-- Every PHP error, warning, notice and deprecation fails the run, as do
-     risky tests. The attributes are those of PHPUnit 9.6, the version the
-     build matrix runs. tests/bootstrap.php fails the run on a warning,
-     notice, deprecation or fatal error from a PHP the tests start, or one
-     PHPUnit does not handle. -->
+     risky and incomplete tests. The attributes are those of PHPUnit 9.6,
+     the version the build matrix runs. tests/bootstrap.php fails the run
+     on a warning, notice, deprecation or fatal error from a PHP the tests
+     start, or one PHPUnit does not handle. -->
 <phpunit bootstrap="tests/bootstrap.php"
          convertErrorsToExceptions="true"
          convertNoticesToExceptions="true"
          convertWarningsToExceptions="true"
          convertDeprecationsToExceptions="true"
          failOnWarning="true"
-         failOnRisky="true">
+         failOnRisky="true"
+         failOnIncomplete="true">
   <php>
     <!-- Report every level, whatever php.ini sets. -->
     <ini name="error_reporting" value="-1"/>

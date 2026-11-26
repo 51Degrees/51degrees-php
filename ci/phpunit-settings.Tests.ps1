@@ -1,7 +1,8 @@
 # Tests that every PHPUnit configuration in the repository fails its run on
-# a PHP error, warning, notice or deprecation, and on a risky test, has PHP
-# report every level, and loads tests/bootstrap.php, which fails the run on
-# a warning, notice or deprecation from a PHP the tests start.
+# a PHP error, warning, notice or deprecation, and on a risky or
+# incomplete test, has PHP report every level, and loads
+# tests/bootstrap.php, which fails the run on a warning, notice or
+# deprecation from a PHP the tests start.
 #
 # The build matrix runs PHPUnit 9.6, the version common-ci installs, so a
 # configuration it runs uses the PHPUnit 9.6 attributes. A package whose
@@ -37,6 +38,7 @@ BeforeAll {
         'convertDeprecationsToExceptions'
         'failOnWarning'
         'failOnRisky'
+        'failOnIncomplete'
     )
     $script:PhpUnit10Attributes = @(
         'failOnWarning'
@@ -45,6 +47,7 @@ BeforeAll {
         'failOnPhpunitDeprecation'
         'failOnPhpunitWarning'
         'failOnRisky'
+        'failOnIncomplete'
         'displayDetailsOnTestsThatTriggerErrors'
         'displayDetailsOnTestsThatTriggerWarnings'
         'displayDetailsOnTestsThatTriggerNotices'

@@ -58,6 +58,9 @@ final class ChildPhp
     /** @var string The folder holding the ini file and the log */
     private static $folder = '';
 
+    /** @var null|string The JUnit file PHPUnit was asked to write, if any */
+    private static $junit = null;
+
     /**
      * Writes the ini file and adds its folder to PHP_INI_SCAN_DIR, so that
      * each PHP started from here reads it, and checks the log when this
@@ -99,6 +102,7 @@ final class ChildPhp
         }
         putenv('PHP_INI_SCAN_DIR=' . $scan);
         self::logHere();
+        self::$junit = self::junitFile();
 
         register_shutdown_function([self::class, 'check']);
     }
@@ -179,9 +183,12 @@ final class ChildPhp
         if ($lines === []) {
             return;
         }
+        // What is shown and written has the license keys masked. Whether
+        // the run fails is decided on the lines as PHP logged them.
+        $shown = self::maskLicenseKeys($lines);
         fwrite(
             STDERR,
-            "\nPHP started by the tests logged:\n" . implode("\n", $lines) . "\n"
+            "\nPHP started by the tests logged:\n" . implode("\n", $shown) . "\n"
         );
         if (preg_grep(self::FAILS, $lines) !== []) {
             fwrite(
@@ -189,8 +196,141 @@ final class ChildPhp
                 'The run fails, as a warning, notice, deprecation or fatal ' .
                     "error is an error.\n"
             );
+            self::addToJunit($shown);
             exit(1);
         }
+    }
+
+    /**
+     * The lines with each license key masked, as the packages mask one: a
+     * star for each character but the last 4. A key is found as the value
+     * of an environment variable whose name starts with
+     * _51DEGREES_LICENSE_KEY, and as the value of a license, licenseKey or
+     * licenseKeys query parameter in either spelling, as
+     * LicenseKey::maskQuery in pipeline/core finds it. A value shorter
+     * than 8 characters is not taken from the environment, so nothing
+     * ordinary is replaced.
+     *
+     * @param array<string> $lines
+     * @return array<string>
+     */
+    public static function maskLicenseKeys(array $lines): array
+    {
+        $mask = static function (string $key): string {
+            $length = strlen($key);
+            return $length <= 4
+                ? str_repeat('*', $length)
+                : str_repeat('*', $length - 4) . substr($key, -4);
+        };
+        $keys = [];
+        foreach ((array) getenv() as $name => $value) {
+            if (strpos((string) $name, '_51DEGREES_LICENSE_KEY') !== 0) {
+                continue;
+            }
+            foreach (preg_split('/[|,]/', (string) $value) ?: [] as $key) {
+                $key = trim($key);
+                if (strlen($key) >= 8) {
+                    $keys[$key] = $mask($key);
+                    $keys[rawurlencode($key)] = $mask($key);
+                }
+            }
+        }
+        $masked = [];
+        foreach ($lines as $line) {
+            $line = strtr($line, $keys);
+            $masked[] = (string) preg_replace_callback(
+                '/([?&]licen[cs]e(?:keys?)?=)([^&#\s\'"]*)/i',
+                static function (array $match) use ($mask): string {
+                    $parts = preg_split('/([|,]|%7C|%2C)/i', $match[2], -1, PREG_SPLIT_DELIM_CAPTURE);
+                    foreach ((array) $parts as $index => $part) {
+                        if (preg_match('/^([|,]|%7C|%2C)$/i', $part) !== 1) {
+                            $parts[$index] = $mask($part);
+                        }
+                    }
+                    return $match[1] . implode('', (array) $parts);
+                },
+                $line
+            );
+        }
+        return $masked;
+    }
+
+    /**
+     * The JUnit file named by --log-junit on PHPUnit's command line, as a
+     * full path, or null where none was asked for.
+     */
+    private static function junitFile(): ?string
+    {
+        $arguments = (array) ($GLOBALS['argv'] ?? []);
+        foreach ($arguments as $index => $argument) {
+            $file = null;
+            if ($argument === '--log-junit') {
+                $file = $arguments[$index + 1] ?? null;
+            } elseif (strpos((string) $argument, '--log-junit=') === 0) {
+                $file = substr((string) $argument, strlen('--log-junit='));
+            }
+            if (is_string($file) && $file !== '') {
+                $absolute = preg_match('~^([a-zA-Z]:)?[\\\\/]~', $file) === 1;
+                return $absolute ? $file : getcwd() . '/' . $file;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Adds a failing test case that carries the logged lines to the JUnit
+     * file PHPUnit wrote, and counts it in the outer test suite, so that a
+     * report read from the file shows the run as failed. PHPUnit has
+     * written the file by the time this runs, as each version writes it
+     * when the tests end, before PHP ends.
+     *
+     * @param array<string> $lines
+     */
+    private static function addToJunit(array $lines): void
+    {
+        if (self::$junit === null || !is_file(self::$junit)) {
+            return;
+        }
+        $document = new \DOMDocument();
+        $document->preserveWhiteSpace = false;
+        $document->formatOutput = true;
+        if (!$document->load(self::$junit)) {
+            fwrite(STDERR, self::$junit . " could not be read to add the failure.\n");
+            return;
+        }
+        $suite = null;
+        foreach ($document->documentElement->childNodes as $node) {
+            if ($node instanceof \DOMElement && $node->tagName === 'testsuite') {
+                $suite = $node;
+                break;
+            }
+        }
+        if ($suite === null) {
+            $suite = $document->createElement('testsuite');
+            $suite->setAttribute('name', 'PHP started by the tests');
+            $suite->setAttribute('tests', '0');
+            $suite->setAttribute('failures', '0');
+            $document->documentElement->appendChild($suite);
+        }
+        $case = $document->createElement('testcase');
+        $case->setAttribute('name', 'PHP started by the tests logged no error');
+        $case->setAttribute('class', self::class);
+        $case->setAttribute('classname', self::class);
+        $case->setAttribute('assertions', '1');
+        $case->setAttribute('time', '0');
+        $failure = $document->createElement('failure');
+        $failure->setAttribute('type', 'PHP message');
+        $failure->appendChild($document->createTextNode(
+            "PHP started by the tests logged:\n" . implode("\n", $lines) . "\n"
+        ));
+        $case->appendChild($failure);
+        $suite->appendChild($case);
+        foreach (['tests', 'failures', 'assertions'] as $count) {
+            if ($suite->hasAttribute($count)) {
+                $suite->setAttribute($count, (string) ((int) $suite->getAttribute($count) + 1));
+            }
+        }
+        $document->save(self::$junit);
     }
 
     /**

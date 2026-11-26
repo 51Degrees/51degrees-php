@@ -6,6 +6,10 @@ on:
       dryrun:
         type: boolean
         default: false
+      prs:
+        description: 'Comma-separated pull request numbers to build, drafts included'
+        type: string
+        default: ''
       full-matrix:
         description: 'Build every configuration, not only those the changes need'
         type: boolean
@@ -19,6 +23,7 @@ jobs:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
+      prs: ${{ inputs.prs }}
       cache-assets: true
       # The on-premise packages compile native extensions and load
       # multi-gigabyte data files, and every package runs in each leg.

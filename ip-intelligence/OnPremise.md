@@ -27,7 +27,8 @@ table in a PHP that loads both. After changing `on-premise/ipi-php.i` or
 moving the `cxx` submodule, install SWIG 4.5.1 and Perl, run
 `on-premise/generate-wrapper.sh` and commit the result. Never edit the
 wrapper by hand. The script passes SWIG's output through
-`on-premise/fix-wrapper.pl`, which fixes the code MSVC warns about at `/W4`.
+`on-premise/fix-wrapper.pl`, which fixes the code MSVC warns about at `/W4`
+and GCC and Clang warn about at `-Wall`.
 The pull request check runs `generate-wrapper.sh --check`.
 
 On Windows, building a PHP extension requires the matching PHP SDK; the supported

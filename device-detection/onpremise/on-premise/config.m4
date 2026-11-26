@@ -10,8 +10,12 @@ dnl same names, built with different settings, and a PHP that loads
 dnl extensions without RTLD_DEEPBIND, as PHP 8.5 on Linux does, would
 dnl otherwise bind this extension's calls to the other's copy.
 VISIBILITY="-fvisibility=hidden"
-CFLAGS="$CFLAGS $VISIBILITY -std=gnu11 -Wall -Werror"
-CXXFLAGS="${CXXFLAGS} $VISIBILITY -std=gnu++17 -Wall -Werror"
+dnl The SWIG wrapper marks its runtime functions and labels with SWIGUNUSED,
+dnl which GCC and Clang read as the unused attribute, so it would hide the
+dnl unused function and unused label warnings. Defining it empty shows them.
+NOT_HIDDEN="-DSWIGUNUSED="
+CFLAGS="$CFLAGS $VISIBILITY $NOT_HIDDEN -std=gnu11 -Wall -Werror"
+CXXFLAGS="${CXXFLAGS} $VISIBILITY $NOT_HIDDEN -std=gnu++17 -Wall -Werror"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

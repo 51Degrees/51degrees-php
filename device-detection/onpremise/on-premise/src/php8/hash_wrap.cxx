@@ -412,52 +412,6 @@ typedef struct swig_module_info {
 } swig_module_info;
 
 /*
-  Compare two type names skipping the space characters, therefore
-  "char*" == "char *" and "Class<int>" == "Class<int >", etc.
-
-  Return 0 when the two name types are equivalent, as in
-  strncmp, but skipping ' '.
-*/
-SWIGRUNTIME int
-SWIG_TypeNameComp(const char *f1, const char *l1,
-		  const char *f2, const char *l2) {
-  for (;(f1 != l1) && (f2 != l2); ++f1, ++f2) {
-    while ((*f1 == ' ') && (f1 != l1)) ++f1;
-    while ((*f2 == ' ') && (f2 != l2)) ++f2;
-    if (*f1 != *f2) return (*f1 > *f2) ? 1 : -1;
-  }
-  return (int)((l1 - f1) - (l2 - f2));
-}
-
-/*
-  Check type equivalence in a name list like <name1>|<name2>|...
-  Return 0 if equal, -1 if nb < tb, 1 if nb > tb
-*/
-SWIGRUNTIME int
-SWIG_TypeCmp(const char *nb, const char *tb) {
-  int equiv = 1;
-  const char* te = tb + strlen(tb);
-  const char* ne = nb;
-  while (equiv != 0 && *ne) {
-    for (nb = ne; *ne; ++ne) {
-      if (*ne == '|') break;
-    }
-    equiv = SWIG_TypeNameComp(nb, ne, tb, te);
-    if (*ne) ++ne;
-  }
-  return equiv;
-}
-
-/*
-  Check type equivalence in a name list like <name1>|<name2>|...
-  Return 0 if not equal, 1 if equal
-*/
-SWIGRUNTIME int
-SWIG_TypeEquiv(const char *nb, const char *tb) {
-  return SWIG_TypeCmp(nb, tb) == 0 ? 1 : 0;
-}
-
-/*
  * Hash function for type name strings, based on maRushPrime1Hash (http://amsoftware.narod.ru/algo2.html)
  */
 SWIGRUNTIME unsigned int SWIG_Hash(const char *str, unsigned int len) {
@@ -570,89 +524,11 @@ SWIG_TypeCheck(const char *c, swig_type_info *ty) {
 }
 
 /*
-  Check the type by type address
-*/
-SWIGRUNTIME swig_cast_info *
-SWIG_TypeCheckStruct(const swig_type_info *from, swig_type_info *ty) {
-  if (ty) {
-    swig_cast_info *head = ty->cast;
-    while (head) {
-      if (head->type == from) {
-        return head;
-      }
-
-      if (head->value) {
-        swig_cast_info *iter;
-        swig_cast_info *last = head + head->value;
-        swig_cast_info *first = head + 1;
-
-        /* Binary search over sorted array of casts */
-        do {
-          iter = first + ((last - first) >> 1);
-          if (iter->type < from) {
-            first = iter + 1;
-          } else if (iter->type == from) {
-            return iter;
-          } else
-            last = iter - 1;
-        } while (first <= last);
-      }
-      head = head->next;
-    }
-  }
-  return 0;
-}
-
-/*
   Cast a pointer up an inheritance hierarchy
 */
 SWIGRUNTIMEINLINE void *
 SWIG_TypeCast(swig_cast_info *ty, void *ptr, int *newmemory) {
   return ((!ty) || (!ty->converter)) ? ptr : (*ty->converter)(ptr, newmemory);
-}
-
-/*
-   Dynamic pointer casting. Down an inheritance hierarchy
-*/
-SWIGRUNTIME swig_type_info *
-SWIG_TypeDynamicCast(swig_type_info *ty, void **ptr) {
-  swig_type_info *lastty = ty;
-  if (!ty || !ty->dcast) return ty;
-  while (ty && (ty->dcast)) {
-    ty = (*ty->dcast)(ptr);
-    if (ty) lastty = ty;
-  }
-  return lastty;
-}
-
-/*
-  Return the name associated with this type
-*/
-SWIGRUNTIMEINLINE const char *
-SWIG_TypeName(const swig_type_info *ty) {
-  return ty->name;
-}
-
-/*
-  Return the pretty name associated with this type,
-  that is an unmangled type name in a form presentable to the user.
-*/
-SWIGRUNTIME const char *
-SWIG_TypePrettyName(const swig_type_info *type) {
-  /* The "str" field contains the equivalent pretty names of the
-     type, separated by vertical-bar characters.  Choose the last
-     name. It should be the most specific; a fully resolved name
-     but not necessarily with default template parameters expanded. */
-  if (!type) return NULL;
-  if (type->str != NULL) {
-    const char *last_name = type->str;
-    const char *s;
-    for (s = type->str; *s; s++)
-      if (*s == '|') last_name = s+1;
-    return last_name;
-  }
-  else
-    return type->name;
 }
 
 /*
@@ -676,12 +552,6 @@ SWIG_TypeClientData(swig_type_info *ti, void *clientdata) {
     }
     head = head->next;
   }
-}
-
-SWIGRUNTIME void
-SWIG_TypeNewClientData(swig_type_info *ti, void *clientdata) {
-  SWIG_TypeClientData(ti, clientdata);
-  ti->owndata = 1;
 }
 
 /*
@@ -726,140 +596,6 @@ SWIG_MangledTypeQueryModule(swig_module_info *start,
     iter = iter->next;
   } while (iter != end);
   return 0;
-}
-
-/*
-  Search for a swig_type_info structure for either a mangled name or a human readable name.
-  It first searches the mangled names of the types, which is a O(log #types)
-  If a type is not found it then searches the human readable names, which is O(#types).
-
-  We start searching at module start, and finish searching when start == end.
-  Note: if start == end at the beginning of the function, we go all the way around
-  the circular list.
-*/
-SWIGRUNTIME swig_type_info *
-SWIG_TypeQueryModule(swig_module_info *start,
-                     swig_module_info *end,
-		     const char *name) {
-  /* STEP 1: Search the name field using binary search */
-  swig_type_info *ret = SWIG_MangledTypeQueryModule(start, end, name);
-  if (ret) {
-    return ret;
-  } else {
-    /* STEP 2: If the type hasn't been found, do a complete search
-       of the str field (the human readable name) */
-    swig_module_info *iter = start;
-    do {
-      size_t i = 0;
-      for (; i < iter->size; ++i) {
-	if (iter->types[i]->str && (SWIG_TypeEquiv(iter->types[i]->str, name)))
-	  return iter->types[i];
-      }
-      iter = iter->next;
-    } while (iter != end);
-  }
-
-  /* neither found a match */
-  return 0;
-}
-
-/*
-   Pack binary data into a string
-*/
-SWIGRUNTIME char *
-SWIG_PackData(char *c, void *ptr, size_t sz) {
-  static const char hex[17] = "0123456789abcdef";
-  const unsigned char *u = (unsigned char *) ptr;
-  const unsigned char *eu =  u + sz;
-  for (; u != eu; ++u) {
-    unsigned char uu = *u;
-    *(c++) = hex[(uu & 0xf0) >> 4];
-    *(c++) = hex[uu & 0xf];
-  }
-  return c;
-}
-
-/*
-   Unpack binary data from a string
-*/
-SWIGRUNTIME const char *
-SWIG_UnpackData(const char *c, void *ptr, size_t sz) {
-  unsigned char *u = (unsigned char *) ptr;
-  const unsigned char *eu = u + sz;
-  for (; u != eu; ++u) {
-    char d = *(c++);
-    unsigned char uu;
-    if ((d >= '0') && (d <= '9'))
-      uu = (unsigned char)((d - '0') << 4);
-    else if ((d >= 'a') && (d <= 'f'))
-      uu = (unsigned char)((d - ('a'-10)) << 4);
-    else
-      return (char *) 0;
-    d = *(c++);
-    if ((d >= '0') && (d <= '9'))
-      uu |= (unsigned char)(d - '0');
-    else if ((d >= 'a') && (d <= 'f'))
-      uu |= (unsigned char)(d - ('a'-10));
-    else
-      return (char *) 0;
-    *u = uu;
-  }
-  return c;
-}
-
-/*
-   Pack 'void *' into a string buffer.
-*/
-SWIGRUNTIME char *
-SWIG_PackVoidPtr(char *buff, void *ptr, const char *name, size_t bsz) {
-  char *r = buff;
-  if ((2*sizeof(void *) + 2) > bsz) return 0;
-  *(r++) = '_';
-  r = SWIG_PackData(r,&ptr,sizeof(void *));
-  if (strlen(name) + 1 > (bsz - (size_t)(r - buff))) return 0;
-  strcpy(r,name);
-  return buff;
-}
-
-SWIGRUNTIME const char *
-SWIG_UnpackVoidPtr(const char *c, void **ptr, const char *name) {
-  if (*c != '_') {
-    if (strcmp(c,"NULL") == 0) {
-      *ptr = (void *) 0;
-      return name;
-    } else {
-      return 0;
-    }
-  }
-  return SWIG_UnpackData(++c,ptr,sizeof(void *));
-}
-
-SWIGRUNTIME char *
-SWIG_PackDataName(char *buff, void *ptr, size_t sz, const char *name, size_t bsz) {
-  char *r = buff;
-  size_t lname = (name ? strlen(name) : 0);
-  if ((2*sz + 2 + lname) > bsz) return 0;
-  *(r++) = '_';
-  r = SWIG_PackData(r,ptr,sz);
-  if (lname) {
-    strncpy(r,name,lname+1);
-  } else {
-    *r = 0;
-  }
-  return buff;
-}
-
-SWIGRUNTIME const char *
-SWIG_UnpackDataName(const char *c, void *ptr, size_t sz, const char *name) {
-  if (*c != '_') {
-    if (strcmp(c,"NULL") == 0) {
-      memset(ptr,0,sz);
-      return name;
-    } else {
-      return 0;
-    }
-  }
-  return SWIG_UnpackData(++c,ptr,sz);
 }
 
 #ifdef __cplusplus
@@ -1070,7 +806,7 @@ static swig_module_info *SWIG_Php_GetModule(void) {
 }
 
 static void SWIG_Php_SetModule(swig_module_info *pointer, int module_number) {
-  REGISTER_LONG_CONSTANT(const_name, (long) pointer, CONST_CS | CONST_PERSISTENT);
+  REGISTER_LONG_CONSTANT(const_name, (zend_long) (intptr_t) pointer, CONST_CS | CONST_PERSISTENT);
 }
 
 /* Common parts of the "create_object" object handler. */
@@ -1092,25 +828,6 @@ SWIGUNUSED static void* SWIG_Php_free_obj(zend_object *object) {
     if (obj->newobject) return obj->ptr;
   }
   return NULL;
-}
-
-SWIGINTERN void
-SWIG_Php_AppendOutput(zval *target, zval *o, int is_void) {
-  zval tmp;
-  if (Z_TYPE_P(target) == IS_ARRAY) {
-    /* it's already an array, just append */
-    add_next_index_zval(target, o);
-    return;
-  }
-  if (Z_TYPE_P(target) == IS_NULL && is_void) {
-    /* NULL isn't refcounted */
-    ZVAL_COPY_VALUE(target, o);
-    return;
-  }
-  ZVAL_DUP(&tmp, target);
-  array_init(target);
-  add_next_index_zval(target, &tmp);
-  add_next_index_zval(target, o);
 }
 
 /* SWIG Errors applicable to all language modules, values are reserved from -1 to -99 */
@@ -2024,6 +1741,7 @@ static swig_cast_info *swig_cast_initial[] = {
 /* end vdecl subsection */
 /* wrapper section */
 static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_0) {
+  (void)return_value;
   std::map< std::string,std::string > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -2034,12 +1752,12 @@ static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_0) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__mapT_std__string_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_1) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   zval args[1];
   std::map< std::string,std::string > *result = 0 ;
@@ -2058,7 +1776,6 @@ static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_1) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__mapT_std__string_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2084,7 +1801,6 @@ static PHP_METHOD(MapStringStringSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_MapStringStringSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2102,12 +1818,12 @@ static PHP_METHOD(MapStringStringSwig,size) {
   
   RETVAL_LONG(result);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(MapStringStringSwig,clear) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   
   arg1 = (std::map< std::string,std::string > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -2117,7 +1833,6 @@ static PHP_METHOD(MapStringStringSwig,clear) {
   
   (arg1)->clear();
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2156,6 +1871,7 @@ static PHP_METHOD(MapStringStringSwig,get) {
 
 
 static PHP_METHOD(MapStringStringSwig,set) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string *arg3 = 0 ;
@@ -2180,12 +1896,12 @@ static PHP_METHOD(MapStringStringSwig,set) {
   
   std_map_Sl_std_string_Sc_std_string_Sg__set(arg1,(std::string const &)*arg2,(std::string const &)*arg3);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(MapStringStringSwig,del) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -2236,7 +1952,6 @@ static PHP_METHOD(MapStringStringSwig,has_key) {
   
   RETVAL_BOOL((result) ? 1 : 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2254,7 +1969,6 @@ static PHP_METHOD(MapStringStringSwig,is_empty) {
   
   RETVAL_BOOL((result) ? 1 : 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2281,9 +1995,8 @@ PHP_METHOD(MapStringStringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2319,7 +2032,6 @@ PHP_METHOD(MapStringStringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2350,7 +2062,6 @@ PHP_METHOD(MapStringStringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2358,6 +2069,7 @@ PHP_METHOD(MapStringStringSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_0) {
+  (void)return_value;
   std::vector< std::string > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -2368,12 +2080,12 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_0) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__vectorT_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_1) {
+  (void)return_value;
   std::vector< std::string >::size_type arg1 ;
   zval args[1];
   std::vector< std::string > *result = 0 ;
@@ -2391,12 +2103,12 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_1) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__vectorT_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_2) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   zval args[1];
   std::vector< std::string > *result = 0 ;
@@ -2415,7 +2127,6 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_2) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__vectorT_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2452,7 +2163,6 @@ static PHP_METHOD(VectorStringSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_VectorStringSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2470,7 +2180,6 @@ static PHP_METHOD(VectorStringSwig,size) {
   
   RETVAL_LONG(result);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2488,12 +2197,12 @@ static PHP_METHOD(VectorStringSwig,capacity) {
   
   RETVAL_LONG(result);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(VectorStringSwig,reserve) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::size_type arg2 ;
   zval args[1];
@@ -2510,12 +2219,12 @@ static PHP_METHOD(VectorStringSwig,reserve) {
   
   (arg1)->reserve(SWIG_STD_MOVE(*(&arg2)));
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(VectorStringSwig,clear) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   
   arg1 = (std::vector< std::string > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -2525,12 +2234,12 @@ static PHP_METHOD(VectorStringSwig,clear) {
   
   (arg1)->clear();
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(VectorStringSwig,push) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::value_type *arg2 = 0 ;
   std::vector< std::string >::value_type temp2 ;
@@ -2548,7 +2257,6 @@ static PHP_METHOD(VectorStringSwig,push) {
   
   (arg1)->push_back((std::vector< std::string >::value_type const &)*arg2);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2566,7 +2274,6 @@ static PHP_METHOD(VectorStringSwig,is_empty) {
   
   RETVAL_BOOL((result) ? 1 : 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2629,6 +2336,7 @@ static PHP_METHOD(VectorStringSwig,get) {
 
 
 static PHP_METHOD(VectorStringSwig,set) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   int arg2 ;
   std::vector< std::string >::value_type *arg3 = 0 ;
@@ -2686,9 +2394,8 @@ PHP_METHOD(VectorStringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2724,7 +2431,6 @@ PHP_METHOD(VectorStringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2755,7 +2461,6 @@ PHP_METHOD(VectorStringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2763,6 +2468,7 @@ PHP_METHOD(VectorStringSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_0) {
+  (void)return_value;
   RequiredPropertiesConfig *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -2810,6 +2516,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_1) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   zval args[1];
   RequiredPropertiesConfig *result = 0 ;
@@ -2865,6 +2572,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_2) {
+  (void)return_value;
   char *arg1 = 0 ;
   zval args[1];
   RequiredPropertiesConfig *result = 0 ;
@@ -2951,7 +2659,6 @@ static PHP_METHOD(RequiredPropertiesConfigSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_RequiredPropertiesConfigSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3032,9 +2739,8 @@ PHP_METHOD(RequiredPropertiesConfigSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3070,7 +2776,6 @@ PHP_METHOD(RequiredPropertiesConfigSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3101,7 +2806,6 @@ PHP_METHOD(RequiredPropertiesConfigSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3109,6 +2813,7 @@ PHP_METHOD(RequiredPropertiesConfigSwig,__isset) {
 
 
 static PHP_METHOD(StringValueSwig,__construct) {
+  (void)return_value;
   Value< std::string > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3328,9 +3033,8 @@ PHP_METHOD(StringValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3366,7 +3070,6 @@ PHP_METHOD(StringValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3397,7 +3100,6 @@ PHP_METHOD(StringValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3405,6 +3107,7 @@ PHP_METHOD(StringValueSwig,__isset) {
 
 
 static PHP_METHOD(BoolValueSwig,__construct) {
+  (void)return_value;
   Value< bool > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3624,9 +3327,8 @@ PHP_METHOD(BoolValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3662,7 +3364,6 @@ PHP_METHOD(BoolValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3693,7 +3394,6 @@ PHP_METHOD(BoolValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3701,6 +3401,7 @@ PHP_METHOD(BoolValueSwig,__isset) {
 
 
 static PHP_METHOD(IntegerValueSwig,__construct) {
+  (void)return_value;
   Value< int > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3920,9 +3621,8 @@ PHP_METHOD(IntegerValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3958,7 +3658,6 @@ PHP_METHOD(IntegerValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3989,7 +3688,6 @@ PHP_METHOD(IntegerValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3997,6 +3695,7 @@ PHP_METHOD(IntegerValueSwig,__isset) {
 
 
 static PHP_METHOD(VectorStringValuesSwig,__construct) {
+  (void)return_value;
   Value< std::vector< std::string > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -4221,9 +3920,8 @@ PHP_METHOD(VectorStringValuesSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4259,7 +3957,6 @@ PHP_METHOD(VectorStringValuesSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4290,7 +3987,6 @@ PHP_METHOD(VectorStringValuesSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4298,6 +3994,7 @@ PHP_METHOD(VectorStringValuesSwig,__isset) {
 
 
 static PHP_METHOD(DoubleValueSwig,__construct) {
+  (void)return_value;
   Value< double > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -4517,9 +4214,8 @@ PHP_METHOD(DoubleValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4555,7 +4251,6 @@ PHP_METHOD(DoubleValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4586,7 +4281,6 @@ PHP_METHOD(DoubleValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4960,7 +4654,6 @@ static PHP_METHOD(ResultsBaseSwig,getValues) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValues'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5116,7 +4809,6 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsString) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsString'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5272,7 +4964,6 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsBool) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsBool'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5428,7 +5119,6 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsInteger) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsInteger'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5584,7 +5274,6 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsDouble) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsDouble'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5740,7 +5429,6 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsStrictBool) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsStrictBool'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5896,7 +5584,6 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsStrictInteger) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsStrictInteger'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6052,7 +5739,6 @@ static PHP_METHOD(ResultsBaseSwig,getValueAsStrictDouble) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsStrictDouble'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6079,9 +5765,8 @@ PHP_METHOD(ResultsBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6117,7 +5802,6 @@ PHP_METHOD(ResultsBaseSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6148,7 +5832,6 @@ PHP_METHOD(ResultsBaseSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6324,9 +6007,8 @@ PHP_METHOD(Date,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6362,7 +6044,6 @@ PHP_METHOD(Date,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6393,7 +6074,6 @@ PHP_METHOD(Date,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7064,9 +6744,8 @@ PHP_METHOD(PropertyMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7102,7 +6781,6 @@ PHP_METHOD(PropertyMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7133,7 +6811,6 @@ PHP_METHOD(PropertyMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7314,9 +6991,8 @@ PHP_METHOD(ComponentMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7352,7 +7028,6 @@ PHP_METHOD(ComponentMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7383,7 +7058,6 @@ PHP_METHOD(ComponentMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7461,9 +7135,8 @@ PHP_METHOD(ProfileMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7499,7 +7172,6 @@ PHP_METHOD(ProfileMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7530,7 +7202,6 @@ PHP_METHOD(ProfileMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7538,6 +7209,7 @@ PHP_METHOD(ProfileMetaDataSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_0) {
+  (void)return_value;
   std::vector< uint8_t > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -7585,6 +7257,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_1) {
+  (void)return_value;
   std::vector< unsigned char >::size_type arg1 ;
   zval args[1];
   std::vector< uint8_t > *result = 0 ;
@@ -7639,6 +7312,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_2) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   zval args[1];
   std::vector< uint8_t > *result = 0 ;
@@ -7725,7 +7399,6 @@ static PHP_METHOD(UTF8StringSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_UTF8StringSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7829,6 +7502,7 @@ static PHP_METHOD(UTF8StringSwig,capacity) {
 
 
 static PHP_METHOD(UTF8StringSwig,reserve) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::size_type arg2 ;
   zval args[1];
@@ -7882,6 +7556,7 @@ static PHP_METHOD(UTF8StringSwig,reserve) {
 
 
 static PHP_METHOD(UTF8StringSwig,clear) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   
   arg1 = (std::vector< uint8_t > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -7928,6 +7603,7 @@ static PHP_METHOD(UTF8StringSwig,clear) {
 
 
 static PHP_METHOD(UTF8StringSwig,push) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::value_type *arg2 = 0 ;
   std::vector< unsigned char >::value_type temp2 ;
@@ -8151,6 +7827,7 @@ static PHP_METHOD(UTF8StringSwig,get) {
 
 
 static PHP_METHOD(UTF8StringSwig,set) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   int arg2 ;
   std::vector< unsigned char >::value_type *arg3 = 0 ;
@@ -8240,9 +7917,8 @@ PHP_METHOD(UTF8StringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8278,7 +7954,6 @@ PHP_METHOD(UTF8StringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8309,7 +7984,6 @@ PHP_METHOD(UTF8StringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8317,6 +7991,7 @@ PHP_METHOD(UTF8StringSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_0) {
+  (void)return_value;
   std::string arg1 ;
   std::string arg2 ;
   zval args[2];
@@ -8375,6 +8050,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_1) {
+  (void)return_value;
   std::string arg1 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   long arg3 ;
@@ -8482,7 +8158,6 @@ static PHP_METHOD(ValueMetaDataKeySwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_ValueMetaDataKeySwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8607,9 +8282,8 @@ PHP_METHOD(ValueMetaDataKeySwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8645,7 +8319,6 @@ PHP_METHOD(ValueMetaDataKeySwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8676,7 +8349,6 @@ PHP_METHOD(ValueMetaDataKeySwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8906,9 +8578,8 @@ PHP_METHOD(ValueMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8944,7 +8615,6 @@ PHP_METHOD(ValueMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8975,7 +8645,6 @@ PHP_METHOD(ValueMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9168,9 +8837,8 @@ PHP_METHOD(ComponentMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9206,7 +8874,6 @@ PHP_METHOD(ComponentMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9237,7 +8904,6 @@ PHP_METHOD(ComponentMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9426,9 +9092,8 @@ PHP_METHOD(PropertyMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9464,7 +9129,6 @@ PHP_METHOD(PropertyMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9495,7 +9159,6 @@ PHP_METHOD(PropertyMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9685,9 +9348,8 @@ PHP_METHOD(ProfileMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9723,7 +9385,6 @@ PHP_METHOD(ProfileMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9754,7 +9415,6 @@ PHP_METHOD(ProfileMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9947,9 +9607,8 @@ PHP_METHOD(ValueMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9985,7 +9644,6 @@ PHP_METHOD(ValueMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10016,7 +9674,6 @@ PHP_METHOD(ValueMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10697,9 +10354,8 @@ PHP_METHOD(MetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10735,7 +10391,6 @@ PHP_METHOD(MetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10766,7 +10421,6 @@ PHP_METHOD(MetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10774,6 +10428,7 @@ PHP_METHOD(MetaDataSwig,__isset) {
 
 
 static PHP_METHOD(EngineBaseSwig,setLicenseKey) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -10828,6 +10483,7 @@ static PHP_METHOD(EngineBaseSwig,setLicenseKey) {
 
 
 static PHP_METHOD(EngineBaseSwig,setDataUpdateUrl) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -11037,6 +10693,7 @@ static PHP_METHOD(EngineBaseSwig,processBase) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_0) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   
   arg1 = (EngineBase *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -11083,6 +10740,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_1) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   char *arg2 = 0 ;
   zval args[1];
@@ -11141,6 +10799,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_2) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   long arg3 ;
@@ -11234,7 +10893,6 @@ static PHP_METHOD(EngineBaseSwig,refreshData) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineBaseSwig_refreshData'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11766,9 +11424,8 @@ PHP_METHOD(EngineBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11804,7 +11461,6 @@ PHP_METHOD(EngineBaseSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11835,7 +11491,6 @@ PHP_METHOD(EngineBaseSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11843,6 +11498,7 @@ PHP_METHOD(EngineBaseSwig,__isset) {
 
 
 static PHP_METHOD(ConfigBaseSwig,setUseUpperPrefixHeaders) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -11896,6 +11552,7 @@ static PHP_METHOD(ConfigBaseSwig,setUseUpperPrefixHeaders) {
 
 
 static PHP_METHOD(ConfigBaseSwig,setUseTempFile) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -11949,6 +11606,7 @@ static PHP_METHOD(ConfigBaseSwig,setUseTempFile) {
 
 
 static PHP_METHOD(ConfigBaseSwig,setReuseTempFile) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -12002,6 +11660,7 @@ static PHP_METHOD(ConfigBaseSwig,setReuseTempFile) {
 
 
 static PHP_METHOD(ConfigBaseSwig,setTempDirectories) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   std::vector< std::string > arg2 ;
   std::vector< std::string > *tmp2 ;
@@ -12329,9 +11988,8 @@ PHP_METHOD(ConfigBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12367,7 +12025,6 @@ PHP_METHOD(ConfigBaseSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12398,7 +12055,6 @@ PHP_METHOD(ConfigBaseSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12406,6 +12062,7 @@ PHP_METHOD(ConfigBaseSwig,__isset) {
 
 
 static PHP_METHOD(ConfigDeviceDetectionSwig,setUpdateMatchedUserAgent) {
+  (void)return_value;
   ConfigDeviceDetection *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -12459,6 +12116,7 @@ static PHP_METHOD(ConfigDeviceDetectionSwig,setUpdateMatchedUserAgent) {
 
 
 static PHP_METHOD(ConfigDeviceDetectionSwig,setMaxMatchedUserAgentLength) {
+  (void)return_value;
   ConfigDeviceDetection *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -12512,6 +12170,7 @@ static PHP_METHOD(ConfigDeviceDetectionSwig,setMaxMatchedUserAgentLength) {
 
 
 static PHP_METHOD(ConfigDeviceDetectionSwig,setAllowUnmatched) {
+  (void)return_value;
   ConfigDeviceDetection *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -12733,11 +12392,10 @@ PHP_METHOD(ConfigDeviceDetectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(ConfigBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12773,7 +12431,6 @@ PHP_METHOD(ConfigDeviceDetectionSwig,__get) {
   else {
     PHP_MN(ConfigBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12804,7 +12461,6 @@ PHP_METHOD(ConfigDeviceDetectionSwig,__isset) {
   else {
     PHP_MN(ConfigBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12812,6 +12468,7 @@ PHP_METHOD(ConfigDeviceDetectionSwig,__isset) {
 
 
 static PHP_METHOD(EvidenceBaseSwig,__construct) {
+  (void)return_value;
   EvidenceBase *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -12880,11 +12537,10 @@ PHP_METHOD(EvidenceBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(MapStringStringSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12920,7 +12576,6 @@ PHP_METHOD(EvidenceBaseSwig,__get) {
   else {
     PHP_MN(MapStringStringSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12951,7 +12606,6 @@ PHP_METHOD(EvidenceBaseSwig,__isset) {
   else {
     PHP_MN(MapStringStringSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12959,6 +12613,7 @@ PHP_METHOD(EvidenceBaseSwig,__isset) {
 
 
 static PHP_METHOD(EvidenceDeviceDetectionSwig,__construct) {
+  (void)return_value;
   EvidenceDeviceDetection *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -13055,6 +12710,7 @@ static PHP_METHOD(EvidenceDeviceDetectionSwig,size) {
 
 
 static PHP_METHOD(EvidenceDeviceDetectionSwig,clear) {
+  (void)return_value;
   EvidenceDeviceDetection *arg1 = 0 ;
   
   arg1 = (EvidenceDeviceDetection *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -13165,6 +12821,7 @@ static PHP_METHOD(EvidenceDeviceDetectionSwig,get) {
 
 
 static PHP_METHOD(EvidenceDeviceDetectionSwig,set) {
+  (void)return_value;
   EvidenceDeviceDetection *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string *arg3 = 0 ;
@@ -13226,6 +12883,7 @@ static PHP_METHOD(EvidenceDeviceDetectionSwig,set) {
 
 
 static PHP_METHOD(EvidenceDeviceDetectionSwig,del) {
+  (void)return_value;
   EvidenceDeviceDetection *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -13414,11 +13072,10 @@ PHP_METHOD(EvidenceDeviceDetectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(EvidenceBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13454,7 +13111,6 @@ PHP_METHOD(EvidenceDeviceDetectionSwig,__get) {
   else {
     PHP_MN(EvidenceBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13485,7 +13141,6 @@ PHP_METHOD(EvidenceDeviceDetectionSwig,__isset) {
   else {
     PHP_MN(EvidenceBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13517,7 +13172,6 @@ static PHP_METHOD(EngineDeviceDetectionSwig,defaultElementDataKey) {
     
   }
 }
-fail: SWIGUNUSED;
 return;
 }
 
@@ -13665,7 +13319,6 @@ static PHP_METHOD(EngineDeviceDetectionSwig,processDeviceDetection) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineDeviceDetectionSwig_processDeviceDetection'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13692,11 +13345,10 @@ PHP_METHOD(EngineDeviceDetectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(EngineBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13732,7 +13384,6 @@ PHP_METHOD(EngineDeviceDetectionSwig,__get) {
   else {
     PHP_MN(EngineBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13763,7 +13414,6 @@ PHP_METHOD(EngineDeviceDetectionSwig,__isset) {
   else {
     PHP_MN(EngineBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13946,11 +13596,10 @@ PHP_METHOD(ResultsDeviceDetectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(ResultsBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13986,7 +13635,6 @@ PHP_METHOD(ResultsDeviceDetectionSwig,__get) {
   else {
     PHP_MN(ResultsBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14017,7 +13665,6 @@ PHP_METHOD(ResultsDeviceDetectionSwig,__isset) {
   else {
     PHP_MN(ResultsBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14151,7 +13798,6 @@ static PHP_METHOD(ResultsHashSwig,getDeviceId) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsHashSwig_getDeviceId'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14283,7 +13929,6 @@ static PHP_METHOD(ResultsHashSwig,getDifference) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsHashSwig_getDifference'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14415,7 +14060,6 @@ static PHP_METHOD(ResultsHashSwig,getMethod) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsHashSwig_getMethod'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14547,7 +14191,6 @@ static PHP_METHOD(ResultsHashSwig,getDrift) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsHashSwig_getDrift'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14826,11 +14469,10 @@ PHP_METHOD(ResultsHashSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(ResultsDeviceDetectionSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14866,7 +14508,6 @@ PHP_METHOD(ResultsHashSwig,__get) {
   else {
     PHP_MN(ResultsDeviceDetectionSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14897,7 +14538,6 @@ PHP_METHOD(ResultsHashSwig,__isset) {
   else {
     PHP_MN(ResultsDeviceDetectionSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14905,6 +14545,7 @@ PHP_METHOD(ResultsHashSwig,__isset) {
 
 
 static PHP_METHOD(CollectionConfigSwig,__construct) {
+  (void)return_value;
   CollectionConfig *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -14952,6 +14593,7 @@ static PHP_METHOD(CollectionConfigSwig,__construct) {
 
 
 static PHP_METHOD(CollectionConfigSwig,setCapacity) {
+  (void)return_value;
   CollectionConfig *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -15005,6 +14647,7 @@ static PHP_METHOD(CollectionConfigSwig,setCapacity) {
 
 
 static PHP_METHOD(CollectionConfigSwig,setConcurrency) {
+  (void)return_value;
   CollectionConfig *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -15058,6 +14701,7 @@ static PHP_METHOD(CollectionConfigSwig,setConcurrency) {
 
 
 static PHP_METHOD(CollectionConfigSwig,setLoaded) {
+  (void)return_value;
   CollectionConfig *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -15279,9 +14923,8 @@ PHP_METHOD(CollectionConfigSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15317,7 +14960,6 @@ PHP_METHOD(CollectionConfigSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15348,7 +14990,6 @@ PHP_METHOD(CollectionConfigSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15356,6 +14997,7 @@ PHP_METHOD(CollectionConfigSwig,__isset) {
 
 
 static PHP_METHOD(ConfigHashSwig,__construct) {
+  (void)return_value;
   ConfigHash *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -15403,6 +15045,7 @@ static PHP_METHOD(ConfigHashSwig,__construct) {
 
 
 static PHP_METHOD(ConfigHashSwig,setHighPerformance) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   
   arg1 = (ConfigHash *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -15449,6 +15092,7 @@ static PHP_METHOD(ConfigHashSwig,setHighPerformance) {
 
 
 static PHP_METHOD(ConfigHashSwig,setBalanced) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   
   arg1 = (ConfigHash *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -15495,6 +15139,7 @@ static PHP_METHOD(ConfigHashSwig,setBalanced) {
 
 
 static PHP_METHOD(ConfigHashSwig,setBalancedTemp) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   
   arg1 = (ConfigHash *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -15541,6 +15186,7 @@ static PHP_METHOD(ConfigHashSwig,setBalancedTemp) {
 
 
 static PHP_METHOD(ConfigHashSwig,setLowMemory) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   
   arg1 = (ConfigHash *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -15587,6 +15233,7 @@ static PHP_METHOD(ConfigHashSwig,setLowMemory) {
 
 
 static PHP_METHOD(ConfigHashSwig,setMaxPerformance) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   
   arg1 = (ConfigHash *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -15633,6 +15280,7 @@ static PHP_METHOD(ConfigHashSwig,setMaxPerformance) {
 
 
 static PHP_METHOD(ConfigHashSwig,setDrift) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   int32_t arg2 ;
   zval args[1];
@@ -15686,6 +15334,7 @@ static PHP_METHOD(ConfigHashSwig,setDrift) {
 
 
 static PHP_METHOD(ConfigHashSwig,setDifference) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   int32_t arg2 ;
   zval args[1];
@@ -15739,6 +15388,7 @@ static PHP_METHOD(ConfigHashSwig,setDifference) {
 
 
 static PHP_METHOD(ConfigHashSwig,setConcurrency) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -15792,6 +15442,7 @@ static PHP_METHOD(ConfigHashSwig,setConcurrency) {
 
 
 static PHP_METHOD(ConfigHashSwig,setUsePerformanceGraph) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -15845,6 +15496,7 @@ static PHP_METHOD(ConfigHashSwig,setUsePerformanceGraph) {
 
 
 static PHP_METHOD(ConfigHashSwig,setUsePredictiveGraph) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -15898,6 +15550,7 @@ static PHP_METHOD(ConfigHashSwig,setUsePredictiveGraph) {
 
 
 static PHP_METHOD(ConfigHashSwig,setTraceRoute) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -15951,6 +15604,7 @@ static PHP_METHOD(ConfigHashSwig,setTraceRoute) {
 
 
 static PHP_METHOD(ConfigHashSwig,setPropertyValueIndex) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -16004,6 +15658,7 @@ static PHP_METHOD(ConfigHashSwig,setPropertyValueIndex) {
 
 
 static PHP_METHOD(ConfigHashSwig,setIndexedProperties) {
+  (void)return_value;
   ConfigHash *arg1 = 0 ;
   std::vector< std::string > arg2 ;
   std::vector< std::string > *tmp2 ;
@@ -16802,11 +16457,10 @@ PHP_METHOD(ConfigHashSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(ConfigDeviceDetectionSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16842,7 +16496,6 @@ PHP_METHOD(ConfigHashSwig,__get) {
   else {
     PHP_MN(ConfigDeviceDetectionSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16873,7 +16526,6 @@ PHP_METHOD(ConfigHashSwig,__isset) {
   else {
     PHP_MN(ConfigDeviceDetectionSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16881,6 +16533,7 @@ PHP_METHOD(ConfigHashSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorUInt32Swig__SWIG_0) {
+  (void)return_value;
   std::vector< uint32_t > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -16928,6 +16581,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorUInt32Swig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorUInt32Swig__SWIG_1) {
+  (void)return_value;
   std::vector< unsigned int >::size_type arg1 ;
   zval args[1];
   std::vector< uint32_t > *result = 0 ;
@@ -16982,6 +16636,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorUInt32Swig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorUInt32Swig__SWIG_2) {
+  (void)return_value;
   std::vector< uint32_t > *arg1 = 0 ;
   zval args[1];
   std::vector< uint32_t > *result = 0 ;
@@ -17068,7 +16723,6 @@ static PHP_METHOD(VectorUInt32Swig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_VectorUInt32Swig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17172,6 +16826,7 @@ static PHP_METHOD(VectorUInt32Swig,capacity) {
 
 
 static PHP_METHOD(VectorUInt32Swig,reserve) {
+  (void)return_value;
   std::vector< uint32_t > *arg1 = 0 ;
   std::vector< unsigned int >::size_type arg2 ;
   zval args[1];
@@ -17225,6 +16880,7 @@ static PHP_METHOD(VectorUInt32Swig,reserve) {
 
 
 static PHP_METHOD(VectorUInt32Swig,clear) {
+  (void)return_value;
   std::vector< uint32_t > *arg1 = 0 ;
   
   arg1 = (std::vector< uint32_t > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -17271,6 +16927,7 @@ static PHP_METHOD(VectorUInt32Swig,clear) {
 
 
 static PHP_METHOD(VectorUInt32Swig,push) {
+  (void)return_value;
   std::vector< uint32_t > *arg1 = 0 ;
   std::vector< unsigned int >::value_type *arg2 = 0 ;
   std::vector< unsigned int >::value_type temp2 ;
@@ -17494,6 +17151,7 @@ static PHP_METHOD(VectorUInt32Swig,get) {
 
 
 static PHP_METHOD(VectorUInt32Swig,set) {
+  (void)return_value;
   std::vector< uint32_t > *arg1 = 0 ;
   int arg2 ;
   std::vector< unsigned int >::value_type *arg3 = 0 ;
@@ -17583,9 +17241,8 @@ PHP_METHOD(VectorUInt32Swig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17621,7 +17278,6 @@ PHP_METHOD(VectorUInt32Swig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17652,7 +17308,6 @@ PHP_METHOD(VectorUInt32Swig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17660,6 +17315,7 @@ PHP_METHOD(VectorUInt32Swig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_EngineHashSwig__SWIG_0) {
+  (void)return_value;
   std::string *arg1 = 0 ;
   ConfigHash *arg2 = 0 ;
   RequiredPropertiesConfig *arg3 = 0 ;
@@ -17729,6 +17385,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_EngineHashSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_EngineHashSwig__SWIG_1) {
+  (void)return_value;
   unsigned char *arg1 = (unsigned char *)0 ;
   long arg2 ;
   ConfigHash *arg3 = 0 ;
@@ -18010,6 +17667,7 @@ static PHP_METHOD(EngineHashSwig,getDataFileTempPath) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineHashSwig_refreshData__SWIG_0) {
+  (void)return_value;
   EngineHash *arg1 = 0 ;
   
   arg1 = (EngineHash *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -18056,6 +17714,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineHashSwig_refreshData__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineHashSwig_refreshData__SWIG_1) {
+  (void)return_value;
   EngineHash *arg1 = 0 ;
   char *arg2 = 0 ;
   zval args[1];
@@ -18114,6 +17773,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineHashSwig_refreshData__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineHashSwig_refreshData__SWIG_2) {
+  (void)return_value;
   EngineHash *arg1 = 0 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   long arg3 ;
@@ -18207,7 +17867,6 @@ static PHP_METHOD(EngineHashSwig,refreshData) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineHashSwig_refreshData'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18355,7 +18014,6 @@ static PHP_METHOD(EngineHashSwig,process) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineHashSwig_process'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18629,12 +18287,12 @@ static PHP_METHOD(EngineHashSwig,processDeviceDetection) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineHashSwig_processDeviceDetection'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_EngineHashSwig__SWIG_2) {
+  (void)return_value;
   EngineHash *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -18741,7 +18399,6 @@ static PHP_METHOD(EngineHashSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_EngineHashSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18768,11 +18425,10 @@ PHP_METHOD(EngineHashSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(EngineDeviceDetectionSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18808,7 +18464,6 @@ PHP_METHOD(EngineHashSwig,__get) {
   else {
     PHP_MN(EngineDeviceDetectionSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18839,7 +18494,6 @@ PHP_METHOD(EngineHashSwig,__isset) {
   else {
     PHP_MN(EngineDeviceDetectionSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18847,6 +18501,7 @@ PHP_METHOD(EngineHashSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_ResultsHashSerializer__SWIG_0) {
+  (void)return_value;
   ResultsHashSerializer *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -18894,6 +18549,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_ResultsHashSerializer__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_ResultsHashSerializer__SWIG_1) {
+  (void)return_value;
   std::size_t arg1 ;
   zval args[1];
   ResultsHashSerializer *result = 0 ;
@@ -18969,7 +18625,6 @@ static PHP_METHOD(ResultsHashSerializer,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_ResultsHashSerializer'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19053,9 +18708,8 @@ PHP_METHOD(ResultsHashSerializer,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19091,7 +18745,6 @@ PHP_METHOD(ResultsHashSerializer,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19122,7 +18775,6 @@ PHP_METHOD(ResultsHashSerializer,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19130,6 +18782,7 @@ PHP_METHOD(ResultsHashSerializer,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_Transform__SWIG_0) {
+  (void)return_value;
   Transform *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19177,6 +18830,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_Transform__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_Transform__SWIG_1) {
+  (void)return_value;
   size_t arg1 ;
   zval args[1];
   Transform *result = 0 ;
@@ -19252,7 +18906,6 @@ static PHP_METHOD(Transform,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_Transform'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19465,9 +19118,8 @@ PHP_METHOD(Transform,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19503,7 +19155,6 @@ PHP_METHOD(Transform,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19534,7 +19185,6 @@ PHP_METHOD(Transform,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19556,7 +19206,6 @@ static PHP_FUNCTION(engine_get) {
   
   SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_EngineHash, 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20834,36 +20483,6 @@ SWIG_InitializeModule(SWIG_INIT_CLIENT_DATA_TYPE clientdata) {
   }
   printf("**** SWIG_InitializeModule: Cast List ******\n");
 #endif
-}
-
-/* This function will propagate the clientdata field of type to
-* any new swig_type_info structures that have been added into the list
-* of equivalent types.  It is like calling
-* SWIG_TypeClientData(type, clientdata) a second time.
-*/
-SWIGRUNTIME void
-SWIG_PropagateClientData(void) {
-  size_t i;
-  static int init_run = 0;
-
-  if (init_run) return;
-  init_run = 1;
-
-  for (i = 0; i < swig_module.size; i++) {
-    if (swig_module.types[i]->clientdata) {
-      swig_cast_info *head, *cast;
-      head = swig_module.types[i]->cast;
-      while (head) {
-        for (cast = head; (cast - head) <= head->value; cast++) {
-          if (!cast->converter) {
-            if (cast->type && !cast->type->clientdata)
-              SWIG_TypeClientData(cast->type, swig_module.types[i]->clientdata);
-          }
-        }
-        head = head->next;
-      }
-    }
-  }
 }
 
 #ifdef __cplusplus

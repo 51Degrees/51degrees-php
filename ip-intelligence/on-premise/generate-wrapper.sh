@@ -56,14 +56,14 @@ cp -R "$root/cxx/src" "$work/cxx/src"
 cp "$here/ipi-php.i" "$work/"
 (
     cd "$work"
-    swig -c++ -php -module "$MODULE" -prefix "$prefix" -outdir raw \
+    swig -Werror -c++ -php -module "$MODULE" -prefix "$prefix" -outdir raw \
         -o raw/ipi_wrap.cxx ipi-php.i
 )
 
 # SWIG writes the path of its install folder into comments. Keep only the part
 # that is the same on every machine, so the output does not depend on where
 # SWIG is installed.
-# fix-wrapper.pl then fixes the code MSVC warns about at /W4.
+# fix-wrapper.pl then fixes the code MSVC, GCC and Clang warn about.
 mkdir -p "$work/out"
 sed -E 's#/\*@SWIG:[^,]*/share/swig/#/*@SWIG:share/swig/#' \
     "$work/raw/ipi_wrap.cxx" | perl "$here/fix-wrapper.pl" \

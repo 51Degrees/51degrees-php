@@ -1,12 +1,15 @@
 #!/usr/bin/env perl
 #
 # Fixes the code SWIG 4.5.1 writes into the PHP wrapper that MSVC warns
-# about at /W4. No SWIG option or typemap reaches this code. Reads the
-# wrapper on standard input and writes the fixed wrapper to standard output.
+# about at /W4, and that GCC and Clang warn about at -Wall once config.m4
+# defines SWIGUNUSED empty. No SWIG option or typemap reaches this code.
+# Both extensions' generate-wrapper.sh use it. Reads the wrapper on standard
+# input and writes the fixed wrapper to standard output.
 #
-# - A static function that nothing calls is removed (C4505). That also
-#   removes the runtime's only strcpy and strncpy calls (C4996).
-# - A "fail" label that nothing jumps to is removed (C4102).
+# - A static function that nothing calls is removed (C4505,
+#   -Wunused-function). That also removes the runtime's only strcpy and
+#   strncpy calls (C4996).
+# - A "fail" label that nothing jumps to is removed (C4102, -Wunused-label).
 # - A wrapper function that does not use return_value casts it to void
 #   (C4100).
 # - "thisown" is stored as a truth value, not a zend_long cut to int (C4244).
@@ -51,6 +54,24 @@ sub code {
     return $s;
 }
 
+# The index of the line that closes the brace the line at $_[0] opens. A
+# function can hold a block whose closing brace is at the start of a line,
+# so the first such line is not always the function's end. Braces in string
+# and character literals, and in comments that end on their own line, do not
+# count.
+sub closing {
+    my ($i) = @_;
+    my $depth = 0;
+    for (my $j = $i; $j <= $#lines; $j++) {
+        my $line = $lines[$j];
+        $line =~ s{"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|/\*.*?\*/|//.*}{}g;
+        $depth += () = $line =~ /\{/g;
+        $depth -= () = $line =~ /\}/g;
+        return $j if $depth == 0 && $line =~ /\}/;
+    }
+    die "fix-wrapper.pl: a function at line @{[$i + 1]} does not close.\n";
+}
+
 # Removes static functions that nothing calls, until none is left, because
 # removing one can leave another without a caller.
 my $head =
@@ -64,7 +85,7 @@ for (my $removed = 1; $removed;) {
         my $end = $i + 1;
         $end++ while $end <= $#lines && $lines[$end] !~ /[{;]\s*$/;
         next if $end > $#lines || $lines[$end] =~ /;\s*$/;
-        $end++ while $end <= $#lines && $lines[$end] !~ /^}/;
+        $end = closing($end);
         my $inside = join '', @lines[$i .. $end];
         my $all = () = $whole =~ /\b\Q$name\E\b/g;
         my $own = () = code($inside) =~ /\b\Q$name\E\b/g;
@@ -94,8 +115,7 @@ for (my $i = 0; $i <= $#lines; $i++) {
         push @out, $line;
         next;
     }
-    my $end = $i + 1;
-    $end++ while $end <= $#lines && $lines[$end] !~ /^}/;
+    my $end = closing($i);
     my @body = @lines[$i + 1 .. $end];
     my $code = join '', grep { !/^\s*fail:/ } @body;
     @body = grep { !/^\s*fail: SWIGUNUSED;\s*$/ } @body if $code !~ $jump;

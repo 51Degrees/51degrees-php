@@ -34,6 +34,7 @@ organization secret of exactly its name. common-ci puts each one into the enviro
 | `_51DEGREES_EVIDENCE_YAML` | The path of a YAML evidence file, such as `20000 Evidence Records.yml` | The fork safety test, `device-detection/onpremise/configuration-tests/testForkSafety.php` |
 | `_51DEGREES_EXAMPLE_URL` | The address of the web example that is already running, set by the browser runs in `device-detection/cloud/ci/run-integration-tests.ps1` and `device-detection/onpremise/ci/run-integration-tests.ps1` | The shared browser tests, [selenium-api-tests](https://github.com/51Degrees/selenium-api-tests) |
 | `_51DEGREES_EXAMPLE_LANG` | The language of that example, `php`, set by the same browser runs | The shared browser tests |
+| `_51DEGREES_WARNINGS_AS_ERRORS` | `true`, in any case, to make compiler warnings errors when an on-premise extension is built. Unset or any other value, the build shows warnings and goes on. Each package's `ci/build-project.ps1` sets it to `true` when it is not set, as do `.github/workflows/extensions-valgrind.yml`, `.github/workflows/extensions-thread-safe-php.yml` and `device-detection/onpremise/dev/docker-build-test.sh` | The `config.m4` of `device-detection/onpremise` and of `ip-intelligence`, when `./configure` runs, and the `config.w32` of `ip-intelligence` |
 
 The reader tests set `_51DEGREES_TEST_SET` and `_51DEGREES_TEST_UNSET` for
 themselves and read them back.

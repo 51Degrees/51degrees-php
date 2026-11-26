@@ -22,6 +22,12 @@ try {
         $env:MACOSX_DEPLOYMENT_TARGET = ((sw_vers -productVersion).Split('.') | Select-Object -First 2) -join '.'
     }
 
+    # Compiler warnings are errors in every build 51Degrees runs. config.m4
+    # reads this when configure runs. A value the caller sets is kept.
+    if (-not $env:_51DEGREES_WARNINGS_AS_ERRORS) {
+        $env:_51DEGREES_WARNINGS_AS_ERRORS = 'true'
+    }
+
     phpize || $(throw "phpize failed")
     ./configure || $(throw "configure failed")
     make "-j$([Environment]::ProcessorCount)" || $(throw "make failed")

@@ -30,6 +30,10 @@ make
 sudo make install
 ```
 
+The build shows any compiler warnings and does not stop on them. Set the
+environment variable `_51DEGREES_WARNINGS_AS_ERRORS` to `true` before
+`./configure` to make them errors, as the builds 51Degrees runs do.
+
 To regenerate the SWIG wrapper files, install SWIG 4.5.1 and Perl and run `on-premise/generate-wrapper.sh`.
 
 The Hash engine extension will then be installed into the PHP extensions directory and can then be added to the active php.ini file.

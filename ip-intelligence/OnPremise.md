@@ -60,6 +60,10 @@ phpize
 make -j"$(nproc)"
 ```
 
+The build shows any compiler warnings and does not stop on them. Set the
+environment variable `_51DEGREES_WARNINGS_AS_ERRORS` to `true` before
+`./configure` to make them errors, as the builds 51Degrees runs do.
+
 This produces `on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so`.
 
 The C/C++ sources are compiled with `FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1`,

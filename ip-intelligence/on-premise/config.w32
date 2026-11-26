@@ -19,11 +19,17 @@ if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
         // Common compile defines - must match the cxx CMake build and config.m4.
         // REDUCED_FILE changes on-disk struct layouts, so it has to match the
         // cxx submodule's build of the IP intelligence copy of common.
-        // Warnings are at level 4 and are errors, as in the cxx build.
+        // Warnings are at level 4 and are always shown. They are errors only
+        // when the environment variable _51DEGREES_WARNINGS_AS_ERRORS is
+        // "true", ignoring case, as it is in every build 51Degrees runs, so a
+        // newer compiler on another machine cannot stop an install.
         // The SWIG_* defines stop the wrapper from turning off C4505 and the
         // CRT and C++ library deprecation warnings (C4996). The wrapper stays
         // in src\php8 and includes "cxx/src/...", so the extension's own
         // folder is on the include path.
+        var warningsAsErrors = WshShell.Environment("Process")
+            .Item("_51DEGREES_WARNINGS_AS_ERRORS").toLowerCase() == "true";
+        MESSAGE("Compiler warnings are errors: " + (warningsAsErrors ? "yes" : "no"));
         ADD_FLAG("CFLAGS_FIFTYONEDEGREESIPINTELLIGENCEENGINE",
             "/I " + configure_module_dirname + " " +
             "/DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 " +
@@ -32,12 +38,12 @@ if (PHP_FIFTYONEDEGREESIPINTELLIGENCEENGINE != "no") {
             "/DSWIG_MSC_UNSUPPRESS_4505 " +
             "/DSWIG_NO_CRT_SECURE_NO_DEPRECATE " +
             "/DSWIG_NO_SCL_SECURE_NO_DEPRECATE " +
-            "/W4 /WX");
+            "/W4" + (warningsAsErrors ? " /WX" : ""));
 
         // The PHP SDK adds /wd4996 to CFLAGS, which comes after the flags
         // above on each compile line. This puts C4996 back at level 4, after
-        // it, so it is shown and is an error wherever /W4 /WX is set, which
-        // is only this extension.
+        // it, so it is shown wherever /W4 is set, which is only this
+        // extension, and is an error with /WX.
         ADD_FLAG("CFLAGS", "/w44996");
 
         // The committed wrapper, which generate-wrapper.sh writes with SWIG

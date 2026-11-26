@@ -24,6 +24,12 @@ try {
         $env:MACOSX_DEPLOYMENT_TARGET = ((sw_vers -productVersion).Split('.') | Select-Object -First 2) -join '.'
     }
 
+    # Compiler warnings are errors in every build 51Degrees runs. config.m4
+    # reads this when configure runs. A value the caller sets is kept.
+    if (-not $env:_51DEGREES_WARNINGS_AS_ERRORS) {
+        $env:_51DEGREES_WARNINGS_AS_ERRORS = 'true'
+    }
+
     # The build compiles the committed wrapper, which configure copies from
     # src/php8. A wrapper from another SWIG would join the Device Detection
     # extension's SWIG type table in a PHP that loads both, which crashes PHP.

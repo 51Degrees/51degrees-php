@@ -26,8 +26,21 @@ dnl The SWIG wrapper marks its runtime functions and labels with SWIGUNUSED,
 dnl which GCC and Clang read as the unused attribute, so it would hide the
 dnl unused function and unused label warnings. Defining it empty shows them.
 NOT_HIDDEN="-DSWIGUNUSED="
-CFLAGS="$CFLAGS $COMMON_DEFINES $VISIBILITY $NOT_HIDDEN -std=gnu11 -Wall -Werror"
-CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES $VISIBILITY $NOT_HIDDEN -std=gnu++17 -Wall -Werror"
+dnl Compiler warnings are always shown. They stop the build only when the
+dnl environment variable _51DEGREES_WARNINGS_AS_ERRORS is "true", ignoring
+dnl case, as it is in every build 51Degrees runs, so a newer compiler on
+dnl another machine shows its warnings without stopping an install.
+AC_MSG_CHECKING(whether compiler warnings are errors)
+WARNINGS_AS_ERRORS=`printf '%s' "$_51DEGREES_WARNINGS_AS_ERRORS" | tr ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz`
+if test "$WARNINGS_AS_ERRORS" = "true"; then
+  WERROR="-Werror"
+  AC_MSG_RESULT(yes)
+else
+  WERROR=""
+  AC_MSG_RESULT(no)
+fi
+CFLAGS="$CFLAGS $COMMON_DEFINES $VISIBILITY $NOT_HIDDEN -std=gnu11 -Wall $WERROR"
+CXXFLAGS="${CXXFLAGS} $COMMON_DEFINES $VISIBILITY $NOT_HIDDEN -std=gnu++17 -Wall $WERROR"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

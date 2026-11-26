@@ -311,6 +311,52 @@ class CloudRequestEngine extends Engine
     }
 
     /**
+     * Processes as any Engine does, the cache included, except for a
+     * request that {@see CloudRequestEngine::bypassesCache()} says goes to
+     * the cloud service whatever the cache holds. That request is neither
+     * served from the cache nor stored in it.
+     */
+    public function process(FlowData $flowData): void
+    {
+        if (isset($flowData->evidence)
+            && self::bypassesCache($flowData->evidence)
+        ) {
+            $this->processInternal($flowData);
+
+            return;
+        }
+
+        parent::process($flowData);
+    }
+
+    /**
+     * Whether a request goes to the cloud service whatever the cache holds,
+     * and its answer is not stored. The cache key is made from the Evidence
+     * keys the service lists, but the Engine sends every Evidence value. A
+     * page iteration carries the session id and the sequence, and a server
+     * may supply the visitor's JA4 and H2, none of which the service lists.
+     * Two iterations of one page that differ only in those would share a
+     * key, and the later one, which may carry the browser test answers the
+     * service waits for before it makes a 51Did, would be answered from the
+     * cache and never reach the service. So a request carrying any of
+     * {@see Constants::UNCACHED_EVIDENCE_NAMES}, under any prefix and in any
+     * letter case, bypasses the cache, and every other request is cached as
+     * before.
+     */
+    public static function bypassesCache(Evidence $evidence): bool
+    {
+        foreach (array_keys($evidence->getAllIncludingUnaccepted()) as $key) {
+            $parts = explode('.', (string) $key, 2);
+            $name = strtolower($parts[1] ?? $parts[0]);
+            if (in_array($name, Constants::UNCACHED_EVIDENCE_NAMES, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * A response whose JSON has a top-level member named fodid, in any case,
      * holds a 51Did created for the one request.
      */

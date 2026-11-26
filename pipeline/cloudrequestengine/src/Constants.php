@@ -171,6 +171,14 @@ class Constants
         'resource', 'license', 'licence', 'values',
     ];
 
+    // Evidence names, under any prefix, that the service reads but does not
+    // list, so the cache key leaves them out. A request carrying one goes to
+    // the service whatever the cache holds. See
+    // CloudRequestEngine::bypassesCache().
+    public const UNCACHED_EVIDENCE_NAMES = [
+        'session-id', 'sequence', 'ja4', 'h2',
+    ];
+
     // warning message to be shown for conflicted evidences
     public const WARNING_MESSAGE = "'%s=>%s' evidence conflicts with ";
 

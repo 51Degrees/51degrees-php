@@ -29,7 +29,27 @@ use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\HttpClient;
 use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\engines\DataKeyedCache;
 use PHPUnit\Framework\TestCase;
+
+/**
+ * A cache holding the Cloud Request Engine's responses in memory.
+ */
+class PassThroughArrayCache extends DataKeyedCache
+{
+    /** @var array<string, mixed> */
+    public array $entries = [];
+
+    public function get($cacheKey)
+    {
+        return $this->entries[json_encode($cacheKey)] ?? null;
+    }
+
+    public function set($cacheKey, $value): void
+    {
+        $this->entries[json_encode($cacheKey)] = $value;
+    }
+}
 
 /**
  * The server route. A publisher's server serves the pipeline's JavaScript
@@ -112,6 +132,64 @@ class ServerRoutePassThroughTests extends TestCase
     }
 
     /**
+     * The cache key is made from the Evidence keys the cloud lists, and
+     * the cloud lists none of the session id, the sequence, the answers,
+     * the JA4 or the H2. So two iterations of one page share a key, and
+     * without care the iteration carrying the answers would be answered
+     * from the cache and never reach the cloud.
+     */
+    public function testEveryIterationReachesTheCloudThroughACache(): void
+    {
+        [$sessionId, $answer] = $this->runIterations(true, new PassThroughArrayCache());
+        $bodies = $this->dataRequests();
+        $this->assertCount(3, $bodies);
+        foreach ($bodies as $body) {
+            $this->assertSame($sessionId, $body['session-id']);
+            $this->assertSame(self::VISITOR_JA4, $body['ja4'] ?? null);
+        }
+        foreach (array_slice($bodies, 1) as $body) {
+            $this->assertSame($answer, $body[self::ANSWER_NAME] ?? null);
+        }
+    }
+
+    /**
+     * A server call with no page iteration, but with the visitor's JA4 and
+     * H2, goes to the cloud each time, because the cloud judges the call
+     * on them and the cache key leaves them out.
+     */
+    public function testASuppliedConnectionIsNeverServedFromACache(): void
+    {
+        $pipeline = $this->pipeline(new PassThroughArrayCache(), false);
+        $other = 't13d1517h2_8daaf6152771_b1ff8ab2d16f';
+        foreach ([self::VISITOR_JA4, $other] as $ja4) {
+            $data = $pipeline->createFlowData();
+            $data->evidence->set('header.user-agent', self::CHROME);
+            $data->evidence->set('query.ja4', $ja4);
+            $data->evidence->set('query.h2', self::VISITOR_H2);
+            $data->process();
+        }
+        $this->assertSame(
+            [self::VISITOR_JA4, $other],
+            array_map(fn ($b) => $b['ja4'] ?? null, $this->dataRequests())
+        );
+    }
+
+    /**
+     * A call that is neither a page iteration nor carries a supplied
+     * connection is cached as before.
+     */
+    public function testAnyOtherCallIsStillServedFromACache(): void
+    {
+        $pipeline = $this->pipeline(new PassThroughArrayCache(), false);
+        for ($i = 0; $i < 2; $i++) {
+            $data = $pipeline->createFlowData();
+            $data->evidence->set('query.User-Agent', self::CHROME);
+            $data->process();
+        }
+        $this->assertCount(1, $this->dataRequests());
+    }
+
+    /**
      * With nothing supplied, the address sent is the one the request
      * arrived from, and no JA4 or H2 is sent.
      */
@@ -135,9 +213,11 @@ class ServerRoutePassThroughTests extends TestCase
      *
      * @return array{string, string} The session id and the answer posted.
      */
-    private function runIterations(bool $supplyConnection): array
-    {
-        $pipeline = $this->pipeline();
+    private function runIterations(
+        bool $supplyConnection,
+        ?DataKeyedCache $cache = null
+    ): array {
+        $pipeline = $this->pipeline($cache);
         $answer = '3z|' . str_repeat('aB0-_', 12000);
 
         $js = $this->process($pipeline, 'GET', [], [], $supplyConnection)
@@ -201,14 +281,20 @@ class ServerRoutePassThroughTests extends TestCase
         return $data;
     }
 
-    private function pipeline(): Pipeline
-    {
+    private function pipeline(
+        ?DataKeyedCache $cache = null,
+        bool $javaScript = true
+    ): Pipeline {
         $engine = new CloudRequestEngine([
             'httpClient' => $this->recordingClient(),
             'resourceKey' => self::resourceKey,
         ]);
+        if ($cache !== null) {
+            $engine->setCache($cache);
+        }
 
         return (new PipelineBuilder([
+            'addJavaScriptBuilder' => $javaScript,
             'javascriptBuilderSettings' => [
                 'endpoint' => '/json',
                 'minify' => false,

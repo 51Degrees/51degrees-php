@@ -88,11 +88,8 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $http_response_header = [];
-        $data = PhpMessage::take(function () use (&$context) {
-            return file_get_contents(Constants::URL, false, $context);
-        });
-        $responseHeaders = self::parseHeaders(self::lastResponseHeaders($http_response_header));
+        $data = PhpMessage::read(Constants::URL, $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code']);
         // The device id is rendered into the page from the server-side results.
@@ -119,11 +116,8 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $http_response_header = [];
-        $data = PhpMessage::take(function () use (&$context) {
-            return file_get_contents(Constants::URL . '51Degrees.core.js', false, $context);
-        });
-        $responseHeaders = self::parseHeaders(self::lastResponseHeaders($http_response_header));
+        $data = PhpMessage::read(Constants::URL . '51Degrees.core.js', $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code']);
         $this->assertStringStartsWith('application/x-javascript', $responseHeaders['Content-Type']);
@@ -176,12 +170,9 @@ class ExampleWebTests extends TestCase
                 'ignore_errors' => true
             ]
         ]);
-        $http_response_header = [];
-        PhpMessage::take(function () use (&$url, &$context) {
-            return file_get_contents($url, false, $context);
-        });
+        PhpMessage::read($url, $context, $response);
 
-        return self::parseHeaders(self::lastResponseHeaders($http_response_header));
+        return self::parseHeaders($response);
     }
 
     /**
@@ -224,26 +215,6 @@ class ExampleWebTests extends TestCase
         );
 
         return array_values(array_filter($found, 'is_file'));
-    }
-
-    /**
-     * The headers of the response file_get_contents() last read. PHP 8.4
-     * and later give them through http_get_last_response_headers(). Before
-     * that they are in $http_response_header, which PHP sets only in a
-     * function that has that variable, so the caller sets it to an empty
-     * array before the request and gives it here. Being set first, it is
-     * not read as the predefined variable PHP 8.5 deprecates.
-     *
-     * @param array<string> $headers the caller's $http_response_header
-     * @return array<string>
-     */
-    private static function lastResponseHeaders(array $headers): array
-    {
-        if (function_exists('http_get_last_response_headers')) {
-            return http_get_last_response_headers() ?? [];
-        }
-
-        return $headers;
     }
 
     /**

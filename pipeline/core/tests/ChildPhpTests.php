@@ -45,29 +45,25 @@ class ChildPhpTests extends TestCase
      */
     public static function provider_fails(): array
     {
-        $child = function (string $code): string {
-            return 'passthru(escapeshellarg(PHP_BINARY) . " -r " . ' .
-                'escapeshellarg(' . var_export($code, true) . '));';
-        };
         return [
             'warning in a child' => [
-                $child('trigger_error("canary", E_USER_WARNING);'),
+                self::inChild('trigger_error("canary", E_USER_WARNING);'),
                 'PHP Warning:  canary',
             ],
             'notice in a child' => [
-                $child('trigger_error("canary", E_USER_NOTICE);'),
+                self::inChild('trigger_error("canary", E_USER_NOTICE);'),
                 'PHP Notice:  canary',
             ],
             'deprecation in a child' => [
-                $child('trigger_error("canary", E_USER_DEPRECATED);'),
+                self::inChild('trigger_error("canary", E_USER_DEPRECATED);'),
                 'PHP Deprecated:  canary',
             ],
             'fatal error in a child' => [
-                $child('canary();'),
+                self::inChild('canary();'),
                 'PHP Fatal error:  Uncaught Error: Call to undefined function canary()',
             ],
             'parse error in a child' => [
-                $child('echo canary canary;'),
+                self::inChild('echo canary canary;'),
                 'PHP Parse error:  ',
             ],
             'deprecation inside a call whose warning is taken' => [
@@ -97,7 +93,7 @@ class ChildPhpTests extends TestCase
     public function testCheckPassesARunWhoseFatalErrorWasTaken(): void
     {
         [$status, $error] = $this->run_(
-            'passthru(escapeshellarg(PHP_BINARY) . " -r \"canary();\"");' .
+            self::inChild('canary();') .
             'exit(\\fiftyone\\pipeline\\tests\\ChildPhp::take(' .
             '"~PHP Fatal error:  Uncaught Error: Call to undefined function ' .
             'canary\\(\\)~") === 1 ? 0 : 2);'
@@ -121,13 +117,79 @@ class ChildPhpTests extends TestCase
         $this->assertStringContainsString($missing, $warning);
     }
 
+    /**
+     * The tests of the web examples read the status through read(), so it
+     * must hand back the headers of the request it made, on every PHP.
+     */
+    public function testReadHandsBackTheResponseHeaders(): void
+    {
+        $folder = sys_get_temp_dir() . '/read-' . bin2hex(random_bytes(8));
+        $this->assertTrue(mkdir($folder));
+        $router = $folder . '/router.php';
+        file_put_contents(
+            $router,
+            '<?php http_response_code(201); header("X-Canary: canary"); echo "page";'
+        );
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertIsResource($socket);
+        $name = (string) stream_socket_get_name($socket, false);
+        fclose($socket);
+        $port = (int) substr($name, strrpos($name, ':') + 1);
+        $log = $folder . '/server.log';
+        $server = proc_open(
+            [PHP_BINARY, '-S', "127.0.0.1:{$port}", $router],
+            [0 => ['pipe', 'r'], 1 => ['file', $log, 'w'], 2 => ['file', $log, 'a']],
+            $pipes,
+            $folder
+        );
+        $this->assertIsResource($server);
+        fclose($pipes[0]);
+        $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
+        try {
+            $deadline = microtime(true) + 10;
+            do {
+                $page = PhpMessage::read("http://127.0.0.1:{$port}/", $context, $headers);
+                if ($page !== false) {
+                    break;
+                }
+                usleep(100000);
+            } while (microtime(true) < $deadline && proc_get_status($server)['running']);
+        } finally {
+            proc_terminate($server);
+            proc_close($server);
+            unlink($log);
+            unlink($router);
+            rmdir($folder);
+        }
+
+        $this->assertSame('page', $page);
+        $this->assertMatchesRegularExpression('~^HTTP/\S+ 201 ~', $headers[0] ?? '');
+        $this->assertContains('X-Canary: canary', $headers);
+    }
+
     public function testCheckPassesARunWithNoMessage(): void
     {
         [$status, $error] = $this->run_(
-            'passthru(escapeshellarg(PHP_BINARY) . " -r \"echo 1;\"");'
+            self::inChild('echo 1;')
         );
         $this->assertSame('', $error);
         $this->assertSame(0, $status);
+    }
+
+    /**
+     * Code that runs the given code in a PHP of its own. The code goes in
+     * a file, as a shell can change code given on the command line. On
+     * Windows escapeshellarg() turns each double quote into a space.
+     */
+    private static function inChild(string $code): string
+    {
+        return '$file = tempnam(sys_get_temp_dir(), "child-php-test");' .
+            'try {' .
+            'file_put_contents($file, ' . var_export("<?php\n" . $code . "\n", true) . ');' .
+            'passthru(escapeshellarg(PHP_BINARY) . " " . escapeshellarg($file));' .
+            '} finally {' .
+            'unlink($file);' .
+            '}';
     }
 
     /**

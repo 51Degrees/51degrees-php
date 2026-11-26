@@ -56,7 +56,7 @@ class ChildPhpJunitTests extends TestCase
     public function testAFailedCheckAddsAFailingTestCase(): void
     {
         [$status, $suite] = $this->runPhpUnit(
-            'trigger_error(\"canary\", E_USER_WARNING);'
+            'trigger_error("canary", E_USER_WARNING);'
         );
 
         $this->assertSame(1, $status);
@@ -85,8 +85,8 @@ class ChildPhpJunitTests extends TestCase
         $fromEnvironment = 'MADEUPKEY0000TEST1234';
         $inQuery = 'MADEUPQUERYKEY99998888';
         [$status, $suite, $printed, $junit] = $this->runPhpUnit(
-            'trigger_error(\"key ' . $fromEnvironment . ' at ' .
-                'https://cloud.example/x?LicenseKeys=' . $inQuery . '\", E_USER_WARNING);',
+            'trigger_error("key ' . $fromEnvironment . ' at ' .
+                'https://cloud.example/x?LicenseKeys=' . $inQuery . '", E_USER_WARNING);',
             ['_51DEGREES_LICENSE_KEY' => $fromEnvironment]
         );
 
@@ -102,7 +102,8 @@ class ChildPhpJunitTests extends TestCase
 
     /**
      * Writes a configuration and one test that runs the code in a PHP of
-     * its own, runs PHPUnit on it with --log-junit and the environment
+     * its own, from a file, as a shell can change code given on the
+     * command line, runs PHPUnit on it with --log-junit and the environment
      * variables given, and gives the exit status, the outer test suite of
      * the JUnit file, what PHPUnit printed and the JUnit file's text.
      *
@@ -112,10 +113,13 @@ class ChildPhpJunitTests extends TestCase
     private function runPhpUnit(string $code, array $set = []): array
     {
         $class = 'ChildPhpJunitFixture' . bin2hex(random_bytes(4));
+        $child = $this->folder . '/child.php';
+        file_put_contents($child, "<?php\n" . $code . "\n");
         file_put_contents($this->folder . '/' . $class . '.php', "<?php\n" .
             "class {$class} extends \\PHPUnit\\Framework\\TestCase {\n" .
             "    public function testChild(): void {\n" .
-            "        passthru(escapeshellarg(PHP_BINARY) . ' -r \"{$code}\"');\n" .
+            "        passthru(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(" .
+                var_export($child, true) . "));\n" .
             "        \$this->assertTrue(true);\n" .
             "    }\n" .
             "}\n");

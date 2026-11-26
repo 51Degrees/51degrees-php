@@ -379,6 +379,38 @@ final class PhpMessage
             restore_error_handler();
         }
     }
+
+    /**
+     * Returns what file_get_contents() gives for the URL, as take() does,
+     * and sets $headers to the response headers, the status line first.
+     * Before PHP 8.4 the headers are only in $http_response_header, which
+     * PHP sets in the function that makes the request, here the closure.
+     * So the closure reads them and hands them out. Being set first, the
+     * variable is not read as the predefined one PHP 8.5 deprecates.
+     *
+     * @param resource $context
+     * @param array<string> $headers
+     * @return string|false
+     */
+    public static function read(
+        string $url,
+        $context,
+        ?array &$headers = null,
+        ?string &$message = null
+    ) {
+        $headers = [];
+        return self::take(
+            static function () use ($url, $context, &$headers) {
+                $http_response_header = [];
+                $data = file_get_contents($url, false, $context);
+                $headers = function_exists('http_get_last_response_headers')
+                    ? (http_get_last_response_headers() ?? [])
+                    : $http_response_header;
+                return $data;
+            },
+            $message
+        );
+    }
 }
 
 ChildPhp::watch();

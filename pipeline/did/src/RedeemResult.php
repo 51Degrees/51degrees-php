@@ -111,7 +111,11 @@ final class RedeemResult
      */
     public readonly ?HumanConfidence $humanConfidence;
 
-    /** Why the cloud sent no Value, or null where it sent none. */
+    /**
+     * Why the cloud sent no Value, as the cloud worded it, or
+     * {@see HumanConfidence::NOT_RETURNED} on success where the answer
+     * held neither a Value nor a reason. Null otherwise.
+     */
     public readonly ?string $humanConfidenceNullReason;
 
     /**
@@ -222,8 +226,12 @@ final class RedeemResult
         $status = isset($json['status']) && is_string($json['status'])
             ? $json['status']
             : null;
+        $redeemStatus = RedeemStatus::fromAnswer($status, $rawContext);
         [$humanConfidence, $nullReason, $rawHumanConfidence] =
-            HumanConfidence::fromAnswer($json);
+            HumanConfidence::fromAnswer(
+                $json,
+                $redeemStatus === RedeemStatus::Success
+            );
 
         return new self(
             ContextOutcome::fromCloud($rawContext),
@@ -234,7 +242,7 @@ final class RedeemResult
             $seconds,
             $statusCode,
             $body,
-            RedeemStatus::fromAnswer($status, $rawContext),
+            $redeemStatus,
             $humanConfidence,
             $nullReason,
             $rawHumanConfidence

@@ -2113,7 +2113,15 @@ class DidClientTest extends TestCase
             // from context and the HTTP status.
             $this->assertSame($after->status, $before->status, $name);
             $this->assertNull($before->humanConfidence, $name);
-            $this->assertNull($before->humanConfidenceNullReason, $name);
+            // A service from before the Value sends neither field, and
+            // the client says so where the sealed result redeemed.
+            $this->assertSame(
+                $before->status === RedeemStatus::Success
+                    ? HumanConfidence::NOT_RETURNED
+                    : null,
+                $before->humanConfidenceNullReason,
+                $name
+            );
             $this->assertSame($now, $after->raw, $name);
         }
     }
@@ -2379,7 +2387,10 @@ class DidClientTest extends TestCase
         $null = $this->client()->redeem($this->someId(), 'SEALED', 'C');
         $this->assertNull($null->humanConfidence);
         $this->assertNull($null->rawHumanConfidence);
-        $this->assertNull($null->humanConfidenceNullReason);
+        $this->assertSame(
+            HumanConfidence::NOT_RETURNED,
+            $null->humanConfidenceNullReason
+        );
     }
 
     public function testRedeemKeepsTheHumanConfidenceWordAsSent(): void
@@ -2649,7 +2660,16 @@ class DidClientTest extends TestCase
         $none = $this->client()->verifyDetailed($this->someId());
         $this->assertNull($none->humanConfidence);
         $this->assertNull($none->rawHumanConfidence);
-        $this->assertNull($none->humanConfidenceNullReason);
+        // A service from before the Value sends neither field, and the
+        // client says so.
+        $this->assertSame(
+            HumanConfidence::NOT_RETURNED,
+            $none->humanConfidenceNullReason
+        );
+
+        $this->queueJson(200, ['valid' => false]);
+        $invalid = $this->client()->verifyDetailed($this->someId());
+        $this->assertNull($invalid->humanConfidenceNullReason);
 
         $this->queueJson(200, ['valid' => true, 'humanConfidence' => 'High']);
         $high = $this->client()->verifyDetailed($this->someId());

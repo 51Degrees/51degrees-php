@@ -501,7 +501,11 @@ cloud carried the Value. The cloud sends it on a successful redeem, and on
 a verify of a 51Did whose signature verifies. It sends it only to a call
 that presents a License Key valid for Human Confidence. Any other call
 gets `humanConfidenceNullReason` instead, saying why, and
-`humanConfidence` is then null. A `humanConfidence` word the package
+`humanConfidence` is then null. A service from before the Value sends
+neither field, and then `humanConfidenceNullReason` is
+`HumanConfidence::NOT_RETURNED` on a successful redeem and on a verify of
+a valid 51Did, so there's always a reason where there's no Value. A
+`humanConfidence` word the package
 doesn't know reads as `Absent`, never as null, and the word as sent stays
 on `rawHumanConfidence`. `toArray()` leaves
 out `status` and the Human Confidence fields, so a server that relays the

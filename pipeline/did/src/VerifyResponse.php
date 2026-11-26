@@ -47,7 +47,11 @@ final class VerifyResponse
      */
     public readonly ?HumanConfidence $humanConfidence;
 
-    /** Why the cloud sent no Value, or null where it sent none. */
+    /**
+     * Why the cloud sent no Value, as the cloud worded it, or
+     * {@see HumanConfidence::NOT_RETURNED} for a valid 51Did where the
+     * answer held neither a Value nor a reason. Null otherwise.
+     */
     public readonly ?string $humanConfidenceNullReason;
 
     /**
@@ -94,9 +98,11 @@ final class VerifyResponse
         if (!is_array($json)) {
             $json = [];
         }
-        [$value, $reason, $rawValue] = HumanConfidence::fromAnswer($json);
+        $valid = ($json['valid'] ?? null) === true;
+        [$value, $reason, $rawValue] =
+            HumanConfidence::fromAnswer($json, $valid);
         return new self(
-            ($json['valid'] ?? null) === true,
+            $valid,
             $value,
             $reason,
             $statusCode,

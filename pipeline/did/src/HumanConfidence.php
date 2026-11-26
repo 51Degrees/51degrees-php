@@ -58,6 +58,15 @@ enum HumanConfidence: string
     case Absent = 'Absent';
 
     /**
+     * The reason given where an answer that verified or redeemed a 51Did
+     * holds neither `humanConfidence` nor `humanConfidenceNullReason`, as
+     * an answer from a cloud from before the Value was added does.
+     */
+    public const NOT_RETURNED =
+        'The cloud did not return a Human Confidence Value. A cloud from '
+        . 'before the Value was added returns none.';
+
+    /**
      * Maps the cloud's `humanConfidence` string without regard to case,
      * answering null when the cloud sent none. A word this build does not
      * know reads as {@see HumanConfidence::Absent}, so an unknown word
@@ -84,15 +93,24 @@ enum HumanConfidence: string
      * not a word this build knows, or is not a string at all, reads as
      * {@see HumanConfidence::Absent}. One that is missing or null reads as
      * null, and then the null reason says why where the cloud sent one.
+     * Where `$answered` is true, because the answer verified or redeemed
+     * the 51Did, and the cloud sent neither field, the null reason is
+     * {@see HumanConfidence::NOT_RETURNED}, so there is always a reason
+     * where there is no Value.
      *
      * @internal Used by the package's own response classes.
      *
      * @param array<mixed> $json
+     * @param bool $answered Whether the answer verified or redeemed the
+     *     51Did.
      * @return array{0: ?HumanConfidence, 1: ?string, 2: ?string} The
      *     Value, the `humanConfidenceNullReason` text, and the
      *     `humanConfidence` string as sent, each null when not sent.
      */
-    public static function fromAnswer(array $json): array
+    public static function fromAnswer(
+        array $json,
+        bool $answered = false
+    ): array
     {
         $sent = $json['humanConfidence'] ?? null;
         $raw = is_string($sent) ? $sent : null;
@@ -103,6 +121,9 @@ enum HumanConfidence: string
             && is_string($json['humanConfidenceNullReason'])
             ? $json['humanConfidenceNullReason']
             : null;
+        if ($answered && $sent === null && $reason === null) {
+            $reason = self::NOT_RETURNED;
+        }
         return [$value, $reason, $raw];
     }
 }

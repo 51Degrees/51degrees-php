@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\devicedetection\tests\classes;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\HumanConfidenceWeb;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -36,7 +37,8 @@ use PHPUnit\Framework\TestCase;
  *
  * Every test is skipped, naming the variable, when the resource key or the
  * cloud service is not set. The tests that need the HumanConfidence
- * property are skipped where the resource key does not include it.
+ * property fail where the resource key does not include it, as a test that
+ * cannot see a real level has proved nothing.
  */
 abstract class HumanConfidenceWebTestCase extends TestCase
 {
@@ -66,8 +68,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
     // of properties holds.
     private const PROPERTIES = 'derived.humanconfidence,derived.humanconfidencesource';
 
-    // The levels a passive result can be.
-    protected const LEVELS = ['High', 'Medium', 'Low', 'Unknown'];
+    // The levels a passive result can be. Unknown is not one, as an answer
+    // of Unknown gives no level.
+    protected const LEVELS = ['High', 'Medium', 'Low'];
 
     // Text that shows the example printed a programming fault rather than
     // an answer.
@@ -207,7 +210,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
 
         $deadline = microtime(true) + self::START_SECONDS;
         do {
-            $connection = @stream_socket_client('tcp://' . self::$address, $code, $reason, 1);
+            $connection = PhpMessage::take(function () use (&$address, &$code, &$reason) {
+                return stream_socket_client('tcp://' . self::$address, $code, $reason, 1);
+            });
             if ($connection !== false) {
                 fclose($connection);
 
@@ -241,19 +246,25 @@ abstract class HumanConfidenceWebTestCase extends TestCase
     }
 
     /**
-     * Skips the test where the resource key does not include the
-     * HumanConfidence property, and fails where the cloud service did not
-     * say which properties it includes.
+     * Fails where the resource key does not include the HumanConfidence
+     * property, or where the cloud service did not say which properties it
+     * includes.
+     *
+     * @param null|array<string, bool> $properties The names, in lower case,
+     * of the properties the resource key includes, or null where the cloud
+     * service did not list them
      */
-    protected function skipWithoutTheProperty(): void
+    public static function assertIncludesTheProperty(?array $properties): void
     {
-        $this->assertNotNull(self::$properties, self::notListedMessage());
-        if (!isset(self::$properties[self::PROPERTY])) {
-            $this->markTestSkipped(
-                'The resource key in ' . static::resourceKeyVariable() .
-                ' does not include the HumanConfidence property.'
-            );
-        }
+        self::assertNotNull($properties, static::notListedMessage());
+        self::assertArrayHasKey(
+            self::PROPERTY,
+            $properties,
+            'The resource key in ' . static::resourceKeyVariable() .
+            ' does not include the HumanConfidence property, so the ' .
+            'example would show its contact us link rather than a level. ' .
+            'Set the variable to a key that includes it.'
+        );
     }
 
     /**
@@ -279,11 +290,13 @@ abstract class HumanConfidenceWebTestCase extends TestCase
         $context = stream_context_create(
             ['http' => ['ignore_errors' => true, 'timeout' => self::CLOUD_TIMEOUT_SECONDS]]
         );
-        $body = @file_get_contents(
-            self::$endpoint . 'accessibleproperties?resource=' . rawurlencode($key),
-            false,
-            $context
-        );
+        $body = PhpMessage::take(function () use (&$endpoint, &$key, &$context) {
+            return file_get_contents(
+                self::$endpoint . 'accessibleproperties?resource=' . rawurlencode($key),
+                false,
+                $context
+            );
+        });
         $json = $body === false ? null : json_decode($body, true);
         if (!is_array($json)) {
             return null;
@@ -318,9 +331,8 @@ abstract class HumanConfidenceWebTestCase extends TestCase
 
     /**
      * The derived part of the cloud service's answer to a passive request
-     * with a browser's User-Agent that names the two properties. The
-     * example's own passive request names none, so its answer holds only
-     * what the key's saved list of properties gives.
+     * with a browser's User-Agent that names the two properties, as the
+     * example's own passive request does.
      *
      * @return array<string, mixed>
      */
@@ -336,7 +348,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
             'ignore_errors' => true,
             'timeout' => self::CLOUD_TIMEOUT_SECONDS
         ]]);
-        $body = @file_get_contents(self::$endpoint . rawurlencode($key) . '.json', false, $context);
+        $body = PhpMessage::take(function () use (&$endpoint, &$key, &$context) {
+            return file_get_contents(self::$endpoint . rawurlencode($key) . '.json', false, $context);
+        });
         self::assertNotFalse($body, self::$serviceName . ' did not answer.');
         $json = json_decode($body, true);
         self::assertIsArray($json, 'The cloud service did not answer with JSON.');
@@ -361,7 +375,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
             'ignore_errors' => true,
             'timeout' => self::CLOUD_TIMEOUT_SECONDS
         ]]);
-        $stream = @fopen(self::$endpoint . $path, 'r', false, $context);
+        $stream = PhpMessage::take(function () use (&$endpoint, &$path, &$context) {
+            return fopen(self::$endpoint . $path, 'r', false, $context);
+        });
         self::assertNotFalse($stream, self::$serviceName . ' did not answer ' . $path . '.');
         $lines = stream_get_meta_data($stream)['wrapper_data'] ?? [];
         $body = (string) stream_get_contents($stream);
@@ -409,7 +425,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
         $context = stream_context_create(
             ['http' => $http + ['ignore_errors' => true, 'timeout' => self::ANSWER_SECONDS]]
         );
-        $stream = @fopen('http://' . self::$address . $path, 'r', false, $context);
+        $stream = PhpMessage::take(function () use (&$address, &$path, &$context) {
+            return fopen('http://' . self::$address . $path, 'r', false, $context);
+        });
         self::assertNotFalse($stream, "The example did not answer {$path}.\n" . self::printed());
         $lines = stream_get_meta_data($stream)['wrapper_data'] ?? [];
         $body = (string) stream_get_contents($stream);

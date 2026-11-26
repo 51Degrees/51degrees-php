@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -107,7 +108,9 @@ class PublishedPackageTests extends TestCase
             }
         } finally {
             unset($entries);
-            @unlink($file);
+            PhpMessage::take(function () use (&$file) {
+                return unlink($file);
+            });
         }
         sort($names);
 

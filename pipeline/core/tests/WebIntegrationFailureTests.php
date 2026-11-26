@@ -32,6 +32,7 @@ use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\core\tests\classes\FailingJavascriptBuilderElement;
 use fiftyone\pipeline\core\tests\classes\FailingJsonBundlerElement;
 use fiftyone\pipeline\core\tests\classes\UnreachableElement;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -277,7 +278,9 @@ class WebIntegrationFailureTests extends TestCase
         $url = "http://127.0.0.1:{$port}/?element={$element}";
         $deadline = microtime(true) + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline && proc_get_status($server)['running']) {
-            $stream = @fopen($url, 'r', false, $context);
+            $stream = PhpMessage::take(function () use (&$url, &$context) {
+                return fopen($url, 'r', false, $context);
+            });
             if ($stream !== false) {
                 $headers = stream_get_meta_data($stream)['wrapper_data'];
                 $body = (string) stream_get_contents($stream);

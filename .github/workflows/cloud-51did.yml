@@ -52,6 +52,9 @@ jobs:
           # The lowest version the package supports, so the cloud path is
           # proven on the oldest runtime a deployment might use.
           php-version: '8.1'
+          # No Xdebug, as the build matrix has none. With it, PHP disables
+          # JIT and warns at every start, which fails the tests.
+          coverage: none
           extensions: mbstring, openssl, json
       # In the package folder, so the package's own composer.json and its
       # path repository to owid-php are used, as a consumer of the package

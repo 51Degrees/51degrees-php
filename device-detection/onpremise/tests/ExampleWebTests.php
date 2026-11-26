@@ -25,6 +25,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
@@ -69,7 +70,9 @@ class ExampleWebTests extends TestCase
         ]);
 
         $http_response_header = [];
-        $data = @file_get_contents(Constants::URL, false, $context);
+        $data = PhpMessage::take(function () use (&$context) {
+            return file_get_contents(Constants::URL, false, $context);
+        });
         $responseHeaders = self::parseHeaders(self::lastResponseHeaders($http_response_header));
 
         $this->assertSame(200, $responseHeaders['response_code']);
@@ -89,11 +92,15 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $page = @file_get_contents(Constants::URL, false, $context);
+        $page = PhpMessage::take(function () use (&$context) {
+            return file_get_contents(Constants::URL, false, $context);
+        });
         $this->assertStringContainsString('<script src="/51Degrees.core.js"></script>', $page);
 
         $http_response_header = [];
-        $script = @file_get_contents(Constants::URL . '51Degrees.core.js', false, $context);
+        $script = PhpMessage::take(function () use (&$context) {
+            return file_get_contents(Constants::URL . '51Degrees.core.js', false, $context);
+        });
         $responseHeaders = self::parseHeaders(self::lastResponseHeaders($http_response_header));
 
         $this->assertSame(200, $responseHeaders['response_code']);
@@ -151,7 +158,9 @@ class ExampleWebTests extends TestCase
             ]
         ]);
         $http_response_header = [];
-        @file_get_contents($url, false, $context);
+        PhpMessage::take(function () use (&$url, &$context) {
+            return file_get_contents($url, false, $context);
+        });
 
         return self::parseHeaders(self::lastResponseHeaders($http_response_header));
     }

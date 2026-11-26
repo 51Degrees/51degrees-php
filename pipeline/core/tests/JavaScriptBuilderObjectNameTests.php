@@ -28,6 +28,7 @@ use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\core\tests\classes\ExampleFlowElement1;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -119,11 +120,13 @@ class JavaScriptBuilderObjectNameTests extends TestCase
      */
     private static function node(array $args): array
     {
-        $process = @proc_open(
-            array_merge(['node'], $args),
-            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes
-        );
+        $process = PhpMessage::take(function () use (&$args, &$pipes) {
+            return proc_open(
+                array_merge(['node'], $args),
+                [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+                $pipes
+            );
+        });
         if (!is_resource($process)) {
             return [-1, '', 'node could not be started'];
         }

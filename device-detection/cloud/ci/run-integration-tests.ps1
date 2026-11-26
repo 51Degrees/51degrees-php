@@ -40,6 +40,8 @@ try {
     # The example reads the key a person sets, so it is given the key of the
     # tests under that name.
     $port = 8096
+    . "$PSScriptRoot/../../../ci/php-messages.ps1"
+    $messages = Add-PhpMessageLog
     Push-Location "$PSScriptRoot/../examples"
     try {
         composer install --working-dir=..
@@ -77,4 +79,5 @@ try {
 } finally {
     if ($example) { Remove-Job -Force $example }
     $env:_51DEGREES_RESOURCE_KEY = $previousKey
+    if ($messages) { Assert-NoPhpMessage $messages }
 }

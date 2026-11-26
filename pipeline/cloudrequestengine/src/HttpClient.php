@@ -85,48 +85,7 @@ class HttpClient
         }
 
         if (!function_exists('curl_version')) {
-            $context = stream_context_create([
-                'http' => [
-                    'method' => $type,
-                    'ignore_errors' => true,
-                    'header' => $headerText,
-                    'content' => $content,
-                    'timeout' => $this->timeoutSeconds
-                ]
-            ]);
-
-            // Before PHP 8.4, PHP gives the response headers only in
-            // $http_response_header, and sets it only in a function that
-            // has that variable. Being set first, it is not read as the
-            // predefined variable PHP 8.5 deprecates.
-            $http_response_header = [];
-            $data = @file_get_contents($url, false, $context);
-
-            if ($data === false) {
-                // The request never reached the service, so there is no
-                // status and no body to read. Without this, false went on
-                // to validateResponse(), where the strict types this file
-                // declares turned it into a type error naming that method,
-                // and $http_response_header was never set either, so the
-                // caller heard nothing about the connection.
-                $error = error_get_last();
-
-                throw new CloudRequestException(LicenseKey::maskQuery(sprintf(
-                    Constants::MESSAGE_REQUEST_FAILED,
-                    $url,
-                    $error['message'] ?? 'the reason was not reported'
-                )));
-            }
-
-            $responseHeaders = function_exists('http_get_last_response_headers')
-                ? (http_get_last_response_headers() ?? [])
-                : $http_response_header;
-            $statusCode = $this->getHttpCode($responseHeaders);
-
-            // Validate cloud response for errors.
-            $this->validateResponse($data, $statusCode, $responseHeaders, $url);
-
-            return $data;
+            return $this->requestWithStreams($type, $url, $content, $headerText);
         }
 
         $ch = curl_init($url);
@@ -217,12 +176,86 @@ class HttpClient
     }
 
     /**
+     * Makes the request with PHP's own streams, where curl is not there.
+     *
+     * @throws \fiftyone\pipeline\cloudrequestengine\CloudRequestException
+     *   when the request cannot be made or the cloud service answers with
+     *   an error
+     */
+    private function requestWithStreams(string $type, string $url, ?string $content, string $headerText): string
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => $type,
+                'ignore_errors' => true,
+                'header' => $headerText,
+                'content' => $content,
+                'timeout' => $this->timeoutSeconds
+            ]
+        ]);
+
+        // Before PHP 8.4, PHP gives the response headers only in
+        // $http_response_header, and sets it only in a function that
+        // has that variable. Being set first, it is not read as the
+        // predefined variable PHP 8.5 deprecates.
+        $http_response_header = [];
+        // A request that cannot be made gives a warning and false. The
+        // warning is taken as the reason in the exception below.
+        $reason = null;
+        set_error_handler(
+            static function (int $level, string $message) use (&$reason): bool {
+                $reason = $message;
+
+                return true;
+            },
+            E_WARNING
+        );
+
+        try {
+            $data = file_get_contents($url, false, $context);
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($data === false) {
+            // The request never reached the service, so there is no
+            // status and no body to read. Without this, false went on
+            // to validateResponse(), where the strict types this file
+            // declares turned it into a type error naming that method,
+            // and $http_response_header was never set either, so the
+            // caller heard nothing about the connection.
+            throw new CloudRequestException(LicenseKey::maskQuery(sprintf(
+                Constants::MESSAGE_REQUEST_FAILED,
+                $url,
+                $reason ?? 'the reason was not reported'
+            )));
+        }
+        if ($reason !== null) {
+            // A warning from a request that was made is not expected,
+            // so it is raised again, with the keys in the URL masked as
+            // in the exception above.
+            trigger_error(LicenseKey::maskQuery($reason), E_USER_WARNING);
+        }
+
+        $responseHeaders = function_exists('http_get_last_response_headers')
+            ? (http_get_last_response_headers() ?? [])
+            : $http_response_header;
+        $statusCode = $this->getHttpCode($responseHeaders);
+
+        // Validate cloud response for errors.
+        $this->validateResponse($data, $statusCode, $responseHeaders, $url);
+
+        return $data;
+    }
+
+    /**
      * @param null|array<string> $http_response_header
      * @return int
      */
     private function getHttpCode(?array $http_response_header): int
     {
-        if (is_array($http_response_header)) {
+        // A stream that is not HTTP gives no headers at all.
+        if (is_array($http_response_header) && isset($http_response_header[0])) {
             $parts = explode(' ', $http_response_header[0]);
             if (count($parts) > 1) { // HTTP/1.0 <code> <text>
                 return intval($parts[1]);

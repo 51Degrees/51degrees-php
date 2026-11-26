@@ -3,7 +3,8 @@
      names the test that raised each one. The package needs PHP 8.1, so its
      own PHPUnit is 10.5 or later, and the attributes are those of PHPUnit
      10.5, which the later versions also take. tests/bootstrap.php fails the
-     run on a warning, notice or deprecation from a PHP the tests start. -->
+     run on a warning, notice, deprecation or fatal error from a PHP the
+     tests start, or one PHPUnit does not handle. -->
 <phpunit bootstrap="tests/bootstrap.php"
          failOnWarning="true"
          failOnNotice="true"
@@ -31,6 +32,7 @@
     <testsuite name="Unit">
       <file>tests/FodIdTest.php</file>
       <file>tests/DidClientTest.php</file>
+      <file>tests/MaskedWarningTest.php</file>
       <file>tests/CreatorContextPageTest.php</file>
       <file>tests/EnvironmentVariableTest.php</file>
       <file>tests/ExamplesTest.php</file>

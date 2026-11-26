@@ -161,7 +161,9 @@ function openDataFileHandles(string $dataFile): int
     $target = realpath($dataFile);
     $count = 0;
     foreach (glob('/proc/self/fd/*') ?: [] as $fd) {
-        $link = @readlink($fd);
+        // The folder handle glob used is closed by now, so its entry is no
+        // longer a link and is passed over.
+        $link = is_link($fd) ? readlink($fd) : false;
         if ($link !== false && realpath($link) === $target) {
             $count++;
         }

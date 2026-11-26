@@ -1,7 +1,8 @@
 <!-- Every PHP error, warning, notice and deprecation fails the run, as do
      risky tests. The attributes are those of PHPUnit 9.6, the version the
      build matrix runs. tests/bootstrap.php fails the run on a warning,
-     notice or deprecation from a PHP the tests start. -->
+     notice, deprecation or fatal error from a PHP the tests start, or one
+     PHPUnit does not handle. -->
 <phpunit bootstrap="tests/bootstrap.php"
          convertErrorsToExceptions="true"
          convertNoticesToExceptions="true"
@@ -73,6 +74,7 @@
       <file>tests/ThrowsDocumentedTests.php</file>
       <file>tests/KeyFormatTests.php</file>
       <file>tests/FlowDataThreadsDocsTests.php</file>
+      <file>tests/ChildPhpTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

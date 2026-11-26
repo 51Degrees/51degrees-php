@@ -43,7 +43,7 @@ final class EvidenceRecords
      */
     public static function read(string $path): array
     {
-        $handle = @fopen($path, 'r');
+        $handle = is_file($path) && is_readable($path) ? fopen($path, 'r') : false;
         if ($handle === false) {
             return [];
         }

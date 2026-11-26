@@ -41,6 +41,11 @@ class HumanConfidenceWeb
     // The property the Resource Key must include.
     private const PROPERTY = 'HumanConfidence';
 
+    // The properties the passive call reads, named in its request. Both
+    // are named, so a Resource Key whose own list of properties holds
+    // HumanConfidence but not HumanConfidenceSource still gets the source.
+    private const PASSIVE_VALUES = 'derived.humanconfidence,derived.humanconfidencesource';
+
     /** @var string */
     private $resourceKey = '';
 
@@ -220,8 +225,8 @@ class HumanConfidenceWeb
 
     /**
      * Passive: this server asks the cloud for the visitor, with the
-     * visitor's headers and IP address, and reads the plain level from the
-     * answer.
+     * visitor's headers and IP address, naming the two properties it reads,
+     * and reads the source and the plain level from the answer.
      *
      * @return array<string, null|string>
      */
@@ -251,6 +256,8 @@ class HumanConfidenceWeb
             if ($ip !== '') {
                 $evidence['client-ip'] = $ip;
             }
+            // Named after the headers, so no header can replace them.
+            $evidence['values'] = self::PASSIVE_VALUES;
 
             $answer = $this->request(
                 'POST',
@@ -362,11 +369,30 @@ class HumanConfidenceWeb
             $http['content'] = http_build_query($fields);
         }
 
-        $stream = @fopen($url, 'r', false, stream_context_create(['http' => $http]));
-        if ($stream === false) {
-            $error = error_get_last();
+        // A request that cannot be made gives a warning and false. The
+        // warning is the message of the exception below.
+        $reason = null;
+        set_error_handler(
+            static function (int $level, string $message) use (&$reason): bool {
+                $reason = $message;
 
-            throw new \RuntimeException($error['message'] ?? $url);
+                return true;
+            },
+            E_WARNING
+        );
+
+        try {
+            $stream = fopen($url, 'r', false, stream_context_create(['http' => $http]));
+        } finally {
+            restore_error_handler();
+        }
+        if ($stream === false) {
+            throw new \RuntimeException($reason ?? $url);
+        }
+        if ($reason !== null) {
+            // A warning from a request that was made is not expected, so it
+            // is raised again.
+            trigger_error($reason, E_USER_WARNING);
         }
         $lines = stream_get_meta_data($stream)['wrapper_data'] ?? [];
         $body = (string) stream_get_contents($stream);

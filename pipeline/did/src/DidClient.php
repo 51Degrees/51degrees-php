@@ -895,6 +895,12 @@ final class DidClient
                 'The transport must answer with status and body.'
             );
         }
+        if (isset($response['warning']) && is_string($response['warning'])) {
+            trigger_error(
+                $this->maskLicence($response['warning']),
+                E_USER_WARNING
+            );
+        }
         return ['status' => $response['status'], 'body' => $response['body']];
     }
 
@@ -904,7 +910,7 @@ final class DidClient
      * sees what the service said rather than a bare warning.
      *
      * @param string[] $headers
-     * @return array{status: int, body: string}
+     * @return array{status: int, body: string, warning: ?string}
      *
      * @throws RuntimeException when no response arrives.
      */
@@ -929,11 +935,26 @@ final class DidClient
         // that variable. Being set first, it is not read as the predefined
         // variable PHP 8.5 deprecates.
         $http_response_header = [];
-        // The @ keeps a connection failure from printing a warning, since
-        // the false return is reported as an exception below.
-        $response = @file_get_contents($url, false, $context);
+        // A connection failure gives a warning and false. The warning is
+        // taken as the reason in the exception below.
+        $reason = null;
+        set_error_handler(
+            static function (int $level, string $message) use (&$reason): bool {
+                $reason = $message;
+                return true;
+            },
+            E_WARNING
+        );
+        try {
+            $response = file_get_contents($url, false, $context);
+        } finally {
+            restore_error_handler();
+        }
         if ($response === false) {
-            throw new RuntimeException("No response from {$url}.");
+            throw new RuntimeException(
+                "No response from {$url}." .
+                ($reason === null ? '' : " {$reason}")
+            );
         }
         $status = 0;
         // The response headers, the status line first. A redirect leaves
@@ -946,7 +967,10 @@ final class DidClient
                 $status = (int) $match[1];
             }
         }
-        return ['status' => $status, 'body' => $response];
+        // A warning from a request that was answered is not expected. It
+        // goes back with the answer, so that request() raises it again with
+        // the licence key masked.
+        return ['status' => $status, 'body' => $response, 'warning' => $reason];
     }
 
     /**

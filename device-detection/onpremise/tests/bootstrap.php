@@ -28,9 +28,11 @@ namespace fiftyone\pipeline\tests;
 
 /**
  * Fails the test run when a PHP the tests start, such as an example or a
- * built-in server, reports a warning, notice or deprecation. phpunit.xml
- * does this for the tests' own process only, as another PHP takes its
- * settings from php.ini.
+ * built-in server, reports a warning, notice, deprecation or fatal error.
+ * phpunit.xml does this for the tests' own process only, as another PHP
+ * takes its settings from php.ini. The tests' own process logs to the same
+ * file, so a message raised where PHPUnit does not handle errors, such as
+ * in setUpBeforeClass or a data provider under PHPUnit 9, fails it too.
  *
  * Each PHP started with the environment of the tests reads an ini file
  * that reports every level and logs each message to one file, which is
@@ -48,10 +50,10 @@ final class ChildPhp
     // The log those PHPs write their messages to.
     private const LOG = 'child-php.log';
 
-    // The line PHP logs for a warning, notice or deprecation. Strict
-    // Standards is the E_STRICT level of PHP 7.4.
-    private const FAILS =
-        '~^\[[^]]*\] PHP (?:Warning|Notice|Deprecated|Strict Standards):~';
+    // The line PHP logs for a warning, notice, deprecation or fatal error.
+    // Strict Standards is the E_STRICT level of PHP 7.4.
+    private const FAILS = '~^\[[^]]*\] PHP (?:Warning|Notice|Deprecated|' .
+        'Strict Standards|Fatal error|Parse error|Recoverable fatal error):~';
 
     /** @var string The folder holding the ini file and the log */
     private static $folder = '';
@@ -68,6 +70,7 @@ final class ChildPhp
         foreach (explode(PATH_SEPARATOR, (string) $scan) as $folder) {
             if ($folder !== '' && is_file($folder . '/' . self::INI)) {
                 self::$folder = $folder;
+                self::logHere();
                 return;
             }
         }
@@ -95,6 +98,7 @@ final class ChildPhp
             $scan .= PATH_SEPARATOR . $folder;
         }
         putenv('PHP_INI_SCAN_DIR=' . $scan);
+        self::logHere();
 
         register_shutdown_function([self::class, 'check']);
     }
@@ -123,11 +127,44 @@ final class ChildPhp
     }
 
     /**
+     * Takes out of the log each message that matches the pattern, with the
+     * lines that follow it such as a stack trace, so that a test that makes
+     * a PHP fail on purpose does not fail the run. Returns how many it took,
+     * which the test checks.
+     */
+    public static function take(string $pattern): int
+    {
+        $log = self::$folder . '/' . self::LOG;
+        if (!is_file($log)) {
+            return 0;
+        }
+        $kept = [];
+        $taken = 0;
+        $taking = false;
+        foreach ((array) file($log) as $line) {
+            // Each message starts with the time in square brackets.
+            if (preg_match('~^\[[^]]*\] ~', $line) === 1) {
+                $taking = preg_match($pattern, $line) === 1;
+                $taken += $taking ? 1 : 0;
+            }
+            if (!$taking) {
+                $kept[] = $line;
+            }
+        }
+        file_put_contents($log, implode('', $kept));
+        return $taken;
+    }
+
+    /**
      * Prints the log, removes the folder, and ends the run with a failing
-     * status when the log holds a warning, notice or deprecation.
+     * status when the log holds a warning, notice, deprecation or fatal
+     * error.
      */
     public static function check(): void
     {
+        // A message raised from here on goes to standard error, as the log
+        // is removed.
+        ini_set('error_log', '');
         $log = self::$folder . '/' . self::LOG;
         $lines = is_file($log)
             ? (array) file($log, FILE_IGNORE_NEW_LINES)
@@ -149,9 +186,57 @@ final class ChildPhp
         if (preg_grep(self::FAILS, $lines) !== []) {
             fwrite(
                 STDERR,
-                "The run fails, as a warning, notice or deprecation is an error.\n"
+                'The run fails, as a warning, notice, deprecation or fatal ' .
+                    "error is an error.\n"
             );
             exit(1);
+        }
+    }
+
+    /**
+     * Logs the messages of this process to the same file. A message that
+     * PHPUnit's error handler takes is not logged, and one it does not take
+     * is checked with those of the PHPs the tests start.
+     */
+    private static function logHere(): void
+    {
+        ini_set('log_errors', '1');
+        ini_set('error_log', self::$folder . '/' . self::LOG);
+    }
+}
+
+/**
+ * Runs a call that is expected to fail at times with a message of one
+ * level, such as a connection tried before a server listens, or the
+ * removal of a file that may be gone. A message of that level from the
+ * call is taken and handed back, not printed. A message of any other
+ * level is not taken. PHP reports it, and the check above fails the run.
+ */
+final class PhpMessage
+{
+    /**
+     * Returns what the call returns, and sets $message to the last message
+     * of the level that the call raised, or null.
+     *
+     * @return mixed
+     */
+    public static function take(
+        callable $call,
+        ?string &$message = null,
+        int $level = E_WARNING
+    ) {
+        $message = null;
+        set_error_handler(
+            static function (int $raised, string $text) use (&$message): bool {
+                $message = $text;
+                return true;
+            },
+            $level
+        );
+        try {
+            return $call();
+        } finally {
+            restore_error_handler();
         }
     }
 }

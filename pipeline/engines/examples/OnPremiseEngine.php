@@ -138,7 +138,9 @@ class StarSignEngine extends Engine
      */
     private static function readDataFile(string $dataFile): array
     {
-        $lines = @file($dataFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $lines = is_file($dataFile) && is_readable($dataFile)
+            ? file($dataFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)
+            : false;
         if ($lines === false) {
             throw new Exception(
                 "The star sign data file '{$dataFile}' could not be read."

@@ -107,7 +107,14 @@ jobs:
             -d FiftyOneDegreesHashEngine.data_file=$PWD/assets/51Degrees-LiteV4.1.hash"
           ipi="-d extension=$PWD/ip-intelligence/on-premise/modules/FiftyOneDegreesIpIntelligenceEngine.so
             -d FiftyOneDegreesIpIntelligenceEngine.data_file=$PWD/assets/51Degrees-LiteIpiV41.ipi"
+          # PHP reads no ini file with -n, so it is given the settings
+          # that fail the step on a warning, notice, deprecation or fatal
+          # error.
+          . ci/php-messages.sh
+          php_messages_start
           for order in "$dd $ipi" "$ipi $dd"; do
             valgrind --error-exitcode=1 --num-callers=30 \
-              php -n -d pcre.jit=0 $order ci/read-pointer-classes.php
+              php -n $(php_messages_options) -d pcre.jit=0 $order \
+              ci/read-pointer-classes.php
           done
+          php_messages_check

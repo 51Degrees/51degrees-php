@@ -121,6 +121,9 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
+          # No Xdebug, as the build matrix has none. With it, PHP disables
+          # JIT and warns at every start, which fails the tests.
+          coverage: none
           extensions: mbstring, openssl, json
 
       - name: Assemble the package
@@ -139,8 +142,12 @@ jobs:
           # every requirement is on Packagist or built into PHP.
           composer install --no-dev --no-interaction --no-progress
           # Builds and parses a 51Did using nothing but the package, so
-          # it fails if the copied OWID source is missing or unreachable.
+          # it fails if the copied OWID source is missing or unreachable,
+          # or if PHP logs a warning, notice, deprecation or fatal error.
+          . "$GITHUB_WORKSPACE/ci/php-messages.sh"
+          php_messages_start
           php examples/fodid_example.php
+          php_messages_check
           composer install --no-interaction --no-progress
           php vendor/phpunit/phpunit/phpunit --testsuite Unit
 

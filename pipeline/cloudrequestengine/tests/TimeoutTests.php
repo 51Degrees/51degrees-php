@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\cloudrequestengine\tests;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestException;
 use fiftyone\pipeline\cloudrequestengine\HttpClient;
+use fiftyone\pipeline\tests\PhpMessage;
 
 /**
  * The timeout of a request to the cloud service, the TimeoutSeconds option
@@ -92,7 +93,9 @@ class TimeoutTests extends CloudRequestEngineTestsBase
         $started = microtime(true);
         $deadline = $started + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline) {
-            $connection = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.2);
+            $connection = PhpMessage::take(function () use (&$port, &$errno, &$errstr) {
+                return fsockopen('127.0.0.1', $port, $errno, $errstr, 0.2);
+            });
             if ($connection !== false) {
                 fclose($connection);
                 fwrite(STDERR, sprintf(
@@ -106,7 +109,8 @@ class TimeoutTests extends CloudRequestEngineTestsBase
             }
             usleep(100000);
         }
-        self::fail('The local server did not start. ' . (string) @file_get_contents($log));
+        self::fail('The local server did not start. ' .
+            (is_readable($log) ? (string) file_get_contents($log) : ''));
     }
 
     public static function tearDownAfterClass(): void
@@ -116,9 +120,13 @@ class TimeoutTests extends CloudRequestEngineTestsBase
             proc_close(self::$server);
         }
         foreach (glob(self::$folder . DIRECTORY_SEPARATOR . '*') ?: [] as $file) {
-            @unlink($file);
+            PhpMessage::take(function () use (&$file) {
+                return unlink($file);
+            });
         }
-        @rmdir(self::$folder);
+        PhpMessage::take(function () use (&$folder) {
+            return rmdir(self::$folder);
+        });
     }
 
     public function testARequestStopsAfterTwoSecondsByDefault(): void

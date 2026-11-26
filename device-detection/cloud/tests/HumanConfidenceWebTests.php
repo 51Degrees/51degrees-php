@@ -36,12 +36,14 @@ use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
  * public one. The browser tests need a browser, so the steps that follow
  * them are checked only as far as a program can take them.
  *
- * Every test is skipped with no resource key. The tests of the flow are
- * skipped where the resource key does not include the HumanConfidence
- * property, and the page is then checked for the link to contact us.
+ * Every test is skipped with no resource key, naming the variable. The
+ * tests of the flow fail where the resource key does not include the
+ * HumanConfidence property, as a test that cannot see a real level has
+ * proved nothing. The page is then checked for the link to contact us.
  *
  * HumanConfidenceWebStagingTests checks what only the staging cloud service
- * serves, being HumanConfidenceSource and the redeem.
+ * serves, being a passive level, HumanConfidenceSource and the redeem,
+ * including the example's passive step.
  */
 class HumanConfidenceWebTests extends HumanConfidenceWebTestCase
 {
@@ -81,7 +83,7 @@ class HumanConfidenceWebTests extends HumanConfidenceWebTestCase
      */
     public function testPageShowsTheThreeSteps()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $answer = self::get('/');
 
@@ -135,29 +137,6 @@ class HumanConfidenceWebTests extends HumanConfidenceWebTestCase
         $this->assertSame(200, $answer['status'], self::printed($answer));
         $this->assertStringStartsWith('text/css', $answer['headers']['content-type'] ?? '');
         $this->assertSame($expected, $answer['body']);
-    }
-
-    /**
-     * The first step. The example asks the cloud service with the headers
-     * of the request it was sent, and answers with the level the cloud
-     * service gave, and the source Passive when the key's properties list
-     * the source.
-     */
-    public function testPassive()
-    {
-        $this->skipWithoutTheProperty();
-
-        $answer = self::get('/passive', Constants::UA_HEADER . Constants::CHROME_UA . "\r\n");
-
-        $this->assertSame(200, $answer['status'], self::printed($answer));
-        $this->assertNoFault($answer);
-        $json = json_decode($answer['body'], true);
-        $this->assertIsArray($json, self::printed($answer));
-        $this->assertArrayNotHasKey('error', $json, self::printed($answer));
-        $this->assertContains($json['humanConfidence'] ?? null, self::LEVELS, self::printed($answer));
-        if (isset(self::$properties[self::SOURCE_PROPERTY])) {
-            $this->assertSame('Passive', $json['source'] ?? null, self::printed($answer));
-        }
     }
 
     /**

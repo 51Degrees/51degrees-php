@@ -29,10 +29,12 @@ use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
 
 /**
  * The Human Confidence tests of what the staging cloud service serves and
- * the production one does not, being HumanConfidenceSource and the Human
- * Confidence redeem. They call the service CLOUD_STAGING_ENDPOINT names,
- * with the resource key in RESOURCE_KEY_BESPOKE_STAGING, and skip, naming
- * the variable, when either is not set. Only CI sets the two, in
+ * the production one does not, being a passive level, HumanConfidenceSource
+ * and the Human Confidence redeem. They call the service
+ * CLOUD_STAGING_ENDPOINT names, with the resource key in
+ * RESOURCE_KEY_BESPOKE_STAGING, and skip, naming the variable, when either
+ * is not set. A test that needs a property the key does not include fails,
+ * naming the property and the variable. Only CI sets the two, in
  * .github/workflows/cloud-human-confidence.yml, which runs the Staging
  * suite of phpunit.xml. The Integration suite leaves these tests out.
  */
@@ -70,17 +72,39 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
     /**
      * The cloud service's answer to a passive request that names both
      * properties carries the source Passive, because no browser tests have
-     * run, and a plain level. The example's own passive request names no
-     * properties, so this checks the cloud service and not the example.
+     * run, and a plain level. This checks the cloud service, with no
+     * example, so a failure here is the cloud service's or the key's.
      */
     public function testPassiveAnswerCarriesTheSourcePassive()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $derived = self::passiveAnswer(self::$key);
 
         $this->assertSame('Passive', $derived[self::SOURCE_PROPERTY] ?? null, (string) json_encode($derived));
         $this->assertContains($derived[self::PROPERTY] ?? null, self::LEVELS, (string) json_encode($derived));
+    }
+
+    /**
+     * The first step through the example. The example asks the cloud
+     * service with the headers of the request it was sent, and answers with
+     * the source Passive, as no browser tests have run, and a plain level.
+     * Its request names both properties, as Java's does, so it gets the
+     * source whether or not the key's own list of properties holds it.
+     */
+    public function testExamplePassiveGivesTheSourcePassiveAndAPlainLevel()
+    {
+        self::assertIncludesTheProperty(self::$properties);
+
+        $answer = self::get('/passive', Constants::UA_HEADER . Constants::CHROME_UA . "\r\n");
+
+        $this->assertSame(200, $answer['status'], self::printed($answer));
+        $this->assertNoFault($answer);
+        $json = json_decode($answer['body'], true);
+        $this->assertIsArray($json, self::printed($answer));
+        $this->assertArrayNotHasKey('error', $json, self::printed($answer));
+        $this->assertSame('Passive', $json['source'] ?? null, self::printed($answer));
+        $this->assertContains($json['humanConfidence'] ?? null, self::LEVELS, self::printed($answer));
     }
 
     /**
@@ -110,7 +134,7 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
      */
     public function testRedeemOfAValueThatWasNotSealedIsUnreadable()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $answer = self::postToCloud('hc/redeem', [
             'resource' => self::$key,
@@ -137,7 +161,7 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
      */
     public function testExampleRedeemWithoutALicenseKeyPassesOnTheRefusal()
     {
-        $this->skipWithoutTheProperty();
+        self::assertIncludesTheProperty(self::$properties);
 
         $answer = self::request('/redeem', [
             'method' => 'POST',

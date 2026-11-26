@@ -29,6 +29,7 @@ use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\ipintelligence\tests\classes\MockIpEngine;
 use fiftyone\pipeline\ipintelligence\translation\CountriesTranslationEngine;
 use fiftyone\pipeline\ipintelligence\translation\CountryCodeTranslationEngine;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 class IpIntelligenceTranslationTests extends TestCase
@@ -453,7 +454,13 @@ class IpIntelligenceTranslationTests extends TestCase
                     $t = preg_replace('/\p{Mn}/u', '', \Normalizer::normalize($s, \Normalizer::FORM_D));
                     $t = strtr($t, ['ß' => 'ss', 'æ' => 'ae', 'Æ' => 'AE', 'ø' => 'o', 'Ø' => 'O', 'đ' => 'd', 'Đ' => 'D']);
                 } else {
-                    $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+                    // As the engine does, the notice some iconv libraries
+                    // give when IGNORE drops a character is taken.
+                    $t = PhpMessage::take(
+                        static fn () => iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s),
+                        $dropped,
+                        E_NOTICE
+                    );
                 }
 
                 return mb_strtolower($t === false || $t === null ? $s : $t);

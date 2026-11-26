@@ -38,6 +38,7 @@ use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
 use fiftyone\pipeline\ipintelligence\tests\classes\RecordingResults;
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -546,9 +547,15 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             proc_terminate($server);
             proc_close($server);
-            @unlink($router);
-            @unlink($log);
-            @rmdir($folder);
+            PhpMessage::take(function () use (&$router) {
+                return unlink($router);
+            });
+            PhpMessage::take(function () use (&$log) {
+                return unlink($log);
+            });
+            PhpMessage::take(function () use (&$folder) {
+                return rmdir($folder);
+            });
         }
     }
 
@@ -560,14 +567,17 @@ class IpIntelligenceOnPremiseTests extends TestCase
     {
         $deadline = microtime(true) + 30;
         do {
-            $answer = @file_get_contents($url);
+            $answer = PhpMessage::take(function () use (&$url) {
+                return file_get_contents($url);
+            });
             if ($answer !== false) {
                 return $answer;
             }
             usleep(200000);
         } while (microtime(true) < $deadline);
 
-        $this->fail("No answer from {$url}. " . @file_get_contents($log));
+        $this->fail("No answer from {$url}. " .
+            (is_readable($log) ? file_get_contents($log) : ''));
     }
 
     /**

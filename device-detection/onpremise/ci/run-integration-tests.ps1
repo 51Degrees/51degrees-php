@@ -30,6 +30,8 @@ if (!(Test-Path $dataFile)) {
 # run does not cover the reload itself. tests/WebExampleReloadTests.php does.
 $sep = [IO.Path]::PathSeparator
 $env:PHP_INI_SCAN_DIR = "$sep$PWD/$RepoName"
+. "$PSScriptRoot/../../../ci/php-messages.ps1"
+$messages = Add-PhpMessageLog
 [Environment]::SetEnvironmentVariable('_51DEGREES_DD_PATH', $dataFile)
 
 # 8096 is the port the cloud example uses in the cloud repository's CI, and
@@ -103,4 +105,5 @@ try {
     if ($example) {
         Remove-Job -Force $example
     }
+    Assert-NoPhpMessage $messages
 }

@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
+use fiftyone\pipeline\tests\ChildPhp;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -56,7 +58,9 @@ class StartWithUnusableDataFileTests extends TestCase
     public static function tearDownAfterClass(): void
     {
         if (self::$unusable !== null) {
-            @unlink(self::$unusable);
+            PhpMessage::take(function () use (&$unusable) {
+                return unlink(self::$unusable);
+            });
             self::$unusable = null;
         }
     }
@@ -94,6 +98,12 @@ class StartWithUnusableDataFileTests extends TestCase
             "', which " . self::SETTING . ' names.',
             $printed
         );
+        // The warning is what this test expects, so it does not fail the
+        // run.
+        $this->assertSame(1, ChildPhp::take(
+            '~PHP Warning:  .*No IP intelligence engine was built from \'' .
+                preg_quote($file, '~') . '\'~'
+        ));
     }
 
     public function testPhpStartsWhenTheDataFileIsMissing(): void
@@ -138,7 +148,8 @@ class StartWithUnusableDataFileTests extends TestCase
 
     /**
      * Runs PHP with no php.ini of its own, the extension loaded from the
-     * file found above, and the options given, and gives its exit status and
+     * file found above, the settings that report and log every message,
+     * and the options given, and gives its exit status and
      * everything it wrote.
      *
      * @param array<string> $options
@@ -152,9 +163,9 @@ class StartWithUnusableDataFileTests extends TestCase
                 PHP_BINARY,
                 '-n',
                 '-d', 'extension=' . (string) self::$extension,
-                '-d', 'display_errors=1',
-                '-d', 'error_reporting=' . (string) E_ALL
+                '-d', 'display_errors=1'
             ],
+            ChildPhp::settings(),
             $options
         ))) . ' 2>&1';
         $process = proc_open(

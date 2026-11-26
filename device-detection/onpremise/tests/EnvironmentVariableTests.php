@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\EnvironmentVariable;
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -44,7 +45,9 @@ class EnvironmentVariableTests extends TestCase
     protected function tearDown(): void
     {
         foreach ($this->written as $file) {
-            @unlink($file);
+            PhpMessage::take(function () use (&$file) {
+                return unlink($file);
+            });
         }
         $this->written = [];
 

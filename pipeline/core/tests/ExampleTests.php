@@ -24,6 +24,7 @@
 namespace fiftyone\pipeline\core\tests;
 
 use fiftyone\pipeline\core\tests\classes\ExampleRun;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 class ExampleTests extends TestCase
@@ -148,7 +149,9 @@ class ExampleTests extends TestCase
         ]]);
         $deadline = microtime(true) + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline && proc_get_status($server)['running']) {
-            $stream = @fopen("http://127.0.0.1:{$port}/", 'r', false, $context);
+            $stream = PhpMessage::take(function () use (&$port, &$context) {
+                return fopen("http://127.0.0.1:{$port}/", 'r', false, $context);
+            });
             if ($stream !== false) {
                 $headers = stream_get_meta_data($stream)['wrapper_data'];
                 $page = (string) stream_get_contents($stream);

@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\tests\ChildPhp;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -62,8 +63,12 @@ class ServeWebExamplesTests extends TestCase
     public static function tearDownAfterClass(): void
     {
         foreach (self::$folders as $folder) {
-            @unlink($folder . '/fiftyone.ini');
-            @rmdir($folder);
+            PhpMessage::take(function () use (&$folder) {
+                return unlink($folder . '/fiftyone.ini');
+            });
+            PhpMessage::take(function () use (&$folder) {
+                return rmdir($folder);
+            });
         }
         self::$folders = [];
     }
@@ -238,10 +243,10 @@ class ServeWebExamplesTests extends TestCase
         $pattern = '/^\s*extension\s*=\s*["\']?' .
             '([^"\'\r\n;]*FiftyOneDegreesIpIntelligenceEngine[^"\'\r\n;]*)/m';
         foreach (array_merge([$loaded], $files) as $file) {
-            if (!is_string($file) || $file === '' ||
+            if (!is_string($file) || $file === '' || !is_readable($file) ||
                 preg_match(
                     $pattern,
-                    (string) @file_get_contents($file),
+                    (string) file_get_contents($file),
                     $match
                 ) !== 1) {
                 continue;
@@ -298,7 +303,9 @@ class ServeWebExamplesTests extends TestCase
         $deadline = microtime(true) + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline &&
             proc_get_status($server)['running']) {
-            $stream = @fopen("http://localhost:{$port}/", 'r', false, $context);
+            $stream = PhpMessage::take(function () use (&$port, &$context) {
+                return fopen("http://localhost:{$port}/", 'r', false, $context);
+            });
             if ($stream !== false) {
                 $headers = stream_get_meta_data($stream)['wrapper_data'];
                 $page = (string) stream_get_contents($stream);

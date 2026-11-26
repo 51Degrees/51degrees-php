@@ -62,6 +62,11 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '          key: ${{ secrets.PUSH_TOKEN }}' }
         @{ Line = '          key: ${{ secrets[''PUSH_TOKEN''] }}' }
         @{ Line = '          key: ${{ vars.CLOUD_ENDPOINT }}' }
+        # Look-alikes of the names only CI uses, which are compared as
+        # written.
+        @{ Line = '          url: ${{ vars.cloud_staging_endpoint }}' }
+        @{ Line = '          key: ${{ secrets.RESOURCE_KEY_BESPOKE_STAGING_2 }}' }
+        @{ Line = 'getenv(''STAGING_ENDPOINT'')' }
     ) {
         Get-Kind $Line | Should -Contain 'name'
     }
@@ -112,6 +117,10 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '$_SERVER["REMOTE_ADDR"] = "0.0.0.0";' }
         @{ Line = '          key: ${{ secrets.GITHUB_TOKEN }}' }
         @{ Line = '          token: ${{ secrets.MIRROR_PUSH_TOKEN }}' }
+        @{ Line = '          url: ${{ vars.CLOUD_STAGING_ENDPOINT }}' }
+        @{ Line = '          key: ${{ secrets.RESOURCE_KEY_BESPOKE_STAGING }}' }
+        @{ Line = 'public const STAGING_ENDPOINT_ENV_VAR = ''CLOUD_STAGING_ENDPOINT'';' }
+        @{ Line = 'public const STAGING_RESOURCE_ENV_VAR = ''RESOURCE_KEY_BESPOKE_STAGING'';' }
         @{ Line = '${env:_51DEGREES_EXAMPLE_URL} = "http://localhost:$port"' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
         # Windows reads a platform's name in any case.
@@ -158,8 +167,8 @@ Describe 'the check over a repository' {
             '$_SERVER["HTTP_USER_AGENT"];'
         )
         $output | Should -Contain ('Every name read or set starts with ' +
-            '_51DEGREES_, or is a platform name or a CI secret, and none starts ' +
-            'with the digit.')
+            '_51DEGREES_, or is a platform name or a name only CI uses, and ' +
+            'none starts with the digit.')
     }
 
     It 'fails on a name that is not a _51DEGREES_ name' {

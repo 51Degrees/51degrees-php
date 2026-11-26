@@ -34,6 +34,13 @@ class Constants
     // none.
     public const BASIC_RESOURCE_ENV_VAR = '_51DEGREES_RESOURCE_KEY_BASIC';
 
+    // The staging cloud service's API base, ending /api/v4/, and a resource
+    // key on the Bespoke product that it accepts, for the Human Confidence
+    // tests of what it serves and the production service does not. Only CI
+    // sets them, so they have no _51DEGREES_ prefix.
+    public const STAGING_ENDPOINT_ENV_VAR = 'CLOUD_STAGING_ENDPOINT';
+    public const STAGING_RESOURCE_ENV_VAR = 'RESOURCE_KEY_BESPOKE_STAGING';
+
     // The license key the Accept-CH tests ask the cloud for one property at
     // a time with.
     public const LICENSE_ENV_VAR = '_51DEGREES_LICENSE_KEY_BESPOKE';

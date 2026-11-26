@@ -58,7 +58,6 @@ class DidClientLiveTest extends TestCase
     public static function keys(): array
     {
         return [
-            'Basic' => ['_51DEGREES_RESOURCE_KEY_BASIC', null],
             'Bespoke' => ['_51DEGREES_RESOURCE_KEY_BESPOKE', null],
             '51Did' => [
                 '_51DEGREES_RESOURCE_KEY_51DID',

@@ -128,6 +128,15 @@ class ExampleTests extends TestCase
 
         $this->assertStringContainsString('Device Detection Results:', $text);
         $this->assertStringContainsString('IP Intelligence Results:', $text);
+
+        // The key carries every IP Intelligence property, so the results
+        // for 82.12.34.23 must hold real values: its registered name, its
+        // country and the range it is in.
+        $this->assertStringContainsString('VMCBBUK', $text, 'The output should contain VMCBBUK as the registered name.');
+        $this->assertMatchesRegularExpression('/United Kingdom|GB/', $text, 'The output should contain United Kingdom as the country or GB as its code.');
+        $this->assertMatchesRegularExpression('/82\.12\.34\.0|82\.12\.34\.255/', $text, 'The output should contain the range 82.12.34.x.');
+        $this->assertMatchesRegularExpression('/\d+\.\d+\.\d+\.\d+/', $text, 'The output should contain IP addresses in dotted decimal form.');
+        $this->assertMatchesRegularExpression('/[\d\-]\d+\.\d+/', $text, 'The output should contain numeric values.');
     }
 
     // ---- On-premise examples, with the engine built when PHP started ----

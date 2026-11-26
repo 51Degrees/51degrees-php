@@ -42,6 +42,18 @@ foreach ($asset in $assets) {
     }
 }
 
+# The examples and tests read their data file from _51DEGREES_IPI_PATH, so it
+# names the Lite data file linked here, which php.ini names. The build and
+# test scripts run after this one in the same PowerShell process, so they
+# inherit it.
+$dataFile = Join-Path $repoAssets.FullName '51Degrees-LiteIpiV41.ipi'
+if (Test-Path -LiteralPath $dataFile) {
+    $env:_51DEGREES_IPI_PATH = $dataFile
+    Write-Host "_51DEGREES_IPI_PATH names $dataFile"
+} else {
+    Write-Warning "The Lite data file is not in $repoAssets, so _51DEGREES_IPI_PATH is not set"
+}
+
 # With nothing set, the examples look for the free files in the data
 # repository, where a fresh clone downloads them, so the cached copies are
 # linked there under the data repository's names rather than downloaded from

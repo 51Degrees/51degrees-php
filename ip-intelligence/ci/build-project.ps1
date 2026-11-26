@@ -16,6 +16,14 @@ try {
     New-Item -ItemType Directory -Force -Path cxx | Out-Null
     Copy-Item -Recurse -Path "$PSScriptRoot/../../cxx/src" -Destination cxx/src -ErrorAction Stop
 
+    # Without MACOSX_DEPLOYMENT_TARGET, the libtool.m4 that phpize copies
+    # links the extension with "-undefined suppress", and the macOS linker
+    # warns that it is deprecated. With the target set to this Mac's
+    # version, libtool links with "-undefined dynamic_lookup" instead.
+    if ($IsMacOS -and -not $env:MACOSX_DEPLOYMENT_TARGET) {
+        $env:MACOSX_DEPLOYMENT_TARGET = ((sw_vers -productVersion).Split('.') | Select-Object -First 2) -join '.'
+    }
+
     # The build compiles the committed wrapper, which configure copies from
     # src/php8. A wrapper from another SWIG would join the Device Detection
     # extension's SWIG type table in a PHP that loads both, which crashes PHP.

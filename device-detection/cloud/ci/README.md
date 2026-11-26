@@ -16,5 +16,8 @@ The following organization secrets are required as well:
 * `_51DEGREES_RESOURCE_KEY_BESPOKE` - [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for integration tests, carrying every property the tests ask for
     * Example: `R4nd0m-S7r1ng`
     * Without it, the integration tests are skipped, with a warning naming it.
-* `_51DEGREES_RESOURCE_KEY_BASIC` - [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) on the Basic product, for the Human Confidence test that checks a key whose products do not offer `HumanConfidenceSource` gets none
-    * Without it, the Basic test skips, naming it.
+
+The Human Confidence tests of what the staging cloud service serves and the production one does not, being a passive level, `HumanConfidenceSource` and the Human Confidence redeem, are the `Staging` suite in `phpunit.xml`. `.github/workflows/cloud-human-confidence.yml` runs them rather than `common-ci`, because `common-ci` does not export `CLOUD_STAGING_ENDPOINT` or `RESOURCE_KEY_BESPOKE_STAGING`, two names only CI uses. That workflow fails when a name is empty or a test is skipped. It reads:
+* `CLOUD_STAGING_ENDPOINT` - organization variable holding the staging cloud service's address, including `/api/v4/`. CI only.
+* `RESOURCE_KEY_BESPOKE_STAGING` - organization secret holding a resource key on the Bespoke product that the staging cloud service accepts. CI only.
+* `_51DEGREES_RESOURCE_KEY_BASIC` - organization secret holding a [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) on the Basic product, for the test that checks a key whose products do not offer `HumanConfidenceSource` gets none

@@ -80,11 +80,16 @@ final class VerifyResponse
     }
 
     /**
-     * Builds the answer from a verify response. `valid` is true only for
-     * the JSON value true, so anything else reads as not valid.
+     * Builds the answer from a verify response. Only a 200 is read, and
+     * there `valid` is true only for the JSON value true, so anything else
+     * reads as not valid. Any other status, a 400 included, is not valid
+     * and carries no Human Confidence fields, whatever its body says.
      */
     public static function fromResponse(int $statusCode, string $body): self
     {
+        if ($statusCode !== 200) {
+            return new self(false, null, null, $statusCode, $body);
+        }
         $json = json_decode($body, true);
         if (!is_array($json)) {
             $json = [];

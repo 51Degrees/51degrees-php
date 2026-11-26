@@ -419,6 +419,8 @@ $verified = $client->verifyDetailed($fodId);
 $verified->valid;                     // bool, as verify() answers
 $verified->humanConfidence;           // HumanConfidence or null
 $verified->humanConfidenceNullReason; // why there is no Value, or null
+//    Only a 200 can be valid, and only a 200 carries the Human Confidence
+//    fields. A 400 is invalid whatever its body says.
 
 // 4. Redeem a sealed creator context result the page relayed (one use).
 try {
@@ -482,7 +484,8 @@ design, so the client does not try to distinguish them either.
 
 `status` says what happened to the sealed result: `success`, `expired`,
 `replayed`, `unconfirmed` or `unreadable`. A 503 is always `Unconfirmed`,
-whatever the body says. A word the package does not know reads as
+in both `status` and `context`, whatever the body says, and nothing else
+is read from it. A word the package does not know reads as
 `RedeemStatus::Unreadable`. Where the service sends no `status`, it's read
 from `context`. The four failure words give those statuses, any other
 verdict the package knows gives `Success`, and a word it doesn't know, or
@@ -511,7 +514,9 @@ reads only the older names. A service that reads both takes the current
 names and adds an `obsolete` array to its answer, which the client
 ignores. A call that passes the arguments by position works as before. `result` and `challenge` are the obsolete
 names of the two parameters. They still work when passed by name, and
-raise an `E_USER_DEPRECATED` naming the replacement.
+raise an `E_USER_DEPRECATED` naming the replacement. An empty value
+counts as not passed, so the current name wins when both hold a value,
+and an empty current name takes the obsolete one's value.
 
 `factors` arrives on a mismatch, on a misconfigured result where the
 transport was compared, and whenever any factor is `NotRecorded`, whatever

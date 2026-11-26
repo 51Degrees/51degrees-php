@@ -2187,6 +2187,16 @@ class DidClientTest extends TestCase
                 'context' => 'replayed',
                 'status' => 'replayed',
             ]),
+            'success with every field' => json_encode([
+                'signature' => 'verified',
+                'context' => 'mismatch',
+                'status' => 'success',
+                'factors' => ['transport' => 'verified', 'asn' => 'mismatch'],
+                'verifiedAt' => '2026-08-07T09:15:32Z',
+                'secondsSinceVerified' => 3,
+                'humanConfidence' => 'High',
+                'humanConfidenceNullReason' => self::NULL_REASON,
+            ]),
         ];
         foreach ($bodies as $name => $body) {
             $this->queue(503, $body);
@@ -2197,8 +2207,26 @@ class DidClientTest extends TestCase
                 $result->context,
                 $name
             );
+            $this->assertSame('unconfirmed', $result->rawContext, $name);
             $this->assertSame(503, $result->statusCode, $name);
             $this->assertSame($body, $result->raw, $name);
+            // Nothing else is read from the body of a 503.
+            $this->assertSame(
+                SignatureOutcome::Unknown,
+                $result->signature,
+                $name
+            );
+            $this->assertNull($result->factors, $name);
+            $this->assertNull($result->verifiedAt, $name);
+            $this->assertNull($result->secondsSinceVerified, $name);
+            $this->assertNull($result->humanConfidence, $name);
+            $this->assertNull($result->rawHumanConfidence, $name);
+            $this->assertNull($result->humanConfidenceNullReason, $name);
+            $this->assertSame(
+                ['context' => 'unconfirmed'],
+                $result->toArray(),
+                $name
+            );
         }
     }
 
@@ -2215,9 +2243,11 @@ class DidClientTest extends TestCase
             '{"context":"replayed"}'
         );
         $this->assertSame(RedeemStatus::Replayed, $replayed->status);
+        // The constructor takes its values as given, so the status comes
+        // from the context passed. Only fromResponse reads the HTTP status.
         $busy = new RedeemResult(
-            ContextOutcome::Unreadable,
-            '',
+            ContextOutcome::Unconfirmed,
+            'unconfirmed',
             SignatureOutcome::Unknown,
             null,
             null,
@@ -2467,6 +2497,44 @@ class DidClientTest extends TestCase
         $this->assertSame('NEW', $form['challenge']);
     }
 
+    public function testAnEmptyCurrentNameGivesWayToTheObsoleteOne(): void
+    {
+        // An empty value counts as not passed, the same for both pairs.
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        $messages = self::deprecations(
+            fn () => $this->client()->redeem(
+                fodId: $this->someId(),
+                sealedResult: '',
+                transaction: '',
+                result: 'OLD',
+                challenge: 'OLDER'
+            )
+        );
+        $this->assertCount(2, $messages);
+        parse_str($this->lastRequest()['body'], $form);
+        $this->assertSame('OLD', $form['sealedResult']);
+        $this->assertSame('OLD', $form['result']);
+        $this->assertSame('OLDER', $form['transaction']);
+        $this->assertSame('OLDER', $form['challenge']);
+    }
+
+    public function testAnEmptyObsoleteNameLeavesTheCurrentOne(): void
+    {
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        self::deprecations(
+            fn () => $this->client()->redeem(
+                fodId: $this->someId(),
+                sealedResult: 'CURRENT',
+                transaction: 'NEW',
+                result: '',
+                challenge: ''
+            )
+        );
+        parse_str($this->lastRequest()['body'], $form);
+        $this->assertSame('CURRENT', $form['sealedResult']);
+        $this->assertSame('NEW', $form['transaction']);
+    }
+
     public function testRedeemWithoutASealedResultIsRefusedBeforeAnyRequest(): void
     {
         try {
@@ -2596,6 +2664,41 @@ class DidClientTest extends TestCase
         $this->assertFalse($answer->valid);
         $this->assertNull($answer->humanConfidence);
         $this->assertSame(400, $answer->statusCode);
+    }
+
+    public function testOnlyA200VerifyCanBeValid(): void
+    {
+        $body = [
+            'valid' => true,
+            'humanConfidence' => 'High',
+            'humanConfidenceNullReason' => self::NULL_REASON,
+        ];
+        // A 400 is invalid whatever its body says.
+        $this->queueJson(400, $body);
+        $this->assertFalse($this->client()->verify($this->someId()));
+        $this->queueJson(400, $body);
+        $answer = $this->client()->verifyDetailed($this->someId());
+        $this->assertFalse($answer->valid);
+        $this->assertNull($answer->humanConfidence);
+        $this->assertNull($answer->rawHumanConfidence);
+        $this->assertNull($answer->humanConfidenceNullReason);
+        $this->assertSame(400, $answer->statusCode);
+        // Any other status is an error whatever its body says.
+        foreach ([201, 403, 500, 503] as $status) {
+            foreach (['verify', 'verifyDetailed'] as $method) {
+                $this->queueJson($status, $body);
+                try {
+                    $this->client()->{$method}($this->someId());
+                    $this->fail("{$method} accepted a {$status}.");
+                } catch (CloudException $exception) {
+                    $this->assertStringContainsString(
+                        (string) $status,
+                        $exception->getMessage(),
+                        "{$method} {$status}"
+                    );
+                }
+            }
+        }
     }
 
     public function testVerifyDetailedErrorsThrowAsVerifyDoes(): void

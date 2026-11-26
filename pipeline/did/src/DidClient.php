@@ -370,8 +370,9 @@ final class DidClient
      * one. Hosts that recognise both prefer `51did` and keep `owid` as a
      * compatibility alias.
      *
-     * @return bool True for `{ "valid": true }`, false for
-     *     `{ "valid": false }`.
+     * @return bool True for `{ "valid": true }` with a 200, false for
+     *     `{ "valid": false }` and for any 400 that holds `valid`, whatever
+     *     it says.
      *
      * @throws InvalidArgumentException when a string value is far longer
      *     than any identifier or is not a 51Did, either of which is refused
@@ -466,7 +467,9 @@ final class DidClient
      * parameters `result` and `challenge` are the obsolete names of
      * `sealedResult` and `transaction`. They still work when passed by
      * name, raise an `E_USER_DEPRECATED` naming the replacement, and give
-     * way to the current name when both are passed.
+     * way to the current name when both are passed. An empty value counts
+     * as not passed, under either name, so an empty current name takes the
+     * obsolete one's value.
      *
      * @param FodId|string $fodId The identifier the server knows
      *     independently, as a {@see FodId} or a string in either alphabet.
@@ -506,7 +509,7 @@ final class DidClient
                 . 'Use sealedResult.',
                 E_USER_DEPRECATED
             );
-            $sealedResult ??= $result;
+            $sealedResult = self::currentOrObsolete($sealedResult, $result);
         }
         if ($challenge !== null) {
             trigger_error(
@@ -514,9 +517,10 @@ final class DidClient
                 . 'Use transaction.',
                 E_USER_DEPRECATED
             );
-            if ($transaction === '') {
-                $transaction = $challenge;
-            }
+            $transaction = (string) self::currentOrObsolete(
+                $transaction,
+                $challenge
+            );
         }
         if ($sealedResult === null) {
             throw new ArgumentCountError(
@@ -558,6 +562,21 @@ final class DidClient
             $body,
             "The redeem endpoint answered {$status}: " . $this->excerpt($body)
         );
+    }
+
+    /**
+     * Picks between a current name and its obsolete one. An empty value
+     * counts as not sent, so the obsolete value is used only where the
+     * current one is null or empty, and the current one wins when both
+     * are non-empty.
+     */
+    private static function currentOrObsolete(
+        ?string $current,
+        ?string $obsolete
+    ): ?string {
+        return ($current === null || $current === '') && $obsolete !== null
+            ? $obsolete
+            : $current;
     }
 
     /**

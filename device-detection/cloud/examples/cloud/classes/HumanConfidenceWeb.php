@@ -319,14 +319,12 @@ class HumanConfidenceWeb
      * The sealed result goes to the cloud as both sealedResult and value,
      * with the same text, so the redeem works with a cloud service that
      * reads either name. The page sends it as sealedResult, and value is
-     * still read from a page that sends the older name.
+     * still read from a page that sends the older name. An empty value
+     * counts as not sent, so sealedResult wins when both hold a value.
      */
     private function redeem(callable $output)
     {
-        $sealedResult = $_POST['sealedResult'] ?? $_POST['value'] ?? '';
-        if (!is_string($sealedResult)) {
-            $sealedResult = '';
-        }
+        $sealedResult = self::sealedResultFrom($_POST);
         $fields = [
             'sealedResult' => $sealedResult,
             'value' => $sealedResult,
@@ -356,6 +354,26 @@ class HumanConfidenceWeb
         http_response_code($answer['status'] > 0 ? $answer['status'] : 502);
         header('Content-Type: application/json');
         $output($answer['body']);
+    }
+
+    /**
+     * The sealed result a page posted, as sealedResult or, from a page
+     * that sends the older name, as value. An empty or missing value
+     * counts as not sent, so value is read only where sealedResult is
+     * empty or missing, and sealedResult wins when both hold a value.
+     *
+     * @param array<mixed> $post The posted form fields
+     */
+    public static function sealedResultFrom(array $post): string
+    {
+        foreach (['sealedResult', 'value'] as $name) {
+            $value = $post[$name] ?? null;
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**

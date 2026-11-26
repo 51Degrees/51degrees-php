@@ -64,7 +64,8 @@ final class RedeemResult
     /**
      * The `context` string exactly as the cloud sent it, so a value this
      * build maps to {@see ContextOutcome::Unreadable} because it is not
-     * known is still visible. Empty when the field was absent.
+     * known is still visible. Empty when the field was absent, and
+     * `unconfirmed` on a 503, whose body is not read.
      */
     public readonly string $rawContext;
 
@@ -121,8 +122,10 @@ final class RedeemResult
     public readonly ?string $rawHumanConfidence;
 
     /**
-     * Where no status is given, it's read from the HTTP status and
+     * Takes each value as given. Where no status is given, it's read from
      * `$rawContext`, as {@see RedeemStatus::fromAnswer()} describes.
+     * {@see RedeemResult::fromResponse()} is the way to read a response,
+     * as it applies what the HTTP status means.
      *
      * @param array<string, FactorOutcome>|null $factors
      */
@@ -148,8 +151,7 @@ final class RedeemResult
         $this->secondsSinceVerified = $secondsSinceVerified;
         $this->statusCode = $statusCode;
         $this->raw = $raw;
-        $this->status = $status
-            ?? RedeemStatus::fromAnswer($statusCode, null, $rawContext);
+        $this->status = $status ?? RedeemStatus::fromAnswer(null, $rawContext);
         $this->humanConfidence = $humanConfidence;
         $this->humanConfidenceNullReason = $humanConfidenceNullReason;
         $this->rawHumanConfidence = $rawHumanConfidence;
@@ -160,10 +162,25 @@ final class RedeemResult
      * object, or one without a `context`, reads as
      * {@see ContextOutcome::Unreadable}, so nothing unexpected passes as a
      * verdict. A 503 reads as {@see RedeemStatus::Unconfirmed} and
-     * {@see ContextOutcome::Unconfirmed}, whatever the body says.
+     * {@see ContextOutcome::Unconfirmed}, whatever the body says, and
+     * nothing else is read from it. The body is kept in
+     * {@see RedeemResult::$raw} only.
      */
     public static function fromResponse(int $statusCode, string $body): self
     {
+        if ($statusCode === 503) {
+            return new self(
+                ContextOutcome::Unconfirmed,
+                ContextOutcome::Unconfirmed->value,
+                SignatureOutcome::Unknown,
+                null,
+                null,
+                null,
+                $statusCode,
+                $body,
+                RedeemStatus::Unconfirmed
+            );
+        }
         $json = json_decode($body, true);
         if (!is_array($json)) {
             $json = [];
@@ -209,9 +226,7 @@ final class RedeemResult
             HumanConfidence::fromAnswer($json);
 
         return new self(
-            $statusCode === 503
-                ? ContextOutcome::Unconfirmed
-                : ContextOutcome::fromCloud($rawContext),
+            ContextOutcome::fromCloud($rawContext),
             $rawContext,
             SignatureOutcome::fromCloud($signature),
             $factors,
@@ -219,7 +234,7 @@ final class RedeemResult
             $seconds,
             $statusCode,
             $body,
-            RedeemStatus::fromAnswer($statusCode, $status, $rawContext),
+            RedeemStatus::fromAnswer($status, $rawContext),
             $humanConfidence,
             $nullReason,
             $rawHumanConfidence

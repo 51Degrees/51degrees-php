@@ -74,9 +74,10 @@ enum RedeemStatus: string
     }
 
     /**
-     * The status of a redeem answer. A 503 is always
-     * {@see RedeemStatus::Unconfirmed}, whatever the body says. Otherwise
-     * it's read from `status` where the service sent one. A service that
+     * The status of a redeem answer other than a 503, which
+     * {@see RedeemResult::fromResponse()} reads as
+     * {@see RedeemStatus::Unconfirmed} without reading its body. It's read
+     * from `status` where the service sent one. A service that
      * sends no `status` writes the failure word to `context`, so the
      * status is then read from `context`. Any other `context` word this
      * build knows is a verdict, so the sealed result was redeemed. A word
@@ -85,14 +86,8 @@ enum RedeemStatus: string
      *
      * @internal Used by {@see RedeemResult}.
      */
-    public static function fromAnswer(
-        int $statusCode,
-        ?string $status,
-        string $context
-    ): self {
-        if ($statusCode === 503) {
-            return self::Unconfirmed;
-        }
+    public static function fromAnswer(?string $status, string $context): self
+    {
         if ($status !== null) {
             return self::tryFrom($status) ?? self::Unreadable;
         }

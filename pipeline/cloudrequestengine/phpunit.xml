@@ -16,6 +16,7 @@
       <file>tests/TimeoutTests.php</file>
       <file>tests/AspectEnginePropertiesTests.php</file>
       <file>tests/CloudAllEvidenceTests.php</file>
+      <file>tests/ServerRoutePassThroughTests.php</file>
       <file>tests/MissingProductTests.php</file>
       <file>tests/MissingProductAtBuildTests.php</file>
       <file>tests/CloudEngineMetadataReasonTests.php</file>

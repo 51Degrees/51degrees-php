@@ -10,18 +10,7 @@
 #define SWIG_VERSION 0x040501
 #define SWIGPHP
 
-#if defined __GNUC__ && !defined __cplusplus
-# if __GNUC__ >= 4
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
-# endif
-#endif
 #include "php.h"
-#if defined __GNUC__ && !defined __cplusplus
-# if __GNUC__ >= 4
-#  pragma GCC diagnostic pop
-# endif
-#endif
 
 /* -----------------------------------------------------------------------------
  *  This section contains generic SWIG labels for method/variable
@@ -62,12 +51,6 @@
 #   define SWIGUNUSED __attribute__ ((__unused__))
 # else
 #   define SWIGUNUSED
-# endif
-#endif
-
-#ifndef SWIG_MSC_UNSUPPRESS_4505
-# if defined(_MSC_VER)
-#   pragma warning(disable : 4505) /* unreferenced local function has been removed */
 # endif
 #endif
 
@@ -123,28 +106,9 @@
 # endif
 #endif
 
-/* Deal with Microsoft's attempt at deprecating C standard runtime functions */
-#if !defined(SWIG_NO_CRT_SECURE_NO_DEPRECATE) && defined(_MSC_VER) && !defined(_CRT_SECURE_NO_DEPRECATE)
-# define _CRT_SECURE_NO_DEPRECATE
-#endif
-
-/* Deal with Microsoft's attempt at deprecating methods in the standard C++ library */
-#if !defined(SWIG_NO_SCL_SECURE_NO_DEPRECATE) && defined(_MSC_VER) && !defined(_SCL_SECURE_NO_DEPRECATE)
-# define _SCL_SECURE_NO_DEPRECATE
-#endif
-
 /* Deal with Apple's deprecated 'AssertMacros.h' from Carbon-framework */
 #if defined(__APPLE__) && !defined(__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES)
 # define __ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES 0
-#endif
-
-/* Intel's compiler complains if a variable which was never initialised is
- * cast to void, which is a common idiom which we use to indicate that we
- * are aware a variable isn't used.  So we just silence that warning.
- * See: https://github.com/swig/swig/issues/192 for more discussion.
- */
-#ifdef __INTEL_COMPILER
-# pragma warning disable 592
 #endif
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
@@ -412,52 +376,6 @@ typedef struct swig_module_info {
 } swig_module_info;
 
 /*
-  Compare two type names skipping the space characters, therefore
-  "char*" == "char *" and "Class<int>" == "Class<int >", etc.
-
-  Return 0 when the two name types are equivalent, as in
-  strncmp, but skipping ' '.
-*/
-SWIGRUNTIME int
-SWIG_TypeNameComp(const char *f1, const char *l1,
-		  const char *f2, const char *l2) {
-  for (;(f1 != l1) && (f2 != l2); ++f1, ++f2) {
-    while ((*f1 == ' ') && (f1 != l1)) ++f1;
-    while ((*f2 == ' ') && (f2 != l2)) ++f2;
-    if (*f1 != *f2) return (*f1 > *f2) ? 1 : -1;
-  }
-  return (int)((l1 - f1) - (l2 - f2));
-}
-
-/*
-  Check type equivalence in a name list like <name1>|<name2>|...
-  Return 0 if equal, -1 if nb < tb, 1 if nb > tb
-*/
-SWIGRUNTIME int
-SWIG_TypeCmp(const char *nb, const char *tb) {
-  int equiv = 1;
-  const char* te = tb + strlen(tb);
-  const char* ne = nb;
-  while (equiv != 0 && *ne) {
-    for (nb = ne; *ne; ++ne) {
-      if (*ne == '|') break;
-    }
-    equiv = SWIG_TypeNameComp(nb, ne, tb, te);
-    if (*ne) ++ne;
-  }
-  return equiv;
-}
-
-/*
-  Check type equivalence in a name list like <name1>|<name2>|...
-  Return 0 if not equal, 1 if equal
-*/
-SWIGRUNTIME int
-SWIG_TypeEquiv(const char *nb, const char *tb) {
-  return SWIG_TypeCmp(nb, tb) == 0 ? 1 : 0;
-}
-
-/*
  * Hash function for type name strings, based on maRushPrime1Hash (http://amsoftware.narod.ru/algo2.html)
  */
 SWIGRUNTIME unsigned int SWIG_Hash(const char *str, unsigned int len) {
@@ -570,89 +488,11 @@ SWIG_TypeCheck(const char *c, swig_type_info *ty) {
 }
 
 /*
-  Check the type by type address
-*/
-SWIGRUNTIME swig_cast_info *
-SWIG_TypeCheckStruct(const swig_type_info *from, swig_type_info *ty) {
-  if (ty) {
-    swig_cast_info *head = ty->cast;
-    while (head) {
-      if (head->type == from) {
-        return head;
-      }
-
-      if (head->value) {
-        swig_cast_info *iter;
-        swig_cast_info *last = head + head->value;
-        swig_cast_info *first = head + 1;
-
-        /* Binary search over sorted array of casts */
-        do {
-          iter = first + ((last - first) >> 1);
-          if (iter->type < from) {
-            first = iter + 1;
-          } else if (iter->type == from) {
-            return iter;
-          } else
-            last = iter - 1;
-        } while (first <= last);
-      }
-      head = head->next;
-    }
-  }
-  return 0;
-}
-
-/*
   Cast a pointer up an inheritance hierarchy
 */
 SWIGRUNTIMEINLINE void *
 SWIG_TypeCast(swig_cast_info *ty, void *ptr, int *newmemory) {
   return ((!ty) || (!ty->converter)) ? ptr : (*ty->converter)(ptr, newmemory);
-}
-
-/*
-   Dynamic pointer casting. Down an inheritance hierarchy
-*/
-SWIGRUNTIME swig_type_info *
-SWIG_TypeDynamicCast(swig_type_info *ty, void **ptr) {
-  swig_type_info *lastty = ty;
-  if (!ty || !ty->dcast) return ty;
-  while (ty && (ty->dcast)) {
-    ty = (*ty->dcast)(ptr);
-    if (ty) lastty = ty;
-  }
-  return lastty;
-}
-
-/*
-  Return the name associated with this type
-*/
-SWIGRUNTIMEINLINE const char *
-SWIG_TypeName(const swig_type_info *ty) {
-  return ty->name;
-}
-
-/*
-  Return the pretty name associated with this type,
-  that is an unmangled type name in a form presentable to the user.
-*/
-SWIGRUNTIME const char *
-SWIG_TypePrettyName(const swig_type_info *type) {
-  /* The "str" field contains the equivalent pretty names of the
-     type, separated by vertical-bar characters.  Choose the last
-     name. It should be the most specific; a fully resolved name
-     but not necessarily with default template parameters expanded. */
-  if (!type) return NULL;
-  if (type->str != NULL) {
-    const char *last_name = type->str;
-    const char *s;
-    for (s = type->str; *s; s++)
-      if (*s == '|') last_name = s+1;
-    return last_name;
-  }
-  else
-    return type->name;
 }
 
 /*
@@ -676,12 +516,6 @@ SWIG_TypeClientData(swig_type_info *ti, void *clientdata) {
     }
     head = head->next;
   }
-}
-
-SWIGRUNTIME void
-SWIG_TypeNewClientData(swig_type_info *ti, void *clientdata) {
-  SWIG_TypeClientData(ti, clientdata);
-  ti->owndata = 1;
 }
 
 /*
@@ -726,140 +560,6 @@ SWIG_MangledTypeQueryModule(swig_module_info *start,
     iter = iter->next;
   } while (iter != end);
   return 0;
-}
-
-/*
-  Search for a swig_type_info structure for either a mangled name or a human readable name.
-  It first searches the mangled names of the types, which is a O(log #types)
-  If a type is not found it then searches the human readable names, which is O(#types).
-
-  We start searching at module start, and finish searching when start == end.
-  Note: if start == end at the beginning of the function, we go all the way around
-  the circular list.
-*/
-SWIGRUNTIME swig_type_info *
-SWIG_TypeQueryModule(swig_module_info *start,
-                     swig_module_info *end,
-		     const char *name) {
-  /* STEP 1: Search the name field using binary search */
-  swig_type_info *ret = SWIG_MangledTypeQueryModule(start, end, name);
-  if (ret) {
-    return ret;
-  } else {
-    /* STEP 2: If the type hasn't been found, do a complete search
-       of the str field (the human readable name) */
-    swig_module_info *iter = start;
-    do {
-      size_t i = 0;
-      for (; i < iter->size; ++i) {
-	if (iter->types[i]->str && (SWIG_TypeEquiv(iter->types[i]->str, name)))
-	  return iter->types[i];
-      }
-      iter = iter->next;
-    } while (iter != end);
-  }
-
-  /* neither found a match */
-  return 0;
-}
-
-/*
-   Pack binary data into a string
-*/
-SWIGRUNTIME char *
-SWIG_PackData(char *c, void *ptr, size_t sz) {
-  static const char hex[17] = "0123456789abcdef";
-  const unsigned char *u = (unsigned char *) ptr;
-  const unsigned char *eu =  u + sz;
-  for (; u != eu; ++u) {
-    unsigned char uu = *u;
-    *(c++) = hex[(uu & 0xf0) >> 4];
-    *(c++) = hex[uu & 0xf];
-  }
-  return c;
-}
-
-/*
-   Unpack binary data from a string
-*/
-SWIGRUNTIME const char *
-SWIG_UnpackData(const char *c, void *ptr, size_t sz) {
-  unsigned char *u = (unsigned char *) ptr;
-  const unsigned char *eu = u + sz;
-  for (; u != eu; ++u) {
-    char d = *(c++);
-    unsigned char uu;
-    if ((d >= '0') && (d <= '9'))
-      uu = (unsigned char)((d - '0') << 4);
-    else if ((d >= 'a') && (d <= 'f'))
-      uu = (unsigned char)((d - ('a'-10)) << 4);
-    else
-      return (char *) 0;
-    d = *(c++);
-    if ((d >= '0') && (d <= '9'))
-      uu |= (unsigned char)(d - '0');
-    else if ((d >= 'a') && (d <= 'f'))
-      uu |= (unsigned char)(d - ('a'-10));
-    else
-      return (char *) 0;
-    *u = uu;
-  }
-  return c;
-}
-
-/*
-   Pack 'void *' into a string buffer.
-*/
-SWIGRUNTIME char *
-SWIG_PackVoidPtr(char *buff, void *ptr, const char *name, size_t bsz) {
-  char *r = buff;
-  if ((2*sizeof(void *) + 2) > bsz) return 0;
-  *(r++) = '_';
-  r = SWIG_PackData(r,&ptr,sizeof(void *));
-  if (strlen(name) + 1 > (bsz - (size_t)(r - buff))) return 0;
-  strcpy(r,name);
-  return buff;
-}
-
-SWIGRUNTIME const char *
-SWIG_UnpackVoidPtr(const char *c, void **ptr, const char *name) {
-  if (*c != '_') {
-    if (strcmp(c,"NULL") == 0) {
-      *ptr = (void *) 0;
-      return name;
-    } else {
-      return 0;
-    }
-  }
-  return SWIG_UnpackData(++c,ptr,sizeof(void *));
-}
-
-SWIGRUNTIME char *
-SWIG_PackDataName(char *buff, void *ptr, size_t sz, const char *name, size_t bsz) {
-  char *r = buff;
-  size_t lname = (name ? strlen(name) : 0);
-  if ((2*sz + 2 + lname) > bsz) return 0;
-  *(r++) = '_';
-  r = SWIG_PackData(r,ptr,sz);
-  if (lname) {
-    strncpy(r,name,lname+1);
-  } else {
-    *r = 0;
-  }
-  return buff;
-}
-
-SWIGRUNTIME const char *
-SWIG_UnpackDataName(const char *c, void *ptr, size_t sz, const char *name) {
-  if (*c != '_') {
-    if (strcmp(c,"NULL") == 0) {
-      memset(ptr,0,sz);
-      return name;
-    } else {
-      return 0;
-    }
-  }
-  return SWIG_UnpackData(++c,ptr,sz);
 }
 
 #ifdef __cplusplus
@@ -1070,7 +770,7 @@ static swig_module_info *SWIG_Php_GetModule(void) {
 }
 
 static void SWIG_Php_SetModule(swig_module_info *pointer, int module_number) {
-  REGISTER_LONG_CONSTANT(const_name, (long) pointer, CONST_CS | CONST_PERSISTENT);
+  REGISTER_LONG_CONSTANT(const_name, (zend_long) (intptr_t) pointer, CONST_CS | CONST_PERSISTENT);
 }
 
 /* Common parts of the "create_object" object handler. */
@@ -1092,25 +792,6 @@ SWIGUNUSED static void* SWIG_Php_free_obj(zend_object *object) {
     if (obj->newobject) return obj->ptr;
   }
   return NULL;
-}
-
-SWIGINTERN void
-SWIG_Php_AppendOutput(zval *target, zval *o, int is_void) {
-  zval tmp;
-  if (Z_TYPE_P(target) == IS_ARRAY) {
-    /* it's already an array, just append */
-    add_next_index_zval(target, o);
-    return;
-  }
-  if (Z_TYPE_P(target) == IS_NULL && is_void) {
-    /* NULL isn't refcounted */
-    ZVAL_COPY_VALUE(target, o);
-    return;
-  }
-  ZVAL_DUP(&tmp, target);
-  array_init(target);
-  add_next_index_zval(target, &tmp);
-  add_next_index_zval(target, o);
 }
 
 /* SWIG Errors applicable to all language modules, values are reserved from -1 to -99 */
@@ -2310,6 +1991,7 @@ static swig_cast_info *swig_cast_initial[] = {
 /* end vdecl subsection */
 /* wrapper section */
 static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_0) {
+  (void)return_value;
   std::map< std::string,std::string > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -2320,12 +2002,12 @@ static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_0) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__mapT_std__string_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_1) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   zval args[1];
   std::map< std::string,std::string > *result = 0 ;
@@ -2344,7 +2026,6 @@ static ZEND_NAMED_FUNCTION(_wrap_new_MapStringStringSwig__SWIG_1) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__mapT_std__string_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2370,7 +2051,6 @@ static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_MapStringStringSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2388,12 +2068,12 @@ static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,size) {
   
   RETVAL_LONG(result);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,clear) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   
   arg1 = (std::map< std::string,std::string > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -2403,7 +2083,6 @@ static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,clear) {
   
   (arg1)->clear();
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2442,6 +2121,7 @@ static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,set) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string *arg3 = 0 ;
@@ -2466,12 +2146,12 @@ static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,set) {
   
   std_map_Sl_std_string_Sc_std_string_Sg__set(arg1,(std::string const &)*arg2,(std::string const &)*arg3);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,del) {
+  (void)return_value;
   std::map< std::string,std::string > *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -2522,7 +2202,6 @@ static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,has_key) {
   
   RETVAL_BOOL((result) ? 1 : 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2540,7 +2219,6 @@ static PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,is_empty) {
   
   RETVAL_BOOL((result) ? 1 : 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2567,9 +2245,8 @@ PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2605,7 +2282,6 @@ PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2636,7 +2312,6 @@ PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2644,6 +2319,7 @@ PHP_METHOD(FiftyOneDegreesIpiMapStringStringSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_0) {
+  (void)return_value;
   std::vector< std::string > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -2654,12 +2330,12 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_0) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__vectorT_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_1) {
+  (void)return_value;
   std::vector< std::string >::size_type arg1 ;
   zval args[1];
   std::vector< std::string > *result = 0 ;
@@ -2677,12 +2353,12 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_1) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__vectorT_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_2) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   zval args[1];
   std::vector< std::string > *result = 0 ;
@@ -2701,7 +2377,6 @@ static ZEND_NAMED_FUNCTION(_wrap_new_VectorStringSwig__SWIG_2) {
   
   SWIG_SetPointerZval(ZEND_THIS, (void *)result, SWIGTYPE_p_std__vectorT_std__string_t, 1);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2738,7 +2413,6 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_VectorStringSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2756,7 +2430,6 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,size) {
   
   RETVAL_LONG(result);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2774,12 +2447,12 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,capacity) {
   
   RETVAL_LONG(result);
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,reserve) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::size_type arg2 ;
   zval args[1];
@@ -2796,12 +2469,12 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,reserve) {
   
   (arg1)->reserve(SWIG_STD_MOVE(*(&arg2)));
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,clear) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   
   arg1 = (std::vector< std::string > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -2811,12 +2484,12 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,clear) {
   
   (arg1)->clear();
   
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,push) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   std::vector< std::string >::value_type *arg2 = 0 ;
   std::vector< std::string >::value_type temp2 ;
@@ -2834,7 +2507,6 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,push) {
   
   (arg1)->push_back((std::vector< std::string >::value_type const &)*arg2);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2852,7 +2524,6 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,is_empty) {
   
   RETVAL_BOOL((result) ? 1 : 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -2915,6 +2586,7 @@ static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,set) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   int arg2 ;
   std::vector< std::string >::value_type *arg3 = 0 ;
@@ -2972,9 +2644,8 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3010,7 +2681,6 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3041,7 +2711,6 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3049,6 +2718,7 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_0) {
+  (void)return_value;
   RequiredPropertiesConfig *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3096,6 +2766,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_1) {
+  (void)return_value;
   std::vector< std::string > *arg1 = 0 ;
   zval args[1];
   RequiredPropertiesConfig *result = 0 ;
@@ -3151,6 +2822,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_RequiredPropertiesConfigSwig__SWIG_2) {
+  (void)return_value;
   char *arg1 = 0 ;
   zval args[1];
   RequiredPropertiesConfig *result = 0 ;
@@ -3237,7 +2909,6 @@ static PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_RequiredPropertiesConfigSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3318,9 +2989,8 @@ PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3356,7 +3026,6 @@ PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3387,7 +3056,6 @@ PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3395,6 +3063,7 @@ PHP_METHOD(FiftyOneDegreesIpiRequiredPropertiesConfigSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__construct) {
+  (void)return_value;
   Value< std::string > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3614,9 +3283,8 @@ PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3652,7 +3320,6 @@ PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3683,7 +3350,6 @@ PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3691,6 +3357,7 @@ PHP_METHOD(FiftyOneDegreesIpiStringValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__construct) {
+  (void)return_value;
   Value< bool > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -3910,9 +3577,8 @@ PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3948,7 +3614,6 @@ PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3979,7 +3644,6 @@ PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -3987,6 +3651,7 @@ PHP_METHOD(FiftyOneDegreesIpiBoolValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__construct) {
+  (void)return_value;
   Value< int > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -4206,9 +3871,8 @@ PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4244,7 +3908,6 @@ PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4275,7 +3938,6 @@ PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4283,6 +3945,7 @@ PHP_METHOD(FiftyOneDegreesIpiIntegerValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__construct) {
+  (void)return_value;
   Value< std::vector< std::string > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -4507,9 +4170,8 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4545,7 +4207,6 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4576,7 +4237,6 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4584,6 +4244,7 @@ PHP_METHOD(FiftyOneDegreesIpiVectorStringValuesSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__construct) {
+  (void)return_value;
   Value< double > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -4803,9 +4464,8 @@ PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4841,7 +4501,6 @@ PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -4872,7 +4531,6 @@ PHP_METHOD(FiftyOneDegreesIpiDoubleValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5246,7 +4904,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValues) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValues'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5402,7 +5059,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsString) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsString'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5558,7 +5214,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsBool) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsBool'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5714,7 +5369,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsInteger) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsInteger'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -5870,7 +5524,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsDouble) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsDouble'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6026,7 +5679,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictBool) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsStrictBool'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6182,7 +5834,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictInteger) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsStrictInteger'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6338,7 +5989,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,getValueAsStrictDouble) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsBaseSwig_getValueAsStrictDouble'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6365,9 +6015,8 @@ PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6403,7 +6052,6 @@ PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6434,7 +6082,6 @@ PHP_METHOD(FiftyOneDegreesIpiResultsBaseSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6610,9 +6257,8 @@ PHP_METHOD(FiftyOneDegreesIpiDate,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6648,7 +6294,6 @@ PHP_METHOD(FiftyOneDegreesIpiDate,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -6679,7 +6324,6 @@ PHP_METHOD(FiftyOneDegreesIpiDate,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7350,9 +6994,8 @@ PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7388,7 +7031,6 @@ PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7419,7 +7061,6 @@ PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7600,9 +7241,8 @@ PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7638,7 +7278,6 @@ PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7669,7 +7308,6 @@ PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7747,9 +7385,8 @@ PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7785,7 +7422,6 @@ PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7816,7 +7452,6 @@ PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -7824,6 +7459,7 @@ PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_0) {
+  (void)return_value;
   std::vector< uint8_t > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -7871,6 +7507,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_1) {
+  (void)return_value;
   std::vector< unsigned char >::size_type arg1 ;
   zval args[1];
   std::vector< uint8_t > *result = 0 ;
@@ -7925,6 +7562,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_UTF8StringSwig__SWIG_2) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   zval args[1];
   std::vector< uint8_t > *result = 0 ;
@@ -8011,7 +7649,6 @@ static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_UTF8StringSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8115,6 +7752,7 @@ static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,capacity) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,reserve) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::size_type arg2 ;
   zval args[1];
@@ -8168,6 +7806,7 @@ static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,reserve) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,clear) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   
   arg1 = (std::vector< uint8_t > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -8214,6 +7853,7 @@ static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,clear) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,push) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   std::vector< unsigned char >::value_type *arg2 = 0 ;
   std::vector< unsigned char >::value_type temp2 ;
@@ -8437,6 +8077,7 @@ static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,set) {
+  (void)return_value;
   std::vector< uint8_t > *arg1 = 0 ;
   int arg2 ;
   std::vector< unsigned char >::value_type *arg3 = 0 ;
@@ -8589,9 +8230,8 @@ PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8627,7 +8267,6 @@ PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8658,7 +8297,6 @@ PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8666,6 +8304,7 @@ PHP_METHOD(FiftyOneDegreesIpiUTF8StringSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_0) {
+  (void)return_value;
   std::string arg1 ;
   std::string arg2 ;
   zval args[2];
@@ -8724,6 +8363,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_ValueMetaDataKeySwig__SWIG_1) {
+  (void)return_value;
   std::string arg1 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   long arg3 ;
@@ -8831,7 +8471,6 @@ static PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_ValueMetaDataKeySwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8956,9 +8595,8 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -8994,7 +8632,6 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9025,7 +8662,6 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataKeySwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9255,9 +8891,8 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9293,7 +8928,6 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9324,7 +8958,6 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9517,9 +9150,8 @@ PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9555,7 +9187,6 @@ PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9586,7 +9217,6 @@ PHP_METHOD(FiftyOneDegreesIpiComponentMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9775,9 +9405,8 @@ PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9813,7 +9442,6 @@ PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -9844,7 +9472,6 @@ PHP_METHOD(FiftyOneDegreesIpiPropertyMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10034,9 +9661,8 @@ PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10072,7 +9698,6 @@ PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10103,7 +9728,6 @@ PHP_METHOD(FiftyOneDegreesIpiProfileMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10296,9 +9920,8 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10334,7 +9957,6 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -10365,7 +9987,6 @@ PHP_METHOD(FiftyOneDegreesIpiValueMetaDataCollectionSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11046,9 +10667,8 @@ PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11084,7 +10704,6 @@ PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11115,7 +10734,6 @@ PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -11123,6 +10741,7 @@ PHP_METHOD(FiftyOneDegreesIpiMetaDataSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,setLicenseKey) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -11177,6 +10796,7 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,setLicenseKey) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,setDataUpdateUrl) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   std::string *arg2 = 0 ;
   std::string temp2 ;
@@ -11386,6 +11006,7 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,processBase) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_0) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   
   arg1 = (EngineBase *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -11432,6 +11053,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_1) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   char *arg2 = 0 ;
   zval args[1];
@@ -11490,6 +11112,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineBaseSwig_refreshData__SWIG_2) {
+  (void)return_value;
   EngineBase *arg1 = 0 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   long arg3 ;
@@ -11583,7 +11206,6 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,refreshData) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineBaseSwig_refreshData'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12115,9 +11737,8 @@ PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12153,7 +11774,6 @@ PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12184,7 +11804,6 @@ PHP_METHOD(FiftyOneDegreesIpiEngineBaseSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12241,6 +11860,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,getValue) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,setValue) {
+  (void)return_value;
   WeightedValue< std::string > *arg1 = 0 ;
   std::string arg2 ;
   zval args[1];
@@ -12391,6 +12011,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,getShortRawWeight) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,setShortRawWeight) {
+  (void)return_value;
   WeightedValue< std::string > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -12465,9 +12086,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12503,7 +12123,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12534,7 +12153,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueStringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12596,6 +12214,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getValue) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,setValue) {
+  (void)return_value;
   WeightedValue< std::vector< uint8_t > > *arg1 = 0 ;
   std::vector< uint8_t > arg2 ;
   std::vector< uint8_t > *tmp2 ;
@@ -12750,6 +12369,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,getShortRawWeigh
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,setShortRawWeight) {
+  (void)return_value;
   WeightedValue< std::vector< uint8_t > > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -12824,9 +12444,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12862,7 +12481,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12893,7 +12511,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueUTF8StringSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -12950,6 +12567,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,getValue) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,setValue) {
+  (void)return_value;
   WeightedValue< bool > *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -13101,6 +12719,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,getShortRawWeight) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,setShortRawWeight) {
+  (void)return_value;
   WeightedValue< bool > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -13175,9 +12794,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13213,7 +12831,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13244,7 +12861,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueBoolSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13301,6 +12917,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,getValue) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,setValue) {
+  (void)return_value;
   WeightedValue< int > *arg1 = 0 ;
   int arg2 ;
   zval args[1];
@@ -13452,6 +13069,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,getShortRawWeight) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,setShortRawWeight) {
+  (void)return_value;
   WeightedValue< int > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -13526,9 +13144,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13564,7 +13181,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13595,7 +13211,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueIntSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13652,6 +13267,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,getValue) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,setValue) {
+  (void)return_value;
   WeightedValue< double > *arg1 = 0 ;
   double arg2 ;
   zval args[1];
@@ -13803,6 +13419,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,getShortRawWeight) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,setShortRawWeight) {
+  (void)return_value;
   WeightedValue< double > *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -13877,9 +13494,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13915,7 +13531,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13946,7 +13561,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -13954,6 +13568,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedValueDoubleSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_IpAddressSwig__SWIG_0) {
+  (void)return_value;
   unsigned char *arg1 = (unsigned char *)0 ;
   fiftyoneDegreesIpType arg2 ;
   zval args[2];
@@ -14015,6 +13630,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_IpAddressSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_IpAddressSwig__SWIG_1) {
+  (void)return_value;
   char *arg1 = 0 ;
   zval args[1];
   IpAddress *result = 0 ;
@@ -14101,12 +13717,12 @@ static PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_IpAddressSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
 
 static PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,getCopyOfIpAddress) {
+  (void)return_value;
   IpAddress *arg1 = 0 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   uint32_t arg3 ;
@@ -14237,9 +13853,8 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14275,7 +13890,6 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14306,7 +13920,6 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14314,6 +13927,7 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedStringListSwig__SWIG_0) {
+  (void)return_value;
   std::vector< WeightedValue< std::string > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -14361,6 +13975,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedStringListSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedStringListSwig__SWIG_1) {
+  (void)return_value;
   std::vector< WeightedValue< std::string > >::size_type arg1 ;
   zval args[1];
   std::vector< WeightedValue< std::string > > *result = 0 ;
@@ -14415,6 +14030,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedStringListSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedStringListSwig__SWIG_2) {
+  (void)return_value;
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   zval args[1];
   std::vector< WeightedValue< std::string > > *result = 0 ;
@@ -14501,7 +14117,6 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_WeightedStringListSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -14605,6 +14220,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,capacity) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,reserve) {
+  (void)return_value;
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   std::vector< WeightedValue< std::string > >::size_type arg2 ;
   zval args[1];
@@ -14658,6 +14274,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,reserve) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,clear) {
+  (void)return_value;
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< std::string > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -14704,6 +14321,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,clear) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,push) {
+  (void)return_value;
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   std::vector< WeightedValue< std::string > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -14931,6 +14549,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,set) {
+  (void)return_value;
   std::vector< WeightedValue< std::string > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< std::string > >::value_type *arg3 = 0 ;
@@ -15019,9 +14638,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15057,7 +14675,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15088,7 +14705,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15096,6 +14712,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedUTF8StringListSwig__SWIG_0) {
+  (void)return_value;
   std::vector< WeightedValue< std::vector< uint8_t > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -15143,6 +14760,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedUTF8StringListSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedUTF8StringListSwig__SWIG_1) {
+  (void)return_value;
   std::vector< WeightedValue< std::vector< unsigned char > > >::size_type arg1 ;
   zval args[1];
   std::vector< WeightedValue< std::vector< uint8_t > > > *result = 0 ;
@@ -15197,6 +14815,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedUTF8StringListSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedUTF8StringListSwig__SWIG_2) {
+  (void)return_value;
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   zval args[1];
   std::vector< WeightedValue< std::vector< uint8_t > > > *result = 0 ;
@@ -15283,7 +14902,6 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_WeightedUTF8StringListSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15387,6 +15005,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,capacity) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,reserve) {
+  (void)return_value;
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::size_type arg2 ;
   zval args[1];
@@ -15440,6 +15059,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,reserve) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,clear) {
+  (void)return_value;
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< std::vector< uint8_t > > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -15486,6 +15106,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,clear) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,push) {
+  (void)return_value;
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -15713,6 +15334,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,set) {
+  (void)return_value;
   std::vector< WeightedValue< std::vector< uint8_t > > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< std::vector< unsigned char > > >::value_type *arg3 = 0 ;
@@ -15801,9 +15423,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15839,7 +15460,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15870,7 +15490,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -15878,6 +15497,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedBoolListSwig__SWIG_0) {
+  (void)return_value;
   std::vector< WeightedValue< bool > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -15925,6 +15545,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedBoolListSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedBoolListSwig__SWIG_1) {
+  (void)return_value;
   std::vector< WeightedValue< bool > >::size_type arg1 ;
   zval args[1];
   std::vector< WeightedValue< bool > > *result = 0 ;
@@ -15979,6 +15600,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedBoolListSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedBoolListSwig__SWIG_2) {
+  (void)return_value;
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   zval args[1];
   std::vector< WeightedValue< bool > > *result = 0 ;
@@ -16065,7 +15687,6 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_WeightedBoolListSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16169,6 +15790,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,capacity) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,reserve) {
+  (void)return_value;
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   std::vector< WeightedValue< bool > >::size_type arg2 ;
   zval args[1];
@@ -16222,6 +15844,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,reserve) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,clear) {
+  (void)return_value;
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< bool > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -16268,6 +15891,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,clear) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,push) {
+  (void)return_value;
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   std::vector< WeightedValue< bool > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -16495,6 +16119,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,set) {
+  (void)return_value;
   std::vector< WeightedValue< bool > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< bool > >::value_type *arg3 = 0 ;
@@ -16583,9 +16208,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16621,7 +16245,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16652,7 +16275,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16660,6 +16282,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedIntListSwig__SWIG_0) {
+  (void)return_value;
   std::vector< WeightedValue< int > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -16707,6 +16330,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedIntListSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedIntListSwig__SWIG_1) {
+  (void)return_value;
   std::vector< WeightedValue< int > >::size_type arg1 ;
   zval args[1];
   std::vector< WeightedValue< int > > *result = 0 ;
@@ -16761,6 +16385,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedIntListSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedIntListSwig__SWIG_2) {
+  (void)return_value;
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   zval args[1];
   std::vector< WeightedValue< int > > *result = 0 ;
@@ -16847,7 +16472,6 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_WeightedIntListSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -16951,6 +16575,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,capacity) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,reserve) {
+  (void)return_value;
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   std::vector< WeightedValue< int > >::size_type arg2 ;
   zval args[1];
@@ -17004,6 +16629,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,reserve) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,clear) {
+  (void)return_value;
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< int > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -17050,6 +16676,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,clear) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,push) {
+  (void)return_value;
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   std::vector< WeightedValue< int > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -17277,6 +16904,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,set) {
+  (void)return_value;
   std::vector< WeightedValue< int > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< int > >::value_type *arg3 = 0 ;
@@ -17365,9 +16993,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17403,7 +17030,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17434,7 +17060,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17442,6 +17067,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedDoubleListSwig__SWIG_0) {
+  (void)return_value;
   std::vector< WeightedValue< double > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -17489,6 +17115,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedDoubleListSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedDoubleListSwig__SWIG_1) {
+  (void)return_value;
   std::vector< WeightedValue< double > >::size_type arg1 ;
   zval args[1];
   std::vector< WeightedValue< double > > *result = 0 ;
@@ -17543,6 +17170,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_WeightedDoubleListSwig__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_WeightedDoubleListSwig__SWIG_2) {
+  (void)return_value;
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   zval args[1];
   std::vector< WeightedValue< double > > *result = 0 ;
@@ -17629,7 +17257,6 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_WeightedDoubleListSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -17733,6 +17360,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,capacity) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,reserve) {
+  (void)return_value;
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   std::vector< WeightedValue< double > >::size_type arg2 ;
   zval args[1];
@@ -17786,6 +17414,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,reserve) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,clear) {
+  (void)return_value;
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   
   arg1 = (std::vector< WeightedValue< double > > *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -17832,6 +17461,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,clear) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,push) {
+  (void)return_value;
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   std::vector< WeightedValue< double > >::value_type *arg2 = 0 ;
   zval args[1];
@@ -18059,6 +17689,7 @@ static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,get) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,set) {
+  (void)return_value;
   std::vector< WeightedValue< double > > *arg1 = 0 ;
   int arg2 ;
   std::vector< WeightedValue< double > >::value_type *arg3 = 0 ;
@@ -18147,9 +17778,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18185,7 +17815,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18216,7 +17845,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18224,6 +17852,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__construct) {
+  (void)return_value;
   Value< std::vector< WeightedValue< std::string > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -18448,9 +18077,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18486,7 +18114,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18517,7 +18144,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18525,6 +18151,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedStringListValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__construct) {
+  (void)return_value;
   Value< std::vector< WeightedValue< std::vector< uint8_t > > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -18749,9 +18376,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18787,7 +18413,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18818,7 +18443,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -18826,6 +18450,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedUTF8StringListValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__construct) {
+  (void)return_value;
   Value< std::vector< WeightedValue< bool > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19050,9 +18675,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19088,7 +18712,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19119,7 +18742,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19127,6 +18749,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedBoolListValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__construct) {
+  (void)return_value;
   Value< std::vector< WeightedValue< int > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19351,9 +18974,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19389,7 +19011,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19420,7 +19041,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19428,6 +19048,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedIntListValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__construct) {
+  (void)return_value;
   Value< std::vector< WeightedValue< double > > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19652,9 +19273,8 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19690,7 +19310,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19721,7 +19340,6 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19729,6 +19347,7 @@ PHP_METHOD(FiftyOneDegreesIpiWeightedDoubleListValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__construct) {
+  (void)return_value;
   Value< IpAddress > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -19953,9 +19572,8 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -19991,7 +19609,6 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20022,7 +19639,6 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20030,6 +19646,7 @@ PHP_METHOD(FiftyOneDegreesIpiIpAddressValueSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__construct) {
+  (void)return_value;
   Value< std::vector< uint8_t > > *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -20254,9 +19871,8 @@ PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20292,7 +19908,6 @@ PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20323,7 +19938,6 @@ PHP_METHOD(FiftyOneDegreesIpiUTF8StringValueSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20481,7 +20095,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedStringList
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValuesAsWeightedStringList'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20637,7 +20250,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedUTF8String
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValuesAsWeightedUTF8StringList'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20793,7 +20405,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValueAsUTF8String) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValueAsUTF8String'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -20973,7 +20584,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedWKTStringL
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValuesAsWeightedWKTStringList'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21129,7 +20739,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedBoolList) 
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValuesAsWeightedBoolList'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21285,7 +20894,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedIntegerLis
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValuesAsWeightedIntegerList'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21441,7 +21049,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValuesAsWeightedDoubleList
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValuesAsWeightedDoubleList'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21597,7 +21204,6 @@ static PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,getValueAsIpAddress) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'ResultsIpiSwig_getValueAsIpAddress'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21747,11 +21353,10 @@ PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(FiftyOneDegreesIpiResultsBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21787,7 +21392,6 @@ PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,__get) {
   else {
     PHP_MN(FiftyOneDegreesIpiResultsBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21818,7 +21422,6 @@ PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,__isset) {
   else {
     PHP_MN(FiftyOneDegreesIpiResultsBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -21826,6 +21429,7 @@ PHP_METHOD(FiftyOneDegreesIpiResultsIpiSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setUseUpperPrefixHeaders) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -21879,6 +21483,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setUseUpperPrefixHeaders) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setUseTempFile) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -21932,6 +21537,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setUseTempFile) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setReuseTempFile) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   bool arg2 ;
   zval args[1];
@@ -21985,6 +21591,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setReuseTempFile) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,setTempDirectories) {
+  (void)return_value;
   ConfigBase *arg1 = 0 ;
   std::vector< std::string > arg2 ;
   std::vector< std::string > *tmp2 ;
@@ -22312,9 +21919,8 @@ PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -22350,7 +21956,6 @@ PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -22381,7 +21986,6 @@ PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -22389,6 +21993,7 @@ PHP_METHOD(FiftyOneDegreesIpiConfigBaseSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__construct) {
+  (void)return_value;
   CollectionConfig *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -22436,6 +22041,7 @@ static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__construct) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setCapacity) {
+  (void)return_value;
   CollectionConfig *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -22489,6 +22095,7 @@ static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setCapacity) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setConcurrency) {
+  (void)return_value;
   CollectionConfig *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -22542,6 +22149,7 @@ static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setConcurrency) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,setLoaded) {
+  (void)return_value;
   CollectionConfig *arg1 = 0 ;
   uint32_t arg2 ;
   zval args[1];
@@ -22763,9 +22371,8 @@ PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -22801,7 +22408,6 @@ PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__get) {
   else {
     RETVAL_NULL();
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -22832,7 +22438,6 @@ PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__isset) {
   else {
     RETVAL_FALSE;
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -22840,6 +22445,7 @@ PHP_METHOD(FiftyOneDegreesIpiCollectionConfigSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__construct) {
+  (void)return_value;
   ConfigIpi *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -22887,6 +22493,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__construct) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setHighPerformance) {
+  (void)return_value;
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -22933,6 +22540,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setHighPerformance) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setBalanced) {
+  (void)return_value;
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -22979,6 +22587,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setBalanced) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setBalancedTemp) {
+  (void)return_value;
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -23025,6 +22634,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setBalancedTemp) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setLowMemory) {
+  (void)return_value;
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -23071,6 +22681,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setLowMemory) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setMaxPerformance) {
+  (void)return_value;
   ConfigIpi *arg1 = 0 ;
   
   arg1 = (ConfigIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -23117,6 +22728,7 @@ static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setMaxPerformance) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,setConcurrency) {
+  (void)return_value;
   ConfigIpi *arg1 = 0 ;
   uint16_t arg2 ;
   zval args[1];
@@ -23779,11 +23391,10 @@ PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(FiftyOneDegreesIpiConfigBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -23819,7 +23430,6 @@ PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__get) {
   else {
     PHP_MN(FiftyOneDegreesIpiConfigBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -23850,7 +23460,6 @@ PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__isset) {
   else {
     PHP_MN(FiftyOneDegreesIpiConfigBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -23858,6 +23467,7 @@ PHP_METHOD(FiftyOneDegreesIpiConfigIpiSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__construct) {
+  (void)return_value;
   EvidenceBase *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -23926,11 +23536,10 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(FiftyOneDegreesIpiMapStringStringSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -23966,7 +23575,6 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__get) {
   else {
     PHP_MN(FiftyOneDegreesIpiMapStringStringSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -23997,7 +23605,6 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__isset) {
   else {
     PHP_MN(FiftyOneDegreesIpiMapStringStringSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -24005,6 +23612,7 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceBaseSwig,__isset) {
 
 
 static PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__construct) {
+  (void)return_value;
   EvidenceIpi *result = 0 ;
   
   if(ZEND_NUM_ARGS() != 0) {
@@ -24073,11 +23681,10 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(FiftyOneDegreesIpiEvidenceBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -24113,7 +23720,6 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__get) {
   else {
     PHP_MN(FiftyOneDegreesIpiEvidenceBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -24144,7 +23750,6 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__isset) {
   else {
     PHP_MN(FiftyOneDegreesIpiEvidenceBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -24152,6 +23757,7 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__isset) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_EngineIpiSwig__SWIG_0) {
+  (void)return_value;
   std::string *arg1 = 0 ;
   ConfigIpi *arg2 = 0 ;
   RequiredPropertiesConfig *arg3 = 0 ;
@@ -24221,6 +23827,7 @@ static ZEND_NAMED_FUNCTION(_wrap_new_EngineIpiSwig__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_new_EngineIpiSwig__SWIG_1) {
+  (void)return_value;
   unsigned char *arg1 = (unsigned char *)0 ;
   long arg2 ;
   ConfigIpi *arg3 = 0 ;
@@ -24352,7 +23959,6 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__construct) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'new_EngineIpiSwig'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -24679,6 +24285,7 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getDataFileTempPath) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_0) {
+  (void)return_value;
   EngineIpi *arg1 = 0 ;
   
   arg1 = (EngineIpi *)SWIG_Z_FETCH_OBJ_P(ZEND_THIS)->ptr;
@@ -24725,6 +24332,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_0) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_1) {
+  (void)return_value;
   EngineIpi *arg1 = 0 ;
   char *arg2 = 0 ;
   zval args[1];
@@ -24783,6 +24391,7 @@ static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_1) {
 
 
 static ZEND_NAMED_FUNCTION(_wrap_EngineIpiSwig_refreshData__SWIG_2) {
+  (void)return_value;
   EngineIpi *arg1 = 0 ;
   unsigned char *arg2 = (unsigned char *)0 ;
   long arg3 ;
@@ -24876,7 +24485,6 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,refreshData) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineIpiSwig_refreshData'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -25112,7 +24720,6 @@ static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,process) {
   }
   
   zend_throw_exception(zend_ce_type_error, "No matching function for overloaded 'EngineIpiSwig_process'", 0);
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -25196,11 +24803,10 @@ PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__set) {
   }
   
   else if (strcmp(ZSTR_VAL(arg2),"thisown") == 0) {
-    arg->newobject = zval_get_long(&args[1]);
+    arg->newobject = zval_get_long(&args[1]) != 0;
   } else {
     PHP_MN(FiftyOneDegreesIpiEngineBaseSwig___set)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -25236,7 +24842,6 @@ PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__get) {
   else {
     PHP_MN(FiftyOneDegreesIpiEngineBaseSwig___get)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -25267,7 +24872,6 @@ PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__isset) {
   else {
     PHP_MN(FiftyOneDegreesIpiEngineBaseSwig___isset)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
   }
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -25289,7 +24893,6 @@ static PHP_FUNCTION(ipi_engine_get) {
   
   SWIG_SetPointerZval(return_value, (void *)result, SWIGTYPE_p_EngineIpi, 0);
   
-  fail: SWIGUNUSED;
   return;
 }
 
@@ -26861,36 +26464,6 @@ SWIG_InitializeModule(SWIG_INIT_CLIENT_DATA_TYPE clientdata) {
 #endif
 }
 
-/* This function will propagate the clientdata field of type to
-* any new swig_type_info structures that have been added into the list
-* of equivalent types.  It is like calling
-* SWIG_TypeClientData(type, clientdata) a second time.
-*/
-SWIGRUNTIME void
-SWIG_PropagateClientData(void) {
-  size_t i;
-  static int init_run = 0;
-
-  if (init_run) return;
-  init_run = 1;
-
-  for (i = 0; i < swig_module.size; i++) {
-    if (swig_module.types[i]->clientdata) {
-      swig_cast_info *head, *cast;
-      head = swig_module.types[i]->cast;
-      while (head) {
-        for (cast = head; (cast - head) <= head->value; cast++) {
-          if (!cast->converter) {
-            if (cast->type && !cast->type->clientdata)
-              SWIG_TypeClientData(cast->type, swig_module.types[i]->clientdata);
-          }
-        }
-        head = head->next;
-      }
-    }
-  }
-}
-
 #ifdef __cplusplus
 #if 0
 { /* c-mode */
@@ -27701,6 +27274,9 @@ PHP_RINIT_FUNCTION(FiftyOneDegreesIpIntelligenceEngine)
 {
 /* rinit section */
 
+    /* The request start function is given these, and needs neither. */
+    (void)type;
+    (void)module_number;
     if (ipi_earlier_names_pending) {
         ipi_earlier_names_pending = false;
         ipi_register_earlier_names(false);

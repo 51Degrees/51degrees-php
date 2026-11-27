@@ -112,6 +112,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '$params = [''resourceKey'' => ''resource_key''];' }
         @{ Line = '$settings["cloud_endpoint"] = $endpoint;' }
         @{ Line = '$env:PHP_INI_SCAN_DIR = "$sep$PWD"' }
+        @{ Line = '$env:MACOSX_DEPLOYMENT_TARGET = ''14.0''' }
         @{ Line = 'if ($env:GITHUB_JOB -eq "PreBuild") {' }
         @{ Line = '$_SERVER[''HTTP_USER_AGENT'']' }
         @{ Line = '$_SERVER["REMOTE_ADDR"] = "0.0.0.0";' }

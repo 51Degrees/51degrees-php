@@ -37,6 +37,8 @@ echo "Building and testing with ${IMAGE} ..."
 
 # The container reads the data file and the evidence file under the names
 # the test reads, and takes the package folder as its first argument.
+# Compiler warnings are errors unless the caller sets
+# _51DEGREES_WARNINGS_AS_ERRORS, as in every build 51Degrees runs.
 docker run --rm \
     -v "${REPO_ROOT}:/repo:ro" \
     -e _51DEGREES_DD_PATH="/repo/${DATA_REL}" \

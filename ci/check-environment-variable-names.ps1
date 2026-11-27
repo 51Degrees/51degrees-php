@@ -31,14 +31,18 @@ $script:DigitInitialPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# Names that the operating system, the runner, PHP, Composer, the browsers or
-# the web server define, which keep the names those tools give them.
+# Names that the operating system, the runner, PHP, Composer, the browsers,
+# the web server or the macOS compiler and linker define, which keep the
+# names those tools give them.
 $script:PlatformNames = @(
     'PATH', 'HOME', 'TEMP', 'TMP', 'TMPDIR', 'CI',
     'COMPOSER', 'PHP_INI_SCAN_DIR', 'USE_ZEND_ALLOC',
     'ZEND_DONT_UNLOAD_MODULES', 'GIT_INDEX_FILE',
     'CHROMEWEBDRIVER', 'GECKOWEBDRIVER', 'CHROME_BIN', 'FIREFOX_BIN',
     'DEBIAN_FRONTEND',
+    # The macOS version Apple's compiler and linker build for, which libtool
+    # reads to pick the flags it links an extension with
+    'MACOSX_DEPLOYMENT_TARGET',
     # setup-php's setting for a thread safe PHP
     'phpts'
 )

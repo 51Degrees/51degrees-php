@@ -56,10 +56,12 @@ jobs:
           php -v
           php -r 'exit(PHP_ZTS ? 0 : 1);'
 
-      # Prepared as each package's ci/build-project.ps1 does.
+      # Prepared as each package's ci/build-project.ps1 does, with compiler
+      # warnings as errors, as in every build 51Degrees runs.
       - name: Build, expecting the refusal
         working-directory: ${{ matrix.path }}
         env:
+          _51DEGREES_WARNINGS_AS_ERRORS: 'true'
           _51DEGREES_CONFIGURE_OPTIONS: ${{ matrix.configure }}
         run: |
           rm -rf cxx

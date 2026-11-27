@@ -232,6 +232,9 @@ EngineIpi *ipi_engine;
 }
 
 %rinit {
+    /* The request start function is given these, and needs neither. */
+    (void)type;
+    (void)module_number;
     if (ipi_earlier_names_pending) {
         ipi_earlier_names_pending = false;
         ipi_register_earlier_names(false);

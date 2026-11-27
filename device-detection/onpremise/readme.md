@@ -70,6 +70,10 @@ make
 sudo make install
 ```
 
+The build shows any compiler warnings and does not stop on them. Set the
+environment variable `_51DEGREES_WARNINGS_AS_ERRORS` to `true` before
+`./configure` to make them errors, as the builds 51Degrees runs do.
+
 The Hash engine extension will then be installed into the PHP extensions directory and can 
 then be added to the active php.ini file.
 
@@ -78,8 +82,11 @@ then be added to the active php.ini file.
 The wrapper files in `on-premise/src/php8` are generated from
 `on-premise/hash-php.i` and are never edited by hand. When `hash-php.i` or the
 `cxx` submodule changes, install SWIG 4.5.1, the version that generated the
-committed files and the IP Intelligence wrapper, and run this from the root of
-the repository with the `cxx` submodule checked out.
+committed files and the IP Intelligence wrapper, and Perl, and run this from
+the root of the repository with the `cxx` submodule checked out. The script
+passes SWIG's output through `ip-intelligence/on-premise/fix-wrapper.pl`,
+which removes the code nothing uses, so that GCC and Clang build it without
+an unused warning.
 
 ```
 git clone --depth 1 --branch v4.5.1 https://github.com/swig/swig.git

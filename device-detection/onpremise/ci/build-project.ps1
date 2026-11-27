@@ -14,6 +14,20 @@ try {
     New-Item -ItemType Directory -Force -Path cxx | Out-Null
     Copy-Item -Recurse -Path "$PSScriptRoot/../../../cxx/src" -Destination cxx/src -ErrorAction Stop
 
+    # Without MACOSX_DEPLOYMENT_TARGET, the libtool.m4 that phpize copies
+    # links the extension with "-undefined suppress", and the macOS linker
+    # warns that it is deprecated. With the target set to this Mac's
+    # version, libtool links with "-undefined dynamic_lookup" instead.
+    if ($IsMacOS -and -not $env:MACOSX_DEPLOYMENT_TARGET) {
+        $env:MACOSX_DEPLOYMENT_TARGET = ((sw_vers -productVersion).Split('.') | Select-Object -First 2) -join '.'
+    }
+
+    # Compiler warnings are errors in every build 51Degrees runs. config.m4
+    # reads this when configure runs. A value the caller sets is kept.
+    if (-not $env:_51DEGREES_WARNINGS_AS_ERRORS) {
+        $env:_51DEGREES_WARNINGS_AS_ERRORS = 'true'
+    }
+
     phpize || $(throw "phpize failed")
     ./configure || $(throw "configure failed")
     make "-j$([Environment]::ProcessorCount)" || $(throw "make failed")

@@ -43,8 +43,11 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q valgrind
 
-      # As each package's ci/build-project.ps1 does.
+      # As each package's ci/build-project.ps1 does, with compiler warnings
+      # as errors, as in every build 51Degrees runs.
       - name: Build both extensions
+        env:
+          _51DEGREES_WARNINGS_AS_ERRORS: 'true'
         run: |
           build() {
             (

@@ -12,12 +12,31 @@ This project contains the source code for the CloudrequestEngine for the PHP imp
 
 The Pipeline is a generic micro-services aggregation solution with the ability to add a range of 51Degrees and/or custom plug ins (Engines) 
 
-## Tests
+## Examples
 
-To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:
+[examples/CloudEngine.php](examples/CloudEngine.php) creates a cloud engine,
+being a flow element whose results come from a call to a remote service. The
+Cloud Request Engine sends the date of birth to a star sign service and the
+engine reads the star sign from the answer. The service is
+[examples/StarSignService.php](examples/StarSignService.php), which answers in
+the shape the 51Degrees cloud service does. The example starts it with PHP's
+built-in web server on a free port of the same machine and stops it at the
+end, so the example needs no settings, no resource key and no network. Run it
+from this folder.
 
 ```
-phpunit --fail-on-warning --display-warnings --log-junit test-results.xml
+composer install
+php examples/CloudEngine.php
+```
+
+`tests/ExampleTests.php` runs it in its own PHP with no settings, as CI does.
+
+## Tests
+
+To run the tests in this repository, make sure PHPUnit 9.6 is installed then, in the root of this repo, call:
+
+```
+phpunit --fail-on-warning --log-junit test-results.xml
 ```
 
 

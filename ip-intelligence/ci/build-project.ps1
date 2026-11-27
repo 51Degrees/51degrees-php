@@ -16,13 +16,25 @@ try {
     New-Item -ItemType Directory -Force -Path cxx | Out-Null
     Copy-Item -Recurse -Path "$PSScriptRoot/../../cxx/src" -Destination cxx/src -ErrorAction Stop
 
-    # Generate the SWIG wrapper (requires SWIG 4.1+ on PATH).
-    New-Item -ItemType Directory -Force -Path src/php8 | Out-Null
-    swig -c++ -php -module FiftyOneDegreesIpIntelligenceEngine -outdir src/php8 -o src/php8/ipi_wrap.cxx ipi-php.i || $(throw "swig failed")
+    # Without MACOSX_DEPLOYMENT_TARGET, the libtool.m4 that phpize copies
+    # links the extension with "-undefined suppress", and the macOS linker
+    # warns that it is deprecated. With the target set to this Mac's
+    # version, libtool links with "-undefined dynamic_lookup" instead.
+    if ($IsMacOS -and -not $env:MACOSX_DEPLOYMENT_TARGET) {
+        $env:MACOSX_DEPLOYMENT_TARGET = ((sw_vers -productVersion).Split('.') | Select-Object -First 2) -join '.'
+    }
 
+    # Compiler warnings are errors in every build 51Degrees runs. config.m4
+    # reads this when configure runs. A value the caller sets is kept.
+    if (-not $env:_51DEGREES_WARNINGS_AS_ERRORS) {
+        $env:_51DEGREES_WARNINGS_AS_ERRORS = 'true'
+    }
+
+    # The build compiles the committed wrapper, which configure copies from
+    # src/php8. A wrapper from another SWIG would join the Device Detection
+    # extension's SWIG type table in a PHP that loads both, which crashes PHP.
     phpize || $(throw "phpize failed")
     ./configure --enable-FiftyOneDegreesIpIntelligenceEngine || $(throw "configure failed")
-    Copy-Item -Path src/php8/* -Destination . -Force
     make "-j$([Environment]::ProcessorCount)" || $(throw "make failed")
 } finally {
     Pop-Location

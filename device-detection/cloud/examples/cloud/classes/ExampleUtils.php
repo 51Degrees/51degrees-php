@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\devicedetection\examples\cloud\classes;
 
+use fiftyone\pipeline\cloudrequestengine\Constants as CloudRequestConstants;
 use fiftyone\pipeline\core\AspectPropertyValue;
 
 class ExampleUtils
@@ -32,14 +33,6 @@ class ExampleUtils
     // resource key variable starts with '_51DEGREES_RESOURCE_KEY'.
     public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
 
-    /**
-     * The environment variable read for the resource key when
-     * RESOURCE_KEY_ENV_VAR is not set or is empty.
-     *
-     * @deprecated use {@see ExampleUtils::RESOURCE_KEY_ENV_VAR}
-     */
-    public const LEGACY_RESOURCE_KEY_ENV_VAR = 'resource_key';
-
     // The query string parameter the web examples accept a resource key on.
     // This is part of the URL rather than the environment, so it keeps its
     // own name.
@@ -48,19 +41,35 @@ class ExampleUtils
     // The environment variable that can name the cloud service to use.
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
-    /**
-     * The environment variable read for the cloud service when
-     * CLOUD_ENDPOINT_VARIABLE is not set or is empty.
-     *
-     * @deprecated use {@see ExampleUtils::CLOUD_ENDPOINT_VARIABLE}
-     */
-    public const ENDPOINT_ENV_VAR = 'cloud_endpoint';
+    // The Data Key of the engine that gives the hardware profiles.
+    private const HARDWARE_DATA_KEY = 'hardware';
+
+    // The Cloud Configurator page holding exactly the properties the TAC
+    // and native model examples need.
+    private const HARDWARE_LOOKUP_CONFIGURATION = 'configure/QKyYH5XT';
+
+    // The repository every example lists under "Find out more".
+    private const FIND_OUT_MORE_REPOSITORIES = [
+        'This example' =>
+            'https://github.com/51Degrees/51degrees-php/tree/main/device-detection/cloud'
+    ];
+
+    // The 51degrees.com pages every example lists under "Find out more",
+    // each with the utm_term its link carries.
+    private const FIND_OUT_MORE_PAGES = [
+        'Device detection' => ['device-detection', 'find-out-more-device-detection'],
+        'Resource keys' => [
+            'documentation/_services__cloud__resource_keys.html',
+            'find-out-more-resource-keys'
+        ],
+        'Pricing' => ['pricing', 'find-out-more-pricing'],
+        'Contact us' => ['contact-us', 'find-out-more-contact']
+    ];
 
     public static function getResourceKeyFromEnv()
     {
         $key = EnvironmentVariable::read(
-            self::RESOURCE_KEY_ENV_VAR,
-            self::LEGACY_RESOURCE_KEY_ENV_VAR
+            self::RESOURCE_KEY_ENV_VAR
         );
 
         return $key === '' ? null : $key;
@@ -69,8 +78,7 @@ class ExampleUtils
     public static function getCloudEndpoint()
     {
         $endpoint = EnvironmentVariable::read(
-            self::CLOUD_ENDPOINT_VARIABLE,
-            self::ENDPOINT_ENV_VAR
+            self::CLOUD_ENDPOINT_VARIABLE
         );
 
         return $endpoint === '' ? null : $endpoint;
@@ -178,46 +186,159 @@ class ExampleUtils
         return false;
     }
 
-    public static function logErrorAndExit($logger, $message)
-    {
-        $logger->log('error', $message);
-
-        echo $message . PHP_EOL;
-
-        exit(1);
-    }
-
     /**
-     * Read the list of hardware profiles from the 'hardware' element data.
+     * Prints the message saying how to give the example a resource key, as
+     * text from the command line and as a paragraph from a web server, then
+     * the "Find out more" section, and ends the example successfully. Having
+     * no key is how a person running the example from a fresh clone starts,
+     * so it is not an error.
      *
-     * An empty list is returned when the resource key has no access to the
-     * hardware aspect at all, because reading a property that is not there
-     * raises an exception rather than returning an empty list.
-     *
-     * @param mixed $hardware The 'hardware' element data
-     * @return array<int, mixed>
+     * @param string $message
+     * @param string $exampleFile The example's file, __FILE__
      */
-    public static function getProfiles($hardware)
+    public static function endWithoutResourceKey($message, $exampleFile)
     {
-        try {
-            $profiles = $hardware->profiles;
-        } catch (\Exception $e) {
-            return [];
-        }
+        echo php_sapi_name() === 'cli'
+            ? $message . PHP_EOL
+            : '<p>' . nl2br(htmlspecialchars($message)) . "</p>\n";
 
-        return is_array($profiles) ? $profiles : [];
+        self::printFindOutMore($exampleFile);
+
+        exit(0);
     }
 
     /**
-     * The line printed when a lookup returned no device profiles at all.
+     * A link to a page on 51degrees.com, tagged as printed by an example so
+     * that a visit can be traced to the example that prompted it.
      *
+     * @param string $page The page's path, such as contact-us
+     * @param string $exampleFile The example's file, __FILE__
+     * @param string $term Where in the example the link is
      * @return string
      */
-    public static function getNoProfilesMessage()
+    public static function getTaggedLink($page, $exampleFile, $term)
     {
-        return "\tNo device profiles were returned. The current resource " .
-            'key does not include the hardware properties this example ' .
-            'needs. See https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-classes-exampleutils.php&utm_term=no-profiles';
+        return 'https://51degrees.com/' .
+            "{$page}?utm_source=code&utm_medium=example" .
+            '&utm_campaign=51degrees-php&utm_content=' .
+            self::getContentSlug($exampleFile) . "&utm_term={$term}";
+    }
+
+    /**
+     * The "Find out more" section every example ends with, as text, giving
+     * the person running it the links to follow up.
+     *
+     * @param string $exampleFile The example's file, __FILE__
+     * @return string
+     */
+    public static function getFindOutMore($exampleFile)
+    {
+        $lines = ['', 'Find out more', '-------------'];
+        foreach (self::FIND_OUT_MORE_REPOSITORIES as $label => $url) {
+            $lines[] = "{$label}: {$url}";
+        }
+        foreach (self::FIND_OUT_MORE_PAGES as $label => [$page, $term]) {
+            $lines[] = "{$label}: " .
+                self::getTaggedLink($page, $exampleFile, $term);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * The "Find out more" section for the end of a web page.
+     *
+     * @param string $exampleFile The page's file, __FILE__
+     * @return string
+     */
+    public static function getFindOutMoreHtml($exampleFile)
+    {
+        $items = '';
+        foreach (self::FIND_OUT_MORE_REPOSITORIES as $label => $url) {
+            $url = htmlspecialchars($url);
+            $items .= "        <li>{$label}: <a href=\"{$url}\">{$url}</a></li>\n";
+        }
+        foreach (self::FIND_OUT_MORE_PAGES as $label => [$page, $term]) {
+            $url = htmlspecialchars(
+                self::getTaggedLink($page, $exampleFile, $term)
+            );
+            $items .= "        <li><a href=\"{$url}\">{$label}</a></li>\n";
+        }
+
+        return "<div id=\"find-out-more\">\n" .
+            "    <h3 class=\"c-eg-page__heading\">Find out more</h3>\n" .
+            "    <ul>\n{$items}    </ul>\n</div>\n";
+    }
+
+    /**
+     * Writes the "Find out more" section, as text from the command line and
+     * as HTML from a web server.
+     *
+     * @param string $exampleFile The example's file, __FILE__
+     */
+    public static function printFindOutMore($exampleFile)
+    {
+        echo php_sapi_name() === 'cli'
+            ? self::getFindOutMore($exampleFile) . "\n"
+            : self::getFindOutMoreHtml($exampleFile);
+    }
+
+    /**
+     * Whether the resource key lacks the hardware lookup that the TAC and
+     * native model examples need. The hardware engine's properties are the
+     * ones the cloud service lists for the key, and the key carries the
+     * lookup when they include Profiles. When the list could not be read
+     * while the pipeline was built, the Cloud Request Engine is asked for
+     * it again, so the answer always comes from the list itself.
+     *
+     * @param \fiftyone\pipeline\core\Pipeline $pipeline
+     * @return bool
+     * @throws \Exception the cloud service's error when the list still
+     *   cannot be read
+     */
+    public static function lacksHardwareLookup($pipeline)
+    {
+        $hardware = $pipeline->getElement(self::HARDWARE_DATA_KEY);
+        $properties = $hardware->getProperties();
+
+        if (!$hardware->propertyMetadataLoaded) {
+            $products = $pipeline
+                ->getElement(CloudRequestConstants::DATA_KEY)
+                ->getEngineProperties();
+            $properties = $products[self::HARDWARE_DATA_KEY] ?? [];
+        }
+
+        return !array_key_exists(
+            'profiles',
+            array_change_key_case($properties)
+        );
+    }
+
+    /**
+     * The line the TAC and native model examples print in place of their
+     * lookups when the resource key lacks the hardware lookup, with links
+     * to create a key that has it and to contact us about it.
+     *
+     * @param string $exampleFile The example's file, __FILE__
+     * @return string
+     */
+    public static function getNoHardwareLookupMessage($exampleFile)
+    {
+        return 'The resource key does not include HardwarePlatform.Profiles, ' .
+            'the hardware lookup this example needs, so no devices are ' .
+            'listed. Create a resource key that includes it at ' .
+            self::getTaggedLink(
+                self::HARDWARE_LOOKUP_CONFIGURATION,
+                $exampleFile,
+                'no-hardware-lookup'
+            ) .
+            ', or contact us about it at ' .
+            self::getTaggedLink(
+                'contact-us',
+                $exampleFile,
+                'no-hardware-lookup'
+            ) .
+            '.';
     }
 
     /**
@@ -244,5 +365,22 @@ class ExampleUtils
         }
 
         return $value instanceof AspectPropertyValue ? $value : null;
+    }
+
+    /**
+     * The example's path from the package's folder, in lower case with a
+     * hyphen for each folder separator, such as
+     * examples-cloud-gettingstartedconsole.php.
+     *
+     * @param string $exampleFile The example's file
+     * @return string
+     */
+    private static function getContentSlug($exampleFile)
+    {
+        $path = str_replace('\\', '/', $exampleFile);
+        $at = strrpos($path, '/examples/');
+        $path = $at === false ? basename($path) : substr($path, $at + 1);
+
+        return strtolower(str_replace('/', '-', $path));
     }
 }

@@ -6,10 +6,15 @@ param (
 $config = Get-Content $BaseIniFilePath
 
 $env:PHP_INI_SCAN_DIR = "$([IO.Path]::PathSeparator)$PSScriptRoot"
+. "$PSScriptRoot/../../../ci/php-messages.ps1"
+$messages = Add-PhpMessageLog
 
+# Prints the server's log and stops the script with the error. Without
+# break, a trap goes on with the next statement and the script passes.
 trap {
     Write-Output "Server logs:"
     Get-Content $PSScriptRoot/log.txt
+    break
 }
 
 $testValues = "10", "0", "1", "-3"
@@ -45,4 +50,5 @@ foreach ($value in $testValues) {
         throw "Test failed: server did not return HTTP 200"
     }
 }
+Assert-NoPhpMessage $messages
 Write-Output "OK"

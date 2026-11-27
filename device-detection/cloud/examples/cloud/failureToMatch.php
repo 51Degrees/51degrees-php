@@ -34,7 +34,7 @@
  * The resource key is used as short-hand to store the particular set of
  * properties you are interested in as well as any associated license keys
  * that entitle you to increased request limits and/or paid-for properties.
- * You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=header).
+ * You can create a resource key using the 51Degrees [configuration page](https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=header).
  *
  * Expected output:
  *
@@ -53,11 +53,10 @@
 
 require(__DIR__ . "/../../vendor/autoload.php");
 
-use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\devicedetection\DeviceDetectionPipelineBuilder;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 
-// We then create a pipeline with the builder. Create your own resource key for free at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=top.
+// We then create a pipeline with the builder. Create your own resource key for free at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=top.
 
 // Check if there is a resource key in the environment variable and use
 // it if there is one. You will need to switch this for your own resource key.
@@ -69,14 +68,15 @@ if (empty($resourceKey)) {
 }
 
 if (empty($resourceKey)) {
-    $message = 'No resource key specified in the environment variable or query parameter ';
-    $message .= "'" . ExampleUtils::RESOURCE_KEY_ENV_VAR . "'." . PHP_EOL;
-    $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=resource-key-required' . '<br/>';
+    $message = "No resource key specified in the environment variable '" .
+        ExampleUtils::RESOURCE_KEY_ENV_VAR . "' or the query parameter '" .
+        ExampleUtils::RESOURCE_KEY_QUERY_PARAM . "'." . PHP_EOL;
+    $message .= 'Create a resource key with the properties required by this example ';
+    $message .= 'at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-failuretomatch.php&utm_term=resource-key-required' . PHP_EOL;
     $message .= 'Once complete, populate the environment variable or query parameter ';
-    $message .= 'mentioned at the start of this message with the key.' . '<br/>';
-    
-    ExampleUtils::logErrorAndExit(new Logger('info'), $message);
+    $message .= 'mentioned at the start of this message with the key.';
+
+    ExampleUtils::endWithoutResourceKey($message, __FILE__);
 }
 
 $builder = new DeviceDetectionPipelineBuilder(array(
@@ -146,3 +146,5 @@ failuretomatch_checkifmobile($pipeline, $iPhoneUA);
 
 $badUserAgent = 'xyfga';
 failuretomatch_checkifmobile($pipeline, $badUserAgent);
+
+ExampleUtils::printFindOutMore(__FILE__);

@@ -1,28 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Every PHP error, warning, notice and deprecation fails the run, as do
+     risky and incomplete tests. The attributes are those of PHPUnit 9.6,
+     the version the build matrix runs. tests/bootstrap.php fails the run
+     on a warning, notice, deprecation or fatal error from a PHP the tests
+     start, or one PHPUnit does not handle. -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         convertDeprecationsToExceptions="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnIncomplete="true"
          colors="true"
          cacheResult="false">
   <php>
-    <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
-    <env name="_51DEGREES_CLOUD_ENDPOINT" value=""/>
-    <env name="_51DEGREES_IPI_PATH" value=""/>
+    <!-- Report every level, whatever php.ini sets. -->
+    <ini name="error_reporting" value="-1"/>
   </php>
   <testsuites>
     <!-- Runs everywhere: no native extension, data file or network needed. -->
     <testsuite name="Unit">
+      <file>tests/ReadOnlyOnPremiseTests.php</file>
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/SwigDataTests.php</file>
+      <file>tests/WeightedValuesJsonTests.php</file>
+      <file>tests/CloudOnPremiseValuesTests.php</file>
+      <file>tests/NativeCallTests.php</file>
+      <file>tests/CloudPipelineOrderTests.php</file>
+      <file>tests/ExampleWeightingTests.php</file>
       <file>tests/ClientIpTests.php</file>
       <file>tests/ResourceCleanupTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
       <file>tests/ExamplesUseStartupEngineTests.php</file>
+      <file>tests/ExamplesWithoutKeyTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
+      <file>tests/StoppedExampleFindOutMoreTests.php</file>
     </testsuite>
     <testsuite name="Integration">
+      <file>tests/WebExamplesWithoutSettingsTests.php</file>
+      <file>tests/RelativeDataFileTests.php</file>
+      <file>tests/DataModelTests.php</file>
+      <file>tests/EngineCreationTests.php</file>
+      <file>tests/StartWithUnusableDataFileTests.php</file>
+      <file>tests/ReadTimingTests.php</file>
       <file>tests/IpIntelligenceCloudTests.php</file>
       <file>tests/IpIntelligenceOnPremiseTests.php</file>
+      <file>tests/RefreshDataTests.php</file>
+      <file>tests/PositionsAfterRefreshTests.php</file>
+      <file>tests/ServeWebExamplesTests.php</file>
       <file>tests/IpIntelligenceTranslationTests.php</file>
+      <file>tests/RestrictedPropertiesListTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/ExamplesWithoutSettingsTests.php</file>
+      <file>tests/MixedExamplesTests.php</file>
+      <file>tests/ChainedCallTests.php</file>
+    </testsuite>
+    <!-- Downloads a free data file from the distributor. Runs once, in
+         .github/workflows/data-file-download.yml, and not in the build
+         matrix, whose jobs take every free file from the asset cache. -->
+    <testsuite name="Download">
+      <file>tests/DownloadDataFileTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

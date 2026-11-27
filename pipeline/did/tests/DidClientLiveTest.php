@@ -32,31 +32,63 @@ use fiftyone\pipeline\did\IdType;
 use fiftyone\pipeline\did\Usage;
 use fiftyone\pipeline\did\NotSupportedException;
 use fiftyone\pipeline\did\SignatureOutcome;
+use fiftyone\pipeline\tests\PhpMessage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Live tests against the cloud, skipped without a resource key in
- * `_51DEGREES_RESOURCE_KEY`. The licence key is read from
- * `_51DEGREES_LICENSE_KEY` and the API base
- * from `_51DEGREES_CLOUD_ENDPOINT`, the same variables the examples read. Each test
- * costs uses against the subscription behind the resource key.
+ * Live tests against the cloud, run once for each resource key in
+ * {@see DidClientLiveTest::keys()} and skipped for a key that is not set.
+ * The 51Did key is given the licence key of its own account, because the
+ * service opens a sealed result only for a licence key of the account whose
+ * resource key sealed it. The API base is read from
+ * `_51DEGREES_CLOUD_ENDPOINT`, as the examples read it. Each test costs uses
+ * against the subscription behind the resource key.
  */
 class DidClientLiveTest extends TestCase
 {
     private string $resource;
     private DidClient $client;
 
-    protected function setUp(): void
+    /**
+     * The variable each resource key is read from, with the variable of the
+     * licence key that goes with it, or null where none does.
+     *
+     * @return array<string, array{0: string, 1: ?string}>
+     */
+    public static function keys(): array
     {
-        $resource = EnvironmentVariable::read('_51DEGREES_RESOURCE_KEY', 'RESOURCE_KEY');
-        if (!$resource) {
+        return [
+            'Bespoke' => ['_51DEGREES_RESOURCE_KEY_BESPOKE', null],
+            '51Did' => [
+                '_51DEGREES_RESOURCE_KEY_51DID',
+                '_51DEGREES_LICENSE_KEY_51DID'
+            ],
+        ];
+    }
+
+    /**
+     * Makes the client for the resource key the variable names, or skips the
+     * test when the variable is not set.
+     */
+    private function connect(
+        string $resourceVariable,
+        ?string $licenceVariable
+    ): void {
+        $resource = EnvironmentVariable::read($resourceVariable);
+        if ($resource === '') {
             $this->markTestSkipped(
-                'Set _51DEGREES_RESOURCE_KEY to run the live tests.'
+                'Set ' . $resourceVariable . ' to run the live tests with it.'
             );
         }
         $this->resource = $resource;
-        $licence = EnvironmentVariable::read('_51DEGREES_LICENSE_KEY', 'LICENSE_KEY');
-        $this->client = new DidClient($resource, $licence ?: null);
+        $licence = $licenceVariable === null
+            ? ''
+            : EnvironmentVariable::read($licenceVariable);
+        $this->client = new DidClient(
+            $resource,
+            $licence === '' ? null : $licence
+        );
     }
 
     /**
@@ -76,7 +108,9 @@ class DidClientLiveTest extends TestCase
             'header' => "User-Agent: fiftyone-pipeline-did-php-tests\r\n",
             'ignore_errors' => true,
         ]]);
-        $body = @file_get_contents($url, false, $context);
+        $body = PhpMessage::take(function () use (&$url, &$context) {
+            return file_get_contents($url, false, $context);
+        });
         $this->assertNotFalse($body, 'No response from the json endpoint.');
         $json = json_decode($body, true);
         $this->assertIsArray(
@@ -95,8 +129,15 @@ class DidClientLiveTest extends TestCase
         return FodId::fromBase64($value);
     }
 
-    public function testCreatedIdentifierVerifiesOfflineAndThroughTheCloud(): void
-    {
+    /**
+     * @dataProvider keys
+     */
+    #[DataProvider('keys')]
+    public function testCreatedIdentifierVerifiesOfflineAndThroughTheCloud(
+        string $resourceVariable,
+        ?string $licenceVariable
+    ): void {
+        $this->connect($resourceVariable, $licenceVariable);
         $fodId = $this->create();
         $this->assertTrue(
             $this->client->verifySignature($fodId),
@@ -112,8 +153,15 @@ class DidClientLiveTest extends TestCase
         );
     }
 
-    public function testRedeemWithGarbageResultIsUnreadable(): void
-    {
+    /**
+     * @dataProvider keys
+     */
+    #[DataProvider('keys')]
+    public function testRedeemWithGarbageResultIsUnreadable(
+        string $resourceVariable,
+        ?string $licenceVariable
+    ): void {
+        $this->connect($resourceVariable, $licenceVariable);
         $fodId = $this->create();
         try {
             $result = $this->client->redeem($fodId, 'not-base64url!!', 'challenge');
@@ -141,9 +189,15 @@ class DidClientLiveTest extends TestCase
      * service only opens the result for a license key of the resource
      * key's account, so without one it must answer unreadable and with one
      * it must answer a verdict.
+     *
+     * @dataProvider keys
      */
-    public function testRedeemSealedResultReadsVerdictWithLicenseKey(): void
-    {
+    #[DataProvider('keys')]
+    public function testRedeemSealedResultReadsVerdictWithLicenseKey(
+        string $resourceVariable,
+        ?string $licenceVariable
+    ): void {
+        $this->connect($resourceVariable, $licenceVariable);
         // A browser User-Agent unlike the one verify-context sees below, so
         // the factors move and the verdict reports every one of them.
         $fodId = $this->create(['user-agent' =>
@@ -160,7 +214,9 @@ class DidClientLiveTest extends TestCase
             'header' => "User-Agent: fiftyone-pipeline-did-php-tests\r\n",
             'ignore_errors' => true,
         ]]);
-        $body = @file_get_contents($url, false, $context);
+        $body = PhpMessage::take(function () use (&$url, &$context) {
+            return file_get_contents($url, false, $context);
+        });
         $this->assertNotFalse($body, 'No response from verify-context.');
         $sealed = json_decode($body, true)['result'] ?? null;
         if (!is_string($sealed)) {
@@ -231,7 +287,9 @@ class DidClientLiveTest extends TestCase
             'header' => "User-Agent: fiftyone-pipeline-did-php-tests\r\n",
             'ignore_errors' => true,
         ]]);
-        $body = @file_get_contents($url, false, $context);
+        $body = PhpMessage::take(function () use (&$url, &$context) {
+            return file_get_contents($url, false, $context);
+        });
         $this->assertNotFalse($body, 'No response from the json endpoint.');
         $json = json_decode($body, true);
         $this->assertIsArray(
@@ -287,9 +345,15 @@ class DidClientLiveTest extends TestCase
      * and those are the rows that show the service wrote the byte, because
      * an identifier from a service predating the Terms release ends at the
      * match key and reads as no terms.
+     *
+     * @dataProvider keys
      */
-    public function testEveryUsageReadsBackTheTermsAndFlagsTheServiceWrote(): void
-    {
+    #[DataProvider('keys')]
+    public function testEveryUsageReadsBackTheTermsAndFlagsTheServiceWrote(
+        string $resourceVariable,
+        ?string $licenceVariable
+    ): void {
+        $this->connect($resourceVariable, $licenceVariable);
         $cases = [
             ['non-marketing', Usage::NonMarketing, null],
             ['standard', Usage::Standard, self::MODEL_TERMS_FOR_MARKETING_2],
@@ -342,9 +406,15 @@ class DidClientLiveTest extends TestCase
      * repeated here rather than shared, for the same reason as the address
      * above. The first grants all twelve purposes and the second the
      * Appendix 1 standard set of 1, 2, 7, 8 and 11.
+     *
+     * @dataProvider keys
      */
-    public function testConsentStringSetsTheUsageIsIndirectBit(): void
-    {
+    #[DataProvider('keys')]
+    public function testConsentStringSetsTheUsageIsIndirectBit(
+        string $resourceVariable,
+        ?string $licenceVariable
+    ): void {
+        $this->connect($resourceVariable, $licenceVariable);
         $cases = [
             ['AAAAAAAAAAAAAAAAAAAAAAAAAP_w', Usage::Personalized],
             ['AAAAAAAAAAAAAAAAAAAAAAAAAMMg', Usage::Standard],

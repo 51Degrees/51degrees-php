@@ -152,3 +152,20 @@ foreach ($examples as $label => $value) {
         throw new RuntimeException("Expected {$label} not to read.");
     }
 }
+
+// Find out more, the links for the person running this example to follow
+// up.
+$findOutMore = [
+    'This example' =>
+        'https://github.com/51Degrees/51degrees-php/tree/main/pipeline/did',
+    'The 51Did specification' =>
+        'https://github.com/51Degrees/specifications/tree/main/did-specification',
+    'What a 51Did is' =>
+        'https://51degrees.com/documentation/_identifiers__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-fodid_example.php&utm_term=find-out-more-51did',
+    'Contact us' =>
+        'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-fodid_example.php&utm_term=find-out-more-contact'
+];
+echo "\nFind out more\n-------------\n";
+foreach ($findOutMore as $label => $url) {
+    echo "{$label}: {$url}\n";
+}

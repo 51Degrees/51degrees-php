@@ -36,9 +36,25 @@ use fiftyone\pipeline\engines\AspectData;
  * AspectPropertyValue. Weighted properties (for example Mcc) are returned
  * as a list of ['value' => ..., 'rawweighting' => ...] arrays, matching the
  * shape returned by the cloud engine.
+ *
+ * SwigData, and the native results it holds, is not safe to use from
+ * several threads at once, because reading a value writes into the native
+ * results, and SwigData takes no lock. The caller is responsible for
+ * thread-safe access, so a caller that shares an instance between threads
+ * coordinates that itself.
  */
 class SwigData extends AspectData
 {
+    /**
+     * The properties the data file stores as an Azimuth or a Declination.
+     * The native code writes their text to 3 places, and their numbers are
+     * rounded here to match. The wrapper does not say how a value is stored,
+     * so they are named.
+     */
+    private const ANGLE_PROPERTIES = ['latitude', 'longitude'];
+
+    private const ANGLE_DECIMAL_PLACES = 3;
+
     private $result;
 
     private ?string $echoIp;
@@ -127,6 +143,10 @@ class SwigData extends AspectData
         $name = $property['name'];
         $type = strtolower((string) $property['type']);
 
+        // Every value is read at the property's position in the names the
+        // engine was built with, which a data refresh does not change.
+        $position = $this->flowElement->getPosition($key);
+
         // Mcc is weighted even though its metadata type is "string"
         // (ip-intelligence-dotnet parity).
         if ($type === 'string' && strtolower($name) === 'mcc') {
@@ -137,14 +157,17 @@ class SwigData extends AspectData
             case 'weightedstring':
             case 'weightedwkbr':
             case 'weightedwkb':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedStringList($name));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedStringList($position));
             case 'weightedint':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedIntegerList($name));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedIntegerList($position));
             case 'weighteddouble':
             case 'weightedsingle':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedDoubleList($name));
+                return $this->weightedListToValue(
+                    $this->result->getValuesAsWeightedDoubleList($position),
+                    self::isAngle($name)
+                );
             case 'weightedbool':
-                return $this->weightedListToValue($this->result->getValuesAsWeightedBoolList($name));
+                return $this->weightedListToValue($this->result->getValuesAsWeightedBoolList($position));
             case 'wkb':
             case 'wkbr':
             case 'ipaddress':
@@ -152,23 +175,26 @@ class SwigData extends AspectData
             case 'javascript':
                 // WKB geometry (e.g. Areas) and IP address properties are
                 // exposed via their string form, matching the .NET binding.
-                return $this->singleValue($this->result->getValueAsString($name));
+                return $this->singleValue($this->result->getValueAsString($position));
             case 'int':
-                return $this->singleValue($this->result->getValueAsInteger($name));
+                return $this->singleValue($this->result->getValueAsInteger($position));
             case 'double':
             case 'single':
-                return $this->singleValue($this->result->getValueAsDouble($name));
+                return $this->singleValue(
+                    $this->result->getValueAsDouble($position),
+                    self::isAngle($name)
+                );
             case 'bool':
-                return $this->singleValue($this->result->getValueAsBool($name));
+                return $this->singleValue($this->result->getValueAsBool($position));
             case 'string[]':
-                $value = $this->result->getValues($name);
+                $value = $this->result->getValues($position);
                 if ($value->hasValue()) {
                     return new AspectPropertyValue(null, SwigHelpers::vectorToArray($value->getValue()));
                 }
 
                 return new AspectPropertyValue($value->getNoValueMessage());
             default:
-                return $this->singleValue($this->result->getValueAsString($name));
+                return $this->singleValue($this->result->getValueAsString($position));
         }
     }
 
@@ -176,14 +202,40 @@ class SwigData extends AspectData
      * Convert a SWIG wrapped Value to an AspectPropertyValue.
      *
      * @param object $value SWIG Value wrapper with hasValue()/getValue()
+     * @param bool $angle Whether the value is an Azimuth or a Declination
      */
-    private function singleValue($value): AspectPropertyValue
+    private function singleValue($value, bool $angle = false): AspectPropertyValue
     {
         if ($value->hasValue()) {
-            return new AspectPropertyValue(null, $value->getValue());
+            return new AspectPropertyValue(null, self::number($value->getValue(), $angle));
         }
 
         return new AspectPropertyValue($value->getNoValueMessage());
+    }
+
+    /**
+     * Whether the property's values are converted from an Azimuth or a
+     * Declination.
+     */
+    private static function isAngle(string $name): bool
+    {
+        return in_array(strtolower($name), self::ANGLE_PROPERTIES, true);
+    }
+
+    /**
+     * An angle to 3 decimal places, as the value types section of the
+     * Pipeline specification requires, rounding a half away from zero as
+     * the native code does when it writes the text. Any other value is
+     * returned as it is.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private static function number($value, bool $angle)
+    {
+        return $angle && is_float($value)
+            ? round($value, self::ANGLE_DECIMAL_PLACES)
+            : $value;
     }
 
     /**
@@ -192,8 +244,9 @@ class SwigData extends AspectData
      * AspectPropertyValue.
      *
      * @param object $value SWIG Value wrapper holding a weighted value list
+     * @param bool $angle Whether the values are an Azimuth or a Declination
      */
-    private function weightedListToValue($value): AspectPropertyValue
+    private function weightedListToValue($value, bool $angle = false): AspectPropertyValue
     {
         if (!$value->hasValue()) {
             return new AspectPropertyValue($value->getNoValueMessage());
@@ -204,7 +257,7 @@ class SwigData extends AspectData
         for ($i = 0; $i < $list->size(); ++$i) {
             $weighted = $list->get($i);
             $items[] = [
-                Constants::WEIGHTED_VALUE_KEY => $weighted->getValue(),
+                Constants::WEIGHTED_VALUE_KEY => self::number($weighted->getValue(), $angle),
                 Constants::WEIGHTED_RAW_WEIGHTING_KEY => self::rawWeighting($weighted),
             ];
         }

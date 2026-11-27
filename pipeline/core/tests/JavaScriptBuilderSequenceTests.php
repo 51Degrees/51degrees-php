@@ -27,6 +27,7 @@ use fiftyone\pipeline\core\ElementDataDictionary;
 use fiftyone\pipeline\core\FlowElement;
 use fiftyone\pipeline\core\JavascriptBuilderElement;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -110,11 +111,13 @@ class JavaScriptBuilderSequenceTests extends TestCase
         $path = $base . '.js';
         file_put_contents($path, $script);
         try {
-            $process = @proc_open(
-                ['node', '--check', $path],
-                [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-                $pipes
-            );
+            $process = PhpMessage::take(function () use (&$path, &$pipes) {
+                return proc_open(
+                    ['node', '--check', $path],
+                    [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+                    $pipes
+                );
+            });
             if (!is_resource($process)) {
                 $this->markTestSkipped('Node is needed to parse the script');
             }

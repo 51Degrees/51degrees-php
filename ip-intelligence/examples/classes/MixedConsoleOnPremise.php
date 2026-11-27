@@ -51,7 +51,7 @@ class MixedConsoleOnPremise
     private const CONTACT_US = 'https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-classes-mixedconsoleonpremise.php&utm_term=enterprise-data-file';
 
     public const DEVICE_DETECTION_ONPREMISE_CLASS =
-        'fiftyone\\pipeline\\devicedetection\\DeviceDetectionOnPremise';
+        ExampleUtils::DEVICE_DETECTION_ONPREMISE_CLASS;
 
     /**
      * @param resource $output
@@ -61,11 +61,18 @@ class MixedConsoleOnPremise
     public function run($output): void
     {
         $ddClass = self::DEVICE_DETECTION_ONPREMISE_CLASS;
-        if (!class_exists($ddClass)) {
+        if (!ExampleUtils::findDeviceDetectionOnPremise()) {
             throw new \Exception(
                 'The device detection on-premise package is not installed. Install ' .
                 '51degrees/fiftyone.devicedetection (on-premise) and build its native ' .
                 'extension to run the mixed on-premise example.'
+            );
+        }
+        if (!extension_loaded('FiftyOneDegreesHashEngine')) {
+            throw new \Exception(
+                'The FiftyOneDegreesHashEngine extension is not loaded. ' .
+                'device-detection/onpremise/OnPremise.md says how to build and ' .
+                'enable it.'
             );
         }
 

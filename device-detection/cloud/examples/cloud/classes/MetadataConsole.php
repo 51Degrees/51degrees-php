@@ -62,10 +62,19 @@ class MetadataConsole
      *
      * @param string $resourceKey
      * @param \fiftyone\pipeline\core\Logger $logger
+     * @param callable $output
+     * @param float|int|null $timeoutSeconds The timeout of each request to the
+     * cloud service, or null for the Cloud Request Engine's default
      */
-    public function run($resourceKey, $logger, callable $output)
+    public function run($resourceKey, $logger, callable $output, $timeoutSeconds = null)
     {
-        $pipeline = (new DeviceDetectionPipelineBuilder(['resourceKey' => $resourceKey]))
+        $settings = ['resourceKey' => $resourceKey];
+
+        if ($timeoutSeconds !== null) {
+            $settings['timeoutSeconds'] = $timeoutSeconds;
+        }
+
+        $pipeline = (new DeviceDetectionPipelineBuilder($settings))
             ->addLogger($logger)
             ->build();
         
@@ -79,7 +88,7 @@ class MetadataConsole
         // by the call to the cloud service that is made by the CloudRequestEngine.
         // The CloudRequestEngine is actually taking the evidence values and passing
         // them to the cloud, so that's the engine we want the keys from.
-        $this->outputEvidenceKeyDetails($pipeline->getElement('cloud'), $output);
+        $this->outputEvidenceKeyDetails($pipeline->getElement('cloud-response'), $output);
     }
 
     private function outputProperties($engine, callable $output)

@@ -42,3 +42,5 @@ ExampleUtils::startWithEngine($argv, ExampleConstants::ASN_DATA_FILE_NAME);
 $maxSeconds = (count($argv) > 2 && is_numeric($argv[2])) ? (float) $argv[2] : 10.0;
 
 (new PerformanceConsoleOnPremise())->run($maxSeconds, STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

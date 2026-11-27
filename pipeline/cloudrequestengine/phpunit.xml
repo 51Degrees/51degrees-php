@@ -1,19 +1,47 @@
-<phpunit bootstrap="vendor/autoload.php">
+<!-- Every PHP error, warning, notice and deprecation fails the run, as do
+     risky and incomplete tests. The attributes are those of PHPUnit 9.6,
+     the version the build matrix runs. tests/bootstrap.php fails the run
+     on a warning, notice, deprecation or fatal error from a PHP the tests
+     start, or one PHPUnit does not handle. -->
+<phpunit bootstrap="tests/bootstrap.php"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         convertDeprecationsToExceptions="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnIncomplete="true">
   <php>
-    <env name="_51DEGREES_RESOURCE_KEY" value="!!YOUR_RESOURCE_KEY!!"/>
+    <!-- Report every level, whatever php.ini sets. -->
+    <ini name="error_reporting" value="-1"/>
   </php>
   <testsuites>
     <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
       <file>tests/CloudResponse.php</file>
       <file>tests/CredentialsTests.php</file>
+      <file>tests/DiscoveryTests.php</file>
+      <file>tests/CloudWarningsAndErrorsTests.php</file>
       <file>tests/CloudRequestEngineTests.php</file>
       <file>tests/MissingPropertyHandling.php</file>
       <file>tests/RequestValueCacheTests.php</file>
+      <file>tests/DataKeyTests.php</file>
       <file>tests/HttpClientFailureTests.php</file>
+      <file>tests/MaskedWarningTests.php</file>
+      <file>tests/CloudEngineWktTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>
+      <file>tests/TimeoutTests.php</file>
+      <file>tests/AspectEnginePropertiesTests.php</file>
       <file>tests/CloudAllEvidenceTests.php</file>
       <file>tests/MissingProductTests.php</file>
+      <file>tests/MissingProductAtBuildTests.php</file>
+      <file>tests/CloudEngineMetadataReasonTests.php</file>
+      <file>tests/CloudRequestFailedTests.php</file>
       <file>tests/EnvironmentVariableTests.php</file>
+      <file>tests/ExampleTests.php</file>
+      <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
     </testsuite>
     <testsuite name="Integration">
       <file>tests/CloudRequestTests.php</file>

@@ -23,7 +23,7 @@ REPO_ROOT="$(cd "${PACKAGE_ROOT}/../.." && pwd)"
 PACKAGE="${PACKAGE_ROOT#"${REPO_ROOT}"/}"
 IMAGE="php:${PHP_VERSION}-cli"
 DATA_REL="cxx/data/device-detection/51Degrees-LiteV4.1.hash"
-CSV_REL="cxx/data/device-detection/20000 User Agents.csv"
+EVIDENCE_REL="cxx/data/device-detection/20000 Evidence Records.yml"
 
 if [ ! -f "${REPO_ROOT}/${DATA_REL}" ]; then
     echo "Lite data file not found at ${DATA_REL}." >&2
@@ -35,11 +35,14 @@ fi
 
 echo "Building and testing with ${IMAGE} ..."
 
+# The container reads the data file and the evidence file under the names
+# the test reads, and takes the package folder as its first argument.
+# Compiler warnings are errors unless the caller sets
+# _51DEGREES_WARNINGS_AS_ERRORS, as in every build 51Degrees runs.
 docker run --rm \
     -v "${REPO_ROOT}:/repo:ro" \
-    -e DATA="/repo/${DATA_REL}" \
-    -e CSV="/repo/${CSV_REL}" \
-    -e PACKAGE="${PACKAGE}" \
+    -e _51DEGREES_DD_PATH="/repo/${DATA_REL}" \
+    -e _51DEGREES_EVIDENCE_YAML="/repo/${EVIDENCE_REL}" \
     "${IMAGE}" bash -euo pipefail -c '
         echo "==> Installing build tools"
         apt-get update -qq
@@ -48,7 +51,7 @@ docker run --rm \
         docker-php-ext-install pcntl >/dev/null
 
         echo "==> Building the extension"
-        cp -a "/repo/${PACKAGE}" /build
+        cp -a "/repo/$1" /build
         rm -rf /build/on-premise/cxx && mkdir -p /build/on-premise/cxx
         cp -a /repo/cxx/src /build/on-premise/cxx/src
         cd /build/on-premise
@@ -59,10 +62,8 @@ docker run --rm \
 
         echo "==> Running the fork-safety reproduction (issue #38)"
         cat > /tmp/ff.ini <<INI
-FiftyOneDegreesHashEngine.data_file=${DATA}
+FiftyOneDegreesHashEngine.data_file=${_51DEGREES_DD_PATH}
 extension=/build/on-premise/modules/FiftyOneDegreesHashEngine.so
 INI
-        _51DEGREES_DD_PATH="${DATA}" \
-        _51DEGREES_UA_CSV="${CSV}" \
-            php -c /tmp/ff.ini /build/configuration-tests/testForkSafety.php
-    '
+        php -c /tmp/ff.ini /build/configuration-tests/testForkSafety.php
+    ' bash "${PACKAGE}"

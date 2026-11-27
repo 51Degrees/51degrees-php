@@ -36,6 +36,14 @@ use PHPUnit\Framework\TestCase;
 class IpIntelligenceCloudTests extends TestCase
 {
     /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
+    /**
      * Build a cloud pipeline backed by the MockHttpClient so the tests run
      * with no network access or resource key.
      */
@@ -172,23 +180,24 @@ class IpIntelligenceCloudTests extends TestCase
 
     /**
      * Live integration test - only runs when a real resource key has been
-     * supplied via the resource_key environment variable.
+     * supplied via the _51DEGREES_RESOURCE_KEY_BESPOKE environment variable.
+     * It requires a CountryCode value for a known address.
      */
     public function testLiveCloud(): void
     {
         $resourceKey = EnvironmentVariable::read(
-            Constants::RESOURCE_KEY_VARIABLE,
-            Constants::RESOURCE_KEY_ENV_VAR,
-            '!!YOUR_RESOURCE_KEY!!'
+            Constants::RESOURCE_KEY_VARIABLE
         );
         if ($resourceKey === '') {
-            $this->markTestSkipped('No resource_key environment variable set - skipping live cloud test.');
+            $this->markTestSkipped('No ' . Constants::RESOURCE_KEY_VARIABLE . ' environment variable set - skipping live cloud test.');
         }
 
-        $settings = ['resourceKey' => $resourceKey];
+        $settings = [
+            'resourceKey' => $resourceKey,
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ];
         $endPoint = EnvironmentVariable::read(
-            CloudConstants::CLOUD_ENDPOINT_VARIABLE,
-            CloudConstants::FOD_CLOUD_API_URL
+            CloudConstants::CLOUD_ENDPOINT_VARIABLE
         );
         if ($endPoint) {
             $settings['cloudEndPoint'] = $endPoint;
@@ -205,7 +214,6 @@ class IpIntelligenceCloudTests extends TestCase
             curl_setopt($ch, CURLOPT_NOBODY, true);
             curl_exec($ch);
             $errno = curl_errno($ch);
-            curl_close($ch);
             if ($errno !== 0) {
                 $this->markTestSkipped(sprintf(
                     'Cloud endpoint not reachable in this environment (curl errno %d). ' .
@@ -220,13 +228,19 @@ class IpIntelligenceCloudTests extends TestCase
         $flowData->evidence->set('query.client-ip-51d', Constants::IPV4_ADDRESS);
         $result = $flowData->process();
 
-        // The country property should be present and authorised for the key.
-        $country = $result->ip->get('country');
-        $this->assertNotNull($country);
-        if ($country->hasValue) {
-            $this->assertNotNull($country->value);
-        } else {
-            $this->assertNotNull($country->noValueMessage);
-        }
+        // The key carries every IP Intelligence property, so the cloud must
+        // answer with a country code for this address. An answer with only
+        // the reason there is no value fails, because that is what a key
+        // without the IP Intelligence product gets.
+        $countryCode = $result->ip->get('countrycode');
+        $this->assertTrue(
+            $countryCode->hasValue,
+            'The cloud answered without CountryCode (' .
+                ($countryCode->noValueMessage ?? 'no reason given') .
+                '), which is what a key that does not carry the ip ' .
+                'product gets.'
+        );
+        $this->assertIsString($countryCode->value);
+        $this->assertNotSame('', $countryCode->value);
     }
 }

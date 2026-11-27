@@ -1,0 +1,47 @@
+name: Test attributes
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - rc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-attributes:
+    name: Every PHPUnit annotation has its attribute and every configuration fails on warnings
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Test the check
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/check-test-attributes.Tests.ps1 -CI
+
+      - name: Check the tests
+        shell: pwsh
+        run: ./ci/check-test-attributes.ps1
+
+      - name: Every PHPUnit configuration fails on warnings
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/phpunit-settings.Tests.ps1 -CI
+
+      # The check reads PHP's own tokens, so it needs PHP.
+      - uses: shivammathur/setup-php@v2
+        if: ${{ !cancelled() }}
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: No PHP file uses the @ operator
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/check-error-control.Tests.ps1 -CI

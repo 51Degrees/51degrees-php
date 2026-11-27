@@ -4,8 +4,31 @@ PHP_ADD_LIBRARY(stdc++, , FIFTYONEDEGREESHASHENGINE_LIBADD)
 PHP_ARG_ENABLE(FiftyOneDegreesHashEngine, whether to enable 51Degrees Hash engine,
 [ --enable-FiftyOneDegreesHashEngine   Enable 51Degrees Hash Device Detection])
 
-CFLAGS="$CFLAGS -std=gnu11 -Wall -Werror -Wno-missing-braces -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-strict-aliasing"
-CXXFLAGS="${CXXFLAGS} -std=gnu++17 -fpermissive -Wall -Werror -Wno-write-strings -Wno-delete-non-virtual-dtor -Wno-unused-label -Wno-unused-variable"
+dnl Every symbol but get_module, which the SWIG wrapper marks as exported, is
+dnl hidden. The IP intelligence extension holds common's functions under the
+dnl same names, built with different settings, and a PHP that loads
+dnl extensions without RTLD_DEEPBIND, as PHP 8.5 on Linux does, would
+dnl otherwise bind this extension's calls to the other's copy.
+VISIBILITY="-fvisibility=hidden"
+dnl The SWIG wrapper marks its runtime functions and labels with SWIGUNUSED,
+dnl which GCC and Clang read as the unused attribute, so it would hide the
+dnl unused function and unused label warnings. Defining it empty shows them.
+NOT_HIDDEN="-DSWIGUNUSED="
+dnl Compiler warnings are always shown. They stop the build only when the
+dnl environment variable _51DEGREES_WARNINGS_AS_ERRORS is "true", ignoring
+dnl case, as it is in every build 51Degrees runs, so a newer compiler on
+dnl another machine shows its warnings without stopping an install.
+AC_MSG_CHECKING(whether compiler warnings are errors)
+WARNINGS_AS_ERRORS=`printf '%s' "$_51DEGREES_WARNINGS_AS_ERRORS" | tr ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz`
+if test "$WARNINGS_AS_ERRORS" = "true"; then
+  WERROR="-Werror"
+  AC_MSG_RESULT(yes)
+else
+  WERROR=""
+  AC_MSG_RESULT(no)
+fi
+CFLAGS="$CFLAGS $VISIBILITY $NOT_HIDDEN -std=gnu11 -Wall $WERROR"
+CXXFLAGS="${CXXFLAGS} $VISIBILITY $NOT_HIDDEN -std=gnu++17 -Wall $WERROR"
 case "$host_os" in
 linux*) LDFLAGS="$LDFLAGS -latomic" ;;
 esac

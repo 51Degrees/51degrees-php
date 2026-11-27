@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\devicedetection\tests;
 
+use fiftyone\pipeline\devicedetection\DeviceDetectionOnPremise;
 use fiftyone\pipeline\devicedetection\SwigData;
 use fiftyone\pipeline\devicedetection\tests\classes\StubSwigEngine;
 use fiftyone\pipeline\devicedetection\tests\classes\StubSwigResult;
@@ -97,7 +98,7 @@ class SwigDataReadTests extends TestCase
     {
         $properties = [
             'ismobile' => ['name' => 'IsMobile', 'type' => 'Boolean', 'category' => 'Device'],
-            'difference' => ['name' => 'Difference', 'type' => 'Integer', 'category' => 'DeviceMetrics'],
+            'difference' => ['name' => 'Difference', 'type' => 'Integer', 'category' => 'Device Metrics'],
         ];
         $result = new StubSwigResult(['IsMobile' => new StubSwigValue(true, true)]);
         $data = new SwigData(new StubSwigEngine($properties), $result);
@@ -105,5 +106,46 @@ class SwigDataReadTests extends TestCase
         $this->assertTrue($data->getInternal('ismobile')->value);
         $this->assertSame(0, $data->getInternal('difference')->value);
         $this->assertSame(['IsMobile'], $result->requestedKeys);
+    }
+
+    /**
+     * UserAgents lists each matched User-Agent once across every result, in
+     * the order the results give them, as the match metric table of
+     * device-detection-on-premise.md says.
+     */
+    public function testUserAgentsListsEachMatchedUserAgentOnce(): void
+    {
+        $properties = ['useragents' => self::metricProperty('useragents')];
+        $result = new StubSwigResult([], null, [
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X)',
+            '__________',
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X)',
+            '__________',
+        ]);
+        $data = new SwigData(new StubSwigEngine($properties), $result);
+
+        $this->assertSame(
+            [
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X)',
+                '__________',
+            ],
+            $data->getInternal('useragents')->value
+        );
+    }
+
+    /**
+     * The engine's own metadata for a match metric, so that a read is
+     * routed as the engine routes it.
+     *
+     * @return array<string, mixed>
+     */
+    private static function metricProperty(string $name): array
+    {
+        $metrics = (new \ReflectionClassConstant(
+            DeviceDetectionOnPremise::class,
+            'METRIC_PROPERTIES'
+        ))->getValue();
+
+        return $metrics[$name];
     }
 }

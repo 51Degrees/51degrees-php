@@ -28,6 +28,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 $_SERVER['REMOTE_ADDR'] = '0.0.0.0';
 $_SERVER['REQUEST_URI'] = 'http://localhost';
 
+use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\GettingStartedConsole;
@@ -35,11 +36,30 @@ use fiftyone\pipeline\devicedetection\examples\cloud\classes\MetadataConsole;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\NativeModelLookupConsole;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\TacLookupConsole;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
+use fiftyone\pipeline\devicedetection\tests\classes\HardwareLookupOutput;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
 use PHPUnit\Framework\TestCase;
 
 class ExampleTests extends TestCase
 {
+    /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
+    /**
+     * A timeout no request to the cloud service can meet, so a test can see
+     * that an example passes the timeout it is given on.
+     */
+    private const TIMEOUT_NO_REQUEST_MEETS = 0.001;
+
+    // The values the TAC and native model examples look up.
+    private const TACS = ['35925406', '86386802'];
+    private const NATIVE_MODELS = ['SC-03L', 'iPhone11,8'];
+
     // Text that shows an example printed a programming fault rather than a
     // result. An example that reaches any of these is broken, however
     // little of the data the resource key is entitled to.
@@ -61,6 +81,7 @@ class ExampleTests extends TestCase
             $logger = new Logger('info');
             $config = json_decode(file_get_contents(__DIR__ . '/../examples/cloud/gettingStartedConsole.json'), true);
             ExampleUtils::setResourceKeyInConfig($config, $key);
+            $this->setCloudTimeoutInConfig($config);
             (new GettingStartedConsole())->run($config, $logger, $record);
         });
 
@@ -76,14 +97,16 @@ class ExampleTests extends TestCase
             $logger = new Logger('info');
             $config = json_decode(file_get_contents(__DIR__ . '/../examples/cloud/tacLookupConsole.json'), true);
             ExampleUtils::setResourceKeyInConfig($config, $key);
+            $this->setCloudTimeoutInConfig($config);
             (new TacLookupConsole())->run($config, $logger, $record);
         });
 
-        $this->assertStringContainsString(
-            "Which devices are associated with the TAC '35925406'?",
-            $output
+        $this->assertDevicesListed(
+            $output,
+            'TAC lookup',
+            'TAC',
+            self::TACS
         );
-        $this->assertDeviceLinesAreMeaningful($output);
     }
 
     public function testNativeModelLookupConsole()
@@ -92,14 +115,40 @@ class ExampleTests extends TestCase
 
         $output = $this->runExample(function ($record) use ($key) {
             $logger = new Logger('info');
-            (new NativeModelLookupConsole())->run($key, $logger, $record);
+            (new NativeModelLookupConsole())->run(
+                $key,
+                $logger,
+                $record,
+                '',
+                self::CLOUD_TIMEOUT_SECONDS
+            );
         });
 
-        $this->assertStringContainsString(
-            "Which devices are associated with the native model name 'SC-03L'?",
-            $output
+        $this->assertDevicesListed(
+            $output,
+            'native model lookup',
+            'native model name',
+            self::NATIVE_MODELS
         );
-        $this->assertDeviceLinesAreMeaningful($output);
+    }
+
+    /**
+     * The native model example passes the timeout it is given on to the
+     * Cloud Request Engine. A timeout no request can meet makes it fail.
+     */
+    public function testNativeModelLookupConsoleUsesTheTimeoutItIsGiven()
+    {
+        $key = $this->getResourceKey();
+
+        $this->expectException(\Exception::class);
+
+        (new NativeModelLookupConsole())->run(
+            $key,
+            new Logger('info'),
+            static function ($line) {},
+            '',
+            self::TIMEOUT_NO_REQUEST_MEETS
+        );
     }
 
     public function testMetadataConsole()
@@ -108,10 +157,48 @@ class ExampleTests extends TestCase
 
         $output = $this->runExample(function ($record) use ($key) {
             $logger = new Logger('info');
-            (new MetaDataConsole())->run($key, $logger, $record);
+            (new MetaDataConsole())->run(
+                $key,
+                $logger,
+                $record,
+                self::CLOUD_TIMEOUT_SECONDS
+            );
         });
 
         $this->assertNotEmpty($output);
+    }
+
+    /**
+     * The metadata example passes the timeout it is given on to the Cloud
+     * Request Engine. A timeout no request can meet makes it fail.
+     */
+    public function testMetadataConsoleUsesTheTimeoutItIsGiven()
+    {
+        $key = $this->getResourceKey();
+
+        $this->expectException(\Exception::class);
+
+        (new MetaDataConsole())->run(
+            $key,
+            new Logger('info'),
+            static function ($line) {},
+            self::TIMEOUT_NO_REQUEST_MEETS
+        );
+    }
+
+    /**
+     * Gives the Cloud Request Engine in an example's configuration the
+     * timeout the tests use, which the configuration file leaves out.
+     *
+     * @param array $config The decoded configuration file
+     */
+    private function setCloudTimeoutInConfig(array &$config): void
+    {
+        foreach ($config['PipelineOptions']['Elements'] as &$element) {
+            if ($element['BuilderName'] === CloudRequestEngine::class) {
+                $element['BuildParameters']['timeoutSeconds'] = self::CLOUD_TIMEOUT_SECONDS;
+            }
+        }
     }
 
     /**
@@ -148,29 +235,24 @@ class ExampleTests extends TestCase
     }
 
     /**
-     * Every device line the TAC and native model examples print must say
-     * something useful. Either it names a device, or it says the property
-     * has no value and gives the reason the cloud service supplied.
+     * Fails, with HardwareLookupOutput's reason, when the TAC or native
+     * model example said the resource key lacks the hardware lookup or
+     * listed no device with a vendor and a model for a value it looks up.
+     *
+     * @param string $output Everything the example wrote
+     * @param string $lookup The lookup, such as 'TAC lookup'
+     * @param string $subject What each value is, as the heading names it
+     * @param string[] $values The values the example looks up
      */
-    private function assertDeviceLinesAreMeaningful(string $output): void
-    {
-        $lines = array_filter(
-            explode("\n", $output),
-            static function ($line) { return strpos($line, "\t") === 0; }
-        );
-
-        $this->assertGreaterThan(
-            0,
-            count($lines),
-            'The example listed no devices and gave no reason for it'
-        );
-
-        foreach ($lines as $line) {
-            $this->assertNotSame(
-                '',
-                trim($line),
-                'A device line is empty'
-            );
+    private function assertDevicesListed(
+        string $output,
+        string $lookup,
+        string $subject,
+        array $values
+    ): void {
+        $failure = HardwareLookupOutput::failure($output, $lookup, $subject, $values);
+        if ($failure !== null) {
+            $this->fail($failure);
         }
     }
 
@@ -213,13 +295,13 @@ class ExampleTests extends TestCase
     }
 
     /**
-     * Runs a PHP script with the resource key in its environment and
-     * returns everything it wrote.
+     * Runs a PHP script with the resource key in the variable the examples
+     * read, and returns everything it wrote.
      */
     private function runScript(string $script, string $key): string
     {
         $environment = getenv();
-        $environment[Constants::RESOURCE_ENV_VAR] = $key;
+        $environment[ExampleUtils::RESOURCE_KEY_ENV_VAR] = $key;
 
         $process = proc_open(
             [PHP_BINARY, $script],

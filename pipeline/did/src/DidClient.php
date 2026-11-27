@@ -86,14 +86,6 @@ final class DidClient
      */
     public const CLOUD_ENDPOINT_VARIABLE = '_51DEGREES_CLOUD_ENDPOINT';
 
-    /**
-     * The environment variable read for the API base when
-     * {@see DidClient::CLOUD_ENDPOINT_VARIABLE} is not set or is empty.
-     *
-     * @deprecated use {@see DidClient::CLOUD_ENDPOINT_VARIABLE}
-     */
-    public const ENDPOINT_VARIABLE = 'FOD_CLOUD_API_URL';
-
     /** The Composer package name, sent in the User-Agent. */
     public const PACKAGE_NAME = '51degrees/fiftyone.pipeline.did';
 
@@ -133,22 +125,6 @@ final class DidClient
     /** Stands in for each hidden character of a licence key. */
     private const LICENCE_MASK_CHARACTER = '*';
 
-    /**
-     * Written to the PHP error log when the API base came from the
-     * deprecated environment variable, which is named first, then the
-     * one that replaces it.
-     */
-    private const OLD_ENDPOINT_VARIABLE_MESSAGE =
-        'The cloud endpoint was read from the environment variable %s, '
-        . 'which is deprecated. %s replaces it, so set that to the same '
-        . 'value.';
-
-    /**
-     * Whether the deprecated variable has been reported since PHP started
-     * the script, which under a web server is since the request began.
-     */
-    private static bool $oldEndpointVariableReported = false;
-
     private string $resourceKey;
     private ?string $licenceKey;
     private string $endpoint;
@@ -170,8 +146,7 @@ final class DidClient
      *     only, needed to redeem where the account holds licence keys.
      * @param string|null $endpoint The API base including `/api/v4/`. When
      *     null the `_51DEGREES_CLOUD_ENDPOINT` environment variable is read,
-     *     then the deprecated `FOD_CLOUD_API_URL`, then
-     *     {@see DidClient::DEFAULT_ENDPOINT}. A value with or without a
+     *     then {@see DidClient::DEFAULT_ENDPOINT}. A value with or without a
      *     trailing slash is normalised to end in exactly one.
      * @param callable|null $transport An HTTP transport for tests, called as
      *     `$transport(string $method, string $url, string[] $headers,
@@ -214,33 +189,14 @@ final class DidClient
     }
 
     /**
-     * The API base from the environment, or null when neither variable
-     * holds a value. The deprecated variable is read only when the new
-     * one gives nothing. Its use is written to the PHP error log, because
-     * the package has no logger, once for each time PHP runs the script.
-     * Under a web server that is once in each request that builds a
-     * client from the deprecated variable.
+     * The API base from the environment, or null when the variable holds
+     * no value.
      */
     private static function endpointFromEnvironment(): ?string
     {
         $new = getenv(self::CLOUD_ENDPOINT_VARIABLE);
-        if ($new !== false && $new !== '') {
-            return $new;
-        }
-        $old = getenv(self::ENDPOINT_VARIABLE);
-        if ($old === false || $old === '') {
-            return null;
-        }
-        if (!self::$oldEndpointVariableReported) {
-            self::$oldEndpointVariableReported = true;
-            error_log(sprintf(
-                self::OLD_ENDPOINT_VARIABLE_MESSAGE,
-                self::ENDPOINT_VARIABLE,
-                self::CLOUD_ENDPOINT_VARIABLE
-            ));
-        }
 
-        return $old;
+        return $new !== false && $new !== '' ? $new : null;
     }
 
     /** The API base, ending in one slash. */
@@ -939,6 +895,12 @@ final class DidClient
                 'The transport must answer with status and body.'
             );
         }
+        if (isset($response['warning']) && is_string($response['warning'])) {
+            trigger_error(
+                $this->maskLicence($response['warning']),
+                E_USER_WARNING
+            );
+        }
         return ['status' => $response['status'], 'body' => $response['body']];
     }
 
@@ -948,7 +910,7 @@ final class DidClient
      * sees what the service said rather than a bare warning.
      *
      * @param string[] $headers
-     * @return array{status: int, body: string}
+     * @return array{status: int, body: string, warning: ?string}
      *
      * @throws RuntimeException when no response arrives.
      */
@@ -968,22 +930,47 @@ final class DidClient
             $options['content'] = $body;
         }
         $context = stream_context_create(['http' => $options]);
-        // The @ keeps a connection failure from printing a warning, since
-        // the false return is reported as an exception below.
-        $response = @file_get_contents($url, false, $context);
+        // Before PHP 8.4, PHP gives the response headers only in
+        // $http_response_header, and sets it only in a function that has
+        // that variable. Being set first, it is not read as the predefined
+        // variable PHP 8.5 deprecates.
+        $http_response_header = [];
+        // A connection failure gives a warning and false. The warning is
+        // taken as the reason in the exception below.
+        $reason = null;
+        set_error_handler(
+            static function (int $level, string $message) use (&$reason): bool {
+                $reason = $message;
+                return true;
+            },
+            E_WARNING
+        );
+        try {
+            $response = file_get_contents($url, false, $context);
+        } finally {
+            restore_error_handler();
+        }
         if ($response === false) {
-            throw new RuntimeException("No response from {$url}.");
+            throw new RuntimeException(
+                "No response from {$url}." .
+                ($reason === null ? '' : " {$reason}")
+            );
         }
         $status = 0;
-        // PHP sets $http_response_header in the calling scope with the
-        // response headers, the status line first. A redirect leaves more
-        // than one status line, and the last is the answer.
-        foreach ($http_response_header ?? [] as $header) {
+        // The response headers, the status line first. A redirect leaves
+        // more than one status line, and the last is the answer.
+        $responseHeaders = function_exists('http_get_last_response_headers')
+            ? (http_get_last_response_headers() ?? [])
+            : $http_response_header;
+        foreach ($responseHeaders as $header) {
             if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $match)) {
                 $status = (int) $match[1];
             }
         }
-        return ['status' => $status, 'body' => $response];
+        // A warning from a request that was answered is not expected. It
+        // goes back with the answer, so that request() raises it again with
+        // the licence key masked.
+        return ['status' => $status, 'body' => $response, 'warning' => $reason];
     }
 
     /**

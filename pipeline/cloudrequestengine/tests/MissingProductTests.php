@@ -27,6 +27,7 @@ namespace fiftyone\pipeline\cloudrequestengine\tests;
 
 use fiftyone\pipeline\cloudrequestengine\CloudEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
+use fiftyone\pipeline\cloudrequestengine\HttpClient;
 use fiftyone\pipeline\core\Logger;
 use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\engines\AspectDataDictionary;
@@ -35,7 +36,10 @@ use PHPUnit\Framework\TestCase;
 /**
  * A Cloud Aspect Engine whose product is missing from the Resource Key does
  * not fail the Pipeline build. It builds with empty Property metadata, logs
- * the missing product once, and logs nothing on each response.
+ * the missing product once, and logs nothing on each response. With empty
+ * Property metadata the engine still reads every value in its part of the
+ * response, and the elements that read the metadata find nothing there and
+ * carry on.
  */
 class MissingProductTests extends TestCase
 {
@@ -149,5 +153,73 @@ class MissingProductTests extends TestCase
 
         $this->assertSame('x', $flowData->get('testElement')->get('one')->value);
         $this->assertSame([], $this->logged);
+    }
+
+    /**
+     * With empty Property metadata each value in the engine's part of the
+     * response is still read, with the type the value has in the JSON.
+     */
+    public function testReadsEveryValueWithEmptyPropertyMetadata()
+    {
+        [$pipeline, $cloud, $engine] = $this->pipeline([]);
+        $flowData = $pipeline->createFlowData();
+        $flowData->setElementData(new AspectDataDictionary(
+            $cloud,
+            ['cloud' => '{"testElement": {"ismobile": true, ' .
+                '"platformname": "iOS", "screenpixelswidth": 1170, ' .
+                '"screeninchesdiagonal": 6.1}}']
+        ));
+        $pipeline->flowElementsList['testElement']->process($flowData);
+
+        $this->assertSame([], $engine->getProperties());
+        $data = $flowData->get('testElement');
+        $this->assertSame(true, $data->get('ismobile')->value);
+        $this->assertSame('iOS', $data->get('platformname')->value);
+        $this->assertSame(1170, $data->get('screenpixelswidth')->value);
+        $this->assertSame(6.1, $data->get('screeninchesdiagonal')->value);
+    }
+
+    /**
+     * The elements a Pipeline adds by default read the Property metadata to
+     * decide what to bundle into JSON, put in JavaScript and set as
+     * response headers. With none for the engine they still process the
+     * request, and the engine's values are read.
+     */
+    public function testTheDefaultElementsTolerateEmptyPropertyMetadata()
+    {
+        $client = $this->createStub(HttpClient::class);
+        $client->method('makeCloudRequest')->willReturnCallback(
+            static function (string $type, string $url): string {
+                $lower = strtolower($url);
+                if (strpos($lower, 'accessibleproperties') !== false) {
+                    return '{"Products": {}}';
+                }
+                if (strpos($lower, 'evidencekeys') !== false) {
+                    return '["query.User-Agent"]';
+                }
+
+                return '{"testElement": {"ismobile": true}}';
+            }
+        );
+        $engine = new CloudEngine();
+        $engine->dataKey = 'testElement';
+        $pipeline = (new PipelineBuilder())
+            ->add(new CloudRequestEngine([
+                'resourceKey' => 'resourcekey',
+                'httpClient' => $client
+            ]))
+            ->add($engine)
+            ->build();
+
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->set('query.User-Agent', 'iPhone');
+        $flowData->process();
+
+        $this->assertSame([], $flowData->errors);
+        $this->assertSame([], $engine->getProperties());
+        $this->assertSame(
+            true,
+            $flowData->get('testElement')->get('ismobile')->value
+        );
     }
 }

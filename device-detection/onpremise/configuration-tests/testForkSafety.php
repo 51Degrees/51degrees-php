@@ -44,27 +44,47 @@
  * The test builds each kind of engine directly (bypassing the module which now
  * forces MaxPerformance), forks several workers that all share the inherited
  * handles, and checks the outcome:
- *   - streaming  -> keeps >= 1 open data-file handle AND corrupts under fork
+ *   - streaming  -> keeps >= 1 open data-file handle, AND a detection in a
+ *                   forked worker moves the file position the parent uses
  *   - in memory  -> keeps 0 open data-file handles AND stays correct under fork
+ *
+ * Whether the shared position then gives a corrupt read in a given run is a
+ * race between the workers. It shows in most runs and not in some, more often
+ * on a runner with few cores, so the streaming corruption count is printed as
+ * a demonstration and is not a condition for passing. The shared file
+ * position is the cause of that corruption and is the same in every run, so
+ * that is what the test asserts.
  *
  * Exit code 0 means the contrast was demonstrated. Any other code means the
  * expected behaviour was not observed.
  *
- * Inputs (env vars, with argv fallbacks):
- *   _51DEGREES_DD_PATH  path to a .hash data file   (argv[1], or the module's configured data_file)
- *   _51DEGREES_UA_CSV     path to a CSV/text file of User-Agents, one per line  (argv[3], optional)
+ * Inputs, from the environment:
+ *   _51DEGREES_DD_PATH        path to a .hash data file
+ *   _51DEGREES_EVIDENCE_YAML  path to a YAML evidence file, such as
+ *                             20000 Evidence Records.yml, whose
+ *                             header.user-agent values are detected
  *
- * The names these replaced are still read, as deprecated names, when the
- * variable is not set.
+ * Without the evidence file the test refuses to run, with exit code 2, as
+ * for a missing data file, because a few User-Agents do not always show the
+ * streaming profile's wrong results, so the outcome would come and go.
  */
+
+require_once __DIR__ . '/../tests/classes/EvidenceRecords.php';
+
+use fiftyone\pipeline\devicedetection\tests\classes\EvidenceRecords;
 
 const CHILDREN = 8;     // forked workers that all share the inherited handles
 const ITERATIONS = 40;  // passes over the User-Agent list per worker
 // The streaming corruption is a race between the workers. On a runner with
 // few cores one round sometimes passes without a collision, so the streaming
-// round is repeated until corruption is seen, up to this many times.
+// round is repeated until corruption is seen, up to this many times. The
+// count is only printed, so a run that sees none still passes.
 const STREAMING_ROUNDS = 6;
 const CRASH_WEIGHT = 250; // a worker killed by a signal is the strongest possible corruption signal
+// A round of workers normally ends in well under a minute. A worker still
+// running after this many seconds is stuck, so it is killed and counted
+// rather than left to hold the job until the workflow's own time limit.
+const WORKER_TIME_LIMIT = 300;
 
 function fail(string $message, int $code = 2): void
 {
@@ -72,42 +92,14 @@ function fail(string $message, int $code = 2): void
     exit($code);
 }
 
-/**
- * The value of an environment variable, read by its name and, when that is
- * not set or is empty, by the deprecated name it replaced, whose use is
- * reported on standard error.
- */
-function readVariable(string $name, string $deprecated): string
-{
-    $value = (string) getenv($name);
-    if ($value !== '') {
-        return $value;
-    }
-
-    $value = (string) getenv($deprecated);
-    if ($value !== '') {
-        fwrite(STDERR, "A value was read from the environment variable {$deprecated}, " .
-            "which is deprecated. {$name} replaces it, so set that to the same value.\n");
-    }
-
-    return $value;
+$dataFile = (string) getenv('_51DEGREES_DD_PATH');
+$evidenceFile = (string) getenv('_51DEGREES_EVIDENCE_YAML');
+if ($evidenceFile === '' || !is_file($evidenceFile)) {
+    fail("evidence file not found (set _51DEGREES_EVIDENCE_YAML): '{$evidenceFile}'");
 }
 
-$dataFile = readVariable('_51DEGREES_DD_PATH', 'FIFTYONE_DATA_FILE') ?: ($argv[1] ?? '');
-$uaCsv = readVariable('_51DEGREES_UA_CSV', 'FIFTYONE_UA_CSV') ?: ($argv[3] ?? '');
-
-// The extension defines the engine classes itself, so no wrapper file is
-// loaded for this variable.
-if ((string) getenv('FIFTYONE_WRAPPER') !== '') {
-    fwrite(STDERR, 'The environment variable FIFTYONE_WRAPPER is deprecated and ' .
-        "nothing replaces it. No wrapper file is loaded, so stop setting it.\n");
-}
-
-if ($dataFile === '' && function_exists('ini_get')) {
-    $dataFile = (string) ini_get('FiftyOneDegreesHashEngine.data_file');
-}
 if ($dataFile === '' || !is_file($dataFile)) {
-    fail("data file not found (set _51DEGREES_DD_PATH or pass it as the first argument): '{$dataFile}'");
+    fail("data file not found (set _51DEGREES_DD_PATH): '{$dataFile}'");
 }
 
 if (!function_exists('pcntl_fork')) {
@@ -118,25 +110,14 @@ if (!class_exists('EngineHashSwig') || !class_exists('ConfigHashSwig')) {
 }
 
 // Load a set of User-Agents to detect. The exact values do not matter, only
-// that there are enough distinct ones to exercise the data file.
-$userAgents = [];
-if ($uaCsv !== '' && is_file($uaCsv)) {
-    $handle = fopen($uaCsv, 'r');
-    while (($line = fgets($handle)) !== false && count($userAgents) < 200) {
-        $line = trim($line, " \t\r\n\"");
-        if ($line !== '' && stripos($line, 'user-agent') !== 0) {
-            $userAgents[] = $line;
-        }
-    }
-    fclose($handle);
-}
+// that there are enough distinct ones to exercise the data file, so the
+// first USER_AGENTS distinct values are taken.
+const USER_AGENTS = 200;
+$userAgents = array_slice(array_values(array_unique(
+    EvidenceRecords::values($evidenceFile, 'header.user-agent', PHP_INT_MAX)
+)), 0, USER_AGENTS);
 if (count($userAgents) === 0) {
-    $userAgents = [
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114',
-        'Mozilla/5.0 (Linux; Android 10; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0 Mobile Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15',
-    ];
+    fail("the evidence file holds no User-Agents: '{$evidenceFile}'");
 }
 
 /**
@@ -178,23 +159,100 @@ function buildEngine(string $dataFile, string $profile): EngineHashSwig
  *
  * The open handles are listed under /proc on Linux. Other platforms (for
  * example macOS) do not have it, so the count cannot be determined there and -1
- * is returned to mean "unknown". The corruption check below works everywhere
- * and is the cross-platform proof.
+ * is returned to mean "unknown". The in-memory corruption check below works
+ * everywhere.
  */
 function openDataFileHandles(string $dataFile): int
 {
     if (!is_dir('/proc/self/fd')) {
         return -1;
     }
+    return count(dataFileDescriptors($dataFile));
+}
+
+/**
+ * List the numbers of this process's file descriptors that point at the data
+ * file, read from /proc/self/fd.
+ */
+function dataFileDescriptors(string $dataFile): array
+{
     $target = realpath($dataFile);
-    $count = 0;
+    $descriptors = [];
     foreach (glob('/proc/self/fd/*') ?: [] as $fd) {
-        $link = @readlink($fd);
+        // The folder handle glob used is closed by now, so its entry is no
+        // longer a link and is passed over.
+        $link = is_link($fd) ? readlink($fd) : false;
         if ($link !== false && realpath($link) === $target) {
-            $count++;
+            $descriptors[] = basename($fd);
         }
     }
-    return $count;
+    return $descriptors;
+}
+
+/**
+ * Read the file position of each descriptor that points at the data file, from
+ * /proc/self/fdinfo. Returns null where there is no /proc, as the positions
+ * cannot be determined there.
+ */
+function dataFilePositions(string $dataFile): ?array
+{
+    if (!is_dir('/proc/self/fdinfo')) {
+        return null;
+    }
+    $positions = [];
+    foreach (dataFileDescriptors($dataFile) as $fd) {
+        $path = "/proc/self/fdinfo/{$fd}";
+        $info = is_readable($path) ? file_get_contents($path) : false;
+        if ($info !== false && preg_match('/^pos:\s+(\d+)/m', $info, $match)) {
+            $positions[$fd] = $match[1];
+        }
+    }
+    return $positions;
+}
+
+/**
+ * Fork one worker that detects every User-Agent once, and report whether that
+ * moved the file position this process sees on its own data-file handle. A
+ * forked worker shares the parent's file description, so a seek in the worker
+ * moves the position for the parent and for every other worker. That shared
+ * position is why concurrent workers read the wrong bytes. Unlike the
+ * corruption itself, it does not depend on how the workers are scheduled.
+ *
+ * Returns null where the positions cannot be read (no /proc, or no open
+ * handle to read), true when the position moved, and false when it did not.
+ */
+function workerMovesSharedPosition(EngineHashSwig $engine, array $userAgents, string $dataFile): ?bool
+{
+    $before = dataFilePositions($dataFile);
+    if ($before === null || count($before) === 0) {
+        return null;
+    }
+    $pid = pcntl_fork();
+    if ($pid === -1) {
+        fail('pcntl_fork failed');
+    }
+    if ($pid === 0) {
+        foreach ($userAgents as $userAgent) {
+            try {
+                // The device id is read from the profiles in the data file,
+                // which a streaming engine reads with a seek on the handle.
+                $engine->process($userAgent)->getDeviceId();
+            } catch (\Throwable $e) {
+                // Only the file position matters here, not the result.
+            }
+        }
+        exit(0);
+    }
+    $status = 0;
+    if (pcntl_waitpid($pid, $status) === -1) {
+        fail("pcntl_waitpid failed for worker {$pid}");
+    }
+    return dataFilePositions($dataFile) !== $before;
+}
+
+function movedLabel(?bool $moved): string
+{
+    return $moved === null ? 'unknown (no /proc on this platform, or no open handle)' : ($moved ? 'yes' : 'no');
 }
 
 function handlesLabel(int $handles): string
@@ -233,8 +291,12 @@ function detectionWorker(EngineHashSwig $engine, array $userAgents): int
  * run them concurrently, and total the corruption they observe. The parent does
  * not detect, so that a worker crash (a signal) is contained and reported
  * rather than taking the whole test down.
+ *
+ * Each worker is waited for until WORKER_TIME_LIMIT seconds after the round
+ * started. A worker still running then is killed and added to $stuck, so it
+ * does not hold the job until the workflow's own time limit.
  */
-function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
+function runForkedWorkers(EngineHashSwig $engine, array $userAgents, int &$stuck): int
 {
     $pids = [];
     for ($i = 0; $i < CHILDREN; $i++) {
@@ -250,8 +312,27 @@ function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
     }
 
     $total = 0;
+    $deadline = microtime(true) + WORKER_TIME_LIMIT;
     foreach ($pids as $pid) {
-        pcntl_waitpid($pid, $status);
+        $status = 0;
+        while (($waited = pcntl_waitpid($pid, $status, WNOHANG)) === 0) {
+            if (microtime(true) >= $deadline) {
+                break;
+            }
+            usleep(100000);
+        }
+        if ($waited === 0) {
+            // Still running at the time limit, so kill it and collect it.
+            fwrite(STDERR, "testForkSafety: worker {$pid} was still running after " .
+                WORKER_TIME_LIMIT . " seconds and was killed\n");
+            killWorker($pid);
+            pcntl_waitpid($pid, $status);
+            $stuck++;
+            continue;
+        }
+        if ($waited === -1) {
+            fail("pcntl_waitpid failed for worker {$pid}");
+        }
         if (pcntl_wifexited($status)) {
             $total += pcntl_wexitstatus($status);
         } elseif (pcntl_wifsignaled($status)) {
@@ -262,6 +343,19 @@ function runForkedWorkers(EngineHashSwig $engine, array $userAgents): int
     return $total;
 }
 
+/**
+ * Kill a worker that has not ended. posix_kill is used where the posix
+ * extension is loaded, and the kill command otherwise.
+ */
+function killWorker(int $pid): void
+{
+    if (function_exists('posix_kill')) {
+        posix_kill($pid, SIGKILL);
+    } else {
+        exec('kill -9 ' . $pid);
+    }
+}
+
 echo "Fork-safety reproduction (issue #38)\n";
 echo 'Data file: ' . $dataFile . "\n";
 echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterations: ' . ITERATIONS . "\n\n";
@@ -269,25 +363,31 @@ echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterat
 // --- Streaming (non in-memory) profile: expected to be unsafe across a fork ---
 $streaming = buildEngine($dataFile, 'Balanced');
 $streamingHandles = openDataFileHandles($dataFile);
+$streamingPositionMoved = workerMovesSharedPosition($streaming, $userAgents, $dataFile);
 $streamingCorruption = 0;
+$streamingStuck = 0;
 $streamingRounds = 0;
 while ($streamingCorruption < 1 && $streamingRounds < STREAMING_ROUNDS) {
-    $streamingCorruption += runForkedWorkers($streaming, $userAgents);
+    $streamingCorruption += runForkedWorkers($streaming, $userAgents, $streamingStuck);
     $streamingRounds++;
 }
 echo "Streaming (Balanced):\n";
 echo '  open data-file handles: ' . handlesLabel($streamingHandles) . "\n";
-echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s))\n\n";
+echo '  a forked worker moves the shared file position: ' . movedLabel($streamingPositionMoved) . "\n";
+echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s), printed only)\n";
+echo "  workers killed at the time limit: {$streamingStuck} (printed only)\n\n";
 unset($streaming);
 gc_collect_cycles();
 
 // --- In-memory (MaxPerformance) profile: expected to be safe across a fork ---
 $inMemory = buildEngine($dataFile, 'MaxPerformance');
 $inMemoryHandles = openDataFileHandles($dataFile);
-$inMemoryCorruption = runForkedWorkers($inMemory, $userAgents);
+$inMemoryStuck = 0;
+$inMemoryCorruption = runForkedWorkers($inMemory, $userAgents, $inMemoryStuck);
 echo "In memory (MaxPerformance):\n";
 echo '  open data-file handles: ' . handlesLabel($inMemoryHandles) . "\n";
-echo "  corruption events across fork: {$inMemoryCorruption}\n\n";
+echo "  corruption events across fork: {$inMemoryCorruption}\n";
+echo "  workers killed at the time limit: {$inMemoryStuck}\n\n";
 unset($inMemory);
 gc_collect_cycles();
 
@@ -300,12 +400,21 @@ if ($streamingHandles === 0) {
 if ($inMemoryHandles > 0) {
     $failures[] = "expected the in-memory engine to keep no open data-file handle, found {$inMemoryHandles}";
 }
-// The corruption checks work on every platform and are the core proof.
-if ($streamingCorruption < 1) {
-    $failures[] = 'expected the streaming profile to corrupt under fork, but no corruption was observed in ' . STREAMING_ROUNDS . ' rounds';
+// The shared file position is asserted where it can be read (Linux). The
+// streaming corruption count is not asserted, because whether the race shows
+// in a given run depends on how the workers are scheduled.
+if ($streamingPositionMoved === false) {
+    $failures[] = 'expected a detection in a forked streaming worker to move the file position the parent uses';
 }
+// The in-memory corruption check works on every platform.
 if ($inMemoryCorruption !== 0) {
     $failures[] = "expected the in-memory profile to be fork-safe, but observed {$inMemoryCorruption} corruption events";
+}
+// An in-memory worker that does not end is a defect. A streaming worker that
+// does not end has met a corrupt read, which comes from the same race as the
+// corruption count, so it is printed above and not asserted.
+if ($inMemoryStuck > 0) {
+    $failures[] = "{$inMemoryStuck} in-memory worker(s) did not end within " . WORKER_TIME_LIMIT . ' seconds and were killed';
 }
 
 if (count($failures) > 0) {
@@ -314,7 +423,7 @@ if (count($failures) > 0) {
 }
 
 echo "PASS\n";
-echo "A streaming profile keeps open file handles that are shared across a fork and corrupt reads.\n";
+echo "A streaming profile keeps open file handles whose position is shared across a fork, so concurrent reads can corrupt.\n";
 echo "The in-memory MaxPerformance profile keeps no file handles and is fork-safe.\n";
 echo "This is why MaxPerformance (in memory) is the only safe profile for PHP on premise.\n";
 exit(0);

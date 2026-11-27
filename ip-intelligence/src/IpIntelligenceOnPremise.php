@@ -55,6 +55,16 @@ class IpIntelligenceOnPremise extends Engine
      */
     private const ENGINE_SETTINGS = ['performanceProfile', 'restrictedProperties', 'concurrency'];
 
+    /**
+     * The highest port a client IP value can carry.
+     */
+    private const MAX_PORT = 65535;
+
+    /**
+     * The prefixes of the client IP keys, in the order they are tried.
+     */
+    private const CLIENT_IP_PREFIXES = ['query.', 'server.'];
+
     public string $dataKey = Constants::ELEMENT_DATA_KEY;
 
     public $engine;
@@ -89,12 +99,27 @@ class IpIntelligenceOnPremise extends Engine
     private array $evidenceKeys = [];
 
     /**
+     * A position given for a name the engine was not created with, which
+     * the native code reads as a property the data set does not have.
+     */
+    private const NO_POSITION = -1;
+
+    /**
      * Each name the engine was built with, keyed by the lowercase name, as
      * the engine gives it.
      *
      * @var null|array<string, string>
      */
     private ?array $requiredNames = null;
+
+    /**
+     * The position of each name the engine was built with, keyed by the
+     * lowercase name, being its index in those names. Every read of a value
+     * goes by it.
+     *
+     * @var null|array<string, int>
+     */
+    private ?array $positions = null;
 
     /**
      * The name, type and category of each property read so far, keyed by
@@ -128,7 +153,8 @@ class IpIntelligenceOnPremise extends Engine
      *                         Constants::PERFORMANCE_PROFILES, defaulting to
      *                         Constants::DEFAULT_PERFORMANCE_PROFILE.
      *   restrictedProperties- (optional, with dataFile) list of properties
-     *                         to populate.
+     *                         to populate, as an array or as one
+     *                         comma-separated string.
      *   concurrency         - (optional, with dataFile) expected concurrent
      *                         accesses.
      * @throws \Exception
@@ -198,20 +224,28 @@ class IpIntelligenceOnPremise extends Engine
         }
 
         $restrictedProperties = $settings['restrictedProperties'] ?? [];
+        // A configuration file gives a list as one comma-separated string.
+        if (is_string($restrictedProperties)) {
+            $restrictedProperties = array_values(array_filter(
+                array_map('trim', explode(',', $restrictedProperties)),
+                static fn (string $name): bool => $name !== ''
+            ));
+        }
         $concurrency = $settings['concurrency'] ?? null;
 
         // Build the required properties configuration.
-        $propertiesVector = new \VectorStringSwig();
+        $propertiesVector = new \FiftyOneDegreesIpiVectorStringSwig();
         foreach ($restrictedProperties as $property) {
             $propertiesVector->push($property);
         }
         if (!empty($restrictedProperties)) {
             $this->setRestrictedProperties($restrictedProperties);
         }
-        $propertiesConfig = new \RequiredPropertiesConfigSwig($propertiesVector);
+        $propertiesConfig =
+            new \FiftyOneDegreesIpiRequiredPropertiesConfigSwig($propertiesVector);
 
         // Assemble the engine configuration.
-        $this->config = new \ConfigIpiSwig();
+        $this->config = new \FiftyOneDegreesIpiConfigIpiSwig();
         $this->applyPerformanceProfile($this->config, $performanceProfile);
         // Do not prefix evidence keys with http_.
         $this->config->setUseUpperPrefixHeaders(false);
@@ -220,7 +254,11 @@ class IpIntelligenceOnPremise extends Engine
         }
 
         // Build the native engine.
-        $this->engine = new \EngineIpiSwig($dataFile, $this->config, $propertiesConfig);
+        $this->engine = new \FiftyOneDegreesIpiEngineIpiSwig(
+            $dataFile,
+            $this->config,
+            $propertiesConfig
+        );
 
         $this->initEngineMetaData();
 
@@ -228,11 +266,10 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * The accepted evidence keys (query.client-ip, server.client-ip,
-     * query.client-ip-51d, ...). Note that this engine performs a single-IP
-     * lookup: only the first parseable IPv4/IPv6 value from the evidence (in
-     * the priority order used by getClientIps) actually drives the lookup.
-     * This is not multi-evidence detection.
+     * The accepted evidence keys, being each client IP header of the data
+     * file under the query and the server prefix, in the order getKeys()
+     * gives them. One value is looked up, chosen as clientIpsFromEvidence
+     * says.
      */
     public function getEvidenceKeyFilter(): BasicListEvidenceKeyFilter
     {
@@ -301,7 +338,8 @@ class IpIntelligenceOnPremise extends Engine
             $this->engine->refreshData($fileName);
         }
 
-        // The metadata follows the new data file.
+        // The metadata follows the new data file. The positions do not, as
+        // the native engine keeps the names it was created with.
         $this->initEngineMetaData();
     }
 
@@ -312,6 +350,15 @@ class IpIntelligenceOnPremise extends Engine
     public function getProduct(): string
     {
         return $this->engine->getProduct();
+    }
+
+    /**
+     * The tier of the data file in use, which a missing property message
+     * compares with the data files the property is present in.
+     */
+    public function getDataSourceTier(): string
+    {
+        return $this->getProduct();
     }
 
     /**
@@ -373,6 +420,23 @@ class IpIntelligenceOnPremise extends Engine
         return $this->readProperties[$key];
     }
 
+    /**
+     * The position a value of the property is read at, being the index of
+     * its name in the names the engine was built with, or -1 for any other
+     * name, which the native code reads as a property the data set does not
+     * have. Reading by position saves the native code a lookup of the name.
+     *
+     * @throws \Exception
+     */
+    public function getPosition(string $name): int
+    {
+        if ($this->positions === null) {
+            $this->requiredNames();
+        }
+
+        return $this->positions[strtolower($name)] ?? self::NO_POSITION;
+    }
+
     private function applyPerformanceProfile($config, string $profile): void
     {
         switch ($profile) {
@@ -424,7 +488,10 @@ class IpIntelligenceOnPremise extends Engine
     /**
      * Each name the engine was built with, keyed by the lowercase name, as
      * the engine gives it, which for a property the data set has is the
-     * data set's spelling.
+     * data set's spelling. Built with the positions the first time either
+     * is needed, and kept through a data refresh, because the native engine
+     * keeps the names it was built with, so they must never be taken from a
+     * later data set.
      *
      * @return array<string, string>
      * @throws \Exception
@@ -433,13 +500,20 @@ class IpIntelligenceOnPremise extends Engine
     {
         if ($this->requiredNames === null) {
             $this->assertOpen();
-            $this->requiredNames = [];
+            $names = [];
+            $positions = [];
             $required = $this->engine->getRequiredProperties();
             $count = $required->size();
             for ($i = 0; $i < $count; ++$i) {
                 $name = $required->get($i);
-                $this->requiredNames[strtolower($name)] ??= $name;
+                $key = strtolower($name);
+                // A name given twice keeps its first position, as in the
+                // native code.
+                $names[$key] ??= $name;
+                $positions[$key] ??= $i;
             }
+            $this->requiredNames = $names;
+            $this->positions = $positions;
         }
 
         return $this->requiredNames;
@@ -471,9 +545,9 @@ class IpIntelligenceOnPremise extends Engine
         // PHP constructs this class on every request, so the table of every
         // property is built when it is first read (see __get), and a read
         // looks up only its own property (see findProperty). Each follows
-        // the data file in use.
+        // the data file in use. The names and positions do not (see
+        // requiredNames).
         unset($this->properties);
-        $this->requiredNames = null;
         $this->readProperties = [];
     }
 
@@ -487,6 +561,9 @@ class IpIntelligenceOnPremise extends Engine
     private function buildProperties(): array
     {
         $this->assertOpen();
+        // The positions are taken with the table, so that a read the table
+        // answers needs no engine, as the read goes to the results.
+        $this->requiredNames();
         $propertiesInternal = $this->engine->getMetaData()->getProperties();
         $properties = [];
         for ($i = 0; $i < $propertiesInternal->getSize(); ++$i) {
@@ -516,30 +593,39 @@ class IpIntelligenceOnPremise extends Engine
     }
 
     /**
-     * Get the IPv4 and IPv6 addresses from the evidence, using the same
-     * priority order as the other IP intelligence engines: query.client-ip
-     * first, then server.client-ip, then any other parseable value in the
-     * evidence accepted by the engine.
+     * The client IP address to look up, chosen from the evidence in the
+     * engine's order.
      *
      * @return array{0: null|string, 1: null|string}
      */
     private function getClientIps(FlowData $flowData): array
     {
-        return self::clientIpsFromEvidence($flowData->evidence->getAll());
+        return self::clientIpsFromEvidence(
+            $flowData->evidence->getAll(),
+            $this->evidenceKeys
+        );
     }
 
     /**
-     * Picks the first IPv4 and the first IPv6 address out of the evidence,
-     * query.client-ip and server.client-ip first.
+     * Chooses one client IP value, as the Choosing the IP address section of
+     * the IP Intelligence specification says, and gives its address as
+     * [ipv4, null] or [null, ipv6]. Only the keys the engine accepts are
+     * read, every query key before every server key, each in the order of
+     * the engine's keys, which list the data file's client IP headers in
+     * priority order. The first value that addressInValue reads is chosen,
+     * whatever its family, so a value that is not read does not hide one
+     * under a later key. The native code chooses in the same way when it is
+     * given Evidence.
      *
      * An IPv4-mapped IPv6 address such as ::ffff:8.8.8.8 counts as the IPv4
      * address it carries, so it is reported as Ip and looked up as 8.8.8.8.
      * See the Address forms section of the IP Intelligence specification.
      *
      * @param array<string, mixed> $evidence
+     * @param array<string> $keys The engine's keys, as getKeys() gives them
      * @return array{0: ?string, 1: ?string} [ipv4, ipv6]
      */
-    private static function clientIpsFromEvidence(array $evidence): array
+    private static function clientIpsFromEvidence(array $evidence, array $keys): array
     {
         // Evidence keys ignore letter case and arrive in the letters they
         // were first set with, so every key is lowered before it is read.
@@ -550,35 +636,106 @@ class IpIntelligenceOnPremise extends Engine
             $lowered[strtolower((string) $key)] = $value;
         }
 
-        $ordered = [];
-        foreach (['query.client-ip', 'server.client-ip'] as $key) {
-            if (isset($lowered[$key])) {
-                $ordered[] = $lowered[$key];
-            }
-        }
-        foreach ($lowered as $value) {
-            if (!in_array($value, $ordered, true)) {
-                $ordered[] = $value;
-            }
-        }
-
-        $ipv4 = null;
-        $ipv6 = null;
-        foreach ($ordered as $value) {
-            $candidate = trim((string) $value);
-            if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
-                $ipv4 ??= $candidate;
-            } elseif (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
-                $mapped = self::ipv4MappedAddress($candidate);
-                if ($mapped !== null) {
-                    $ipv4 ??= $mapped;
-                } else {
-                    $ipv6 ??= $candidate;
+        foreach (self::CLIENT_IP_PREFIXES as $prefix) {
+            foreach ($keys as $key) {
+                $key = strtolower($key);
+                if (strncmp($key, $prefix, strlen($prefix)) !== 0
+                    || !isset($lowered[$key])
+                ) {
+                    continue;
                 }
+                $address = self::addressInValue((string) $lowered[$key]);
+                if ($address === null) {
+                    continue;
+                }
+                if (self::isIpv4($address)) {
+                    return [$address, null];
+                }
+                $mapped = self::ipv4MappedAddress($address);
+
+                return $mapped !== null ? [$mapped, null] : [null, $address];
             }
         }
 
-        return [$ipv4, $ipv6];
+        return [null, null];
+    }
+
+    /**
+     * The address a client IP value holds, or null when the whole value is
+     * not one of the forms the Reading the client IP value section of the
+     * IP Intelligence specification accepts. Those are an IPv4 or IPv6
+     * address, an IPv4 address with a port, and an IPv6 address in brackets
+     * with or without a port. The port is dropped. Nothing is trimmed, and
+     * a zone index is refused rather than stripped.
+     */
+    private static function addressInValue(string $value): ?string
+    {
+        if (strncmp($value, '[', 1) === 0) {
+            $close = strpos($value, ']');
+            if ($close === false) {
+                return null;
+            }
+            $address = substr($value, 1, $close - 1);
+            $after = substr($value, $close + 1);
+            if ($after !== '' && !self::isPort($after)) {
+                return null;
+            }
+
+            return self::isIpv6($address) ? $address : null;
+        }
+        if (self::isIpv4($value) || self::isIpv6($value)) {
+            return $value;
+        }
+        $colon = strrpos($value, ':');
+        if ($colon !== false
+            && self::isIpv4(substr($value, 0, $colon))
+            && self::isPort(substr($value, $colon))
+        ) {
+            return substr($value, 0, $colon);
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the text is an IPv4 address in dotted decimal form with no
+     * leading zero in any part, which is what filter_var accepts. The
+     * character check keeps out anything around the address.
+     */
+    private static function isIpv4(string $text): bool
+    {
+        return strspn($text, '0123456789.') === strlen($text)
+            && filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false;
+    }
+
+    /**
+     * Whether the text is an IPv6 address in a text form of RFC 4291
+     * section 2.2. The character check refuses a zone index, which
+     * follows a percent sign.
+     */
+    private static function isIpv6(string $text): bool
+    {
+        return strspn($text, '0123456789abcdefABCDEF:.') === strlen($text)
+            && filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
+    }
+
+    /**
+     * Whether the text is a colon followed by a port, being one or more
+     * digits for a number from 0 to 65535.
+     */
+    private static function isPort(string $text): bool
+    {
+        if (strncmp($text, ':', 1) !== 0) {
+            return false;
+        }
+        $digits = substr($text, 1);
+        if ($digits === '' || strspn($digits, '0123456789') !== strlen($digits)) {
+            return false;
+        }
+        $number = ltrim($digits, '0');
+
+        return strlen($number) <= strlen((string) self::MAX_PORT)
+            && (int) $number <= self::MAX_PORT;
     }
 
     /**

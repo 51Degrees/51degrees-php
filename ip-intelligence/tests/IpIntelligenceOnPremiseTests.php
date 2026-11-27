@@ -32,9 +32,13 @@ use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
 use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremisePipelineBuilder;
 use fiftyone\pipeline\ipintelligence\Messages;
+use fiftyone\pipeline\ipintelligence\SwigData;
 use fiftyone\pipeline\ipintelligence\SwigHelpers;
 use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
+use fiftyone\pipeline\ipintelligence\tests\classes\RecordingResults;
+use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\PipelineBuilder;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -68,8 +72,7 @@ class IpIntelligenceOnPremiseTests extends TestCase
     private static function locateDataFile(): ?string
     {
         $env = EnvironmentVariable::read(
-            Constants::IPI_PATH_VARIABLE,
-            Constants::IP_INTELLIGENCE_DATA_FILE_ENV_VAR
+            Constants::IPI_PATH_VARIABLE
         );
         if ($env && file_exists($env)) {
             return $env;
@@ -213,6 +216,85 @@ class IpIntelligenceOnPremiseTests extends TestCase
             }
         } finally {
             $plain->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
+     * The client IP is chosen from the keys the engine accepts, in the order
+     * of its getKeys(), every query key before every server key, and the
+     * chosen value's address is looked up whatever its family. Each case
+     * gets the answers of the chosen address given alone.
+     */
+    public function testTheClientIpIsChosenInTheEngineOrder(): void
+    {
+        $pipeline = (new IpIntelligenceOnPremisePipelineBuilder([
+            'dataFile' => self::$dataFile,
+            'performanceProfile' => 'MaxPerformance'
+        ]))->build();
+        $keys = $pipeline->getElement('ip')->getEvidenceKeyFilter()->getList();
+        $query = array_values(array_filter($keys, fn ($key) => strncmp($key, 'query.', 6) === 0));
+        $server = array_values(array_filter($keys, fn ($key) => strncmp($key, 'server.', 7) === 0));
+        $this->assertNotEmpty($query);
+        $this->assertCount(count($query), $server);
+
+        $cases = [
+            [
+                [
+                    'header.x-forwarded-for' => '8.8.8.8',
+                    $server[0] => Constants::IPV4_ADDRESS,
+                    end($query) => Constants::IPV6_ADDRESS,
+                ],
+                [null, Constants::IPV6_ADDRESS],
+            ],
+            [
+                [end($query) => Constants::IPV4_ADDRESS, $query[0] => '8.8.8.8'],
+                ['8.8.8.8', null],
+            ],
+            [
+                [end($server) => Constants::IPV4_ADDRESS, $server[0] => '8.8.8.8'],
+                ['8.8.8.8', null],
+            ],
+            [
+                ['header.x-forwarded-for' => '8.8.8.8'],
+                [null, null],
+            ],
+        ];
+
+        try {
+            foreach ($cases as [$evidence, [$ipv4, $ipv6]]) {
+                $label = json_encode($evidence);
+                $flowData = $pipeline->createFlowData();
+                $alone = $pipeline->createFlowData();
+                try {
+                    foreach ($evidence as $key => $value) {
+                        $flowData->evidence->set($key, $value);
+                    }
+                    $actual = $flowData->process()->ip;
+
+                    $this->assertSame($ipv4 !== null, $actual->ip->hasValue, $label);
+                    $this->assertSame($ipv6 !== null, $actual->ipv6->hasValue, $label);
+                    if ($ipv4 !== null) {
+                        $this->assertSame($ipv4, $actual->ip->value, $label);
+                    }
+                    if ($ipv6 !== null) {
+                        $this->assertSame($ipv6, $actual->ipv6->value, $label);
+                    }
+
+                    $alone->evidence->set($query[0], $ipv4 ?? $ipv6 ?? '');
+                    $expected = $alone->process()->ip;
+                    foreach (array_keys($pipeline->getElement('ip')->getProperties()) as $key) {
+                        if ($key === 'ip' || $key === 'ipv6') {
+                            continue;
+                        }
+                        $this->assertEquals($expected->get($key), $actual->get($key), "$label: $key");
+                    }
+                } finally {
+                    $flowData->close();
+                    $alone->close();
+                }
+            }
+        } finally {
             $pipeline->close();
         }
     }
@@ -465,9 +547,15 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             proc_terminate($server);
             proc_close($server);
-            @unlink($router);
-            @unlink($log);
-            @rmdir($folder);
+            PhpMessage::take(function () use (&$router) {
+                return unlink($router);
+            });
+            PhpMessage::take(function () use (&$log) {
+                return unlink($log);
+            });
+            PhpMessage::take(function () use (&$folder) {
+                return rmdir($folder);
+            });
         }
     }
 
@@ -479,14 +567,17 @@ class IpIntelligenceOnPremiseTests extends TestCase
     {
         $deadline = microtime(true) + 30;
         do {
-            $answer = @file_get_contents($url);
+            $answer = PhpMessage::take(function () use (&$url) {
+                return file_get_contents($url);
+            });
             if ($answer !== false) {
                 return $answer;
             }
             usleep(200000);
         } while (microtime(true) < $deadline);
 
-        $this->fail("No answer from {$url}. " . @file_get_contents($log));
+        $this->fail("No answer from {$url}. " .
+            (is_readable($log) ? file_get_contents($log) : ''));
     }
 
     /**
@@ -633,9 +724,13 @@ class IpIntelligenceOnPremiseTests extends TestCase
             $this->assertFalse(
                 (new \ReflectionProperty($engine, 'properties'))->isInitialized($engine)
             );
-            $this->assertFalse(
-                (new \ReflectionProperty($pipeline, 'propertyDatabase'))->isInitialized($pipeline)
-            );
+            $database = new \ReflectionProperty($pipeline, 'propertyDatabase');
+            // Reflection reads a private property before PHP 8.1 only once
+            // it is made accessible.
+            if (PHP_VERSION_ID < 80100) {
+                $database->setAccessible(true);
+            }
+            $this->assertFalse($database->isInitialized($pipeline));
             $this->assertSame(Constants::IPV4_ADDRESS, $values['ip']);
 
             // The table holds every available property in the data set as
@@ -725,6 +820,114 @@ class IpIntelligenceOnPremiseTests extends TestCase
         } finally {
             $named->close();
         }
+    }
+
+    /**
+     * Every value is read at the position of its property, and is the value
+     * a read by name gives, for an engine created with no names and for one
+     * created with every name in reverse order.
+     */
+    public function testEveryValueIsReadByPositionAndIsTheValueByName(): void
+    {
+        $none = $this->buildEngine();
+        try {
+            $names = [];
+            foreach ($none->getProperties() as $key => $property) {
+                if ($key !== 'ip' && $key !== 'ipv6') {
+                    $names[] = $property['name'];
+                }
+            }
+            $this->assertNotEmpty($names);
+            $this->assertReadByPosition($none, $names);
+        } finally {
+            $none->close();
+        }
+
+        $named = $this->buildEngineWith(array_reverse($names));
+        try {
+            $this->assertReadByPosition($named, $names);
+        } finally {
+            $named->close();
+        }
+    }
+
+    /**
+     * A read that the table of every property answers needs no engine, so
+     * once the table is built, a read after the engine is closed reads the
+     * results, which are still open, rather than failing for want of the
+     * engine.
+     */
+    public function testATableReadAfterTheEngineClosesReadsTheResults(): void
+    {
+        $engine = $this->buildEngine();
+        $pipeline = (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false
+        ]))->add($engine)->build();
+        $flowData = $pipeline->createFlowData();
+        try {
+            $flowData->evidence->set('query.client-ip', Constants::IPV4_ADDRESS);
+            $flowData->process();
+            $names = array_values(array_diff(
+                array_keys($engine->getProperties()),
+                ['ip', 'ipv6']
+            ));
+            $this->assertNotEmpty($names);
+
+            $engine->close();
+            $this->assertNull($engine->engine);
+
+            $value = $flowData->ip->get($names[0]);
+            $this->assertInstanceOf(AspectPropertyValue::class, $value);
+        } finally {
+            $flowData->close();
+            $pipeline->close();
+        }
+    }
+
+    /**
+     * Reads each name once at its position and once by name, from the same
+     * native results, and checks that both give the same, and that each
+     * position is the one at which the native results hold that name.
+     *
+     * @param array<string> $names
+     */
+    private function assertReadByPosition(IpIntelligenceOnPremise $engine, array $names): void
+    {
+        $native = $engine->engine->process(Constants::IPV4_ADDRESS);
+        $atPosition = new RecordingResults($native);
+        $byName = new RecordingResults($native);
+        $positionData = new SwigData($engine, $atPosition, Constants::IPV4_ADDRESS);
+        $nameData = new SwigData($engine, $byName, Constants::IPV4_ADDRESS);
+
+        foreach ($names as $name) {
+            $byName->name = $name;
+            $this->assertEquals(
+                self::shown($nameData->get($name)),
+                self::shown($positionData->get($name)),
+                $name
+            );
+        }
+
+        $this->assertCount(count($names), $atPosition->keys);
+        foreach ($atPosition->keys as $read => $position) {
+            $this->assertIsInt($position, $names[$read]);
+            $this->assertSame(
+                strtolower($names[$read]),
+                strtolower($native->getPropertyName($position)),
+                $names[$read]
+            );
+        }
+    }
+
+    /**
+     * A value, or its no value message.
+     *
+     * @return mixed
+     */
+    private static function shown(AspectPropertyValue $value)
+    {
+        return $value->hasValue ? $value->value : $value->noValueMessage;
     }
 
     /**

@@ -1,20 +1,60 @@
-<phpunit bootstrap="vendor/autoload.php">
+<!-- Every PHP error, warning, notice and deprecation fails the run, as do
+     risky and incomplete tests. The attributes are those of PHPUnit 9.6,
+     the version the build matrix runs. tests/bootstrap.php fails the run
+     on a warning, notice, deprecation or fatal error from a PHP the tests
+     start, or one PHPUnit does not handle. -->
+<phpunit bootstrap="tests/bootstrap.php"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         convertDeprecationsToExceptions="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnIncomplete="true">
+  <php>
+    <!-- Report every level, whatever php.ini sets. -->
+    <ini name="error_reporting" value="-1"/>
+  </php>
   <testsuites>
+    <!-- Timed, so run only by ci/run-performance-tests.ps1. -->
+    <testsuite name="Performance">
+      <file>tests/JavaScriptBuilderPerformanceTests.php</file>
+    </testsuite>
     <testsuite name="Unit">
+      <file>tests/EveryFlowElementReadOnlyTests.php</file>
+      <file>tests/ReadOnlyWebElementsTests.php</file>
+      <file>tests/FinishedWritesTests.php</file>
       <file>tests/CoreTests.php</file>
+      <file>tests/MultiPipelineElementTests.php</file>
+      <file>tests/PipelineImmutableTests.php</file>
+      <file>tests/ElementKeyTests.php</file>
       <file>tests/ExampleTests.php</file>
       <file>tests/JavaScriptBundlerTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyChoicesTests.php</file>
+      <file>tests/JavaScriptBuilderMinifyOnceTests.php</file>
+      <file>tests/JsonBundlerListTests.php</file>
       <file>tests/JavaScriptBuilderParametersTests.php</file>
       <file>tests/JavaScriptBuilderObjectNameTests.php</file>
       <file>tests/JavaScriptBuilderSequenceTests.php</file>
       <file>tests/CallbackUrlTests.php</file>
+      <file>tests/JsonBundlerWktTests.php</file>
       <file>tests/EnableCookiesTests.php</file>
       <file>tests/FlowDataTests.php</file>
+      <file>tests/ElementDataListTests.php</file>
+      <file>tests/FlowDataErrorsTests.php</file>
+      <file>tests/DeprecatedDataKeyTests.php</file>
       <file>tests/CloseTests.php</file>
       <file>tests/PropertyDatabaseTests.php</file>
+      <file>tests/ConfigurationFileTests.php</file>
+      <file>tests/ElementContractTests.php</file>
+      <file>tests/FileSystemPathTests.php</file>
+      <file>tests/FlowDataAccessorTests.php</file>
+      <file>tests/WebIntegrationFailureTests.php</file>
 	    <file>tests/SetHeaderTests.php</file>
       <file>tests/EvidenceFromWebRequestTests.php</file>
       <file>tests/AcceptedEvidenceTests.php</file>
+      <file>tests/PipelineEvidenceKeyFilterTests.php</file>
       <file>tests/WebIntegrationElementsTests.php</file>
       <file>tests/ClientSideResponseTests.php</file>
       <file>tests/JsonBundlerSequenceTests.php</file>
@@ -22,6 +62,21 @@
       <file>tests/JsonBundlerKeysTests.php</file>
       <file>tests/LicenseKeyTests.php</file>
       <file>tests/JsonBundlerNullTests.php</file>
+      <file>tests/RequestLineEvidenceTests.php</file>
+      <file>tests/RequestLineDecisionTests.php</file>
+      <file>tests/AspectPropertyValueTests.php</file>
+      <file>tests/LogTargetTests.php</file>
+      <file>tests/WebRequestFlowDataTests.php</file>
+      <file>tests/ElementBuilderConfigurationTests.php</file>
+      <file>tests/LoggerTargetTests.php</file>
+      <file>tests/ElementDataTypedGetterTests.php</file>
+      <file>tests/SettingDefaultsTests.php</file>
+      <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
+      <file>tests/FlowDataThreadsDocsTests.php</file>
+      <file>tests/ChildPhpTests.php</file>
+      <file>tests/ChildPhpJunitTests.php</file>
     </testsuite>
   </testsuites>
 </phpunit>

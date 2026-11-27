@@ -62,8 +62,28 @@ class MixedCaseKeyElement extends FlowElement
 }
 
 /**
- * Stands in for the Cloud Request Engine, whose Data Key is cloud and whose
- * Element Data holds the cloud service's raw response.
+ * Stands in for the Cloud Request Engine, whose Data Key is cloud-response
+ * and whose Element Data holds the cloud service's raw response.
+ */
+class CloudResponseStandInElement extends FlowElement
+{
+    public string $dataKey = 'cloud-response';
+
+    public array $properties = [
+        'json-response' => ['type' => 'string']
+    ];
+
+    public function processInternal($flowData): void
+    {
+        $flowData->setElementData(new ElementDataDictionary($this, [
+            'json-response' => '{"device":{"ismobile":true}}',
+        ]));
+    }
+}
+
+/**
+ * Stands in for a Cloud Request Engine registered under cloud, the Data Key
+ * the engine had before.
  */
 class CloudStandInElement extends FlowElement
 {
@@ -78,6 +98,36 @@ class CloudStandInElement extends FlowElement
         $flowData->setElementData(new ElementDataDictionary($this, [
             'cloud' => '{"device":{"ismobile":true}}',
         ]));
+    }
+}
+
+/**
+ * One of several elements with the Data Key shared, as Translation Engines
+ * can be, each adding its one Property to the Element Data an element
+ * before it set.
+ */
+class SharedKeyElement extends FlowElement
+{
+    public string $dataKey = 'shared';
+
+    private string $name;
+
+    public function __construct(string $name)
+    {
+        $this->name = $name;
+        $this->properties = [
+            strtolower($name) => ['name' => $name, 'type' => 'string']
+        ];
+        parent::__construct();
+    }
+
+    public function processInternal($flowData): void
+    {
+        $values = isset($flowData->data[$this->dataKey])
+            ? $flowData->data[$this->dataKey]->asDictionary()
+            : [];
+        $values[strtolower($this->name)] = new AspectPropertyValue(null, $this->name);
+        $flowData->setElementData(new ElementDataDictionary($this, $values));
     }
 }
 
@@ -145,5 +195,42 @@ class JsonBundlerKeysTests extends TestCase
 
         $this->assertArrayNotHasKey('cloud', $json);
         $this->assertArrayHasKey('mixedkey', $json);
+    }
+
+    /**
+     * The JSON Builder leaves the Cloud Request Engine's Element Data out
+     * by its Data Key, cloud-response.
+     */
+    public function testTheCloudResponseDataIsLeftOut()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new CloudResponseStandInElement())
+            ->add(new MixedCaseKeyElement())
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+        $json = $flowData->jsonbundler->json;
+
+        $this->assertArrayNotHasKey('cloud-response', $json);
+        $this->assertArrayHasKey('mixedkey', $json);
+    }
+
+    /**
+     * Elements that share a Data Key populate one Element Data, and the JSON
+     * has one entry for it holding the Properties of every one of them.
+     */
+    public function testElementsThatShareADataKeyHaveOneEntryWithEveryProperty()
+    {
+        $flowData = (new PipelineBuilder([]))
+            ->add(new SharedKeyElement('First'))
+            ->add(new SharedKeyElement('Second'))
+            ->build()
+            ->createFlowData();
+        $flowData->process();
+
+        $this->assertSame(
+            ['first' => 'First', 'second' => 'Second'],
+            $flowData->jsonbundler->json['shared']
+        );
     }
 }

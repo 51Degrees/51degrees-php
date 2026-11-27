@@ -40,6 +40,14 @@ use PHPUnit\Framework\TestCase;
 class ExampleTests extends TestCase
 {
     /**
+     * The timeout a test gives a request to the cloud service. It is far
+     * above anything measured on a runner, because a test must not fail
+     * when the service or the network is slow. The package's own default of
+     * 2 seconds, which the specification sets, is left as it is.
+     */
+    private const CLOUD_TIMEOUT_SECONDS = 30;
+
+    /**
      * @return resource
      */
     private function memoryStream()
@@ -64,9 +72,7 @@ class ExampleTests extends TestCase
     private function liveResourceKey(): ?string
     {
         $key = EnvironmentVariable::read(
-            Constants::RESOURCE_KEY_VARIABLE,
-            Constants::RESOURCE_KEY_ENV_VAR,
-            '!!YOUR_RESOURCE_KEY!!'
+            Constants::RESOURCE_KEY_VARIABLE
         );
 
         return $key === '' ? null : $key;
@@ -110,15 +116,27 @@ class ExampleTests extends TestCase
     {
         $resourceKey = $this->liveResourceKey();
         if ($resourceKey === null) {
-            $this->markTestSkipped('No resource_key set - the mixed cloud example needs a live key authorised for both device detection and IP intelligence.');
+            $this->markTestSkipped('No ' . Constants::RESOURCE_KEY_VARIABLE . ' set - the mixed cloud example needs a live key authorised for both device detection and IP intelligence.');
         }
 
         $output = $this->memoryStream();
-        (new MixedConsoleCloud())->run(['resourceKey' => $resourceKey], $output);
+        (new MixedConsoleCloud())->run([
+            'resourceKey' => $resourceKey,
+            'timeoutSeconds' => self::CLOUD_TIMEOUT_SECONDS
+        ], $output);
         $text = $this->readStream($output);
 
         $this->assertStringContainsString('Device Detection Results:', $text);
         $this->assertStringContainsString('IP Intelligence Results:', $text);
+
+        // The key carries every IP Intelligence property, so the results
+        // for 82.12.34.23 must hold real values: its registered name, its
+        // country and the range it is in.
+        $this->assertStringContainsString('VMCBBUK', $text, 'The output should contain VMCBBUK as the registered name.');
+        $this->assertMatchesRegularExpression('/United Kingdom|GB/', $text, 'The output should contain United Kingdom as the country or GB as its code.');
+        $this->assertMatchesRegularExpression('/82\.12\.34\.0|82\.12\.34\.255/', $text, 'The output should contain the range 82.12.34.x.');
+        $this->assertMatchesRegularExpression('/\d+\.\d+\.\d+\.\d+/', $text, 'The output should contain IP addresses in dotted decimal form.');
+        $this->assertMatchesRegularExpression('/[\d\-]\d+\.\d+/', $text, 'The output should contain numeric values.');
     }
 
     // ---- On-premise examples, with the engine built when PHP started ----

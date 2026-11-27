@@ -45,16 +45,20 @@ cp -R "$root/cxx/src" "$work/cxx/src"
 cp "$here/hash-php.i" "$work/"
 (
     cd "$work"
-    swig -c++ -php -module "$MODULE" -outdir raw -o raw/hash_wrap.cxx \
+    swig -Werror -c++ -php -module "$MODULE" -outdir raw -o raw/hash_wrap.cxx \
         hash-php.i
 )
 
 # SWIG writes the path of its install folder into comments. Keep only the part
 # that is the same on every machine, so the output does not depend on where
 # SWIG is installed.
+# fix-wrapper.pl, shared with IP Intelligence, then removes the code nothing
+# uses, which config.m4 makes a warning by defining SWIGUNUSED empty.
 mkdir -p "$work/out"
 sed -E 's#/\*@SWIG:[^,]*/share/swig/#/*@SWIG:share/swig/#' \
-    "$work/raw/hash_wrap.cxx" > "$work/out/hash_wrap.cxx"
+    "$work/raw/hash_wrap.cxx" | \
+    perl "$root/ip-intelligence/on-premise/fix-wrapper.pl" \
+    > "$work/out/hash_wrap.cxx"
 cp "$work/raw/php_$MODULE.h" "$work/out/"
 
 status=0

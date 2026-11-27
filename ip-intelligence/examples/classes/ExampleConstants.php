@@ -30,24 +30,8 @@ class ExampleConstants
     // Environment variable holding the cloud resource key.
     public const RESOURCE_KEY_VARIABLE = '_51DEGREES_RESOURCE_KEY';
 
-    /**
-     * Environment variable read for the cloud resource key when
-     * RESOURCE_KEY_VARIABLE is not set or is empty.
-     *
-     * @deprecated use {@see ExampleConstants::RESOURCE_KEY_VARIABLE}
-     */
-    public const CLOUD_RESOURCE_KEY_ENV_VAR = 'resource_key';
-
     // Environment variable holding the path to an on-premise .ipi data file.
     public const IPI_PATH_VARIABLE = '_51DEGREES_IPI_PATH';
-
-    /**
-     * Environment variable read for the data file when IPI_PATH_VARIABLE
-     * is not set or is empty.
-     *
-     * @deprecated use {@see ExampleConstants::IPI_PATH_VARIABLE}
-     */
-    public const IP_INTELLIGENCE_DATA_FILE_ENV_VAR = 'IPINTELLIGENCEDATAFILE';
 
     // The free Lite data file, as the data repository names it. The examples
     // download it into cxx/data/ip-intelligence when no other file is found.
@@ -57,6 +41,16 @@ class ExampleConstants
     // the ASN properties and is far smaller than the Lite file, so the
     // performance example, which reads one property, downloads it instead.
     public const ASN_DATA_FILE_NAME = '51Degrees-IPIV4AsnIpiV41.ipi';
+
+    // Environment variable holding the path to a Device Detection .hash data
+    // file, which the mixed examples read when PHP built no Device Detection
+    // engine.
+    public const DD_PATH_VARIABLE = '_51DEGREES_DD_PATH';
+
+    // The free Device Detection data file, as the data repository names it.
+    // The mixed examples download it into cxx/data/device-detection when PHP
+    // built no Device Detection engine and no other file is named.
+    public const DD_LITE_DATA_FILE_NAME = '51Degrees-LiteV4.1.hash';
 
     // The default on-premise data file names searched for, in priority order.
     // The Asn file is left out, because it has only the Asn and AsnName
@@ -91,6 +85,10 @@ class ExampleConstants
         [
             'header.user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36',
             'query.client-ip' => '116.154.188.222'
+        ],
+        [
+            'header.user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'query.client-ip' => '82.12.34.23'
         ]
     ];
 

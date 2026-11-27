@@ -36,7 +36,7 @@
  * The resource key is used as short-hand to store the particular set of
  * properties you are interested in as well as any associated license keys
  * that entitle you to increased request limits and/or paid-for properties.
- * You can create a resource key using the 51Degrees [Configurator](https://configure.51degrees.com/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=header).
+ * You can create a resource key using the 51Degrees [configuration page](https://51degrees.com/configure/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=header).
  * 
  * This example uses the 'Country' and 'IsMobile' properties, which are
  * pre-populated when creating a key using the link above.
@@ -64,9 +64,7 @@ use fiftyone\pipeline\devicedetection\DeviceDetectionCloud;
 // Check if there is a resource key in the environment variable and use
 // it if there is one. (This is used for automated testing)
 $resourceKey = EnvironmentVariable::read(
-    Constants::RESOURCE_KEY_VARIABLE,
-    Constants::RESOURCE_KEY_ENV_VAR,
-    "!!YOUR_RESOURCE_KEY!!"
+    Constants::RESOURCE_KEY_VARIABLE
 );
 if ($resourceKey === '') {
     $resourceKey = "!!YOUR_RESOURCE_KEY!!";
@@ -74,12 +72,13 @@ if ($resourceKey === '') {
 
 if (substr($resourceKey, 0, 2) === "!!") {
     $message = 'No resource key specified in the environment variable ';
-    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . '<br/>';
-    $message .= 'Create a resource key with the properties required by this example';
-    $message .= 'at https://configure.51degrees.com/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=resource-key-required' . '<br/>';
+    $message .= '"' . Constants::RESOURCE_KEY_VARIABLE . '"' . Constants::lineBreak();
+    $message .= 'Create a resource key with the properties required by this example ';
+    $message .= 'at https://51degrees.com/configure/vHk79wZn?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-combiningservices.php&utm_term=resource-key-required' . Constants::lineBreak();
     $message .= 'Once complete, populate the environment variable ';
-    $message .= 'mentioned at the start of this message with the key.' . '<br/>';
+    $message .= 'mentioned at the start of this message with the key.' . Constants::lineBreak();
     echo $message;
+    Constants::printFindOutMore(__FILE__);
 
     return;
 }
@@ -101,6 +100,7 @@ $builder = new GeoLocationPipelineBuilder($settings);
 // First check if it exists
 if (!class_exists("fiftyone\pipeline\devicedetection\DeviceDetectionCloud")) {
     echo "You will need to include the 51degrees/fiftyone.devicedetection package for this example to run.";
+    Constants::printFindOutMore(__FILE__);
     return;
 };
 
@@ -131,17 +131,17 @@ $country = $flowData->location->country;
 
 if ($country->hasValue) {
     echo "Which country is the location [" . $latitude . "," . $longitude . "] in?";
-    echo "<br />";
+    echo Constants::lineBreak();
     echo $country->value;
-    echo "<br />";
+    echo Constants::lineBreak();
 } else {
     // Echo out why the value isn't meaningful
     echo $country->noValueMessage;
-    echo "<br />";
+    echo Constants::lineBreak();
 };
 
 echo "Is user agent '" . $userAgent . "' a mobile device?";
-echo "<br />";
+echo Constants::lineBreak();
 
 if ($flowData->device->ismobile->hasValue) {
     if ($flowData->device->ismobile->value) {
@@ -154,3 +154,5 @@ if ($flowData->device->ismobile->hasValue) {
     // it wasn't meaningful
     print($flowData->device->ismobile->noValueMessage);
 }
+
+Constants::printFindOutMore(__FILE__);

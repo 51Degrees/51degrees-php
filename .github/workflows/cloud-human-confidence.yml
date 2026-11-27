@@ -1,0 +1,123 @@
+name: Cloud Human Confidence Tests
+
+# Runs the Staging suite of device-detection/cloud
+# (tests/HumanConfidenceWebStagingTests.php), the Human Confidence tests of
+# what the staging cloud service serves and the production one does not,
+# being a passive level, HumanConfidenceSource and the Human Confidence
+# redeem. The other Human Confidence tests are in the Integration suite,
+# which common-ci runs against _51DEGREES_CLOUD_ENDPOINT.
+#
+# The tests call the service CLOUD_STAGING_ENDPOINT names, an organization
+# variable, with the Bespoke key in RESOURCE_KEY_BESPOKE_STAGING and the
+# Basic key in _51DEGREES_RESOURCE_KEY_BASIC, both organization secrets.
+# Only CI uses the first two, so they have no _51DEGREES_ prefix, and
+# common-ci does not export them, which is why this workflow runs the suite.
+#
+# The job fails when a name is empty, and when a test is skipped or none ran.
+# A cloud test that passes without calling the cloud reports success having
+# proved nothing, and that is worse than a red job.
+#
+# One PHP version, because this exercises the cloud service rather than the
+# language.
+
+on:
+  workflow_dispatch:
+  # Nightly as well, so a change in what the service answers is found the
+  # next morning rather than by a customer.
+  schedule:
+    - cron: '50 6 * * *'
+  pull_request:
+    branches: [main, rc]
+    # The example and what it reads its settings with, the tests and their
+    # helpers, and what the package is installed from.
+    paths:
+      - 'device-detection/cloud/examples/cloud/**'
+      - 'device-detection/cloud/tests/HumanConfidenceWebStagingTests.php'
+      - 'device-detection/cloud/tests/humanConfidenceWebRouter.php'
+      - 'device-detection/cloud/tests/classes/**'
+      - 'device-detection/cloud/composer.json'
+      - 'device-detection/cloud/phpunit.xml'
+      - 'pipeline/core/**'
+      - 'pipeline/engines/**'
+      - 'pipeline/cloudrequestengine/**'
+      - 'ci/packages.ps1'
+      - '.github/workflows/cloud-human-confidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cloud-human-confidence:
+    name: Cloud Human Confidence
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: device-detection/cloud
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The PHPUnit common-ci gives the build matrix, whose attributes
+      # phpunit.xml uses, so a warning, notice or deprecation fails the
+      # suite here as it does there.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          # No Xdebug, as the build matrix has none. With it, PHP disables
+          # JIT and warns at every start, which fails the tests.
+          coverage: none
+          extensions: mbstring, openssl, json
+          tools: phpunit:9.6.34
+      # In the package folder, with the pipeline packages taken from this
+      # checkout through composer.ci.json, as ci/run-integration-tests.ps1
+      # installs the package for its browser tests. The package's own
+      # composer.json can ask for a pipeline version not yet on Packagist.
+      - name: Install the package against the pipeline code here
+        shell: pwsh
+        run: |
+          . ../../ci/packages.ps1
+          Write-CheckoutComposer -RepoName ../.. -Package 'device-detection/cloud' `
+            -Pipeline 'core', 'engines', 'cloudrequestengine'
+          $env:COMPOSER = 'composer.ci.json'
+          composer install --no-interaction --no-progress
+      - name: Human Confidence tests against the staging cloud
+        shell: pwsh
+        env:
+          CLOUD_STAGING_ENDPOINT: ${{ vars.CLOUD_STAGING_ENDPOINT }}
+          RESOURCE_KEY_BESPOKE_STAGING: ${{ secrets.RESOURCE_KEY_BESPOKE_STAGING }}
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}
+        run: |
+          $missing = @('CLOUD_STAGING_ENDPOINT', 'RESOURCE_KEY_BESPOKE_STAGING',
+            '_51DEGREES_RESOURCE_KEY_BASIC') |
+            Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+          foreach ($name in $missing) {
+            Write-Host ("::error::The organization variable or secret $name " +
+              'is empty or missing, so the staging tests cannot run.')
+          }
+          if ($missing) { exit 1 }
+
+          $report = 'test-results/staging.xml'
+          $names = 'test-results/staging.txt'
+          # The default output with --verbose prints each skip's reason,
+          # which --testdox leaves out. The test names are written as
+          # TestDox text and printed after.
+          phpunit --verbose --fail-on-warning `
+            --testsuite Staging --log-junit $report --testdox-text $names
+          $status = $LASTEXITCODE
+          if (Test-Path $names) { Get-Content $names }
+          if ($status -ne 0) { exit $status }
+          if (-not (Test-Path $report)) {
+            Write-Host '::error::The staging tests did not run.'
+            exit 1
+          }
+          $suite = @(([xml](Get-Content -Raw $report)).testsuites.testsuite)[0]
+          if ([int]$suite.tests -eq 0) {
+            Write-Host '::error::No staging test ran, so the job proved nothing.'
+            exit 1
+          }
+          if ([int]$suite.skipped -gt 0) {
+            Write-Host ("::error::$($suite.skipped) of $($suite.tests) " +
+              'staging tests were skipped, so they proved nothing. The ' +
+              'output above names the reason.')
+            exit 1
+          }

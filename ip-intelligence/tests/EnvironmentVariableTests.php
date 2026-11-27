@@ -37,9 +37,8 @@ use fiftyone\pipeline\ipintelligence\translation\TranslationPaths;
 use PHPUnit\Framework\TestCase;
 
 /**
- * A variable is read by its name first and, when that is not set or is
- * empty, by the deprecated name it replaced, whose use is reported once.
- * Each constant that held a deprecated name keeps its name and its value.
+ * A variable is read by its name only.
+ * Each constant that names a variable holds that name.
  */
 class EnvironmentVariableTests extends TestCase
 {
@@ -77,315 +76,57 @@ class EnvironmentVariableTests extends TestCase
         $this->folders = [];
     }
 
-    public function testNameIsReadBeforeTheDeprecatedName(): void
+    public function testNameIsRead(): void
     {
-        $this->set('_51DEGREES_TEST_BOTH', 'new');
-        $this->set('OLD_TEST_BOTH', 'old');
+        $this->set('_51DEGREES_TEST_SET', 'new');
 
-        $logged = $this->logged(function (): void {
-            $this->assertSame(
-                'new',
-                EnvironmentVariable::read('_51DEGREES_TEST_BOTH', 'OLD_TEST_BOTH')
-            );
-        });
-        $this->assertSame([], $logged);
+        $this->assertSame('new', EnvironmentVariable::read('_51DEGREES_TEST_SET'));
     }
 
-    public function testDeprecatedNameIsReadWhenTheNameIsNotSet(): void
+    public function testNameNotSetGivesAnEmptyString(): void
     {
         $this->set('_51DEGREES_TEST_UNSET', null);
-        $this->set('OLD_TEST_UNSET', 'old');
 
-        $this->logged(function (): void {
-            $this->assertSame(
-                'old',
-                EnvironmentVariable::read('_51DEGREES_TEST_UNSET', 'OLD_TEST_UNSET')
-            );
-        });
-    }
-
-    public function testDeprecatedNameIsReadWhenTheNameIsEmpty(): void
-    {
-        $this->set('_51DEGREES_TEST_EMPTY', '');
-        $this->set('OLD_TEST_EMPTY', 'old');
-
-        $this->logged(function (): void {
-            $this->assertSame(
-                'old',
-                EnvironmentVariable::read('_51DEGREES_TEST_EMPTY', 'OLD_TEST_EMPTY')
-            );
-        });
-    }
-
-    public function testNeitherNameSetGivesAnEmptyString(): void
-    {
-        $this->set('_51DEGREES_TEST_NEITHER', null);
-        $this->set('OLD_TEST_NEITHER', null);
-
-        $logged = $this->logged(function (): void {
-            $this->assertSame(
-                '',
-                EnvironmentVariable::read('_51DEGREES_TEST_NEITHER', 'OLD_TEST_NEITHER')
-            );
-        });
-        $this->assertSame([], $logged);
-    }
-
-    public function testPlaceholderCountsAsNotSet(): void
-    {
-        $this->set('_51DEGREES_TEST_PLACEHOLDER', '!!NOT_SET!!');
-        $this->set('OLD_TEST_PLACEHOLDER', 'old');
-
-        $this->logged(function (): void {
-            $this->assertSame('old', EnvironmentVariable::read(
-                '_51DEGREES_TEST_PLACEHOLDER',
-                'OLD_TEST_PLACEHOLDER',
-                '!!NOT_SET!!'
-            ));
-        });
-
-        $this->set('OLD_TEST_PLACEHOLDER', '!!NOT_SET!!');
-        $this->assertSame('', EnvironmentVariable::read(
-            '_51DEGREES_TEST_PLACEHOLDER',
-            'OLD_TEST_PLACEHOLDER',
-            '!!NOT_SET!!'
-        ));
-    }
-
-    public function testDeprecatedNameInUseIsReportedOnce(): void
-    {
-        $this->set('_51DEGREES_TEST_ONCE', null);
-        $this->set('OLD_TEST_ONCE', 'old');
-
-        $logged = $this->logged(function (): void {
-            EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
-            EnvironmentVariable::read('_51DEGREES_TEST_ONCE', 'OLD_TEST_ONCE');
-        });
-
-        $this->assertCount(1, $logged);
-        $this->assertStringContainsString('OLD_TEST_ONCE', $logged[0]);
-        $this->assertStringContainsString('deprecated', $logged[0]);
-        $this->assertStringContainsString('_51DEGREES_TEST_ONCE', $logged[0]);
-    }
-
-    public function testExampleKeyIsReadFromItsDeprecatedName(): void
-    {
-        $this->set('_51DEGREES_RESOURCE_KEY', '!!YOUR_RESOURCE_KEY!!');
-        $this->set('resource_key', 'old-key');
-
-        $this->logged(function (): void {
-            $this->assertSame('old-key', ExampleUtils::getResourceKey());
-        });
-    }
-
-    public function testExampleKeyNameWinsOverItsDeprecatedName(): void
-    {
-        $this->set('_51DEGREES_RESOURCE_KEY', 'new-key');
-        $this->set('resource_key', 'old-key');
-
-        $this->assertSame('new-key', ExampleUtils::getResourceKey());
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
     public function testNoExampleKeyGivesNull(): void
     {
-        $this->set('_51DEGREES_RESOURCE_KEY', '!!YOUR_RESOURCE_KEY!!');
-        $this->set('resource_key', null);
+        $this->set('_51DEGREES_RESOURCE_KEY', null);
 
         $this->assertNull(ExampleUtils::getResourceKey());
     }
 
-    public function testExampleDataFileIsReadFromItsDeprecatedName(): void
+    public function testAValueOnlyInTheEnvArrayIsNotRead(): void
     {
-        $old = $this->dataFile('old');
-        $this->set('_51DEGREES_IPI_PATH', '');
-        $this->set('IPINTELLIGENCEDATAFILE', $old);
+        $this->set('_51DEGREES_TEST_UNSET', null);
+        $_ENV['_51DEGREES_TEST_UNSET'] = 'not-in-the-environment';
 
-        $this->logged(function () use ($old): void {
-            $this->assertSame($old, ExampleUtils::getDataFile());
-        });
+        $this->assertSame('', EnvironmentVariable::read('_51DEGREES_TEST_UNSET'));
     }
 
-    public function testExampleDataFileNameWinsOverItsDeprecatedName(): void
+    public function testConstantsHoldTheVariableNames(): void
     {
-        $new = $this->dataFile('new');
-        $this->set('_51DEGREES_IPI_PATH', $new);
-        $this->set('IPINTELLIGENCEDATAFILE', $this->dataFile('old'));
-
-        $this->assertSame($new, ExampleUtils::getDataFile());
-    }
-
-    public function testTranslationsAreFoundFromTheDeprecatedName(): void
-    {
-        $old = $this->dataFile('old');
-        $this->translations(dirname($old));
-        $this->set('_51DEGREES_IPI_PATH', '');
-        $this->set('IPINTELLIGENCEDATAFILE', $old);
-        $this->forgetDeprecatedVariable();
-
-        // The folder in the repository is looked in first, whatever the
-        // environment names, and is there once the submodules are.
-        $inRepository = __DIR__ . '/../../cxx/data/ip-intelligence/Translations';
-        $this->assertSame(
-            realpath(is_dir($inRepository)
-                ? $inRepository
-                : dirname($old) . '/Translations'),
-            realpath(TranslationPaths::resolveTranslationsDir())
-        );
-    }
-
-    public function testDeprecatedDataFileNameIsLoggedOnceByThePipeline(): void
-    {
-        $old = $this->dataFile('old');
-        $this->translations(dirname($old));
-        $this->set('_51DEGREES_IPI_PATH', '');
-        $this->set('IPINTELLIGENCEDATAFILE', $old);
-        $this->forgetDeprecatedVariable();
-
-        $logger = $this->memoryLogger();
-        $this->buildTranslationPipeline($logger);
-        $this->buildTranslationPipeline($logger);
-
-        $about = $this->aboutTheDeprecatedName($logger);
-        $this->assertCount(1, $about);
-        $this->assertSame('warning', $about[0]['level']);
-        $this->assertSame(
-            'A value was read from the environment variable ' .
-            'IPINTELLIGENCEDATAFILE, which is deprecated. ' .
-            '_51DEGREES_IPI_PATH replaces it, so set that to the same value.',
-            $about[0]['message']
-        );
-    }
-
-    public function testDataFileNameIsReadFirstAndNothingIsLogged(): void
-    {
-        $new = $this->dataFile('new');
-        $this->translations(dirname($new));
-        $this->set('_51DEGREES_IPI_PATH', $new);
-        $this->set('IPINTELLIGENCEDATAFILE', $this->dataFile('old'));
-        $this->forgetDeprecatedVariable();
-
-        $inRepository = __DIR__ . '/../../cxx/data/ip-intelligence/Translations';
-        $this->assertSame(
-            realpath(is_dir($inRepository)
-                ? $inRepository
-                : dirname($new) . '/Translations'),
-            realpath(TranslationPaths::resolveTranslationsDir())
-        );
-
-        $logger = $this->memoryLogger();
-        $this->buildTranslationPipeline($logger);
-        $this->assertSame([], $this->aboutTheDeprecatedName($logger));
-    }
-
-    public function testExplicitTranslationsFolderLogsNothing(): void
-    {
-        $old = $this->dataFile('old');
-        $folder = $this->translations(dirname($old));
-        $this->set('_51DEGREES_IPI_PATH', '');
-        $this->set('IPINTELLIGENCEDATAFILE', $old);
-        $this->forgetDeprecatedVariable();
-
-        $logger = $this->memoryLogger();
-        (new PipelineBuilder([]))
-            ->addLogger($logger)
-            ->add(new CountryCodeTranslationEngine($folder))
-            ->add(new CountriesTranslationEngine($folder))
-            ->build();
-
-        $this->assertSame([], $this->aboutTheDeprecatedName($logger));
-    }
-
-    public function testDeprecatedConstantsKeepTheirNamesAndValues(): void
-    {
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             ExampleConstants::class,
-            'CLOUD_RESOURCE_KEY_ENV_VAR',
-            'resource_key'
+            'RESOURCE_KEY_VARIABLE',
+            '_51DEGREES_RESOURCE_KEY'
         );
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             ExampleConstants::class,
-            'IP_INTELLIGENCE_DATA_FILE_ENV_VAR',
-            'IPINTELLIGENCEDATAFILE'
+            'IPI_PATH_VARIABLE',
+            '_51DEGREES_IPI_PATH'
         );
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             Constants::class,
-            'RESOURCE_KEY_ENV_VAR',
-            'resource_key'
+            'RESOURCE_KEY_VARIABLE',
+            '_51DEGREES_RESOURCE_KEY_BESPOKE'
         );
-        $this->assertDeprecatedConstant(
+        $this->assertVariableConstant(
             Constants::class,
-            'IP_INTELLIGENCE_DATA_FILE_ENV_VAR',
-            'IPINTELLIGENCEDATAFILE'
+            'IPI_PATH_VARIABLE',
+            '_51DEGREES_IPI_PATH'
         );
-        foreach ([ExampleConstants::class, Constants::class] as $class) {
-            $this->assertVariableConstant(
-                $class,
-                'RESOURCE_KEY_VARIABLE',
-                '_51DEGREES_RESOURCE_KEY'
-            );
-            $this->assertVariableConstant(
-                $class,
-                'IPI_PATH_VARIABLE',
-                '_51DEGREES_IPI_PATH'
-            );
-        }
-    }
-
-    /**
-     * Builds a pipeline of the two translation engines, each finding the
-     * translation files for itself.
-     */
-    private function buildTranslationPipeline(Logger $logger): void
-    {
-        (new PipelineBuilder([]))
-            ->addLogger($logger)
-            ->add(new CountryCodeTranslationEngine())
-            ->add(new CountriesTranslationEngine())
-            ->build();
-    }
-
-    /**
-     * A logger that keeps every entry.
-     */
-    private function memoryLogger(): Logger
-    {
-        return new class ('trace') extends Logger {
-            /** @var array<int, array<string, string>> */
-            public array $entries = [];
-
-            public function logInternal(array $log): void
-            {
-                $this->entries[] = $log;
-            }
-        };
-    }
-
-    /**
-     * The entries the logger kept that name the deprecated variable.
-     *
-     * @return array<int, array<string, string>>
-     */
-    private function aboutTheDeprecatedName(Logger $logger): array
-    {
-        return array_values(array_filter(
-            $logger->entries,
-            static fn (array $entry): bool => strpos(
-                $entry['message'],
-                'IPINTELLIGENCEDATAFILE'
-            ) !== false
-        ));
-    }
-
-    /**
-     * Makes the package's once-only log entry possible again, as it is
-     * when PHP starts a script.
-     */
-    private function forgetDeprecatedVariable(): void
-    {
-        \Closure::bind(static function (): void {
-            self::$oldIpiPathVariableRead = false;
-            self::$oldIpiPathVariableReported = false;
-        }, null, TranslationPaths::class)();
     }
 
     /**
@@ -427,24 +168,6 @@ class EnvironmentVariableTests extends TestCase
     private $folders = [];
 
     /**
-     * Checks that a constant still has its name and its value, and is
-     * marked deprecated.
-     *
-     * @param class-string $class
-     */
-    private function assertDeprecatedConstant(
-        string $class,
-        string $constant,
-        string $value
-    ): void {
-        $this->assertTrue(defined($class . '::' . $constant), $constant);
-        $this->assertSame($value, constant($class . '::' . $constant));
-        $comment = (string) (new \ReflectionClassConstant($class, $constant))
-            ->getDocComment();
-        $this->assertStringContainsString('@deprecated', $comment, $constant);
-    }
-
-    /**
      * Checks that a constant holds a variable's name.
      *
      * @param class-string $class
@@ -469,29 +192,5 @@ class EnvironmentVariableTests extends TestCase
         }
         putenv($value === null ? $name : $name . '=' . $value);
         unset($_ENV[$name]);
-    }
-
-    /**
-     * Runs the action and returns the lines it wrote to the PHP error log.
-     * The log is pointed at a file from inside the test, because PHPUnit
-     * points it at a file of its own while a test runs.
-     *
-     * @return string[]
-     */
-    private function logged(callable $action): array
-    {
-        $log = (string) tempnam(sys_get_temp_dir(), 'env');
-        $previous = ini_set('error_log', $log);
-        try {
-            $action();
-
-            return array_values(array_filter(
-                array_map('trim', (array) file($log)),
-                'strlen'
-            ));
-        } finally {
-            ini_set('error_log', (string) $previous);
-            unlink($log);
-        }
     }
 }

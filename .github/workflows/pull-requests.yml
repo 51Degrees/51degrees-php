@@ -6,6 +6,10 @@ on:
       dryrun:
         type: boolean
         default: false
+      full-matrix:
+        description: 'Build every configuration, not only those the changes need'
+        type: boolean
+        default: false
 
 jobs:
   PullRequests:
@@ -19,10 +23,10 @@ jobs:
       # The on-premise packages compile native extensions and load
       # multi-gigabyte data files, and every package runs in each leg.
       build-test-timeout-minutes: 300
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      CsvUrl: ${{ secrets.CSV_URL }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+      # Each pull request is built on the configurations its changes need,
+      # as ci/select-options.ps1 chooses, and one that fails does not cancel
+      # the others. With nothing eligible, the nightly builds rc instead.
+      full-matrix: ${{ inputs.full-matrix || false }}
+      fail-fast: false
+      build-without-pull-requests: false
+    secrets: inherit

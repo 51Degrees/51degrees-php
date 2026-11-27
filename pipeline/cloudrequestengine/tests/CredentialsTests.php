@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\cloudrequestengine\tests;
 
+use fiftyone\pipeline\cloudrequestengine\CloudEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestException;
 use fiftyone\pipeline\cloudrequestengine\Constants;
@@ -107,22 +108,25 @@ class CredentialsTests extends TestCase
     }
 
     /**
-     * Builds the engine in a pipeline and processes one request through it,
-     * which fetches the evidence keys and accessible properties first.
+     * Builds the engine, which asks for the evidence keys and accessible
+     * properties, in a pipeline and processes one request through it. The
+     * engine is null when the build failed.
      *
      * @param array<string, mixed> $settings
-     * @return array{requests: array<array{string, string, array<string, string>}>, logged: array<string>, thrown: array<\Throwable>, engine: CloudRequestEngine}
+     * @return array{requests: array<array{string, string, array<string, string>}>, logged: array<string>, thrown: array<\Throwable>, engine: null|CloudRequestEngine}
      */
     private function process(array $settings, ?string $failing = null): array
     {
-        $engine = new CloudRequestEngine(array_merge(
-            ['httpClient' => $this->recordingClient($failing)],
-            $settings
-        ));
         $logger = self::memoryLogger();
-        $pipeline = (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
+        $engine = null;
         $thrown = [];
         try {
+            // A refused discovery request fails the build.
+            $engine = new CloudRequestEngine(array_merge(
+                ['httpClient' => $this->recordingClient($failing)],
+                $settings
+            ));
+            $pipeline = (new PipelineBuilder())->add($engine)->addLogger($logger)->build();
             $data = $pipeline->createFlowData();
             $data->evidence->set('query.User-Agent', 'iPhone');
             $data->process();
@@ -178,7 +182,7 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::dataRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame(
             ['User-Agent' => 'iPhone', 'resource' => self::resourceKey],
             $fields
@@ -187,7 +191,7 @@ class CredentialsTests extends TestCase
         [$type, $url, $fields] = self::propertiesRequest($result['requests']);
         $this->assertSame('GET', $type);
         $this->assertSame(
-            Constants::BASE_URL_DEFAULT . 'accessibleProperties?resource=' . self::resourceKey,
+            CloudEndPoint::expected() . 'accessibleProperties?resource=' . self::resourceKey,
             $url
         );
         $this->assertSame([], $fields);
@@ -203,14 +207,14 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::propertiesRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . 'accessibleProperties', $url);
+        $this->assertSame(CloudEndPoint::expected() . 'accessibleProperties', $url);
         $this->assertSame(
             ['resource' => self::resourceKey, 'license' => self::licenseKey],
             $fields
         );
 
         [, $url, $fields] = self::dataRequest($result['requests']);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
@@ -228,7 +232,7 @@ class CredentialsTests extends TestCase
 
         $this->assertSame([], $result['thrown']);
         [, $url, $fields] = self::dataRequest($result['requests']);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
@@ -246,7 +250,7 @@ class CredentialsTests extends TestCase
 
         $this->assertSame([], $result['thrown']);
         [, $url, $fields] = self::dataRequest($result['requests']);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . self::resourceKey . '.json?', $url);
+        $this->assertSame(CloudEndPoint::expected() . self::resourceKey . '.json?', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'resource' => self::resourceKey,
@@ -256,7 +260,7 @@ class CredentialsTests extends TestCase
         [$type, $url] = self::propertiesRequest($result['requests']);
         $this->assertSame('GET', $type);
         $this->assertSame(
-            Constants::BASE_URL_DEFAULT . 'accessibleProperties?resource=' . self::resourceKey,
+            CloudEndPoint::expected() . 'accessibleProperties?resource=' . self::resourceKey,
             $url
         );
     }
@@ -271,7 +275,7 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::dataRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . 'json', $url);
+        $this->assertSame(CloudEndPoint::expected() . 'json', $url);
         $this->assertSame([
             'User-Agent' => 'iPhone',
             'license' => self::licenseKey,
@@ -289,12 +293,12 @@ class CredentialsTests extends TestCase
         $this->assertSame([], $result['thrown']);
         [$type, $url, $fields] = self::propertiesRequest($result['requests']);
         $this->assertSame('POST', $type);
-        $this->assertSame(Constants::BASE_URL_DEFAULT . 'accessibleProperties', $url);
+        $this->assertSame(CloudEndPoint::expected() . 'accessibleProperties', $url);
         $this->assertSame(['license' => self::licenseKey], $fields);
         $this->assertArrayHasKey('ismobile', $result['engine']->flowElementProperties['device']);
 
         $this->assertContains(
-            ['GET', Constants::BASE_URL_DEFAULT . 'evidencekeys', []],
+            ['GET', CloudEndPoint::expected() . 'evidencekeys', []],
             $result['requests']
         );
         $this->assertSame(
@@ -403,10 +407,11 @@ class CredentialsTests extends TestCase
     public function testFailedRequestsLogAndThrowNothingHoldingTheLicenseKey(array $settings): void
     {
         // The discovery request, then the data request, which is named by
-        // the resource key where there is one.
+        // the resource key where there is one, and is otherwise the data
+        // path under the address the engine uses.
         $dataPath = isset($settings['resourceKey'])
             ? strtolower(self::resourceKey) . '.json'
-            : 'v4/json';
+            : strtolower(CloudEndPoint::expected() . Constants::LICENSE_DATA_PATH);
         foreach (['accessibleproperties', $dataPath] as $failing) {
             $result = $this->process($settings, $failing);
 
@@ -471,6 +476,38 @@ class CredentialsTests extends TestCase
             $logger->messages[0]
         );
         $this->assertStringNotContainsString('keys in use', $logger->messages[0]);
+    }
+
+    /**
+     * The Property metadata comes from the accessible properties answer
+     * alone, under a resource key or a license key. A requested name the
+     * answer leaves out gets none, because its type would be unknown.
+     */
+    public function testPropertyMetadataComesOnlyFromTheAccessiblePropertiesAnswer(): void
+    {
+        foreach ([
+            ['resourceKey' => self::resourceKey],
+            ['licenseKey' => self::licenseKey]
+        ] as $settings) {
+            $engine = new CloudRequestEngine(array_merge($settings, [
+                'requestedProperties' => ['device.ismobile', 'device.istablet'],
+                'httpClient' => $this->recordingClient()
+            ]));
+            $device = new CloudEngine();
+            $device->dataKey = 'device';
+            (new PipelineBuilder())->add($engine)->add($device)->build();
+
+            $this->assertSame(['device'], array_keys($engine->flowElementProperties));
+            $this->assertSame(
+                ['ismobile'],
+                array_keys($engine->flowElementProperties['device'])
+            );
+            $this->assertSame(
+                'Boolean',
+                $engine->flowElementProperties['device']['ismobile']['type']
+            );
+            $this->assertSame(['ismobile'], array_keys($device->getProperties()));
+        }
     }
 
     public function testNothingIsLoggedWhenEveryPropertyCameBackOrNoneWasNamed(): void

@@ -20,6 +20,17 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+// The engine is built once, when PHP starts, and is supported only where PHP
+// serves each request from a process forked after that, as Apache with the
+// prefork MPM and php-fpm do. A thread-safe (ZTS) PHP would share the engine
+// between threads instead, so the build stops here. The wrapper includes
+// php.h first, which defines ZTS for a thread-safe PHP.
+%{
+#ifdef ZTS
+#error "The 51Degrees device detection extension needs a non-thread-safe (NTS) PHP, and this PHP is thread-safe (ZTS). Build it for Apache with the prefork MPM and mod_php, or for php-fpm, with a non-thread-safe PHP."
+#endif
+%}
+
 %include "cxx/src/dd/hash/hash.i"
 
 // Add a void constructor. This is not to be used, but a workaround for a bug
@@ -82,12 +93,19 @@ public:
 }
 
 %{
-    EngineHash *engine;
-    ConfigHash *config;
-    RequiredPropertiesConfig *properties;
+    #include <string.h>
+    #include <sys/stat.h>
+
+    EngineHash *engine = NULL;
+    ConfigHash *config = NULL;
+    RequiredPropertiesConfig *properties = NULL;
+
+    // The file loaded when php.ini does not set
+    // FiftyOneDegreesHashEngine.data_file, when there is a file there.
+    #define FIFTYONE_DEGREES_DEFAULT_DATA_FILE "/usr/lib/php5/51Degrees.hash"
 
     PHP_INI_BEGIN()
-    PHP_INI_ENTRY("FiftyOneDegreesHashEngine.data_file", "/usr/lib/php5/51Degrees.hash", PHP_INI_ALL, NULL)
+    PHP_INI_ENTRY("FiftyOneDegreesHashEngine.data_file", FIFTYONE_DEGREES_DEFAULT_DATA_FILE, PHP_INI_ALL, NULL)
     PHP_INI_ENTRY("FiftyOneDegreesHashEngine.required_properties", NULL, PHP_INI_ALL, NULL)
     PHP_INI_ENTRY("FiftyOneDegreesHashEngine.performance_profile", NULL, PHP_INI_ALL, NULL)
     PHP_INI_ENTRY("FiftyOneDegreesHashEngine.drift", "0", PHP_INI_ALL, NULL)
@@ -188,11 +206,43 @@ EngineHash *engine;
     else {
         properties = new RequiredPropertiesConfig();
     }
-    
-    engine = new EngineHash(
-        filePath,
-        config,
-        properties);
+
+    // PHP always starts. The engine is built only from a data file that
+    // exists, and a file or settings it cannot be built from give a warning
+    // rather than stopping PHP. With no engine, engine_get() gives null and
+    // DeviceDetectionOnPremise says which setting to set. Leaving the setting
+    // out, when there is no file at the default path, gives no warning.
+    struct stat dataFileStat;
+    bool dataFileSet = filePath != NULL && strlen(filePath) > 0;
+    if (dataFileSet && stat(filePath, &dataFileStat) != 0) {
+        if (strcmp(filePath, FIFTYONE_DEGREES_DEFAULT_DATA_FILE) != 0) {
+            php_error_docref(NULL, E_WARNING,
+                "There is no data file at '%s', which "
+                "FiftyOneDegreesHashEngine.data_file names, so no device "
+                "detection engine was built.",
+                filePath);
+        }
+    }
+    else if (dataFileSet) {
+        try {
+            engine = new EngineHash(
+                filePath,
+                config,
+                properties);
+        }
+        catch (const std::exception &e) {
+            php_error_docref(NULL, E_WARNING,
+                "No device detection engine was built from '%s', which "
+                "FiftyOneDegreesHashEngine.data_file names. %s",
+                filePath, e.what());
+        }
+        catch (...) {
+            php_error_docref(NULL, E_WARNING,
+                "No device detection engine was built from '%s', which "
+                "FiftyOneDegreesHashEngine.data_file names.",
+                filePath);
+        }
+    }
 }
 
 %mshutdown {
@@ -200,4 +250,12 @@ EngineHash *engine;
     delete engine;
     delete properties;
     delete config;
+
+    /*
+     * The settings leave with the extension. PHP removes them itself only for
+     * an extension with no shutdown function, and when a request that loaded
+     * this one with dl() ends, PHP frees their names and default values, so
+     * settings left behind are read after they are freed when PHP stops.
+     */
+    UNREGISTER_INI_ENTRIES();
 }

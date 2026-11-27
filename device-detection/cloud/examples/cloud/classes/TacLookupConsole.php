@@ -38,6 +38,7 @@
 
 namespace fiftyone\pipeline\devicedetection\examples\cloud\classes;
 
+use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\Constants;
 use fiftyone\pipeline\core\PipelineBuilder;
 
@@ -47,6 +48,14 @@ class TacLookupConsole
     private $tac1 = '35925406';
     private $tac2 = '86386802';
 
+    /**
+     * @param array $config The decoded configuration file
+     * @param \fiftyone\pipeline\core\Logger $logger
+     * @param callable $output
+     * @param string $cloudEndPoint The cloud service to use, or empty for the
+     * one the configuration names, then the one _51DEGREES_CLOUD_ENDPOINT
+     * names, then the default
+     */
     public function run($config, $logger, callable $output, $cloudEndPoint = '')
     {
         $output('This example shows the details of devices ' .
@@ -62,10 +71,30 @@ class TacLookupConsole
         // For more information about builders in general see the documentation at
         // https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-php&utm_content=examples-cloud-classes-taclookupconsole.php&utm_term=run
 
+        // If a cloud endpoint has been provided then give it to the cloud
+        // request engine in place of the configuration's.
+        if (!empty($cloudEndPoint)) {
+            foreach ($config['PipelineOptions']['Elements'] as &$element) {
+                if ($element['BuilderName'] === CloudRequestEngine::class) {
+                    $element['BuildParameters']['cloudEndPoint'] = $cloudEndPoint;
+                }
+            }
+            unset($element);
+        }
+
         // Create the pipeline using the service provider and the configured options.
         $pipeline = (new PipelineBuilder())
             ->addLogger($logger)
             ->buildFromConfig($config);
+
+        // The lookups need the Profiles property of the hardware engine,
+        // which the resource key may not include. Say so once, from the
+        // properties the key includes, rather than looking up each TAC.
+        if (ExampleUtils::lacksHardwareLookup($pipeline)) {
+            $output(ExampleUtils::getNoHardwareLookupMessage(__FILE__));
+
+            return;
+        }
 
         // Pass a TAC into the pipeline and list the matching devices.
         $this->analyseTac($this->tac1, $pipeline, $output);
@@ -88,10 +117,10 @@ class TacLookupConsole
         // The 'hardware.profiles' object contains one or more devices.
         // This is the same interface used for standard device detection, so we have
         // access to all the same properties.
-        $profiles = ExampleUtils::getProfiles($result);
+        $profiles = $result->profiles;
 
         if (count($profiles) === 0) {
-            $output(ExampleUtils::getNoProfilesMessage());
+            $output("\tNo devices are associated with this TAC.");
 
             return;
         }

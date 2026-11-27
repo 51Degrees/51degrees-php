@@ -35,3 +35,5 @@ use fiftyone\pipeline\ipintelligence\examples\classes\MetadataConsoleOnPremise;
 ExampleUtils::startWithEngine($argv);
 
 (new MetadataConsoleOnPremise())->run(STDOUT);
+
+ExampleUtils::printFindOutMore(__FILE__);

@@ -10,10 +10,26 @@
 ## Introduction
 This project contains the source code for the 'engines' functionality for the PHP implementation of the 51Degrees Pipeline API.
 		
-## Tests
-To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:
+## Examples
+
+[examples/OnPremiseEngine.php](examples/OnPremiseEngine.php) creates an
+on-premise engine, being a flow element whose results come from a data file
+it reads when it is made. The engine gives the star sign for a date of birth
+from the dates in [examples/starsigns.csv](examples/starsigns.csv). The
+example needs no settings, no resource key and no network. Run it from this
+folder.
+
 ```
-phpunit --fail-on-warning --display-warnings --log-junit test-results.xml
+composer install
+php examples/OnPremiseEngine.php
+```
+
+`tests/ExampleTests.php` runs it in its own PHP with no settings, as CI does.
+
+## Tests
+To run the tests in this repository, make sure PHPUnit 9.6 is installed then, in the root of this repo, call:
+```
+phpunit --fail-on-warning --log-junit test-results.xml
 ```
 
 

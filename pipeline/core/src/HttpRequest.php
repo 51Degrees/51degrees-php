@@ -29,6 +29,8 @@ namespace fiftyone\pipeline\core;
  * A read-only view of a web request, held in Evidence under
  * server.http-request. It has no setters, and each getter returns a copy of
  * its array.
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/web-integration.md#populating-evidence
  */
 final class HttpRequest
 {

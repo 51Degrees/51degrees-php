@@ -27,7 +27,6 @@ namespace fiftyone\pipeline\ipintelligence\translation;
 
 use fiftyone\pipeline\core\AspectPropertyValue;
 use fiftyone\pipeline\core\FlowData;
-use fiftyone\pipeline\core\Pipeline;
 use fiftyone\pipeline\engines\AspectDataDictionary;
 use fiftyone\pipeline\ipintelligence\Constants as IpIntelligenceConstants;
 use fiftyone\pipeline\translation\MissingTranslationBehavior;
@@ -102,16 +101,6 @@ class CountriesTranslationEngine extends TranslationEngine
             $this->properties[$allCodesKey] = ['name' => $allCodesKey, 'type' => 'Array'];
         }
         $this->properties['sortingcultureused'] = ['name' => 'SortingCultureUsed', 'type' => 'String'];
-    }
-
-    /**
-     * Logs that a value was read from the deprecated environment variable,
-     * when one was and that has not been logged yet.
-     */
-    public function onRegistration(Pipeline $pipeline): void
-    {
-        parent::onRegistration($pipeline);
-        TranslationPaths::reportDeprecatedVariable($pipeline);
     }
 
     public function processInternal(FlowData $flowData): void
@@ -233,7 +222,20 @@ class CountriesTranslationEngine extends TranslationEngine
 
         return static function (string $a, string $b): int {
             $normalize = static function (string $s): string {
-                $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+                // Some iconv libraries give a notice and false when IGNORE
+                // drops a character that has no ASCII form. The name is
+                // then compared as it is, so the notice is taken.
+                set_error_handler(
+                    static function (): bool {
+                        return true;
+                    },
+                    E_NOTICE
+                );
+                try {
+                    $t = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+                } finally {
+                    restore_error_handler();
+                }
 
                 return strtolower($t === false ? $s : $t);
             };

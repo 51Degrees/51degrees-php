@@ -44,9 +44,10 @@ namespace fiftyone\pipeline\did;
 enum FodIdParseStatus: string
 {
     /**
-     * The payload holds fewer than the
-     * {@see FodIdLayout::HEADER_LENGTH} bytes of flags and licence id that
-     * every identifier type shares, so the type cannot even be read.
+     * The payload is empty, or names payload version 0 and holds fewer
+     * than the {@see FodIdLayout::HEADER_LENGTH} bytes of flags and
+     * licence id that every identifier type shares, so the type cannot
+     * even be read.
      */
     case PayloadTooShort = 'PayloadTooShort';
 
@@ -62,7 +63,8 @@ enum FodIdParseStatus: string
 
     /**
      * Bits 4 and 5 of the flags byte name a payload layout version this
-     * package does not know, so no field is read. A later version exists
+     * package does not know, so no field is read, however short the
+     * payload is after its flags byte. A later version exists
      * precisely because a field moved, so reading the payload under the
      * layout this package knows would answer with values that are wrong
      * rather than absent.

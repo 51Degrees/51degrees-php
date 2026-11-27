@@ -30,8 +30,11 @@ sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 
 On Windows, run `cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash` in PowerShell instead.
 Then set `FiftyOneDegreesHashEngine.data_file` in php.ini to that file, as
-[Configuration](#configuration) describes. The engine loads the file when PHP starts, so the
-file must be there first.
+[Configuration](#configuration) describes. The engine loads the file when PHP starts. When the
+setting names no file, or a file the engine cannot be built from, PHP still starts, with no
+engine, and `DeviceDetectionOnPremise` refuses with a message naming the setting. A file named
+by the setting that is missing or cannot be loaded also gives a warning when PHP starts, with
+the reason.
 
 ## Install
 
@@ -67,6 +70,10 @@ make
 sudo make install
 ```
 
+The build shows any compiler warnings and does not stop on them. Set the
+environment variable `_51DEGREES_WARNINGS_AS_ERRORS` to `true` before
+`./configure` to make them errors, as the builds 51Degrees runs do.
+
 The Hash engine extension will then be installed into the PHP extensions directory and can 
 then be added to the active php.ini file.
 
@@ -75,8 +82,11 @@ then be added to the active php.ini file.
 The wrapper files in `on-premise/src/php8` are generated from
 `on-premise/hash-php.i` and are never edited by hand. When `hash-php.i` or the
 `cxx` submodule changes, install SWIG 4.5.1, the version that generated the
-committed files and the IP Intelligence wrapper, and run this from the root of
-the repository with the `cxx` submodule checked out.
+committed files and the IP Intelligence wrapper, and Perl, and run this from
+the root of the repository with the `cxx` submodule checked out. The script
+passes SWIG's output through `ip-intelligence/on-premise/fix-wrapper.pl`,
+which removes the code nothing uses, so that GCC and Clang build it without
+an unused warning.
 
 ```
 git clone --depth 1 --branch v4.5.1 https://github.com/swig/swig.git
@@ -137,8 +147,9 @@ turns the performance graph on. Anything else, an empty value included, is
 off. A setting left out of php.ini keeps the default in the table.
 
 The engine needs at least one of the two graphs. Turning `use_predictive_graph`
-off without turning `use_performance_graph` on stops PHP when it starts, with
-the message "The configuration provided was not valid".
+off without turning `use_performance_graph` on leaves PHP with no engine, and
+PHP gives a warning when it starts, beginning "No device detection engine was
+built from" and giving the reason.
 
 ### Running Under Process Manager
 
@@ -146,20 +157,35 @@ When a `PHP` program is run under a process manager such as `Apache MPM`, `php-f
 
 The reason enforcement is needed is that, in other profiles such as `Balanced`, `BalancedTemp`, `LowMemory` or `Default`, only a part of the data file is loaded into memory so from time to time, calls to read data from disk are required. These calls use file handles from a file handle pool which was designed to optimise the performance. However, this pool was created when the Device Detection engine module is loaded in the main process, so when the process manager spawns child processes in response to incoming requests by forking the main process, this pool is copied to the child processes, causing the file handles to be shared. When multiple processes call to load data from file using shared file handles, problems can occur such as the file position being changed unwantedly by another child process. For this reason the engine always uses `MaxPerformance`, where no call to the data file is required.
 
-While this is an issue in multi-processing environment, it is not a problem in multi-threading environment as the file handles are not shared and are managed by the file handle pool.
-
 #### Apache MPM
 
 When running under Apache MPM, only `prefork` mode is supported, because the engine is built in memory when PHP starts and each worker is forked from that process. The extension is enabled in `php.ini` as described above.
+
+#### Thread-safe PHP
+
+The extension needs a non-thread-safe (NTS) PHP, which is what Apache `prefork` with mod_php and php-fpm use. A thread-safe (ZTS) PHP, which mod_php needs under the Apache `worker` or `event` MPM, would share the engine between the threads of one process, so building the extension against one stops with an error that names the supported setups. `php -v` shows `NTS` or `ZTS` after the version.
 
 #### Refresh Internal Data
 
 To reload the data file, *refreshData()* needs to be called as described in this [example](https://51degrees.com/documentation/_device_detection__data_file_updates.html?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.devicedetection&utm_term=refresh-internal-data) . Thus, unless a reload is performed in the main process and all child processes, the data will not be updated. There is not a proven solution to do so yet, so we recommend a full server restart to be performed instead.
 
+#### Results and threads
+
+The results of a detection, and the `SwigData` that reads values from them, are not safe to use from several threads at once. Reading a value writes into the native results, and neither the extension nor `SwigData` takes a lock. The caller is responsible for thread-safe access, so code that shares results between threads coordinates that itself.
+
 ## Examples
 
-Before running the examples, the configuration for the native module MUST be
-added to the php.ini file. See [Configuration](#configuration).
+The examples need the extension, built as [Install](#install) describes and loaded from php.ini
+or with `-d extension=...`. A console example runs with no data file setting. It takes the data
+file its first argument names, then the one the `_51DEGREES_DD_PATH` environment variable names,
+then the free Lite file in `cxx/data/device-detection`, which it downloads with the data
+repository's script when it is missing. It then runs again in a PHP started with that file, and
+says so on standard error with the command. Set `FiftyOneDegreesHashEngine.data_file` in php.ini,
+as [Configuration](#configuration) describes, so that PHP builds the engine once when it starts.
+A web example cannot start PHP again, so start it with the launcher, `examples/onpremise/serve.php`,
+which finds the data file in the same way and starts the PHP built-in server on port 5151 with it,
+as below. A data file or a port can follow the example's name. A web example started some other
+way with no data file setting answers with a page giving the launcher command and the setting.
 
 The gettingStartedWeb example uses the data file named by the `_51DEGREES_DD_PATH`
 environment variable in place of the php.ini one, when it is set. If that is a
@@ -167,22 +193,27 @@ free file in `cxx/data` that has not been downloaded yet, the example runs the
 download script for it first.
 
 To run the examples, you will need PHP and composer installed.
-Once these are available, install the dependencies required by the examples. 
-Navigate to the repository root and execute:
+Once these are available, install the dependencies required by the examples.
+The examples load the `vendor/autoload.php` of this package, which the
+`composer install` at the repository root does not create, so navigate to
+`device-detection/onpremise` and execute:
 
 ```
 composer install
 ```
 
-This will create the vendor directory containing autoload.php. 
-Now navigate to the examples directory and start a PHP server with the relevant file. For example:
+This will create the vendor directory containing autoload.php.
+Now, still in `device-detection/onpremise`, start a web example with the launcher. For example:
 
 ```
-php -S localhost:3000 gettingStartedWeb.php
+php examples/onpremise/serve.php gettingStartedWeb.php
 ```
 
-This will start a local web server listening on port 3000. 
-Open your web browser and browse to http://localhost:3000/ to see the example in action.
+This will start a local web server listening on port 5151. 
+Open your web browser and browse to http://localhost:5151/ to see the example in action.
+Run a console example from the same folder, for example
+`php examples/onpremise/gettingStartedConsole.php`. Every example ends with a
+"Find out more" section that lists where to go next.
 
 The table below describes the examples that are available.
 
@@ -204,10 +235,10 @@ link to contact us about a copy.
 
 ### PHPUnit
 
-This repo has tests for the examples. To run the tests, make sure PHPUnit is installed then, in the root of this repo, call:
+This repo has tests for the examples. To run the tests, make sure PHPUnit 9.6 is installed then, in the root of this repo, call:
 
 ```
-phpunit --fail-on-warning --display-warnings --log-junit test-results.xml
+phpunit --fail-on-warning --log-junit test-results.xml
 ```
 
 ### Performance

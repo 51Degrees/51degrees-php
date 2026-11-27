@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Every PHP error, warning, notice and deprecation fails the run, as do
+     risky and incomplete tests. The attributes are those of PHPUnit 9.6,
+     the version the build matrix runs. tests/bootstrap.php fails the run
+     on a warning, notice, deprecation or fatal error from a PHP the tests
+     start, or one PHPUnit does not handle. -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="tests/bootstrap.php"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         convertDeprecationsToExceptions="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnIncomplete="true"
+         colors="true">
+  <php>
+    <!-- Report every level, whatever php.ini sets. -->
+    <ini name="error_reporting" value="-1"/>
+  </php>
+  <testsuites>
+    <testsuite name="Unit">
+      <file>tests/ReadOnlyTests.php</file>
+      <file>tests/SharedCasesTests.php</file>
+      <file>tests/ScriptFilePathTests.php</file>
+      <file>tests/BuiltInScriptsTests.php</file>
+      <file>tests/ElementTests.php</file>
+      <file>tests/PipelineCheckTests.php</file>
+      <file>tests/ScriptTests.php</file>
+      <file>tests/ExampleTests.php</file>
+      <file>tests/SpecificationLinksTests.php</file>
+      <file>tests/ThrowsDocumentedTests.php</file>
+      <file>tests/KeyFormatTests.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

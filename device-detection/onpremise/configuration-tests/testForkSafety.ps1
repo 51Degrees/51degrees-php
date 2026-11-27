@@ -13,19 +13,22 @@ if ($IsWindows) {
 
 # Load the extension the same way the unit tests do.
 $env:PHP_INI_SCAN_DIR = "$([IO.Path]::PathSeparator)$PWD/$RepoName"
+. "$PSScriptRoot/../../../ci/php-messages.ps1"
+$messages = Add-PhpMessageLog
 $env:_51DEGREES_DD_PATH = "$PWD/assets/TAC-HashV41.hash"
-$env:_51DEGREES_UA_CSV = "$PWD/assets/20000 User Agents.csv"
+$env:_51DEGREES_EVIDENCE_YAML = "$PWD/assets/20000 Evidence Records.yml"
 
 Write-Output "Running fork-safety reproduction (issue #38)..."
 php "$RepoName/configuration-tests/testForkSafety.php"
 $code = $LASTEXITCODE
+Assert-NoPhpMessage $messages
 
 if ($code -eq 0) {
-    Write-Output "PASS: streaming profiles fail across a fork, in-memory MaxPerformance is safe."
+    Write-Output "PASS: streaming profiles share the file position across a fork, in-memory MaxPerformance is safe."
 } elseif ($code -eq 2) {
-    # Missing pcntl, extension, or data file. Skip rather than fail, since this
-    # is an environment limitation rather than a defect.
-    Write-Output "::warning::Skipping fork-safety test (pcntl, extension, or data file unavailable)."
+    # Missing pcntl, extension, data file or evidence file. Skip rather
+    # than fail, since this is an environment limitation rather than a defect.
+    Write-Output "::warning::Skipping fork-safety test (pcntl, extension, data file or evidence file unavailable)."
 } else {
     throw "fork-safety test failed (exit $code)"
 }

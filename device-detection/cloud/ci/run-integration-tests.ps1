@@ -1,39 +1,52 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [hashtable]$Keys
+    # False, from select-options.ps1, on every entry of a pull request but
+    # one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 
-if (!$Keys.TestResourceKey) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::No resource key was provided, so integration tests will not run."
+# common-ci puts each organization secret and variable into the environment
+# under its own name before this runs. The tests read
+# _51DEGREES_RESOURCE_KEY_BESPOKE, the organization secret holding the key
+# that carries every property they ask for, and
+# _51DEGREES_LICENSE_KEY_BESPOKE, the organization secret the Accept-CH tests
+# ask for one property at a time with. The Human Confidence tests that need
+# the staging cloud service are in the Staging suite, which
+# .github/workflows/cloud-human-confidence.yml runs rather than this script.
+if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so integration tests will not run."
     return
 } elseif (!(Test-Path $RepoName/tests/51Degrees.csv)) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No CSV File::CSV file wasn't found, so integration tests will not run."
     return
 }
 
-# Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_PLATFORM = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_HARDWARE = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_BROWSER = $Keys.TestResourceKey
-$env:_51DEGREES_RESOURCE_KEY_ACCEPTCH_NONE = $Keys.TestResourceKey
-
 ./php/run-integration-tests.ps1 -RepoName $RepoName
 $status = $LASTEXITCODE
 
+if (-not $SeleniumContract) {
+    Write-Host "Another entry runs the Selenium contract tests for this pull request."
+    exit $status
+}
+
 Write-Host 'Running Selenium tests...'
+# The scripts of the other packages run in this process afterwards, so the
+# example's key is put back as it was once the browser tests end.
+$previousKey = $env:_51DEGREES_RESOURCE_KEY
 try {
-    # Start this repo's cloud example, pointed at the live cloud.
+    # Start this repo's cloud example, against the cloud service that
+    # _51DEGREES_CLOUD_ENDPOINT names, or the public one when it is unset.
+    # The example reads the key a person sets, so it is given the key of the
+    # tests under that name.
+    $port = 8096
+    . "$PSScriptRoot/../../../ci/php-messages.ps1"
+    $messages = Add-PhpMessageLog
     Push-Location "$PSScriptRoot/../examples"
     try {
         composer install --working-dir=..
-        $env:PORT = 8096
-        $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-        $env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
-        $example = php -S "localhost:$env:PORT" cloud/gettingStartedWeb.php 2>&1 &
+        $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+        $example = php -S "localhost:$port" cloud/gettingStartedWeb.php 2>&1 &
     } finally { Pop-Location }
 
     # Get the shared contract tests.
@@ -41,26 +54,30 @@ try {
         git clone --depth 1 https://github.com/51Degrees/selenium-api-tests.git
     }
     # Wait for the example to come up.
-    curl -sS -o /dev/null --retry 5 --retry-connrefused "http://localhost:$env:PORT"
+    curl -sS -o /dev/null --retry 5 --retry-connrefused "http://localhost:$port"
 
     # Every browser test needs the client-side script, so check the example
     # serves it first. Otherwise a broken route shows only as each test timing
     # out, and the example's output is never printed.
     $coreJs = Join-Path ([IO.Path]::GetTempPath()) '51Degrees.core.js'
-    $answer = curl -sS -o $coreJs -w '%{http_code} %{content_type}' "http://localhost:$env:PORT/51Degrees.core.js"
+    $answer = curl -sS -o $coreJs -w '%{http_code} %{content_type}' "http://localhost:$port/51Degrees.core.js"
     if ($answer -notlike '200 application/x-javascript*' -or
         -not (Select-String -Quiet -SimpleMatch 'fiftyoneDegreesManager' $coreJs)) {
         throw "The example answered /51Degrees.core.js with '$answer' and no client-side script."
     }
 
-    $env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-    $env:PAID_RESOURCE_KEY = $Keys.TestResourceKey
-    $env:EXAMPLE_URL = "http://localhost:$env:PORT"
-    $env:EXAMPLE_LANG = 'php'
-    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract
+    # The contract tests open the example that is already running, which was
+    # given its key and its cloud service above, so they need neither.
+    # Without _51DEGREES_EXAMPLE_URL the suite launches an example of its own.
+    ${env:_51DEGREES_EXAMPLE_URL} = "http://localhost:$port"
+    ${env:_51DEGREES_EXAMPLE_LANG} = 'php'
+    # Normal verbosity prints each test's time, passed or failed.
+    dotnet test selenium-api-tests -c Release --filter TestCategory=Contract --logger "console;verbosity=normal"
 } catch {
     if ($example) { Write-Host '>>> example app output >>>'; Receive-Job $example | Out-Host; Write-Host '<<< app output <<<' }
     throw
 } finally {
     if ($example) { Remove-Job -Force $example }
+    $env:_51DEGREES_RESOURCE_KEY = $previousKey
+    if ($messages) { Assert-NoPhpMessage $messages }
 }

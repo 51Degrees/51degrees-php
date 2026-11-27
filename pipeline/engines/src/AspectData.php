@@ -32,6 +32,8 @@ use fiftyone\pipeline\core\ElementData;
  * It also allows properties to be explicitly excluded by a FlowElement / Engine.
  *
  * @property \fiftyone\pipeline\engines\Engine $flowElement
+ *
+ * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/conceptual-overview.md#aspect-data
  */
 class AspectData extends ElementData
 {
@@ -60,8 +62,10 @@ class AspectData extends ElementData
     {
         try {
             $result = $this->getInternal($key);
-            
-            if (empty($result)) {
+
+            // Only a name the data does not hold is missing. An empty list,
+            // false, 0 and an empty string are values.
+            if ($result === null) {
                 return $this->missingPropertyService->check($key, $this->flowElement);
             }
 

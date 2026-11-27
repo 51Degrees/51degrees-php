@@ -16,7 +16,7 @@ cd 51degrees-php
 composer install
 ```
 
-Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install). For cloud use, [create a Resource Key](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install).
+Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install). For cloud use, [create a Resource Key](https://51degrees.com/configure/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=readme&utm_term=install).
 
 Created from `pipeline-php-core`, `pipeline-php-engines`, `pipeline-php-cloudrequestengine`, `pipeline-php-did`, `device-detection-php`, `device-detection-php-onpremise`, and `location-php`, this repository continues their work.
 
@@ -36,6 +36,7 @@ a separate package.
 | [pipeline/cloudrequestengine](pipeline/cloudrequestengine) | `51degrees/fiftyone.pipeline.cloudrequestengine` | pipeline-php-cloudrequestengine | Cloud request engine for 51Degrees Pipeline API. Used to send requests to the 51Degrees cloud service. |
 | [pipeline/did](pipeline/did) | `51degrees/fiftyone.pipeline.did` | pipeline-php-did | Strongly typed reader for the 51Did (51Degrees Identifier) returned by the 51Degrees Cloud service, and a client for the cloud's 51Did endpoints. |
 | [pipeline/translation](pipeline/translation) | `51degrees/fiftyone.pipeline.translation` | None | Generic translation engine for the 51Degrees Pipeline API. |
+| [pipeline/derivedproperty](pipeline/derivedproperty) | `51degrees/fiftyone.pipeline.derivedproperty` | None | Derived property element for the 51Degrees Pipeline API. Computes properties such as HumanConfidence and IsGdpr from the properties other elements have produced. |
 | [device-detection/cloud](device-detection/cloud) | `51degrees/fiftyone.devicedetection` | device-detection-php | Device detection engines for the 51Degrees Pipeline API. Identify devices, operating systems, browsers, and crawlers from HTTP headers. |
 | [device-detection/onpremise](device-detection/onpremise) | `51degrees/fiftyone.devicedetection` | None | On-premise Device Detection engines for PHP built for the 51Degrees Pipeline API. Parse HTTP headers locally. |
 | [location](location) | `51degrees/fiftyone.geolocation` | location-php | Geolocation engines for 51Degrees Pipeline API. Perform reverse geocoding using longitude and latitude to populate postal addresses. |
@@ -49,10 +50,11 @@ Composer path repository.
 
 | Path | Contents |
 | --- | --- |
-| The package directories above | One Composer package each, published to its mirror as it is |
+| The package directories above | One Composer package each, published to its mirror as it is, apart from its requirements on the other packages here |
 | `cxx` | Submodule of [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx), with the C and C++ code, and the [data](https://github.com/51Degrees/data) repository as its `data` submodule |
 | `pipeline/did/owid-php` | Submodule of [owid-php](https://github.com/SWAN-community/owid-php), the OWID library `pipeline/did` uses |
 | `javascript-templates` | Submodule of [javascript-templates](https://github.com/51Degrees/javascript-templates), the source of the template `pipeline/core` serves. The package commits a copy in `pipeline/core/javascript-templates`, because Packagist serves an archive of the tag and an archive has no submodules. `pipeline/core/ci/update-packages.ps1` refreshes the copy, and the JavaScript templates check fails when the copy differs from the submodule |
+| `derived-properties` | Submodule of [derived-properties](https://github.com/51Degrees/derived-properties), the derived property scripts, their format and the cases every language runs. `pipeline/derivedproperty` commits a copy of its `scripts` folder for the same reason, `pipeline/derivedproperty/ci/update-packages.ps1` refreshes the copy, and the package's tests fail when the copy differs from the submodule |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 | `.github/workflows` | The CI workflows, and the ones that keep the mirrors up to date |
 | `composer.json` | The development install for the whole repository. It is never published |
@@ -71,36 +73,61 @@ The `require` sections of the package `composer.json` files give this order:
   and engines.
 - `pipeline/did` requires no other 51Degrees package. It requires the OWID
   library from the `owid-php` submodule.
+- `pipeline/derivedproperty` requires core, and reads YAML with
+  [symfony/yaml](https://github.com/symfony/yaml).
 
 ## Versions and releases
 
-The repository has one version, tagged as a plain version such as `4.5.203`.
-Every package is released together with that number, including a package
-that did not change. `ci/get-next-package-version.ps1` moves only the patch
-number.
+Each package has its own version, and its releases are tagged here as
+`<package>/<version>`, for example `fiftyone.pipeline.core/4.5.207`, where the
+package is its Composer name without `51degrees/`. A package is released when
+a file in its directory changed since its last tag, and every package that
+requires it is released with it. A change only to Markdown files, documentation,
+tests, examples or licences does not count, nor does a change to a
+`composer.json` that only moves its metadata, such as its description or links
+([`ci/release-plan-filter.ps1`](ci/release-plan-filter.ps1)). Neither does a
+change only to a package's development files, being its `phpunit.xml`,
+`phpstan.neon.dist`, `.php-cs-fixer.php`, `.gitignore` files, `.github/workflows`
+and `ci/` folder (the `Ignore` lists in `ci/packages.json`), except that
+`pipeline/did/ci` counts, because it builds that package. Only the patch
+number moves. The packages, what each requires and where each is published
+are listed in [`ci/packages.json`](ci/packages.json), and the release plan is
+worked out by common-ci's
+[`steps/release-plan.ps1`](https://github.com/51Degrees/common-ci/blob/main/steps/release-plan.ps1).
+The Release plan check on each pull request prints the packages a release
+would publish with the change, and fails if the plan cannot be worked out or
+gives a version that a mirror already has.
 
 Packagist does not read this repository. It reads the old repositories, which
-are now read-only mirrors. The mirror of each directory is in the table above
-and in `ci/packages.ps1`.
+are now read-only mirrors, and turns each version tag on a mirror, such as
+`4.5.207`, into a release. The mirror of each directory is in the table above.
 
 1. On every push to `main`, `mirror.yml` runs `git subtree split` for each
    mirrored directory and pushes the result to the `main` branch of its
    mirror.
-2. The nightly publish tags `main` here with the next version.
-3. That tag starts `mirror.yml` again, which puts the same tag on the split
-   of each directory, on its mirror. `pipeline/did` gets a commit that
-   `did-publish.yml` assembles instead, with the OWID source copied in,
-   because Packagist serves an archive of the tag and an archive has no
-   submodules.
+2. The nightly publish works out which packages changed since their last
+   release, and tags `main` here with each one's next version, one tag at a
+   time, in the order of their dependencies. It makes a GitHub release for
+   each tag, which attaches a zip of the commit the mirror is tagged with,
+   the file Packagist serves for that version.
+3. Each tag starts `mirror.yml` again, which puts the version on the split of
+   each released directory, on its mirror. A package that requires other
+   packages here is published with those requirements raised to the versions
+   released with it, for example `^4.5.207`, so its tag goes on a commit on
+   top of the split that changes only those lines of its `composer.json`.
+   `pipeline/did` gets a commit that `did-publish.yml` assembles instead,
+   with the OWID source copied in, because Packagist serves an archive of the
+   tag and an archive has no submodules.
 4. Packagist sees the tag on each mirror and makes the release, as it did
    before the merge.
 
-A version tag must be on `main` and above every version on the mirrors, or
-the workflows refuse it and tag nothing.
+A release tag must be on `main`, the highest of its package's tags here, and
+above every version on its mirror, or the workflows refuse it and tag
+nothing.
 
-`pipeline/translation`, `device-detection/onpremise` and
-`ip-intelligence` have no mirror, so they are not released to Packagist
-from here.
+`pipeline/translation`, `pipeline/derivedproperty`,
+`device-detection/onpremise` and `ip-intelligence` have no mirror, so they
+are not released to Packagist from here.
 
 ## Getting the code
 
@@ -135,24 +162,34 @@ submodules, delete those two folders from `cxx` in an existing clone.
 
 ## Tests
 
-Run the unit tests of one package with the root autoloader:
+Run the unit tests of one package from its folder with PHPUnit 9.6, the
+version CI runs, such as the
+[PHPUnit 9.6 PHAR](https://phar.phpunit.de/phpunit-9.6.phar):
 
 ```bash
 cd pipeline/core
-../../vendor/bin/phpunit --bootstrap ../../vendor/autoload.php --testsuite Unit
+phpunit --testsuite Unit
 ```
 
-`location` and `ip-intelligence` sit one level higher, so there the root
-`vendor` is `../vendor`.
+Each package's `phpunit.xml` loads its `tests/bootstrap.php`, which uses the
+package's own `vendor` folder, or the root one where the package has none.
+`pipeline/did` is the exception, as CI runs it with the PHPUnit Composer
+installs, 10.5 or later, so there run `../../vendor/bin/phpunit --testsuite
+Unit`.
 
 Each package's `phpunit.xml` names its test suites. Some packages differ:
 
 - `location` has only an `Integration` suite.
+- `device-detection/cloud` has a `Staging` suite, the Human Confidence tests
+  of what the staging cloud service serves and the production one does not.
+  Only `.github/workflows/cloud-human-confidence.yml` runs it.
 - `device-detection/onpremise` is not in the root `composer.json`. The
   root autoloader maps its namespace to `device-detection/cloud`.
 
 The tests that use the cloud need a Resource Key. See each package's readme
-for the keys and data files its tests use.
+for the keys and data files its tests use, and
+[environment-variables.md](environment-variables.md) for every environment
+variable the packages, examples, tests and CI read.
 
 ## Building the on-premise extensions
 
@@ -170,6 +207,13 @@ phpize
 make
 ```
 
+The build shows any compiler warnings and does not stop on them. Set the
+environment variable `_51DEGREES_WARNINGS_AS_ERRORS` to `true` before
+`./configure` to make them errors, as the builds 51Degrees runs do.
+
+Both extensions need a non-thread-safe (NTS) PHP, and the build stops with an
+error against a thread-safe (ZTS) one.
+
 The package [readme](device-detection/onpremise/readme.md) lists the build
 requirements and how to install the extension.
 
@@ -179,8 +223,8 @@ The workflows in `.github/workflows` call the shared workflows in
 [common-ci](https://github.com/51Degrees/common-ci), which run the scripts in
 `ci/` once for the whole repository, on one build matrix from
 `ci/options.json`. Most of those scripts run the script of the same name in
-each package's own `ci/` folder. `ci/packages.ps1` lists the packages and how
-each is built and tested.
+each package's own `ci/` folder. `ci/packages.json` lists the packages, and
+`ci/packages.ps1` says how each is built and tested.
 
 ## Contributing
 
@@ -191,8 +235,10 @@ Pull requests go to the `rc` branch, not `main`. When a release is wanted, one
 pull request merges `rc` into `main`.
 
 Do not edit a package's `composer.json` or `ci/` directory to make the
-monorepo work. CI publishes each package directory to its mirror as it is.
-Put monorepo glue in root files only, for example the root `composer.json`.
+monorepo work. CI publishes each package directory to its mirror as it is,
+except that a release raises the package's requirements on the other
+packages here to the versions it publishes. Put monorepo glue in root files
+only, for example the root `composer.json`.
 
 ## History
 

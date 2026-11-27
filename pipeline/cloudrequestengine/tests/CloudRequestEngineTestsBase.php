@@ -29,7 +29,6 @@ use PHPUnit\Framework\TestCase;
 
 class CloudRequestEngineTestsBase extends TestCase
 {
-    public const expectedUrl = 'https://cloud.51degrees.com/api/v4/resource_key.json';
     public const jsonResponse = '{"device":{"value":"1"}}';
     public const evidenceKeysResponse = '["query.User-Agent","header.User-Agent",' .
         '"cookie.User-Agent","query.id.usage","header.id.usage",' .
@@ -43,7 +42,7 @@ class CloudRequestEngineTestsBase extends TestCase
     public const noDataKey = 'nodatakey';
     public const noDataKeyResponse = '{}';
     public const noDataKeyMessageComplete = "Error returned from 51Degrees cloud service: 'No data in response " .
-        "from cloud service at https://cloud.51degrees.com/api/v4/accessibleProperties?resource=nodatakey'";
+        "from cloud service at 'https://cloud.51degrees.com/api/v4/accessibleProperties?resource=nodatakey''";
     public const accessibleSubPropertiesResponse =
         "{\n" .
         "    \"Products\": {\n" .
@@ -90,16 +89,8 @@ class CloudRequestEngineTestsBase extends TestCase
     // the wire and is not an environment variable.
     public const resourceKey = 'resource_key';
     // The environment variable the integration tests read a real resource key
-    // from.
-    public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY';
-
-    /**
-     * The environment variable read for the resource key when
-     * RESOURCE_KEY_ENV_VAR is not set.
-     *
-     * @deprecated use {@see CloudRequestEngineTestsBase::RESOURCE_KEY_ENV_VAR}
-     */
-    public const OLD_RESOURCE_KEY_ENV_VAR = 'resource_key';
+    // from, being the key that carries every property the tests ask for.
+    public const RESOURCE_KEY_ENV_VAR = '_51DEGREES_RESOURCE_KEY_BESPOKE';
     public const userAgent = 'iPhone';
 
     public static function getResponse()

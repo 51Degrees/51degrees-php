@@ -25,11 +25,15 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use fiftyone\pipeline\tests\PhpMessage;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @requires OS Linux
  */
+#[RequiresOperatingSystem('Linux')]
 class UACHHashTests extends TestCase
 {
     public static $process;
@@ -48,10 +52,10 @@ class UACHHashTests extends TestCase
         $propertiesShell = escapeshellarg((string) $properties);
 
         // start server
-        self::$process = new Process("php -dFiftyOneDegreesHashEngine.required_properties={$propertiesShell} -S localhost:3000 examples/onpremise/userAgentClientHints-Web.php");
+        self::$process = new Process("php -dFiftyOneDegreesHashEngine.required_properties={$propertiesShell} -S localhost:5151 examples/onpremise/userAgentClientHints-Web.php");
         self::$process->start();
         if (self::$process->status()) {
-            shell_exec('lsof -i tcp:3000 1>/dev/null 2>&1');
+            shell_exec('lsof -i tcp:5151 1>/dev/null 2>&1');
             sleep(1);
             echo "User Agent Client Hints On-Premise Web example has started running.\n";
         } else {
@@ -115,6 +119,7 @@ class UACHHashTests extends TestCase
      * @param mixed $properties
      * @param mixed $expectedValue
      */
+    #[DataProvider('provider_testAcceptCH')]
     public function testAcceptCH($userAgent, $properties, $expectedValue)
     {
         // setup test
@@ -129,8 +134,8 @@ class UACHHashTests extends TestCase
             ]
         ]);
 
-        $data = @file_get_contents(Constants::URL, false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header);
+        $data = PhpMessage::read(Constants::URL, $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code']);
 

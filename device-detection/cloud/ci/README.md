@@ -1,10 +1,23 @@
 # API Specific CI/CD Approach
 This API complies with the `common-ci` approach.
 
+The workflows pass the organization secrets to `common-ci` with `secrets: inherit`, and `common-ci` puts each key, from the organization secret of its name, into the environment under its `_51DEGREES_` name before these scripts run. No script takes a key as a parameter.
+
 The following secrets are required:
 * `ACCESS_TOKEN` - GitHub [access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#about-personal-access-tokens) for cloning repos, creating PRs, etc.
     * Example: `github_pat_l0ng_r4nd0m_s7r1ng`
-* `SUPER_RESOURCE_KEY` - [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for integration tests
-    * Example: `R4nd0m-S7r1ng`
-* `DEVICE_DETECTION_KEY` - [license key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for downloading assets (TAC hashes file and TAC CSV data file)
+* `_51DEGREES_LICENSE_KEY` - [license key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for downloading the TAC CSV data file from the Distributor
     * Example: `V3RYL0NGR4ND0M57R1NG`
+    * Without it, the TAC CSV data file is not fetched and the integration tests are skipped.
+* `_51DEGREES_LICENSE_KEY_BESPOKE` - [license key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for the Accept-CH tests, which ask the cloud for one property each with it
+    * Without it, those tests are skipped, naming it.
+
+The following organization secrets are required as well:
+* `_51DEGREES_RESOURCE_KEY_BESPOKE` - [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for integration tests, carrying every property the tests ask for
+    * Example: `R4nd0m-S7r1ng`
+    * Without it, the integration tests are skipped, with a warning naming it.
+
+The Human Confidence tests of what the staging cloud service serves and the production one does not, being a passive level, `HumanConfidenceSource` and the Human Confidence redeem, are the `Staging` suite in `phpunit.xml`. `.github/workflows/cloud-human-confidence.yml` runs them rather than `common-ci`, because `common-ci` does not export `CLOUD_STAGING_ENDPOINT` or `RESOURCE_KEY_BESPOKE_STAGING`, two names only CI uses. That workflow fails when a name is empty or a test is skipped. It reads:
+* `CLOUD_STAGING_ENDPOINT` - organization variable holding the staging cloud service's address, including `/api/v4/`. CI only.
+* `RESOURCE_KEY_BESPOKE_STAGING` - organization secret holding a resource key on the Bespoke product that the staging cloud service accepts. CI only.
+* `_51DEGREES_RESOURCE_KEY_BASIC` - organization secret holding a [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-php&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) on the Basic product, for the test that checks a key whose products do not offer `HumanConfidenceSource` gets none

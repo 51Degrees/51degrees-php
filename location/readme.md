@@ -34,7 +34,7 @@ Make sure to select the latest version from [Composer.][composer]
 #### Configuration Options
 
  - String ``type`` - The name of the type of geolocation service to use.
- - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://configure.51degrees.com?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=configuration-options).
+ - String ``resourceKey`` - Resource Key is evidence used within the Cloud service for monitoring usage. [Obtain a resource key](https://51degrees.com/configure?utm_source=packagist&utm_medium=package&utm_campaign=51degrees-php&utm_content=fiftyone.geolocation&utm_term=configuration-options).
  - Array ``restrictedProperties`` - The properties to populate values for in the result (all are populated by default).
 
 ## Examples
@@ -48,14 +48,14 @@ Examples can be found in the `examples` folder. See below for a list of examples
 |combiningservices.php|This example uses geo-location alongside device detection to determine the country and device.|Cloud|
 |webIntegration.php|This example demonstrates how to integrate the geo-location solution into a website.|Cloud|
 
-Ensure the `resource_key` environment variable is set to your resource key prior to running the example scripts.
+Ensure the `_51DEGREES_RESOURCE_KEY` environment variable is set to your resource key prior to running the example scripts.
 
 To run the examples, go to the `examples` directory and run:
 
-`php -S localhost:8080`
+`php -S localhost:5151`
 
 The examples will now be available to view in a browser. For example, the cloud getting started example will be available
-by browsing to `localhost:8080/cloud/gettingstarted.php`.
+by browsing to `localhost:5151/cloud/gettingstarted.php`.
 
 ## Tests
 
@@ -64,9 +64,9 @@ You will need to install the package dependencies to run them:
 
 `composer install`
 
-To run the tests, then call:
+To run the tests with PHPUnit 9.6, then call:
 
-`phpunit --fail-on-warning --display-warnings --log-junit test-results.xml`
+`phpunit --fail-on-warning --log-junit test-results.xml`
 
 ## Project documentation
 

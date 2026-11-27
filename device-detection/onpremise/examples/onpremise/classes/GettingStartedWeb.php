@@ -55,7 +55,7 @@ class GettingStartedWeb
     private function processRequest($pipeline, $output)
     {
         // The example is run as a router script for the PHP built-in server
-        // (php -S localhost:3000 gettingStartedWeb.php), so every request,
+        // (php -S localhost:5151 gettingStartedWeb.php), so every request,
         // including the shared CSS and JS assets, is routed here. Serve the
         // vendored pattern-library assets from the static directory before
         // running detection.
@@ -63,6 +63,10 @@ class GettingStartedWeb
             return;
         }
 
+        // A Flow Data is for this one request. PHP runs each request on one
+        // thread, so nothing else uses it at the same time. A Flow Data
+        // must not be used by two threads at once, so never keep one for
+        // another request or hand it to another thread.
         // Create the flowdata object. It is closed in the finally block, once
         // the response has been written, which releases the results of the
         // detection straight away.

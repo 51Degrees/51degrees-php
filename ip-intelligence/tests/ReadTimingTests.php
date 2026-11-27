@@ -1,0 +1,340 @@
+<?php
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+declare(strict_types=1);
+
+namespace fiftyone\pipeline\ipintelligence\tests;
+
+use fiftyone\pipeline\ipintelligence\IpIntelligenceOnPremise;
+use fiftyone\pipeline\ipintelligence\tests\classes\Constants;
+use fiftyone\pipeline\ipintelligence\tests\classes\OnPremiseTestCase;
+
+/**
+ * Times the native engine with the data file, in alternate rounds whose
+ * order turns round each round, and prints the figures. A read of a value
+ * by name is timed against a read by its position, and process on an engine
+ * created with no names against one created with every name. Each test
+ * fails when its multiple passes the limit set from the runners'
+ * measurements.
+ */
+class ReadTimingTests extends OnPremiseTestCase
+{
+    /**
+     * Rounds timed. A read compares each side's fastest round, because on a
+     * shared runner the slower rounds carry other work's time. Process
+     * compares the median round's.
+     */
+    private const ROUNDS = 9;
+
+    /**
+     * Requests in each round, each processing one address.
+     */
+    private const REQUESTS_PER_ROUND = 500;
+
+    /**
+     * How many times each value is read in a request, after a first read
+     * that walks the graphs, so that only the reads are timed.
+     */
+    private const READS_PER_REQUEST = 5;
+
+    private const NANOSECONDS_PER_MICROSECOND = 1000;
+
+    private const PROFILE = 'MaxPerformance';
+
+    /**
+     * The least that process on an engine created with every name may take,
+     * as a multiple of process on one created with no names. It is under
+     * half the smallest multiple measured on the runners the test runs on.
+     * An engine created with no names walks no graph in process, so a
+     * multiple near 1 means the names were passed after all.
+     */
+    private const MIN_EVERY_NAME_OVER_NO_NAMES = 3;
+
+    /**
+     * The most a read by name may take, as a multiple of a read by
+     * position, both in their fastest round. It is well above the multiples
+     * measured on the runners the test runs on, 0.86 to 1.26 on Linux and
+     * macOS, so this fails when reading by name becomes much slower than
+     * reading by position, which is how SwigData reads.
+     */
+    private const MAX_NAME_OVER_POSITION = 2;
+
+    /**
+     * The accessor SwigData reads each timed type of property with.
+     */
+    private const ACCESSORS = [
+        'string' => 'getValueAsString',
+        'weightedstring' => 'getValuesAsWeightedStringList',
+    ];
+
+    public function testReadingByNameAgainstByPosition(): void
+    {
+        $engine = self::buildEngine(['performanceProfile' => self::PROFILE]);
+        try {
+            $names = self::stringNames($engine);
+            $this->assertNotSame([], $names);
+            $positions = array_flip(self::requiredNames($engine));
+
+            // Both reads give the same value, so the positions are right.
+            $results = $engine->engine->process(Constants::IPV4_ADDRESS);
+            foreach ($names as $name => $accessor) {
+                $this->assertSame(
+                    self::valueText($results->{$accessor}($name)),
+                    self::valueText($results->{$accessor}($positions[$name])),
+                    $name
+                );
+            }
+
+            $byName = [];
+            $byPosition = [];
+            for ($round = 0; $round < self::ROUNDS; ++$round) {
+                if ($round % 2 === 0) {
+                    $byName[] = self::nanosecondsPerRead($engine, $names, null);
+                    $byPosition[] = self::nanosecondsPerRead($engine, $names, $positions);
+                } else {
+                    $byPosition[] = self::nanosecondsPerRead($engine, $names, $positions);
+                    $byName[] = self::nanosecondsPerRead($engine, $names, null);
+                }
+            }
+
+            $multiple = min($byName) / min($byPosition);
+            $summary = sprintf(
+                'IP Intelligence read on PHP %s, %s, %d values: ' .
+                'by name %.1f ns (%.1f to %.1f), by position %.1f ns ' .
+                '(%.1f to %.1f), fastest by name over fastest by position ' .
+                '%.2f times, ' .
+                'by name faster in %d of %d rounds.',
+                PHP_VERSION,
+                PHP_OS_FAMILY,
+                count($names),
+                self::median($byName),
+                min($byName),
+                max($byName),
+                self::median($byPosition),
+                min($byPosition),
+                max($byPosition),
+                $multiple,
+                self::roundsBelow($byName, $byPosition),
+                self::ROUNDS
+            );
+            fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
+
+            $this->assertLessThanOrEqual(
+                self::MAX_NAME_OVER_POSITION,
+                $multiple,
+                $summary
+            );
+        } finally {
+            $engine->close();
+        }
+    }
+
+    public function testProcessWithNoNamesAgainstEveryName(): void
+    {
+        $noNames = self::buildEngine(['performanceProfile' => self::PROFILE]);
+        $everyName = self::buildEngine([
+            'performanceProfile' => self::PROFILE,
+            'restrictedProperties' => self::requiredNames($noNames),
+        ]);
+        try {
+            // Both have the same names, so only how they were created
+            // differs.
+            $this->assertSame(
+                self::requiredNames($noNames),
+                self::requiredNames($everyName)
+            );
+
+            $withNone = [];
+            $withEvery = [];
+            for ($round = 0; $round < self::ROUNDS; ++$round) {
+                if ($round % 2 === 0) {
+                    $withNone[] = self::microsecondsPerProcess($noNames);
+                    $withEvery[] = self::microsecondsPerProcess($everyName);
+                } else {
+                    $withEvery[] = self::microsecondsPerProcess($everyName);
+                    $withNone[] = self::microsecondsPerProcess($noNames);
+                }
+            }
+
+            $multiple = self::median($withEvery) / self::median($withNone);
+            $summary = sprintf(
+                'IP Intelligence process on PHP %s, %s, %d names: ' .
+                'created with no names %.3f us (%.3f to %.3f), with every ' .
+                'name %.3f us (%.3f to %.3f), every name over no names %.2f ' .
+                'times, no names faster in %d of %d rounds.',
+                PHP_VERSION,
+                PHP_OS_FAMILY,
+                count(self::requiredNames($noNames)),
+                self::median($withNone),
+                min($withNone),
+                max($withNone),
+                self::median($withEvery),
+                min($withEvery),
+                max($withEvery),
+                $multiple,
+                self::roundsBelow($withNone, $withEvery),
+                self::ROUNDS
+            );
+            fwrite(STDERR, PHP_EOL . $summary . PHP_EOL);
+
+            $this->assertGreaterThanOrEqual(
+                self::MIN_EVERY_NAME_OVER_NO_NAMES,
+                $multiple,
+                $summary
+            );
+        } finally {
+            $noNames->close();
+            $everyName->close();
+        }
+    }
+
+    /**
+     * The mean time of one read of a value, by name, or by position when
+     * the positions are given.
+     *
+     * @param array<string, string> $names the accessor of each, keyed by name
+     * @param null|array<string, int> $positions keyed by name
+     */
+    private static function nanosecondsPerRead(
+        IpIntelligenceOnPremise $engine,
+        array $names,
+        ?array $positions
+    ): float {
+        $elapsed = 0;
+        for ($request = 0; $request < self::REQUESTS_PER_ROUND; ++$request) {
+            $results = $engine->engine->process(Constants::IPV4_ADDRESS);
+            foreach ($names as $name => $accessor) {
+                $results->{$accessor}($name);
+            }
+            $start = hrtime(true);
+            for ($read = 0; $read < self::READS_PER_REQUEST; ++$read) {
+                foreach ($names as $name => $accessor) {
+                    $results->{$accessor}(
+                        $positions === null ? $name : $positions[$name]
+                    );
+                }
+            }
+            $elapsed += hrtime(true) - $start;
+        }
+
+        return $elapsed /
+            (self::REQUESTS_PER_ROUND * self::READS_PER_REQUEST * count($names));
+    }
+
+    private static function microsecondsPerProcess(IpIntelligenceOnPremise $engine): float
+    {
+        $start = hrtime(true);
+        for ($request = 0; $request < self::REQUESTS_PER_ROUND; ++$request) {
+            $engine->engine->process(Constants::IPV4_ADDRESS);
+        }
+
+        return (hrtime(true) - $start) /
+            self::NANOSECONDS_PER_MICROSECOND / self::REQUESTS_PER_ROUND;
+    }
+
+    /**
+     * The names of the data file's properties whose values are strings or
+     * weighted strings, each with the accessor SwigData reads it with.
+     *
+     * @return array<string, string>
+     */
+    private static function stringNames(IpIntelligenceOnPremise $engine): array
+    {
+        $names = [];
+        foreach ($engine->getProperties() as $property) {
+            $accessor = self::ACCESSORS[strtolower((string) $property['type'])] ?? null;
+            if ($accessor !== null) {
+                $names[$property['name']] = $accessor;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * The names the native engine was created with, in its order, which is
+     * the order of the positions.
+     *
+     * @return array<string>
+     */
+    private static function requiredNames(IpIntelligenceOnPremise $engine): array
+    {
+        $required = $engine->engine->getRequiredProperties();
+        $names = [];
+        for ($i = 0; $i < $required->size(); ++$i) {
+            $names[] = $required->get($i);
+        }
+
+        return $names;
+    }
+
+    /**
+     * A native value as text, each weighted value of a list joined with
+     * '|', or its no value message.
+     *
+     * @param object $value SWIG wrapped Value
+     */
+    private static function valueText($value): string
+    {
+        if (!$value->hasValue()) {
+            return 'no value ' . $value->getNoValueMessage();
+        }
+        $inner = $value->getValue();
+        if (!is_object($inner)) {
+            return 'value ' . $inner;
+        }
+        $parts = [];
+        for ($i = 0; $i < $inner->size(); ++$i) {
+            $weighted = $inner->get($i);
+            $parts[] = $weighted->getValue();
+        }
+
+        return 'values ' . implode('|', $parts);
+    }
+
+    /**
+     * @param array<float> $values an odd number of values
+     */
+    private static function median(array $values): float
+    {
+        sort($values);
+
+        return $values[intdiv(count($values), 2)];
+    }
+
+    /**
+     * In how many rounds the first figure was below the second.
+     *
+     * @param array<float> $first
+     * @param array<float> $second
+     */
+    private static function roundsBelow(array $first, array $second): int
+    {
+        $below = 0;
+        foreach ($first as $round => $figure) {
+            $below += $figure < $second[$round] ? 1 : 0;
+        }
+
+        return $below;
+    }
+}

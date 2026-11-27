@@ -17911,6 +17911,121 @@ static PHP_METHOD(EngineHashSwig,getUpdateAvailableTime) {
 }
 
 
+static PHP_METHOD(EngineHashSwig,getPublishedTimeFromFile) {
+  std::string *arg1 = 0 ;
+  std::string temp1 ;
+  zval args[1];
+  Date result;
+  
+  if(ZEND_NUM_ARGS() != 1 || zend_get_parameters_array_ex(1, args) != SUCCESS) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  
+  convert_to_string(&args[0]);
+  temp1.assign(Z_STRVAL(args[0]), Z_STRLEN(args[0]));
+  arg1 = &temp1;
+  
+  {
+    try {
+      result = EngineHash::getPublishedTimeFromFile((std::string const &)*arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  {
+    Date * resultobj = new Date(result);
+    
+    
+    
+    
+    SWIG_SetPointerZval(return_value, (void *)resultobj, SWIGTYPE_p_Date, 1);
+  }
+  fail: SWIGUNUSED;
+  return;
+}
+
+
+static PHP_METHOD(EngineHashSwig,getProductFromFile) {
+  std::string *arg1 = 0 ;
+  std::string temp1 ;
+  zval args[1];
+  std::string result;
+  
+  if(ZEND_NUM_ARGS() != 1 || zend_get_parameters_array_ex(1, args) != SUCCESS) {
+    WRONG_PARAM_COUNT;
+  }
+  
+  
+  convert_to_string(&args[0]);
+  temp1.assign(Z_STRVAL(args[0]), Z_STRLEN(args[0]));
+  arg1 = &temp1;
+  
+  {
+    try {
+      result = EngineHash::getProductFromFile((std::string const &)*arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  
+  ZVAL_STRINGL(return_value, (&result)->data(), (&result)->size());
+  
+  fail: SWIGUNUSED;
+  return;
+}
+
+
 static PHP_METHOD(EngineHashSwig,getDataFilePath) {
   EngineHash *arg1 = 0 ;
   std::string result;
@@ -19729,11 +19844,17 @@ ZEND_BEGIN_ARG_INFO_EX(swig_arginfo_new_EngineHashSwig, 0, 0, 0)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineHashSwig_getDataFilePath swig_arginfo_ComponentMetaDataSwig_getName
 #define swig_arginfo_EngineHashSwig_getDataFileTempPath swig_arginfo_ComponentMetaDataSwig_getName
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_EngineHashSwig_getProductFromFile, 0, 1, MAY_BE_STRING)
+ ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
+ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineHashSwig_getProfileIdsForPropertyValue, 0, 2, VectorUInt32Swig, 0)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
  ZEND_ARG_TYPE_MASK(0,arg2,MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineHashSwig_getPublishedTime swig_arginfo_EngineBaseSwig_getPublishedTime
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineHashSwig_getPublishedTimeFromFile, 0, 1, Date, 0)
+ ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
+ZEND_END_ARG_INFO()
 #define swig_arginfo_EngineHashSwig_getUpdateAvailableTime swig_arginfo_EngineBaseSwig_getPublishedTime
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(swig_arginfo_EngineHashSwig_process, 0, 1, ResultsHashSwig, MAY_BE_NULL)
  ZEND_ARG_OBJ_TYPE_MASK(0,arg1,EvidenceDeviceDetectionSwig,MAY_BE_NULL|MAY_BE_STRING,NULL)
@@ -19747,10 +19868,8 @@ ZEND_END_ARG_INFO()
 #define swig_arginfo_EvidenceDeviceDetectionSwig_clear swig_arginfo_ConfigHashSwig_setBalanced
 #define swig_arginfo_MapStringStringSwig_del swig_arginfo_EngineBaseSwig_setDataUpdateUrl
 #define swig_arginfo_EvidenceDeviceDetectionSwig_del swig_arginfo_EngineBaseSwig_setDataUpdateUrl
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_get, 0, 1, MAY_BE_STRING)
- ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
-ZEND_END_ARG_INFO()
-#define swig_arginfo_EvidenceDeviceDetectionSwig_get swig_arginfo_MapStringStringSwig_get
+#define swig_arginfo_MapStringStringSwig_get swig_arginfo_EngineHashSwig_getProductFromFile
+#define swig_arginfo_EvidenceDeviceDetectionSwig_get swig_arginfo_EngineHashSwig_getProductFromFile
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(swig_arginfo_MapStringStringSwig_has_key, 0, 1, MAY_BE_BOOL)
  ZEND_ARG_TYPE_MASK(0,arg1,MAY_BE_STRING,NULL)
 ZEND_END_ARG_INFO()
@@ -20396,6 +20515,8 @@ static const zend_function_entry class_VectorUInt32Swig_functions[] = {
 static const zend_function_entry class_EngineHashSwig_functions[] = {
  PHP_ME(EngineHashSwig,getPublishedTime,swig_arginfo_EngineHashSwig_getPublishedTime,ZEND_ACC_PUBLIC)
  PHP_ME(EngineHashSwig,getUpdateAvailableTime,swig_arginfo_EngineHashSwig_getUpdateAvailableTime,ZEND_ACC_PUBLIC)
+ PHP_ME(EngineHashSwig,getPublishedTimeFromFile,swig_arginfo_EngineHashSwig_getPublishedTimeFromFile,ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+ PHP_ME(EngineHashSwig,getProductFromFile,swig_arginfo_EngineHashSwig_getProductFromFile,ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
  PHP_ME(EngineHashSwig,getDataFilePath,swig_arginfo_EngineHashSwig_getDataFilePath,ZEND_ACC_PUBLIC)
  PHP_ME(EngineHashSwig,getDataFileTempPath,swig_arginfo_EngineHashSwig_getDataFileTempPath,ZEND_ACC_PUBLIC)
  PHP_ME(EngineHashSwig,refreshData,swig_arginfo_EngineHashSwig_refreshData,ZEND_ACC_PUBLIC)

@@ -442,6 +442,8 @@ PHP_METHOD(FiftyOneDegreesIpiEvidenceIpiSwig,__isset);
 static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,__construct);
 static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getPublishedTime);
 static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getUpdateAvailableTime);
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getPublishedTimeFromFile);
+static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getProductFromFile);
 static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getDataFilePath);
 static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,getDataFileTempPath);
 static PHP_METHOD(FiftyOneDegreesIpiEngineIpiSwig,refreshData);

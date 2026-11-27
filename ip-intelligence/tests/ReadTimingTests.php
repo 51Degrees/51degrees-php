@@ -40,7 +40,9 @@ use fiftyone\pipeline\ipintelligence\tests\classes\OnPremiseTestCase;
 class ReadTimingTests extends OnPremiseTestCase
 {
     /**
-     * Rounds timed. The figure compared is the median round's.
+     * Rounds timed. A read compares each side's fastest round, because on a
+     * shared runner the slower rounds carry other work's time. Process
+     * compares the median round's.
      */
     private const ROUNDS = 9;
 
@@ -70,9 +72,10 @@ class ReadTimingTests extends OnPremiseTestCase
 
     /**
      * The most a read by name may take, as a multiple of a read by
-     * position. It is well above the multiples measured on the runners the
-     * test runs on, so this fails when reading by name becomes much slower
-     * than reading by position, which is how SwigData reads.
+     * position, both in their fastest round. It is well above the multiples
+     * measured on the runners the test runs on, 0.86 to 1.26 on Linux and
+     * macOS, so this fails when reading by name becomes much slower than
+     * reading by position, which is how SwigData reads.
      */
     private const MAX_NAME_OVER_POSITION = 2;
 
@@ -114,11 +117,12 @@ class ReadTimingTests extends OnPremiseTestCase
                 }
             }
 
-            $multiple = self::median($byName) / self::median($byPosition);
+            $multiple = min($byName) / min($byPosition);
             $summary = sprintf(
                 'IP Intelligence read on PHP %s, %s, %d values: ' .
                 'by name %.1f ns (%.1f to %.1f), by position %.1f ns ' .
-                '(%.1f to %.1f), by name over by position %.2f times, ' .
+                '(%.1f to %.1f), fastest by name over fastest by position ' .
+                '%.2f times, ' .
                 'by name faster in %d of %d rounds.',
                 PHP_VERSION,
                 PHP_OS_FAMILY,

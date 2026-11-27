@@ -356,7 +356,15 @@ function Get-PhpVersion {
     if ($null -eq $script:PhpVersion) {
         $script:PhpVersion = ''
         if (Get-Command php -ErrorAction SilentlyContinue) {
-            $text = php -r 'echo PHP_VERSION;'
+            # PHP logs its messages to a file, so the version is all it
+            # prints, and a message fails the step as for any other PHP.
+            . "$PSScriptRoot/php-messages.ps1"
+            $messages = Add-PhpMessageLog
+            try {
+                $text = php -r 'echo PHP_VERSION;'
+            } finally {
+                Assert-NoPhpMessage $messages
+            }
             if ($text -match '^(\d+)\.(\d+)\.(\d+)') {
                 $script:PhpVersion = [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])"
             }

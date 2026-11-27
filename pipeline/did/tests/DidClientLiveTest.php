@@ -32,6 +32,7 @@ use fiftyone\pipeline\did\IdType;
 use fiftyone\pipeline\did\Usage;
 use fiftyone\pipeline\did\NotSupportedException;
 use fiftyone\pipeline\did\SignatureOutcome;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -107,7 +108,9 @@ class DidClientLiveTest extends TestCase
             'header' => "User-Agent: fiftyone-pipeline-did-php-tests\r\n",
             'ignore_errors' => true,
         ]]);
-        $body = @file_get_contents($url, false, $context);
+        $body = PhpMessage::take(function () use (&$url, &$context) {
+            return file_get_contents($url, false, $context);
+        });
         $this->assertNotFalse($body, 'No response from the json endpoint.');
         $json = json_decode($body, true);
         $this->assertIsArray(
@@ -211,7 +214,9 @@ class DidClientLiveTest extends TestCase
             'header' => "User-Agent: fiftyone-pipeline-did-php-tests\r\n",
             'ignore_errors' => true,
         ]]);
-        $body = @file_get_contents($url, false, $context);
+        $body = PhpMessage::take(function () use (&$url, &$context) {
+            return file_get_contents($url, false, $context);
+        });
         $this->assertNotFalse($body, 'No response from verify-context.');
         $sealed = json_decode($body, true)['result'] ?? null;
         if (!is_string($sealed)) {
@@ -282,7 +287,9 @@ class DidClientLiveTest extends TestCase
             'header' => "User-Agent: fiftyone-pipeline-did-php-tests\r\n",
             'ignore_errors' => true,
         ]]);
-        $body = @file_get_contents($url, false, $context);
+        $body = PhpMessage::take(function () use (&$url, &$context) {
+            return file_get_contents($url, false, $context);
+        });
         $this->assertNotFalse($body, 'No response from the json endpoint.');
         $json = json_decode($body, true);
         $this->assertIsArray(

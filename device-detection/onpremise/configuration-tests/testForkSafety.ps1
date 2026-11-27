@@ -13,12 +13,15 @@ if ($IsWindows) {
 
 # Load the extension the same way the unit tests do.
 $env:PHP_INI_SCAN_DIR = "$([IO.Path]::PathSeparator)$PWD/$RepoName"
+. "$PSScriptRoot/../../../ci/php-messages.ps1"
+$messages = Add-PhpMessageLog
 $env:_51DEGREES_DD_PATH = "$PWD/assets/TAC-HashV41.hash"
 $env:_51DEGREES_EVIDENCE_YAML = "$PWD/assets/20000 Evidence Records.yml"
 
 Write-Output "Running fork-safety reproduction (issue #38)..."
 php "$RepoName/configuration-tests/testForkSafety.php"
 $code = $LASTEXITCODE
+Assert-NoPhpMessage $messages
 
 if ($code -eq 0) {
     Write-Output "PASS: streaming profiles fail across a fork, in-memory MaxPerformance is safe."

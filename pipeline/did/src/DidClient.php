@@ -895,6 +895,12 @@ final class DidClient
                 'The transport must answer with status and body.'
             );
         }
+        if (isset($response['warning']) && is_string($response['warning'])) {
+            trigger_error(
+                $this->maskLicence($response['warning']),
+                E_USER_WARNING
+            );
+        }
         return ['status' => $response['status'], 'body' => $response['body']];
     }
 
@@ -904,7 +910,7 @@ final class DidClient
      * sees what the service said rather than a bare warning.
      *
      * @param string[] $headers
-     * @return array{status: int, body: string}
+     * @return array{status: int, body: string, warning: ?string}
      *
      * @throws RuntimeException when no response arrives.
      */
@@ -924,22 +930,47 @@ final class DidClient
             $options['content'] = $body;
         }
         $context = stream_context_create(['http' => $options]);
-        // The @ keeps a connection failure from printing a warning, since
-        // the false return is reported as an exception below.
-        $response = @file_get_contents($url, false, $context);
+        // Before PHP 8.4, PHP gives the response headers only in
+        // $http_response_header, and sets it only in a function that has
+        // that variable. Being set first, it is not read as the predefined
+        // variable PHP 8.5 deprecates.
+        $http_response_header = [];
+        // A connection failure gives a warning and false. The warning is
+        // taken as the reason in the exception below.
+        $reason = null;
+        set_error_handler(
+            static function (int $level, string $message) use (&$reason): bool {
+                $reason = $message;
+                return true;
+            },
+            E_WARNING
+        );
+        try {
+            $response = file_get_contents($url, false, $context);
+        } finally {
+            restore_error_handler();
+        }
         if ($response === false) {
-            throw new RuntimeException("No response from {$url}.");
+            throw new RuntimeException(
+                "No response from {$url}." .
+                ($reason === null ? '' : " {$reason}")
+            );
         }
         $status = 0;
-        // PHP sets $http_response_header in the calling scope with the
-        // response headers, the status line first. A redirect leaves more
-        // than one status line, and the last is the answer.
-        foreach ($http_response_header ?? [] as $header) {
+        // The response headers, the status line first. A redirect leaves
+        // more than one status line, and the last is the answer.
+        $responseHeaders = function_exists('http_get_last_response_headers')
+            ? (http_get_last_response_headers() ?? [])
+            : $http_response_header;
+        foreach ($responseHeaders as $header) {
             if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $match)) {
                 $status = (int) $match[1];
             }
         }
-        return ['status' => $status, 'body' => $response];
+        // A warning from a request that was answered is not expected. It
+        // goes back with the answer, so that request() raises it again with
+        // the licence key masked.
+        return ['status' => $status, 'body' => $response, 'warning' => $reason];
     }
 
     /**

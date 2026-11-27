@@ -151,7 +151,9 @@ final class ScriptSet
 
     private function read(string $path, string $name, string $source): void
     {
-        $text = @file_get_contents($path);
+        $text = is_file($path) && is_readable($path)
+            ? file_get_contents($path)
+            : false;
         if ($text === false) {
             $this->fault($name, $source, "the file '$path' could not be read");
 

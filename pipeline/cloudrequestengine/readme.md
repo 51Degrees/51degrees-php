@@ -33,10 +33,10 @@ php examples/CloudEngine.php
 
 ## Tests
 
-To run the tests in this repository, make sure PHPUnit is installed then, in the root of this repo, call:
+To run the tests in this repository, make sure PHPUnit 9.6 is installed then, in the root of this repo, call:
 
 ```
-phpunit --fail-on-warning --display-warnings --log-junit test-results.xml
+phpunit --fail-on-warning --log-junit test-results.xml
 ```
 
 

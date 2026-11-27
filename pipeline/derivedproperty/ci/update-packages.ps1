@@ -43,7 +43,13 @@ try {
         composer install --no-dev --no-interaction --no-progress
         $installed = $true
     }
-    php ci/compile-built-in-scripts.php
+    . "$PSScriptRoot/../../../ci/php-messages.ps1"
+    $messages = Add-PhpMessageLog
+    try {
+        php ci/compile-built-in-scripts.php
+    } finally {
+        Assert-NoPhpMessage $messages
+    }
 } finally {
     if ($installed) {
         Remove-Item -Recurse -Force 'vendor', 'composer.lock' -ErrorAction SilentlyContinue

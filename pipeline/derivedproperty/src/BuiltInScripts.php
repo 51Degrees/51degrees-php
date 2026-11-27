@@ -98,7 +98,12 @@ final class BuiltInScripts
             !is_array($compiled['script'] ?? null)) {
             return null;
         }
-        $text = @file_get_contents($scriptFile);
+        // The script file is read only when it is there, as the compiled
+        // script stands for it.
+        if (!is_file($scriptFile) || !is_readable($scriptFile)) {
+            return null;
+        }
+        $text = file_get_contents($scriptFile);
         if ($text === false || !hash_equals($compiled['sha256'], self::hash($text))) {
             return null;
         }

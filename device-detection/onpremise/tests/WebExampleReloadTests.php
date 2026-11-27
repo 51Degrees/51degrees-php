@@ -25,6 +25,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\ExampleRun;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -95,7 +96,9 @@ class WebExampleReloadTests extends TestCase
     {
         if ($this->folder !== null) {
             array_map('unlink', glob($this->folder . '/*') ?: []);
-            @rmdir($this->folder);
+            PhpMessage::take(function () {
+                return rmdir($this->folder);
+            });
         }
     }
 
@@ -125,9 +128,9 @@ class WebExampleReloadTests extends TestCase
      */
     public function testReloadsFromTheDataFilePhpIniNames()
     {
-        $named = realpath(
-            (string) get_cfg_var(ExampleUtils::DATA_FILE_SETTING)
-        );
+        // realpath() gives the current folder for an empty path.
+        $setting = (string) get_cfg_var(ExampleUtils::DATA_FILE_SETTING);
+        $named = $setting === '' ? false : realpath($setting);
         if ($named === false || $named === $this->liteDataFile()) {
             $this->markTestSkipped(
                 'php.ini names no data file other than the Lite file.'
@@ -245,12 +248,14 @@ class WebExampleReloadTests extends TestCase
         ]]);
         $deadline = microtime(true) + self::START_SECONDS;
         while (proc_get_status($server)['running']) {
-            $stream = @fopen(
-                "http://localhost:{$port}{$path}",
-                'r',
-                false,
-                $context
-            );
+            $stream = PhpMessage::take(function () use (&$port, &$path, &$context) {
+                return fopen(
+                    "http://localhost:{$port}{$path}",
+                    'r',
+                    false,
+                    $context
+                );
+            });
             if ($stream !== false) {
                 $headers = stream_get_meta_data($stream)['wrapper_data'];
                 $body = (string) stream_get_contents($stream);

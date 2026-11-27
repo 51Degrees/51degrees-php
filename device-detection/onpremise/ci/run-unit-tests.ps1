@@ -13,6 +13,16 @@ $env:PHP_INI_SCAN_DIR = "$sep$PWD/$RepoName"
 # settings. The options are those common-ci's php/run-unit-tests.ps1 gives.
 if (!(Test-Path assets/TAC-HashV41.hash)) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No On-Premise Data File::On-Premise Data File wasn't found, so only the unit tests that need no TAC data file will run."
+    # php.ini names the TAC data file, and PHP warns of the missing file
+    # each time it starts, which fails the run. The suite, and the PHPUnit
+    # version check before it, read a copy without that setting, so PHP
+    # starts with the extension and no engine and gives no warning.
+    $settings = Join-Path ([IO.Path]::GetTempPath()) "without-tac-$PID"
+    New-Item -ItemType Directory -Force -Path $settings | Out-Null
+    Get-Content $RepoName/php.ini |
+        Where-Object { $_ -notmatch '^\s*FiftyOneDegreesHashEngine\.data_file\s*=' } |
+        Set-Content (Join-Path $settings 'php.ini')
+    $env:PHP_INI_SCAN_DIR = "$sep$settings"
     $options = @('--fail-on-warning')
     & {
         $PSNativeCommandUseErrorActionPreference = $false
@@ -26,6 +36,7 @@ if (!(Test-Path assets/TAC-HashV41.hash)) {
         phpunit $options --testsuite WithoutTacFile --log-junit test-results/unit/$RepoName/tests.xml
     } finally {
         Pop-Location
+        Remove-Item -Recurse -Force $settings
     }
     exit $LASTEXITCODE
 }

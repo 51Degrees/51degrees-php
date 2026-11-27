@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
+use fiftyone\pipeline\tests\ChildPhp;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -120,8 +121,8 @@ class DownloadDataFileTests extends TestCase
     /**
      * Downloads the data file with ExampleUtils::downloadMissingDataFile in
      * a new PHP, so that what it writes can be read, and returns that PHP's
-     * exit status and what it wrote. The PHP reads only its own ini files,
-     * so that it builds no engine.
+     * exit status and what it wrote. The PHP reads only its own ini files
+     * and the one tests/bootstrap.php writes, so that it builds no engine.
      *
      * @return array{0: int, 1: string}
      */
@@ -136,7 +137,10 @@ class DownloadDataFileTests extends TestCase
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]],
             $pipes,
             null,
-            ['PHP_INI_SCAN_DIR' => PHP_CONFIG_FILE_SCAN_DIR] + getenv()
+            ['PHP_INI_SCAN_DIR' => implode(
+                PATH_SEPARATOR,
+                array_filter([PHP_CONFIG_FILE_SCAN_DIR, ChildPhp::folder()])
+            )] + getenv()
         );
         $this->assertIsResource($process);
         fclose($pipes[0]);

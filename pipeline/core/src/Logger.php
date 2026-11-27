@@ -134,18 +134,38 @@ class Logger
             $flags |= LOCK_EX;
         }
 
-        // An application's error handler can turn the warning of a failed
-        // write into an exception, which counts as a failed write.
+        // A failed write gives a warning and false. The warning is taken
+        // as the reason, so that an application's error handler does not
+        // stop the request over a log entry.
+        $reason = null;
+        set_error_handler(
+            static function (int $level, string $message) use (&$reason): bool {
+                $reason = $message;
+
+                return true;
+            },
+            E_WARNING
+        );
+
         try {
-            $written = @file_put_contents($file, $line, $flags);
+            $written = file_put_contents($file, $line, $flags);
         } catch (\Throwable $e) {
+            // Such as the error PHP 8 throws for a path it cannot take.
             $written = false;
+            $reason = $e->getMessage();
+        } finally {
+            restore_error_handler();
         }
 
         if ($written === false) {
-            // The log cannot be written, so say so where PHP logs its own
-            // errors rather than stopping the request.
-            error_log(sprintf(Messages::LOG_FILE_NOT_WRITTEN, $file) . ' ' . rtrim($line));
+            // The log cannot be written, so say so, and why, where PHP logs
+            // its own errors rather than stopping the request.
+            error_log(sprintf(Messages::LOG_FILE_NOT_WRITTEN, $file) . ' ' . rtrim($line) .
+                ($reason === null ? '' : ' (' . $reason . ')'));
+        } elseif ($reason !== null) {
+            // A warning from a write that was made is not expected, so it
+            // is raised again.
+            trigger_error($reason, E_USER_WARNING);
         }
     }
 }

@@ -23,6 +23,7 @@
 
 namespace fiftyone\pipeline\did\tests;
 
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Assert;
 
 /**
@@ -144,7 +145,9 @@ class ExampleRun
         $deadline = microtime(true) + self::SERVE_SECONDS;
         $run = new self();
         do {
-            $stream = @fopen("http://{$address}/", 'r', false, $context);
+            $stream = PhpMessage::take(function () use (&$address, &$context) {
+                return fopen("http://{$address}/", 'r', false, $context);
+            });
             if ($stream !== false) {
                 $status = stream_get_meta_data($stream)['wrapper_data'][0] ?? '';
                 $page = (string) stream_get_contents($stream);

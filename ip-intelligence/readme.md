@@ -176,9 +176,11 @@ that the web server builds the engine once when it starts.
 
 ## Tests
 
+With PHPUnit 9.6, the version CI runs:
+
 ```bash
 composer install
-vendor/bin/phpunit
+phpunit
 ```
 
 Cloud tests run offline against a mocked HTTP client. A live cloud test runs when

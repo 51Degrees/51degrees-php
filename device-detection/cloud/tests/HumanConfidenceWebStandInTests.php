@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\HumanConfidenceWeb;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
 
@@ -193,7 +194,9 @@ class HumanConfidenceWebStandInTests extends TestCase
                 'ignore_errors' => true,
                 'timeout' => self::ANSWER_SECONDS
             ]]);
-            $body = @file_get_contents('http://' . $address . '/passive', false, $context);
+            $body = PhpMessage::take(function () use (&$address, &$context) {
+                return file_get_contents('http://' . $address . '/passive', false, $context);
+            });
             self::assertNotFalse($body, 'The example did not answer /passive.');
 
             return json_decode($body, true);
@@ -241,7 +244,9 @@ class HumanConfidenceWebStandInTests extends TestCase
 
         $deadline = microtime(true) + self::START_SECONDS;
         do {
-            $connection = @stream_socket_client('tcp://' . $address, $code, $reason, 1);
+            $connection = PhpMessage::take(function () use (&$address, &$code, &$reason) {
+                return stream_socket_client('tcp://' . $address, $code, $reason, 1);
+            });
             if ($connection !== false) {
                 fclose($connection);
 

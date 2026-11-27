@@ -64,9 +64,9 @@ You will need to install the package dependencies to run them:
 
 `composer install`
 
-To run the tests, then call:
+To run the tests with PHPUnit 9.6, then call:
 
-`phpunit --fail-on-warning --display-warnings --log-junit test-results.xml`
+`phpunit --fail-on-warning --log-junit test-results.xml`
 
 ## Project documentation
 

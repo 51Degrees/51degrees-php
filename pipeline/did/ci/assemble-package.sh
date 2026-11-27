@@ -91,11 +91,14 @@ under the European Union Public Licence v1.2, as \`composer.json\`
 declares and the header of each of its files states.
 NOTICE
 
+. "$root/../../ci/php-messages.sh"
+php_messages_start
 php ci/rewrite-composer-json.php \
     composer.json \
     owid-php/composer.json \
     "$out/composer.json" \
     third-party/swan-community/owid/src
+php_messages_check
 
 echo "assemble-package: wrote the package to $out"
 echo "assemble-package: OWID copied from $owid_url at $owid_commit"

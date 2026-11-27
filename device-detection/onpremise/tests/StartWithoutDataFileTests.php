@@ -25,6 +25,8 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\examples\onpremise\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\Messages;
+use fiftyone\pipeline\tests\ChildPhp;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -70,8 +72,12 @@ class StartWithoutDataFileTests extends TestCase
     public static function tearDownAfterClass(): void
     {
         if (self::$settings !== null) {
-            @unlink(self::$settings . '/fiftyone-hash.ini');
-            @rmdir(self::$settings);
+            PhpMessage::take(function () use (&$settings) {
+                return unlink(self::$settings . '/fiftyone-hash.ini');
+            });
+            PhpMessage::take(function () use (&$settings) {
+                return rmdir(self::$settings);
+            });
             self::$settings = null;
         }
     }
@@ -346,7 +352,10 @@ class StartWithoutDataFileTests extends TestCase
 
     /**
      * Runs PHP with the options, and returns its exit code and what it
-     * printed, standard error included.
+     * printed, standard error included. PHP shows every message there,
+     * those it gives as it starts too, rather than logging them, so that a
+     * test reads the warning the extension gives for its data file
+     * setting. Any other warning, notice or deprecation fails the test.
      *
      * @param array<string> $options
      * @return array{0: int, 1: string}
@@ -355,7 +364,16 @@ class StartWithoutDataFileTests extends TestCase
     {
         $command = implode(' ', array_map(
             'escapeshellarg',
-            array_merge([PHP_BINARY], $options)
+            array_merge(
+                [
+                    PHP_BINARY,
+                    '-d', 'error_reporting=-1',
+                    '-d', 'log_errors=0',
+                    '-d', 'display_errors=stderr',
+                    '-d', 'display_startup_errors=1'
+                ],
+                $options
+            )
         )) . ' 2>&1';
         $process = proc_open(
             $command,
@@ -370,14 +388,28 @@ class StartWithoutDataFileTests extends TestCase
         fclose($pipes[1]);
         $status = proc_close($process);
 
+        preg_match_all(
+            '~^(?:Warning|Notice|Deprecated): .*$~m',
+            $printed,
+            $messages
+        );
+        foreach ($messages[0] as $message) {
+            $this->assertStringStartsWith(
+                'Warning: PHP Startup: ',
+                $message,
+                $printed
+            );
+            $this->assertStringContainsString(self::SETTING, $message, $printed);
+        }
+
         return [$status, trim($printed)];
     }
 
     /**
      * The environment of each PHP started. Its settings folders are the
-     * system's own and, when the extension is wanted, the one holding the
-     * php.ini that loads it. The variable that names a data file is left
-     * out.
+     * system's own, the one tests/bootstrap.php writes and, when the
+     * extension is wanted, the one holding the php.ini that loads it. The
+     * variable that names a data file is left out.
      *
      * @return array<string, string>
      */
@@ -387,6 +419,7 @@ class StartWithoutDataFileTests extends TestCase
         unset($environment[ExampleUtils::DD_PATH_VARIABLE]);
         $folders = array_filter([
             PHP_CONFIG_FILE_SCAN_DIR,
+            ChildPhp::folder(),
             $extension ? self::$settings : null
         ]);
         $environment['PHP_INI_SCAN_DIR'] =
@@ -412,10 +445,10 @@ class StartWithoutDataFileTests extends TestCase
         $pattern = '/^\s*extension\s*=\s*["\']?' .
             '([^"\'\r\n;]*FiftyOneDegreesHashEngine[^"\'\r\n;]*)/m';
         foreach (array_merge([$loaded], $files) as $file) {
-            if (!is_string($file) || $file === '' ||
+            if (!is_string($file) || $file === '' || !is_readable($file) ||
                 preg_match(
                     $pattern,
-                    (string) @file_get_contents($file),
+                    (string) file_get_contents($file),
                     $match
                 ) !== 1) {
                 continue;
@@ -551,7 +584,9 @@ class StartWithoutDataFileTests extends TestCase
         $deadline = microtime(true) + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline &&
             proc_get_status($server)['running']) {
-            $stream = @fopen("http://localhost:{$port}/", 'r', false, $context);
+            $stream = PhpMessage::take(function () use (&$port, &$context) {
+                return fopen("http://localhost:{$port}/", 'r', false, $context);
+            });
             if ($stream !== false) {
                 $headers = stream_get_meta_data($stream)['wrapper_data'];
                 $page = (string) stream_get_contents($stream);

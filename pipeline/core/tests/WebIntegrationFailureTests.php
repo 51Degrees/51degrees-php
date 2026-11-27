@@ -32,6 +32,7 @@ use fiftyone\pipeline\core\Utils;
 use fiftyone\pipeline\core\tests\classes\FailingJavascriptBuilderElement;
 use fiftyone\pipeline\core\tests\classes\FailingJsonBundlerElement;
 use fiftyone\pipeline\core\tests\classes\UnreachableElement;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -208,9 +209,10 @@ class WebIntegrationFailureTests extends TestCase
     /**
      * Serves scripts/set-response-header.php with PHP's built-in web server
      * and requests it with the element query value given. PHP's own
-     * messages, such as the deprecation notices Mustache gives on PHP 8.4
-     * and later, go to the server's log rather than the body, so the body
-     * is what the script writes whatever the php.ini of the machine says.
+     * messages are not shown in the body, so the body is what the script
+     * writes whatever the php.ini of the machine says. They go to the log
+     * tests/bootstrap.php checks, where a warning, notice or deprecation
+     * fails the run.
      *
      * @return array{0: array<int, string>, 1: string} The response header
      * lines and the body
@@ -224,8 +226,6 @@ class WebIntegrationFailureTests extends TestCase
                 PHP_BINARY,
                 '-d',
                 'display_errors=0',
-                '-d',
-                'log_errors=1',
                 '-S',
                 "127.0.0.1:{$port}",
                 'set-response-header.php'
@@ -278,7 +278,9 @@ class WebIntegrationFailureTests extends TestCase
         $url = "http://127.0.0.1:{$port}/?element={$element}";
         $deadline = microtime(true) + self::SERVER_START_SECONDS;
         while (microtime(true) < $deadline && proc_get_status($server)['running']) {
-            $stream = @fopen($url, 'r', false, $context);
+            $stream = PhpMessage::take(function () use (&$url, &$context) {
+                return fopen($url, 'r', false, $context);
+            });
             if ($stream !== false) {
                 $headers = stream_get_meta_data($stream)['wrapper_data'];
                 $body = (string) stream_get_contents($stream);

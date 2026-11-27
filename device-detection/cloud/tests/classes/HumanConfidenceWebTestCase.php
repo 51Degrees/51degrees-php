@@ -26,6 +26,7 @@ namespace fiftyone\pipeline\devicedetection\tests\classes;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\EnvironmentVariable;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\HumanConfidenceWeb;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -209,7 +210,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
 
         $deadline = microtime(true) + self::START_SECONDS;
         do {
-            $connection = @stream_socket_client('tcp://' . self::$address, $code, $reason, 1);
+            $connection = PhpMessage::take(function () use (&$address, &$code, &$reason) {
+                return stream_socket_client('tcp://' . self::$address, $code, $reason, 1);
+            });
             if ($connection !== false) {
                 fclose($connection);
 
@@ -287,11 +290,13 @@ abstract class HumanConfidenceWebTestCase extends TestCase
         $context = stream_context_create(
             ['http' => ['ignore_errors' => true, 'timeout' => self::CLOUD_TIMEOUT_SECONDS]]
         );
-        $body = @file_get_contents(
-            self::$endpoint . 'accessibleproperties?resource=' . rawurlencode($key),
-            false,
-            $context
-        );
+        $body = PhpMessage::take(function () use (&$endpoint, &$key, &$context) {
+            return file_get_contents(
+                self::$endpoint . 'accessibleproperties?resource=' . rawurlencode($key),
+                false,
+                $context
+            );
+        });
         $json = $body === false ? null : json_decode($body, true);
         if (!is_array($json)) {
             return null;
@@ -343,7 +348,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
             'ignore_errors' => true,
             'timeout' => self::CLOUD_TIMEOUT_SECONDS
         ]]);
-        $body = @file_get_contents(self::$endpoint . rawurlencode($key) . '.json', false, $context);
+        $body = PhpMessage::take(function () use (&$endpoint, &$key, &$context) {
+            return file_get_contents(self::$endpoint . rawurlencode($key) . '.json', false, $context);
+        });
         self::assertNotFalse($body, self::$serviceName . ' did not answer.');
         $json = json_decode($body, true);
         self::assertIsArray($json, 'The cloud service did not answer with JSON.');
@@ -368,7 +375,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
             'ignore_errors' => true,
             'timeout' => self::CLOUD_TIMEOUT_SECONDS
         ]]);
-        $stream = @fopen(self::$endpoint . $path, 'r', false, $context);
+        $stream = PhpMessage::take(function () use (&$endpoint, &$path, &$context) {
+            return fopen(self::$endpoint . $path, 'r', false, $context);
+        });
         self::assertNotFalse($stream, self::$serviceName . ' did not answer ' . $path . '.');
         $lines = stream_get_meta_data($stream)['wrapper_data'] ?? [];
         $body = (string) stream_get_contents($stream);
@@ -416,7 +425,9 @@ abstract class HumanConfidenceWebTestCase extends TestCase
         $context = stream_context_create(
             ['http' => $http + ['ignore_errors' => true, 'timeout' => self::ANSWER_SECONDS]]
         );
-        $stream = @fopen('http://' . self::$address . $path, 'r', false, $context);
+        $stream = PhpMessage::take(function () use (&$address, &$path, &$context) {
+            return fopen('http://' . self::$address . $path, 'r', false, $context);
+        });
         self::assertNotFalse($stream, "The example did not answer {$path}.\n" . self::printed());
         $lines = stream_get_meta_data($stream)['wrapper_data'] ?? [];
         $body = (string) stream_get_contents($stream);

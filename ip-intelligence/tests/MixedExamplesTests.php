@@ -28,6 +28,8 @@ namespace fiftyone\pipeline\ipintelligence\tests;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleConstants;
 use fiftyone\pipeline\ipintelligence\examples\classes\ExampleUtils;
 use fiftyone\pipeline\ipintelligence\tests\classes\ExampleRun;
+use fiftyone\pipeline\tests\ChildPhp;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -114,8 +116,12 @@ class MixedExamplesTests extends TestCase
     protected function tearDown(): void
     {
         foreach ($this->folders as $folder) {
-            @unlink($folder . '/fiftyone.ini');
-            @rmdir($folder);
+            PhpMessage::take(function () use (&$folder) {
+                return unlink($folder . '/fiftyone.ini');
+            });
+            PhpMessage::take(function () use (&$folder) {
+                return rmdir($folder);
+            });
         }
         $this->folders = [];
     }
@@ -324,7 +330,9 @@ class MixedExamplesTests extends TestCase
             ],
             ['PHP_INI_SCAN_DIR' => implode(
                 PATH_SEPARATOR,
-                array_filter([PHP_CONFIG_FILE_SCAN_DIR, $folder])
+                array_filter(
+                    [PHP_CONFIG_FILE_SCAN_DIR, ChildPhp::folder(), $folder]
+                )
             )]
         );
         $text = $run->output;
@@ -576,18 +584,23 @@ class MixedExamplesTests extends TestCase
     }
 
     /**
-     * The variable that makes PHP read only its own ini files, so that the
-     * settings given are the only ones that load the extensions.
+     * The variable that makes PHP read only its own ini files and the one
+     * tests/bootstrap.php writes, so that the settings given are the only
+     * ones that load the extensions.
      *
      * @return array<string, string>
      */
     private function onlyPhpIniFiles(): array
     {
-        return ['PHP_INI_SCAN_DIR' => PHP_CONFIG_FILE_SCAN_DIR];
+        return ['PHP_INI_SCAN_DIR' => implode(
+            PATH_SEPARATOR,
+            array_filter([PHP_CONFIG_FILE_SCAN_DIR, ChildPhp::folder()])
+        )];
     }
 
     /**
-     * The environment of the tests, with PHP reading only its own ini files.
+     * The environment of the tests, with PHP reading only its own ini files
+     * and the one tests/bootstrap.php writes.
      *
      * @return array<string, string>
      */
@@ -663,7 +676,9 @@ class MixedExamplesTests extends TestCase
         try {
             $deadline = time() + self::SERVER_START_SECONDS;
             while (true) {
-                $connection = @fsockopen('tcp://' . $address);
+                $connection = PhpMessage::take(function () use (&$address) {
+                    return fsockopen('tcp://' . $address);
+                });
                 if ($connection !== false) {
                     fclose($connection);
                     break;
@@ -680,15 +695,17 @@ class MixedExamplesTests extends TestCase
                 usleep(200000);
             }
 
-            $page = @file_get_contents(
-                "http://{$address}{$path}",
-                false,
-                stream_context_create(['http' => [
-                    'header' => 'User-Agent: ' . self::IPHONE,
-                    'ignore_errors' => true,
-                    'timeout' => self::SERVER_START_SECONDS,
-                ]])
-            );
+            $page = PhpMessage::take(function () use (&$address, &$path) {
+                return file_get_contents(
+                    "http://{$address}{$path}",
+                    false,
+                    stream_context_create(['http' => [
+                        'header' => 'User-Agent: ' . self::IPHONE,
+                        'ignore_errors' => true,
+                        'timeout' => self::SERVER_START_SECONDS,
+                    ]])
+                );
+            });
             $this->assertIsString(
                 $page,
                 'The page was not served: ' . file_get_contents($log)
@@ -698,7 +715,9 @@ class MixedExamplesTests extends TestCase
         } finally {
             proc_terminate($server);
             proc_close($server);
-            @unlink($log);
+            PhpMessage::take(function () use (&$log) {
+                return unlink($log);
+            });
         }
     }
 }

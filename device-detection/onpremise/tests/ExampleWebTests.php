@@ -25,6 +25,7 @@ namespace fiftyone\pipeline\devicedetection\tests;
 
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
@@ -68,8 +69,8 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $data = @file_get_contents(Constants::URL, false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header);
+        $data = PhpMessage::read(Constants::URL, $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code']);
     }
@@ -88,11 +89,13 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $page = @file_get_contents(Constants::URL, false, $context);
+        $page = PhpMessage::take(function () use (&$context) {
+            return file_get_contents(Constants::URL, false, $context);
+        });
         $this->assertStringContainsString('<script src="/51Degrees.core.js"></script>', $page);
 
-        $script = @file_get_contents(Constants::URL . '51Degrees.core.js', false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header);
+        $script = PhpMessage::read(Constants::URL . '51Degrees.core.js', $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code']);
         $this->assertStringStartsWith('application/x-javascript', $responseHeaders['Content-Type']);
@@ -148,9 +151,9 @@ class ExampleWebTests extends TestCase
                 'ignore_errors' => true
             ]
         ]);
-        @file_get_contents($url, false, $context);
+        PhpMessage::read($url, $context, $response);
 
-        return self::parseHeaders($http_response_header);
+        return self::parseHeaders($response);
     }
 
     /**

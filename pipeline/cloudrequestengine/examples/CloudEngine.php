@@ -103,18 +103,34 @@ function startStarSignService(): array
 
     [$host, $port] = explode(':', $address);
     $deadline = microtime(true) + SERVICE_START_SECONDS;
-    while (($connection = @fsockopen(
-        $host,
-        (int) $port,
-        $errorNumber,
-        $error,
-        SERVICE_START_SECONDS
-    )) === false) {
-        if (!proc_get_status($server)['running'] || microtime(true) > $deadline) {
-            stopStarSignService($server);
-            throw new Exception("The star sign service did not start at {$address}.");
+    // Until the service listens, each try gives a warning and false. The
+    // last warning is the reason given when the service does not start.
+    $reason = '';
+    set_error_handler(
+        static function (int $level, string $message) use (&$reason): bool {
+            $reason = $message;
+            return true;
+        },
+        E_WARNING
+    );
+    try {
+        while (($connection = fsockopen(
+            $host,
+            (int) $port,
+            $errorNumber,
+            $error,
+            SERVICE_START_SECONDS
+        )) === false) {
+            if (!proc_get_status($server)['running'] || microtime(true) > $deadline) {
+                stopStarSignService($server);
+                throw new Exception(
+                    "The star sign service did not start at {$address}. {$reason}"
+                );
+            }
+            usleep(SERVICE_TRY_MICROSECONDS);
         }
-        usleep(SERVICE_TRY_MICROSECONDS);
+    } finally {
+        restore_error_handler();
     }
     fclose($connection);
 

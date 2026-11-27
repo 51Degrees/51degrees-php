@@ -22,7 +22,7 @@
         "php": ">=7.4",
         "ext-ctype": "*",
         "ext-json": "*",
-        "mustache/mustache": "^2.13",
+        "mustache/mustache": "^2.13 || ^3.0",
         "tedivm/jshrink": "~1.0"
     },
     "require-dev": {

@@ -27,6 +27,7 @@ use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
@@ -168,8 +169,8 @@ class UACHCloudTests extends TestCase
         $url = $property === null
             ? Constants::URL . '?' . ExampleUtils::RESOURCE_KEY_QUERY_PARAM . '=' . urlencode($key)
             : Constants::LICENSE_URL . '?' . Constants::PROPERTY_QUERY_PARAM . '=' . urlencode($property);
-        $body = @file_get_contents($url, false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header ?? []);
+        $body = PhpMessage::read($url, $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code'] ?? null, (string) $body);
 

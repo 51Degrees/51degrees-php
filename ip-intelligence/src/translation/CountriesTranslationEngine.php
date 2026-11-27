@@ -222,7 +222,20 @@ class CountriesTranslationEngine extends TranslationEngine
 
         return static function (string $a, string $b): int {
             $normalize = static function (string $s): string {
-                $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+                // Some iconv libraries give a notice and false when IGNORE
+                // drops a character that has no ASCII form. The name is
+                // then compared as it is, so the notice is taken.
+                set_error_handler(
+                    static function (): bool {
+                        return true;
+                    },
+                    E_NOTICE
+                );
+                try {
+                    $t = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+                } finally {
+                    restore_error_handler();
+                }
 
                 return strtolower($t === false ? $s : $t);
             };

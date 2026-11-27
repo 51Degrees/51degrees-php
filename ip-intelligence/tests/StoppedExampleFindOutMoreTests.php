@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\ipintelligence\tests;
 
+use fiftyone\pipeline\tests\ChildPhp;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -76,18 +77,18 @@ class StoppedExampleFindOutMoreTests extends TestCase
 
     /**
      * Runs the example in a PHP with no php.ini of its own, so that no
-     * extension is loaded, and gives its exit status and what it wrote.
+     * extension is loaded, and with the settings of tests/bootstrap.php,
+     * and gives its exit status and what it wrote.
      *
      * @return array{0: int, 1: string}
      */
     private function runPhp(string $example): array
     {
-        $command = implode(' ', array_map('escapeshellarg', [
-            PHP_BINARY,
-            '-n',
-            '-d', 'display_errors=1',
-            $example
-        ])) . ' 2>&1';
+        $command = implode(' ', array_map('escapeshellarg', array_merge(
+            [PHP_BINARY, '-n', '-d', 'display_errors=1'],
+            ChildPhp::settings(),
+            [$example]
+        ))) . ' 2>&1';
         $process = proc_open(
             $command,
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w']],

@@ -27,6 +27,7 @@ use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\tests\classes\Constants;
 use fiftyone\pipeline\devicedetection\tests\classes\Process;
 use fiftyone\pipeline\devicedetection\tests\classes\ResourceKeys;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\Attributes\RequiresOperatingSystem;
 use PHPUnit\Framework\TestCase;
 
@@ -87,8 +88,8 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $data = @file_get_contents(Constants::URL, false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header);
+        $data = PhpMessage::read(Constants::URL, $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code']);
         // The device id is rendered into the page from the server-side results.
@@ -115,8 +116,8 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $data = @file_get_contents(Constants::URL . '51Degrees.core.js', false, $context);
-        $responseHeaders = self::parseHeaders($http_response_header);
+        $data = PhpMessage::read(Constants::URL . '51Degrees.core.js', $context, $headers);
+        $responseHeaders = self::parseHeaders($headers);
 
         $this->assertSame(200, $responseHeaders['response_code']);
         $this->assertStringStartsWith('application/x-javascript', $responseHeaders['Content-Type']);
@@ -169,9 +170,9 @@ class ExampleWebTests extends TestCase
                 'ignore_errors' => true
             ]
         ]);
-        @file_get_contents($url, false, $context);
+        PhpMessage::read($url, $context, $response);
 
-        return self::parseHeaders($http_response_header);
+        return self::parseHeaders($response);
     }
 
     /**
@@ -188,7 +189,9 @@ class ExampleWebTests extends TestCase
             ]
         ]);
 
-        $data = @file_get_contents(Constants::URL, false, $context);
+        $data = PhpMessage::take(function () use (&$context) {
+            return file_get_contents(Constants::URL, false, $context);
+        });
 
         $this->assertNotFalse($data, 'The page did not answer.');
         $this->assertSame([], self::pipelineFiles());

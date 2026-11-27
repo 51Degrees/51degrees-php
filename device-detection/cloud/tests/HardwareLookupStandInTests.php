@@ -29,6 +29,8 @@ use fiftyone\pipeline\devicedetection\examples\cloud\classes\ExampleUtils;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\NativeModelLookupConsole;
 use fiftyone\pipeline\devicedetection\examples\cloud\classes\TacLookupConsole;
 use fiftyone\pipeline\devicedetection\tests\classes\ExampleRun;
+use fiftyone\pipeline\tests\ChildPhp;
+use fiftyone\pipeline\tests\PhpMessage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -401,6 +403,14 @@ class HardwareLookupStandInTests extends TestCase
         );
         $this->assertStringNotContainsString(self::NOT_INCLUDED, $run->output, $run->printed());
         $this->assertRequests(2);
+        // The example ends with the error uncaught, which PHP logs as a
+        // fatal error, and that is what this test expects.
+        $this->assertSame(
+            1,
+            ChildPhp::take('~PHP Fatal error:  Uncaught .*CloudRequestException: .*' .
+                preg_quote(self::FAILURE, '~') . '~'),
+            $run->printed()
+        );
     }
 
     /**
@@ -427,13 +437,15 @@ class HardwareLookupStandInTests extends TestCase
 
     /**
      * Runs the example in its own PHP, as a person runs it, with the key
-     * and the stand-in as its cloud service.
+     * and the stand-in as its cloud service. PHP shows its errors on
+     * standard error whatever php.ini says, so an error that ends the
+     * example is in what it wrote.
      */
     private function runScript(string $script, string $key): ExampleRun
     {
         return ExampleRun::run(
             __DIR__ . "/../examples/{$script}",
-            [],
+            ['-d', 'display_errors=stderr'],
             [],
             [
                 ExampleUtils::RESOURCE_KEY_ENV_VAR => $key,
@@ -574,7 +586,9 @@ class HardwareLookupStandInTests extends TestCase
 
         $deadline = microtime(true) + self::START_SECONDS;
         do {
-            $connection = @stream_socket_client('tcp://' . $address, $code, $reason, 1);
+            $connection = PhpMessage::take(function () use (&$address, &$code, &$reason) {
+                return stream_socket_client('tcp://' . $address, $code, $reason, 1);
+            });
             if ($connection !== false) {
                 fclose($connection);
 

@@ -198,7 +198,7 @@ class DeviceDetectionTests extends TestCase
         // TODO remove setheader properties from this list once UACH datafile is released.
         $excludedProperties = ['setheaderbrowseraccept-ch', 'setheaderplatformaccept-ch', 'setheaderhardwareaccept-ch'];
         if (($handle = fopen($this->CSVDataFile, 'r')) !== false) {
-            while (($row = fgetcsv($handle, 5000, ',')) !== false && $rows == 0) {
+            while (($row = fgetcsv($handle, 5000, ',', '"', '\\')) !== false && $rows == 0) {
                 $expectedProperties = $row;
                 ++$rows;
             }

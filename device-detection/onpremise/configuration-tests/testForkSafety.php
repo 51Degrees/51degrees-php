@@ -201,7 +201,8 @@ function dataFilePositions(string $dataFile): ?array
     }
     $positions = [];
     foreach (dataFileDescriptors($dataFile) as $fd) {
-        $info = @file_get_contents("/proc/self/fdinfo/{$fd}");
+        $path = "/proc/self/fdinfo/{$fd}";
+        $info = is_readable($path) ? file_get_contents($path) : false;
         if ($info !== false && preg_match('/^pos:\s+(\d+)/m', $info, $match)) {
             $positions[$fd] = $match[1];
         }

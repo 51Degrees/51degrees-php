@@ -21,7 +21,7 @@ php "$RepoName/configuration-tests/testForkSafety.php"
 $code = $LASTEXITCODE
 
 if ($code -eq 0) {
-    Write-Output "PASS: streaming profiles fail across a fork, in-memory MaxPerformance is safe."
+    Write-Output "PASS: streaming profiles share the file position across a fork, in-memory MaxPerformance is safe."
 } elseif ($code -eq 2) {
     # Missing pcntl, extension, data file or evidence file. Skip rather
     # than fail, since this is an environment limitation rather than a defect.

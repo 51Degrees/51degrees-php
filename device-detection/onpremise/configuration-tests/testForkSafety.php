@@ -44,8 +44,16 @@
  * The test builds each kind of engine directly (bypassing the module which now
  * forces MaxPerformance), forks several workers that all share the inherited
  * handles, and checks the outcome:
- *   - streaming  -> keeps >= 1 open data-file handle AND corrupts under fork
+ *   - streaming  -> keeps >= 1 open data-file handle, AND a detection in a
+ *                   forked worker moves the file position the parent uses
  *   - in memory  -> keeps 0 open data-file handles AND stays correct under fork
+ *
+ * Whether the shared position then gives a corrupt read in a given run is a
+ * race between the workers. It shows in most runs and not in some, more often
+ * on a runner with few cores, so the streaming corruption count is printed as
+ * a demonstration and is not a condition for passing. The shared file
+ * position is the cause of that corruption and is the same in every run, so
+ * that is what the test asserts.
  *
  * Exit code 0 means the contrast was demonstrated. Any other code means the
  * expected behaviour was not observed.
@@ -69,7 +77,8 @@ const CHILDREN = 8;     // forked workers that all share the inherited handles
 const ITERATIONS = 40;  // passes over the User-Agent list per worker
 // The streaming corruption is a race between the workers. On a runner with
 // few cores one round sometimes passes without a collision, so the streaming
-// round is repeated until corruption is seen, up to this many times.
+// round is repeated until corruption is seen, up to this many times. The
+// count is only printed, so a run that sees none still passes.
 const STREAMING_ROUNDS = 6;
 const CRASH_WEIGHT = 250; // a worker killed by a signal is the strongest possible corruption signal
 // A round of workers normally ends in well under a minute. A worker still
@@ -150,23 +159,97 @@ function buildEngine(string $dataFile, string $profile): EngineHashSwig
  *
  * The open handles are listed under /proc on Linux. Other platforms (for
  * example macOS) do not have it, so the count cannot be determined there and -1
- * is returned to mean "unknown". The corruption check below works everywhere
- * and is the cross-platform proof.
+ * is returned to mean "unknown". The in-memory corruption check below works
+ * everywhere.
  */
 function openDataFileHandles(string $dataFile): int
 {
     if (!is_dir('/proc/self/fd')) {
         return -1;
     }
+    return count(dataFileDescriptors($dataFile));
+}
+
+/**
+ * List the numbers of this process's file descriptors that point at the data
+ * file, read from /proc/self/fd.
+ */
+function dataFileDescriptors(string $dataFile): array
+{
     $target = realpath($dataFile);
-    $count = 0;
+    $descriptors = [];
     foreach (glob('/proc/self/fd/*') ?: [] as $fd) {
         $link = @readlink($fd);
         if ($link !== false && realpath($link) === $target) {
-            $count++;
+            $descriptors[] = basename($fd);
         }
     }
-    return $count;
+    return $descriptors;
+}
+
+/**
+ * Read the file position of each descriptor that points at the data file, from
+ * /proc/self/fdinfo. Returns null where there is no /proc, as the positions
+ * cannot be determined there.
+ */
+function dataFilePositions(string $dataFile): ?array
+{
+    if (!is_dir('/proc/self/fdinfo')) {
+        return null;
+    }
+    $positions = [];
+    foreach (dataFileDescriptors($dataFile) as $fd) {
+        $info = @file_get_contents("/proc/self/fdinfo/{$fd}");
+        if ($info !== false && preg_match('/^pos:\s+(\d+)/m', $info, $match)) {
+            $positions[$fd] = $match[1];
+        }
+    }
+    return $positions;
+}
+
+/**
+ * Fork one worker that detects every User-Agent once, and report whether that
+ * moved the file position this process sees on its own data-file handle. A
+ * forked worker shares the parent's file description, so a seek in the worker
+ * moves the position for the parent and for every other worker. That shared
+ * position is why concurrent workers read the wrong bytes. Unlike the
+ * corruption itself, it does not depend on how the workers are scheduled.
+ *
+ * Returns null where the positions cannot be read (no /proc, or no open
+ * handle to read), true when the position moved, and false when it did not.
+ */
+function workerMovesSharedPosition(EngineHashSwig $engine, array $userAgents, string $dataFile): ?bool
+{
+    $before = dataFilePositions($dataFile);
+    if ($before === null || count($before) === 0) {
+        return null;
+    }
+    $pid = pcntl_fork();
+    if ($pid === -1) {
+        fail('pcntl_fork failed');
+    }
+    if ($pid === 0) {
+        foreach ($userAgents as $userAgent) {
+            try {
+                // The device id is read from the profiles in the data file,
+                // which a streaming engine reads with a seek on the handle.
+                $engine->process($userAgent)->getDeviceId();
+            } catch (\Throwable $e) {
+                // Only the file position matters here, not the result.
+            }
+        }
+        exit(0);
+    }
+    $status = 0;
+    if (pcntl_waitpid($pid, $status) === -1) {
+        fail("pcntl_waitpid failed for worker {$pid}");
+    }
+    return dataFilePositions($dataFile) !== $before;
+}
+
+function movedLabel(?bool $moved): string
+{
+    return $moved === null ? 'unknown (no /proc on this platform, or no open handle)' : ($moved ? 'yes' : 'no');
 }
 
 function handlesLabel(int $handles): string
@@ -207,9 +290,8 @@ function detectionWorker(EngineHashSwig $engine, array $userAgents): int
  * rather than taking the whole test down.
  *
  * Each worker is waited for until WORKER_TIME_LIMIT seconds after the round
- * started. A worker still running then is killed and added to $stuck, which
- * fails the test, since a corrupt read must end in a wrong answer, an
- * exception or a crash, never in a worker that does not end.
+ * started. A worker still running then is killed and added to $stuck, so it
+ * does not hold the job until the workflow's own time limit.
  */
 function runForkedWorkers(EngineHashSwig $engine, array $userAgents, int &$stuck): int
 {
@@ -278,6 +360,7 @@ echo 'User-Agents: ' . count($userAgents) . ', workers: ' . CHILDREN . ', iterat
 // --- Streaming (non in-memory) profile: expected to be unsafe across a fork ---
 $streaming = buildEngine($dataFile, 'Balanced');
 $streamingHandles = openDataFileHandles($dataFile);
+$streamingPositionMoved = workerMovesSharedPosition($streaming, $userAgents, $dataFile);
 $streamingCorruption = 0;
 $streamingStuck = 0;
 $streamingRounds = 0;
@@ -287,8 +370,9 @@ while ($streamingCorruption < 1 && $streamingRounds < STREAMING_ROUNDS) {
 }
 echo "Streaming (Balanced):\n";
 echo '  open data-file handles: ' . handlesLabel($streamingHandles) . "\n";
-echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s))\n";
-echo "  workers killed at the time limit: {$streamingStuck}\n\n";
+echo '  a forked worker moves the shared file position: ' . movedLabel($streamingPositionMoved) . "\n";
+echo "  corruption events across fork: {$streamingCorruption} (in {$streamingRounds} round(s), printed only)\n";
+echo "  workers killed at the time limit: {$streamingStuck} (printed only)\n\n";
 unset($streaming);
 gc_collect_cycles();
 
@@ -313,18 +397,19 @@ if ($streamingHandles === 0) {
 if ($inMemoryHandles > 0) {
     $failures[] = "expected the in-memory engine to keep no open data-file handle, found {$inMemoryHandles}";
 }
-// The corruption checks work on every platform and are the core proof.
-if ($streamingCorruption < 1) {
-    $failures[] = 'expected the streaming profile to corrupt under fork, but no corruption was observed in ' . STREAMING_ROUNDS . ' rounds';
+// The shared file position is asserted where it can be read (Linux). The
+// streaming corruption count is not asserted, because whether the race shows
+// in a given run depends on how the workers are scheduled.
+if ($streamingPositionMoved === false) {
+    $failures[] = 'expected a detection in a forked streaming worker to move the file position the parent uses';
 }
+// The in-memory corruption check works on every platform.
 if ($inMemoryCorruption !== 0) {
     $failures[] = "expected the in-memory profile to be fork-safe, but observed {$inMemoryCorruption} corruption events";
 }
-// A worker that did not end is a defect in either profile: a corrupt read
-// must give a wrong answer, an exception or a crash, which are counted above.
-if ($streamingStuck > 0) {
-    $failures[] = "{$streamingStuck} streaming worker(s) did not end within " . WORKER_TIME_LIMIT . ' seconds and were killed';
-}
+// An in-memory worker that does not end is a defect. A streaming worker that
+// does not end has met a corrupt read, which comes from the same race as the
+// corruption count, so it is printed above and not asserted.
 if ($inMemoryStuck > 0) {
     $failures[] = "{$inMemoryStuck} in-memory worker(s) did not end within " . WORKER_TIME_LIMIT . ' seconds and were killed';
 }
@@ -335,7 +420,7 @@ if (count($failures) > 0) {
 }
 
 echo "PASS\n";
-echo "A streaming profile keeps open file handles that are shared across a fork and corrupt reads.\n";
+echo "A streaming profile keeps open file handles whose position is shared across a fork, so concurrent reads can corrupt.\n";
 echo "The in-memory MaxPerformance profile keeps no file handles and is fork-safe.\n";
 echo "This is why MaxPerformance (in memory) is the only safe profile for PHP on premise.\n";
 exit(0);

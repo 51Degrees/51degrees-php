@@ -518,9 +518,11 @@ reads only the older names. A service that reads both takes the current
 names and adds an `obsolete` array to its answer, which the client
 ignores. A call that passes the arguments by position works as before. `result` and `challenge` are the obsolete
 names of the two parameters. They still work when passed by name, and
-raise an `E_USER_DEPRECATED` naming the replacement. An empty value
-counts as not passed, so the current name wins when both hold a value,
-and an empty current name takes the obsolete one's value.
+raise an `E_USER_DEPRECATED` naming the replacement. For the sealed
+result, an empty value counts as not passed, so `sealedResult` wins when
+both hold a value, and an empty `sealedResult` takes `result`'s value. A
+transaction that is given, even an empty one, is sent exactly as given,
+so `challenge` is used only where `transaction` isn't given.
 
 `factors` arrives on a mismatch, on a misconfigured result where the
 transport was compared, and whenever any factor is `NotRecorded`, whatever

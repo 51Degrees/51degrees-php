@@ -2588,25 +2588,60 @@ class DidClientTest extends TestCase
         $this->assertSame('NEW', $form['challenge']);
     }
 
-    public function testAnEmptyCurrentNameGivesWayToTheObsoleteOne(): void
+    public function testAnEmptySealedResultGivesWayToTheObsoleteOne(): void
     {
-        // An empty value counts as not passed, the same for both pairs.
         $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
         $messages = self::deprecations(
             fn () => $this->client()->redeem(
                 fodId: $this->someId(),
                 sealedResult: '',
-                transaction: '',
-                result: 'OLD',
-                challenge: 'OLDER'
+                transaction: 'T',
+                result: 'OLD'
             )
         );
-        $this->assertCount(2, $messages);
+        $this->assertCount(1, $messages);
         parse_str($this->lastRequest()['body'], $form);
         $this->assertSame('OLD', $form['sealedResult']);
         $this->assertSame('OLD', $form['result']);
-        $this->assertSame('OLDER', $form['transaction']);
-        $this->assertSame('OLDER', $form['challenge']);
+    }
+
+    public function testAGivenTransactionIsSentExactlyAsGiven(): void
+    {
+        // https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#a-sealed-creator-context-result
+        $cases = [
+            'empty beside an obsolete challenge' => ['', 'other', ''],
+            'value beside an obsolete challenge' => ['T', 'other', 'T'],
+            'white space beside an obsolete challenge' => [' ', 'other', ' '],
+            'not given, obsolete challenge' => [null, 'other', 'other'],
+            'not given, empty obsolete challenge' => [null, '', ''],
+            'empty, no challenge' => ['', null, ''],
+            'not given, no challenge' => [null, null, ''],
+        ];
+        foreach ($cases as $name => [$transaction, $challenge, $sent]) {
+            $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+            $arguments = ['fodId' => $this->someId(), 'sealedResult' => 'SEALED'];
+            if ($transaction !== null) {
+                $arguments['transaction'] = $transaction;
+            }
+            if ($challenge !== null) {
+                $arguments['challenge'] = $challenge;
+            }
+            self::deprecations(
+                fn () => $this->client()->redeem(...$arguments)
+            );
+            parse_str($this->lastRequest()['body'], $form);
+            $this->assertSame($sent, $form['transaction'], $name);
+            $this->assertSame($sent, $form['challenge'], $name);
+        }
+    }
+
+    public function testAnExplicitNullTransactionCountsAsNotGiven(): void
+    {
+        $this->queueJson(200, ['context' => 'replayed', 'status' => 'replayed']);
+        $this->client()->redeem($this->someId(), 'SEALED', null);
+        parse_str($this->lastRequest()['body'], $form);
+        $this->assertSame('', $form['transaction']);
+        $this->assertSame('', $form['challenge']);
     }
 
     public function testAnEmptyObsoleteNameLeavesTheCurrentOne(): void

@@ -467,9 +467,14 @@ final class DidClient
      * parameters `result` and `challenge` are the obsolete names of
      * `sealedResult` and `transaction`. They still work when passed by
      * name, raise an `E_USER_DEPRECATED` naming the replacement, and give
-     * way to the current name when both are passed. An empty value counts
-     * as not passed, under either name, so an empty current name takes the
-     * obsolete one's value.
+     * way to the current name when both are passed. For the sealed result,
+     * an empty value counts as not passed, under either name, so an empty
+     * `sealedResult` takes the obsolete one's value. A transaction that is
+     * given, including an empty one, is sent exactly as given, and
+     * `challenge` is used only where `transaction` is not given or is
+     * null, as
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#a-sealed-creator-context-result
+     * requires.
      *
      * @param FodId|string $fodId The identifier the server knows
      *     independently, as a {@see FodId} or a string in either alphabet.
@@ -477,8 +482,10 @@ final class DidClient
      *     verify-context or verify-full endpoint returned it to the browser,
      *     as `sealedResult` or, from a service that predates that name, as
      *     `result`. Required, under this name or the obsolete one.
-     * @param string $transaction The single-use transaction value given to
-     *     the verify endpoint, or an empty string where none was.
+     * @param string|null $transaction The single-use transaction value
+     *     given to the verify endpoint, or an empty string where none was.
+     *     Null, the default, means not given, and is sent as empty unless
+     *     the obsolete `challenge` is passed.
      * @param string|null $result Obsolete. Use `sealedResult`.
      * @param string|null $challenge Obsolete. Use `transaction`.
      *
@@ -499,7 +506,7 @@ final class DidClient
     public function redeem(
         FodId|string $fodId,
         ?string $sealedResult = null,
-        string $transaction = '',
+        ?string $transaction = null,
         ?string $result = null,
         ?string $challenge = null
     ): RedeemResult {
@@ -517,11 +524,11 @@ final class DidClient
                 . 'Use transaction.',
                 E_USER_DEPRECATED
             );
-            $transaction = (string) self::currentOrObsolete(
-                $transaction,
-                $challenge
-            );
+            // A given transaction is sent exactly as given, even when
+            // empty, so the obsolete name is used only where none was.
+            $transaction ??= $challenge;
         }
+        $transaction ??= '';
         if ($sealedResult === null) {
             throw new ArgumentCountError(
                 'DidClient::redeem() needs a sealed result, passed as '

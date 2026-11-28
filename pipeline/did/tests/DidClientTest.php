@@ -2193,6 +2193,61 @@ class DidClientTest extends TestCase
         );
     }
 
+    public function testA200WithNeitherStatusNorContextReadsNoOutcome(): void
+    {
+        // https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#a-sealed-creator-context-result
+        $bodies = [
+            'signature only' => '{"signature":"verified"}',
+            'invalid signature only' => '{"signature":"invalid"}',
+            'signature with every other member' => json_encode([
+                'signature' => 'verified',
+                'factors' => ['transport' => 'verified'],
+                'verifiedAt' => '2026-08-07T09:15:32Z',
+                'secondsSinceVerified' => 3,
+                'humanConfidence' => 'High',
+            ]),
+            'status and context not strings' => '{"signature":"verified","status":null,"context":1}',
+            'empty object' => '{}',
+            'array holding an object' => '[{"signature":"verified","context":"verified","status":"success"}]',
+            'array of words' => '["signature","verified"]',
+            'empty array' => '[]',
+            'string' => '"verified"',
+            'number' => '42',
+            'true' => 'true',
+            'null' => 'null',
+            'empty' => '',
+            'not JSON' => '<html>proxy</html>',
+        ];
+        foreach ($bodies as $name => $body) {
+            $this->queue(200, $body);
+            $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->assertSame(RedeemStatus::Unreadable, $result->status, $name);
+            $this->assertSame(ContextOutcome::Unreadable, $result->context, $name);
+            $this->assertSame(SignatureOutcome::Unknown, $result->signature, $name);
+            $this->assertNull($result->humanConfidence, $name);
+            $this->assertArrayNotHasKey('signature', $result->toArray(), $name);
+            $this->assertSame($body, $result->raw, $name);
+        }
+    }
+
+    public function testA200WithStatusOrContextReadsTheSignature(): void
+    {
+        $bodies = [
+            'context only' => ['signature' => 'verified', 'context' => 'verified'],
+            'status only' => ['signature' => 'verified', 'status' => 'success'],
+            'both' => [
+                'signature' => 'verified',
+                'context' => 'verified',
+                'status' => 'success',
+            ],
+        ];
+        foreach ($bodies as $name => $json) {
+            $this->queueJson(200, $json);
+            $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->assertSame(SignatureOutcome::Verified, $result->signature, $name);
+        }
+    }
+
     public function testRedeemWithNoContextAndNoStatusIsUnreadable(): void
     {
         $this->queueJson(200, ['signature' => 'verified']);

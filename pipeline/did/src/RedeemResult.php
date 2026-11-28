@@ -165,7 +165,10 @@ final class RedeemResult
      * Builds the result from a redeem response. A body that is not a JSON
      * object, or one without a `context`, reads as
      * {@see ContextOutcome::Unreadable}, so nothing unexpected passes as a
-     * verdict. A 503 reads as {@see RedeemStatus::Unconfirmed} and
+     * verdict. Where the body holds neither `status` nor `context`, the
+     * status is {@see RedeemStatus::Unreadable} and the signature
+     * {@see SignatureOutcome::Unknown}, whatever `signature` holds. A 503
+     * reads as {@see RedeemStatus::Unconfirmed} and
      * {@see ContextOutcome::Unconfirmed}, whatever the body says, and
      * nothing else is read from it. The body is kept in
      * {@see RedeemResult::$raw} only.
@@ -185,14 +188,23 @@ final class RedeemResult
                 RedeemStatus::Unconfirmed
             );
         }
+        // Only a JSON object is an answer. A JSON array, a scalar or a body
+        // that isn't JSON at all reads as an empty answer.
         $json = json_decode($body, true);
-        if (!is_array($json)) {
+        if (!is_array($json) || !(json_decode($body) instanceof \stdClass)) {
             $json = [];
         }
         $rawContext = isset($json['context']) && is_string($json['context'])
             ? $json['context']
             : '';
-        $signature = isset($json['signature']) && is_string($json['signature'])
+        // An answer with neither status nor context gives no outcome, so
+        // its signature member is not read, as
+        // https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#a-sealed-creator-context-result
+        // sets out.
+        $holdsAnOutcome = (isset($json['context']) && is_string($json['context']))
+            || (isset($json['status']) && is_string($json['status']));
+        $signature = $holdsAnOutcome
+            && isset($json['signature']) && is_string($json['signature'])
             ? $json['signature']
             : null;
 
@@ -229,7 +241,7 @@ final class RedeemResult
         $redeemStatus = RedeemStatus::fromAnswer($status, $rawContext);
         [$humanConfidence, $nullReason, $rawHumanConfidence] =
             HumanConfidence::fromAnswer(
-                $json,
+                $holdsAnOutcome ? $json : [],
                 $redeemStatus === RedeemStatus::Success
             );
 

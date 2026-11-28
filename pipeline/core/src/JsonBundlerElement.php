@@ -53,6 +53,16 @@ class JsonBundlerElement extends FlowElement
      */
     private const WKT_TYPES = ['wkt', 'wktstring', 'wkb', 'wkbr'];
 
+    /**
+     * The Evidence the JSON never holds, by name or by value, being a
+     * sealed Human Confidence result and the page id sent with it, in
+     * lower case. The JavaScript Builder's script carries the JSON, so
+     * neither reaches the script this way either.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
+     */
+    private const WITHHELD_EVIDENCE = ['query.humanconfidence', 'query.humanconfidencepage'];
+
     public string $dataKey = 'jsonbundler';
 
     /**
@@ -148,6 +158,7 @@ class JsonBundlerElement extends FlowElement
         $output = [
             'javascriptProperties' => []
         ];
+        $withheld = self::withheldValues($flowData);
 
         // The cache of a Pipeline with an element that has updated its
         // property list since the cache was made is made again.
@@ -253,6 +264,16 @@ class JsonBundlerElement extends FlowElement
                     $value = self::listJson($value);
                 }
 
+                // A Property named as a sealed Human Confidence result or
+                // its page id, or whose value holds either, has no entry.
+                if (
+                    in_array($dataKey . '.' . strtolower((string) $propertyKey), self::WITHHELD_EVIDENCE, true) ||
+                    self::holdsAny($value, $withheld) ||
+                    self::holdsAny($nullReason, $withheld)
+                ) {
+                    continue;
+                }
+
                 // A Property assigned no value is written as null with its
                 // reason. Any other null, such as a plain null from an
                 // element that is not an Engine, has no entry. Only a Property
@@ -293,6 +314,60 @@ class JsonBundlerElement extends FlowElement
         $data = new ElementDataDictionary($this, ['json' => $output]);
 
         $flowData->setElementData($data);
+    }
+
+    /**
+     * The values of the Evidence in WITHHELD_EVIDENCE, matched in any
+     * letter case, that aren't empty.
+     *
+     * @return array<string>
+     */
+    private static function withheldValues(FlowData $flowData): array
+    {
+        $values = [];
+        foreach ($flowData->evidence->getAllIncludingUnaccepted() as $key => $value) {
+            if (
+                in_array(strtolower((string) $key), self::WITHHELD_EVIDENCE, true) &&
+                is_scalar($value) &&
+                (string) $value !== ''
+            ) {
+                $values[] = (string) $value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Whether a value, or any name or value inside it, holds one of the
+     * withheld values.
+     *
+     * @param mixed $value
+     * @param array<string> $withheld
+     */
+    private static function holdsAny($value, array $withheld): bool
+    {
+        if ($withheld === []) {
+            return false;
+        }
+        if (is_string($value)) {
+            foreach ($withheld as $secret) {
+                if (strpos($value, $secret) !== false) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        if (is_array($value) || $value instanceof \stdClass) {
+            foreach ((array) $value as $name => $item) {
+                if (self::holdsAny((string) $name, $withheld) || self::holdsAny($item, $withheld)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

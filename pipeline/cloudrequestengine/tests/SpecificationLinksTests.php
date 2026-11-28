@@ -30,7 +30,12 @@ use fiftyone\pipeline\cloudrequestengine\CloudRequestData;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestException;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestFailedData;
+use fiftyone\pipeline\cloudrequestengine\DerivedCloudEngine;
 use fiftyone\pipeline\cloudrequestengine\HttpClient;
+use fiftyone\pipeline\cloudrequestengine\HumanConfidencePage;
+use fiftyone\pipeline\cloudrequestengine\HumanConfidenceTransactions;
+use fiftyone\pipeline\cloudrequestengine\SealedHumanConfidence;
+use fiftyone\pipeline\cloudrequestengine\SealedResultFailedData;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -55,6 +60,11 @@ class SpecificationLinksTests extends TestCase
         CloudRequestException::class => 'features/exception-handling.md',
         CloudRequestFailedData::class => 'features/properties.md#missing-properties',
         HttpClient::class => 'pipeline-elements/cloud-request-engine.md#http-requests',
+        HumanConfidencePage::class => 'features/human-confidence.md#the-transaction',
+        HumanConfidenceTransactions::class => 'features/human-confidence.md#the-transaction',
+        DerivedCloudEngine::class => 'features/human-confidence.md#when-humanconfidence-arrives-sealed',
+        SealedHumanConfidence::class => 'features/human-confidence.md#when-humanconfidence-arrives-sealed',
+        SealedResultFailedData::class => 'features/human-confidence.md#where-the-sealed-result-is-not-redeemed',
     ];
 
     public function testEachClassCitesItsPartOfTheSpecification(): void

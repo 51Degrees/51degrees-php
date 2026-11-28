@@ -27,11 +27,13 @@ namespace fiftyone\pipeline\cloudrequestengine\tests;
 
 use fiftyone\pipeline\cloudrequestengine\CloudEngine;
 use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
+use fiftyone\pipeline\cloudrequestengine\DerivedCloudEngine;
 use fiftyone\pipeline\core\PipelineBuilder;
 
 /**
- * The ElementData of the CloudRequestEngine and of a CloudEngine, which
- * extends CloudEngineBase, is read only once each has finished.
+ * The ElementData of the CloudRequestEngine, of a CloudEngine, which
+ * extends CloudEngineBase, and of the DerivedCloudEngine is read only once
+ * each has finished.
  */
 class ReadOnlyTests extends CloudRequestEngineTestsBase
 {
@@ -54,6 +56,32 @@ class ReadOnlyTests extends CloudRequestEngineTestsBase
                 $this->fail("A write to the $key data did not throw.");
             } catch (\Exception $e) {
                 $this->assertStringContainsString('has finished processing', $e->getMessage(), $key);
+            }
+        }
+    }
+
+    /**
+     * The DerivedCloudEngine's ElementData is read only too, on a request
+     * without a sealed Human Confidence result and on one with.
+     */
+    public function testTheDerivedCloudEnginesElementDataIsReadOnlyOnceProcessed(): void
+    {
+        foreach (['' => 'without', 'sealed' => 'with'] as $sealed => $case) {
+            $cloud = new CloudRequestEngine([
+                'resourceKey' => self::resourceKey,
+                'httpClient' => $this->mockHttp(),
+            ]);
+            $flowData = (new PipelineBuilder(['addJavaScriptBuilder' => false]))
+                ->add($cloud)->add(new DerivedCloudEngine())->build()->createFlowData();
+            $flowData->evidence->set('header.user-agent', self::userAgent);
+            $flowData->evidence->set('query.humanconfidence', $sealed);
+            $flowData->process();
+
+            try {
+                $flowData->get('derived')->probe = 1;
+                $this->fail("A write to the derived data $case a sealed result did not throw.");
+            } catch (\Exception $e) {
+                $this->assertStringContainsString('has finished processing', $e->getMessage(), $case);
             }
         }
     }

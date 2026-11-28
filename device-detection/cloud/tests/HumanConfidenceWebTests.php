@@ -77,9 +77,10 @@ class HumanConfidenceWebTests extends HumanConfidenceWebTestCase
     }
 
     /**
-     * The page has a row for each of the three steps, the resource key and
-     * the cloud service its script calls, and the links to find out more,
-     * and is never kept by a cache, as each load runs the browser tests.
+     * The page has a row for each of the three steps, the address of the
+     * client script with the resource key, the cloud service and a
+     * transaction, the page's page id, and the links to find out more, and is
+     * never kept by a cache, as each load runs the browser tests.
      */
     public function testPageShowsTheThreeSteps()
     {
@@ -94,8 +95,11 @@ class HumanConfidenceWebTests extends HumanConfidenceWebTestCase
             'redeem-detail', 'redeem-level', 'again'] as $id) {
             $this->assertStringContainsString('id="' . $id . '"', $answer['body']);
         }
-        $this->assertStringContainsString('var RESOURCE = "' . self::$key . '";', $answer['body']);
-        $this->assertStringContainsString('var API = "' . self::$endpoint . '";', $answer['body']);
+        $this->assertStringContainsString(
+            'var SCRIPT = "' . self::$endpoint . rawurlencode(self::$key) . '.js?transaction=',
+            $answer['body']
+        );
+        $this->assertMatchesRegularExpression('/var PAGE = "[^"]+";/', $answer['body']);
         $this->assertDoesNotMatchRegularExpression('/__[A-Z_]+__/', $answer['body']);
         $this->assertEndsWithFindOutMore($answer);
     }

@@ -22,13 +22,28 @@
  * ********************************************************************* */
 
 // A stand-in for the cloud service, served with PHP's built-in server for
-// HumanConfidenceWebStandInTests. It answers the paths the Human
-// Confidence web example calls in the passive step, and answers a resource
-// key's JSON path with the members the cloud service gives such keys.
+// HumanConfidenceWebStandInTests. It answers the paths the Cloud Request
+// Engine calls, and answers a resource key's JSON path with the members
+// the cloud service gives such keys.
+//
+// A call that holds humanconfidence redeems it the way the cloud service
+// answers in its derived member: HumanConfidenceSource is Active, and
+// HumanConfidence is High where the call holds the License Key below and a
+// sealed result made for its transaction, being "sealed-" followed by the
+// transaction, or by nothing where the call holds none, and Medium for
+// anything else.
+//
+// Each request's path and the names of its form fields are added to a
+// file named after the stand-in's port in the temporary folder, so a test
+// can see what was called.
 
-// The answer for each resource key. The cloud service also gives a null
-// reason beside a null value, which the example does not read, so the
-// stand-in leaves it out.
+// The License Key the stand-in redeems with.
+const STAND_IN_LICENSE = 'standin-license';
+
+// A License Key the stand-in refuses.
+const STAND_IN_REFUSED_LICENSE = 'refused-license-WXYZ';
+
+// The answer for each resource key.
 $answers = [
     // A key whose products offer HumanConfidenceSource, such as Pro or
     // Bespoke, asked before any browser tests have run.
@@ -39,7 +54,9 @@ $answers = [
     // A Basic key, as the Basic product offers neither property.
     'basic-key' => ['derived' => [
         'humanconfidence' => null,
-        'humanconfidencesource' => null
+        'humanconfidencenullreason' => 'HumanConfidence is not in the Basic product.',
+        'humanconfidencesource' => null,
+        'humanconfidencesourcenullreason' => 'HumanConfidenceSource is not in the Basic product.'
     ]],
     // A key whose own property list holds HumanConfidence alone, as keys
     // made before the source existed do. Its products offer the source, so
@@ -56,14 +73,51 @@ $named = [
 ];
 
 $path = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+file_put_contents(
+    sys_get_temp_dir() . '/hc-stand-in-' . (int) ($_SERVER['SERVER_PORT'] ?? 0) . '.log',
+    $path . ' ' . implode(',', array_keys($_POST)) . "\n",
+    FILE_APPEND | LOCK_EX
+);
 header('Content-Type: application/json');
+
+// A License Key the cloud service refuses, naming it as its errors can.
+if (($_POST['license'] ?? null) === STAND_IN_REFUSED_LICENSE) {
+    http_response_code(400);
+    echo json_encode(['errors' => ['The License Key ' . STAND_IN_REFUSED_LICENSE . ' is not valid.']]);
+
+    return;
+}
 
 if ($path === '/api/v4/evidencekeys') {
     echo json_encode(['header.user-agent', 'query.client-ip']);
 
     return;
 }
+if (strcasecmp($path, '/api/v4/accessibleProperties') === 0) {
+    echo json_encode(['Products' => ['derived' => [
+        'DataTier' => 'stand-in',
+        'Properties' => [
+            ['Name' => 'HumanConfidence', 'Type' => 'String', 'Category' => 'Bot Detection'],
+            ['Name' => 'HumanConfidenceSource', 'Type' => 'String', 'Category' => 'Bot Detection']
+        ]
+    ]]]);
+
+    return;
+}
 if (preg_match('~^/api/v4/([^/]+)\.json$~', $path, $match) === 1 && isset($answers[$match[1]])) {
+    $sealed = $_POST['humanconfidence'] ?? null;
+    if (is_string($sealed) && $sealed !== '') {
+        // A sealed result made with a transaction redeems only with it, and
+        // one made with none only with none.
+        $redeemed = ($_POST['license'] ?? null) === STAND_IN_LICENSE &&
+            $sealed === 'sealed-' . (string) ($_POST['transaction'] ?? '');
+        echo json_encode(['derived' => [
+            'humanconfidence' => $redeemed ? 'High' : 'Medium',
+            'humanconfidencesource' => 'Active'
+        ]]);
+
+        return;
+    }
     $answer = $answers[$match[1]];
     $values = array_map('strtolower', array_map('trim', explode(',', (string) ($_POST['values'] ?? ''))));
     if (isset($named[$match[1]]) && in_array('derived.humanconfidencesource', $values, true)) {

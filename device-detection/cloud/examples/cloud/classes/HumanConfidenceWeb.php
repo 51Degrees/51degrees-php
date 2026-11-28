@@ -23,7 +23,13 @@
 
 namespace fiftyone\pipeline\devicedetection\examples\cloud\classes;
 
+use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
 use fiftyone\pipeline\cloudrequestengine\Constants;
+use fiftyone\pipeline\cloudrequestengine\DerivedCloudEngine;
+use fiftyone\pipeline\cloudrequestengine\HumanConfidenceTransactions;
+use fiftyone\pipeline\core\FlowData;
+use fiftyone\pipeline\core\Pipeline;
+use fiftyone\pipeline\core\PipelineBuilder;
 
 /**
  * Human Confidence demo server. See ../humanConfidenceWeb.php for the
@@ -38,13 +44,23 @@ class HumanConfidenceWeb
     // setting gives one. A short limit, so a slow cloud can't hang the demo.
     public const TIMEOUT_SECONDS_DEFAULT = 10.0;
 
-    // The property the Resource Key must include.
-    private const PROPERTY = 'HumanConfidence';
+    // What the page is told where the Pipeline can't be built.
+    public const MESSAGE_NOT_BUILT =
+        "The Pipeline couldn't be built. The server log has the details.";
 
-    // The properties the passive call reads, named in its request. Both
-    // are named, so a Resource Key whose own list of properties holds
-    // HumanConfidence but not HumanConfidenceSource still gets the source.
-    private const PASSIVE_VALUES = 'derived.humanconfidence,derived.humanconfidencesource';
+    // What the page is told where a Property can't be read.
+    public const MESSAGE_NOT_READ =
+        "The Property couldn't be read. The server log has the details.";
+
+    // The two Properties the example reads, as the derived Element Data
+    // names them. Both are named in the request, so a Resource Key whose
+    // own list of properties holds HumanConfidence but not
+    // HumanConfidenceSource still gets the source.
+    private const PROPERTIES = [
+        'source' => 'humanconfidencesource',
+        'humanConfidence' => 'humanconfidence'
+    ];
+    private const REQUESTED_PROPERTIES = 'derived.HumanConfidence,derived.HumanConfidenceSource';
 
     /** @var string */
     private $resourceKey = '';
@@ -76,9 +92,10 @@ class HumanConfidenceWeb
      * Answers the request PHP is serving.
      *
      * @param array<string, mixed> $settings resourceKey, the Resource Key,
-     * required. licenseKey, a License Key of the same account, required to
-     * redeem. cloudEndPoint, the API base including the /api/v4/ segment.
-     * timeoutSeconds, the limit on each request to the cloud.
+     * required. licenseKey, a License Key of the same account, which the
+     * Pipeline needs to redeem. cloudEndPoint, the API base including the
+     * /api/v4/ segment. timeoutSeconds, the limit on each request to the
+     * cloud.
      * @param callable $output Writes the answer
      */
     public function run($settings, callable $output)
@@ -112,14 +129,11 @@ class HumanConfidenceWeb
             return;
         }
 
-        if ($path === '/passive') {
-            $this->json(200, $this->passive(), $output);
-
-            return;
-        }
-
-        if ($path === '/redeem') {
-            $this->redeem($output);
+        // The page asks for the two Properties twice: first with nothing
+        // from the browser tests, and then with the sealed result they
+        // gave. The example reads them the same way both times.
+        if ($path === '/passive' || $path === '/humanconfidence') {
+            $this->json(200, $this->read(), $output);
 
             return;
         }
@@ -133,7 +147,8 @@ class HumanConfidenceWeb
      */
     private function page(callable $output)
     {
-        // The page must never come from a cache, as each load runs the tests.
+        // The page must never come from a cache, as each load runs the
+        // tests and has a transaction of its own.
         header('Cache-Control: no-store');
         header('Content-Type: text/html; charset=utf-8');
 
@@ -159,254 +174,162 @@ class HumanConfidenceWeb
         if ($this->licenseKey === '') {
             error_log(
                 'No ' . self::LICENSE_KEY_VARIABLE . ' set. The page still shows Passive and ' .
-                "Active, but an account that holds License Keys can't redeem " .
-                'without one, so the redeemed level will be unreadable.'
+                "Active, but the Pipeline can't redeem the sealed result without " .
+                'one, so HumanConfidence read on the server will be Medium.'
             );
         }
 
+        // Each page gets a page id and a transaction of its own from the
+        // package. Its script carries the transaction to the cloud, and the
+        // page sends the page id back with the sealed result, so two pages
+        // open at once each redeem their own.
+        $page = (new HumanConfidenceTransactions())->newPage();
+        $json = JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES;
+
         // Read per request, so an edit to the page shows on the next load.
         $output(strtr((string) file_get_contents(__DIR__ . '/../static/humanConfidence.html'), [
-            '__RESOURCE__' => $this->resourceKey,
-            '__API__' => $this->api,
+            '__SCRIPT__' => (string) json_encode($page->scriptUrl($this->api, $this->resourceKey), $json),
+            '__PAGE__' => (string) json_encode($page->pageId(), $json),
             '__FIND_OUT_MORE__' => ExampleUtils::getFindOutMoreHtml(__FILE__)
         ]));
     }
 
     /**
-     * Whether the Resource Key includes the property, from the cloud's own
-     * list of the properties the key gives. Null where the cloud didn't
-     * give the list, and the page then shows what the cloud answers.
+     * Whether the Resource Key includes the property, from the list of
+     * properties the Cloud Request Engine got for it. Null where the
+     * engine didn't get the list, and the page then shows what the cloud
+     * answers.
      *
      * @return null|bool
      */
     private function includesProperty()
     {
         try {
-            $answer = $this->request(
-                'GET',
-                $this->api . 'accessibleproperties?resource=' . rawurlencode($this->resourceKey)
-            );
-        } catch (\RuntimeException $e) {
+            $engine = $this->engine();
+        } catch (\Exception $e) {
             return null;
         }
-        $json = $answer['status'] === 200 ? json_decode($answer['body'], true) : null;
-        if (!is_array($json)) {
-            return null;
-        }
-        $json = array_change_key_case($json);
-        if (!is_array($json['products'] ?? null)) {
+        if (!$engine->propertiesLoaded()) {
             return null;
         }
 
-        foreach ($json['products'] as $product) {
-            if (!is_array($product)) {
-                continue;
-            }
-            $product = array_change_key_case($product);
-            if (!is_array($product['properties'] ?? null)) {
-                continue;
-            }
-            foreach ($product['properties'] as $property) {
-                if (!is_array($property)) {
-                    continue;
-                }
-                $property = array_change_key_case($property);
-                if (
-                    is_string($property['name'] ?? null) &&
-                    strcasecmp($property['name'], self::PROPERTY) === 0
-                ) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return isset($engine->flowElementProperties['derived'][self::PROPERTIES['humanConfidence']]);
     }
 
     /**
-     * Passive: this server asks the cloud for the visitor, with the
-     * visitor's headers and IP address, naming the two properties it reads,
-     * and reads the source and the plain level from the answer.
+     * Processes this request with the Pipeline and reads HumanConfidence
+     * and HumanConfidenceSource. Where the request carries a sealed result
+     * from the browser tests, the Pipeline redeems it. The example never
+     * does.
      *
      * @return array<string, null|string>
      */
-    private function passive()
+    private function read()
     {
         try {
-            $names = $this->cloudHeaders();
-            $evidence = [];
-            foreach ($_SERVER as $name => $value) {
-                if (strpos((string) $name, 'HTTP_') !== 0 || !is_string($value)) {
-                    continue;
-                }
-                $header = strtolower(str_replace('_', '-', substr((string) $name, 5)));
-                if (isset($names[$header])) {
-                    $evidence[$header] = $value;
-                }
-            }
-            // Behind a load balancer or CDN, use the visitor's address it
-            // passes on. Set last, so no header can replace it.
-            $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-            if (
-                stripos($ip, '::ffff:') === 0 &&
-                filter_var(substr($ip, 7), FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false
-            ) {
-                $ip = substr($ip, 7);
-            }
-            if ($ip !== '') {
-                $evidence['client-ip'] = $ip;
-            }
-            // Named after the headers, so no header can replace them.
-            $evidence['values'] = self::PASSIVE_VALUES;
-
-            $answer = $this->request(
-                'POST',
-                $this->api . rawurlencode($this->resourceKey) . '.json',
-                $evidence
+            $pipeline = $this->pipeline();
+        } catch (\Exception $e) {
+            // The Cloud Request Engine refused the Resource Key or the
+            // License Key. The page gets a fixed message, as nothing a page
+            // receives may hold the License Key, and the details are logged
+            // with the key hidden.
+            error_log(
+                'The Pipeline could not be built: ' .
+                $this->withoutLicenseKey($e->getMessage())
             );
-            if ($answer['status'] < 200 || $answer['status'] > 299) {
-                return ['error' => "HTTP {$answer['status']}: " . self::trim($answer['body'])];
-            }
-            $json = json_decode($answer['body'], true);
-            if (!is_array($json)) {
-                return ['error' => json_last_error_msg()];
-            }
-            $derived = $json['derived'] ?? null;
 
-            return [
-                'source' => self::read($derived, 'humanconfidencesource'),
-                'humanConfidence' => self::read($derived, 'humanconfidence')
-            ];
-        } catch (\RuntimeException $e) {
-            return ['error' => $e->getMessage()];
+            return ['error' => self::MESSAGE_NOT_BUILT];
         }
+        // A Flow Data is for this one request. PHP runs each request on one
+        // thread, so nothing else uses it at the same time. A Flow Data
+        // must not be used by two threads at once, so never keep one for
+        // another request or hand it to another thread.
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->setFromWebRequest();
+        $flowData->process();
+
+        $answer = [];
+        foreach (self::PROPERTIES as $name => $property) {
+            [$answer[$name], $answer[$name . 'Reason']] = $this->property($flowData, $property);
+        }
+
+        return $answer;
     }
 
     /**
-     * The request headers the cloud reads, from its own list. Only these
-     * are passed on, so headers such as Authorization stay here. PHP keeps
-     * nothing from one request to the next, so the list is fetched for
-     * each.
+     * The text with the License Key replaced, for a log entry.
      *
-     * @return array<string, bool> Keyed by the header's name in lower case
+     * @param string $text
+     * @return string
      */
-    private function cloudHeaders()
+    private function withoutLicenseKey($text)
     {
-        $answer = $this->request('GET', $this->api . 'evidencekeys');
-        if ($answer['status'] < 200 || $answer['status'] > 299) {
-            throw new \RuntimeException("HTTP {$answer['status']}: " . self::trim($answer['body']));
-        }
-        $keys = json_decode($answer['body'], true);
-        if (!is_array($keys)) {
-            throw new \RuntimeException(json_last_error_msg());
-        }
-
-        $names = [];
-        foreach ($keys as $key) {
-            if (is_string($key) && stripos($key, 'header.') === 0) {
-                $names[strtolower(substr($key, 7))] = true;
-            }
-        }
-
-        return $names;
+        return $this->licenseKey === ''
+            ? $text
+            : str_replace($this->licenseKey, '(hidden)', $text);
     }
 
     /**
-     * Redeem: the page sends the sealed value, and this server redeems it
-     * with the License Key. The answer goes back to the page as the cloud
-     * gave it.
+     * A Property's value, or null and the message that says why it has
+     * none.
+     *
+     * @param string $property
+     * @return array{0: null|string, 1: null|string}
      */
-    private function redeem(callable $output)
+    private function property(FlowData $flowData, $property)
     {
-        $value = $_POST['value'] ?? '';
-        $fields = ['value' => is_string($value) ? $value : ''];
-        if ($this->licenseKey !== '') {
-            $fields['license'] = $this->licenseKey;
-        }
-
         try {
-            $answer = $this->request('POST', $this->api . 'hc/redeem', $fields);
-        } catch (\RuntimeException $e) {
-            $this->json(502, ['error' => $e->getMessage()], $output);
+            $value = $flowData->derived->{$property};
+        } catch (\Exception $e) {
+            // The page gets a fixed message rather than the exception's.
+            error_log("{$property} could not be read: " . $this->withoutLicenseKey($e->getMessage()));
 
-            return;
+            return [null, self::MESSAGE_NOT_READ];
+        }
+        if (!$value->hasValue) {
+            return [null, $value->noValueMessage];
         }
 
-        if ($answer['status'] === 404) {
-            $this->json(
-                200,
-                ['error' => "The service at {$this->api} doesn't redeem Human Confidence."],
-                $output
-            );
-
-            return;
-        }
-
-        http_response_code($answer['status'] > 0 ? $answer['status'] : 502);
-        header('Content-Type: application/json');
-        $output($answer['body']);
+        return [is_string($value->value) ? $value->value : null, null];
     }
 
     /**
-     * Makes a request to the cloud and gives its status and body, whatever
-     * the status.
+     * A Pipeline of the Cloud Request Engine and the engine that gives the
+     * derived Element Data. PHP keeps nothing from one request to the next,
+     * so it is built for each.
      *
-     * @param string $method
-     * @param string $url
-     * @param null|array<string, string> $fields Form fields for the body
-     * @return array{status: int, body: string}
-     * @throws \RuntimeException where the cloud gave no answer
+     * @return Pipeline
      */
-    private function request($method, $url, $fields = null)
+    private function pipeline()
     {
-        $http = [
-            'method' => $method,
-            'ignore_errors' => true,
-            'timeout' => $this->timeoutSeconds
+        // A failed request to the cloud is kept in the FlowData rather than
+        // thrown, so the reads below say what happened.
+        return (new PipelineBuilder([
+            'addJavaScriptBuilder' => false,
+            'useSetHeaderProperties' => false,
+            'suppressProcessExceptions' => true
+        ]))
+            ->add($this->engine())
+            ->add(new DerivedCloudEngine())
+            ->build();
+    }
+
+    /**
+     * @return CloudRequestEngine
+     */
+    private function engine()
+    {
+        $settings = [
+            'resourceKey' => $this->resourceKey,
+            'requestedProperties' => self::REQUESTED_PROPERTIES,
+            'cloudEndPoint' => $this->api,
+            'timeoutSeconds' => $this->timeoutSeconds
         ];
-        if ($fields !== null) {
-            $http['header'] = 'Content-Type: application/x-www-form-urlencoded';
-            $http['content'] = http_build_query($fields);
+        if ($this->licenseKey !== '') {
+            $settings['licenseKey'] = $this->licenseKey;
         }
 
-        // A request that cannot be made gives a warning and false. The
-        // warning is the message of the exception below.
-        $reason = null;
-        set_error_handler(
-            static function (int $level, string $message) use (&$reason): bool {
-                $reason = $message;
-
-                return true;
-            },
-            E_WARNING
-        );
-
-        try {
-            $stream = fopen($url, 'r', false, stream_context_create(['http' => $http]));
-        } finally {
-            restore_error_handler();
-        }
-        if ($stream === false) {
-            throw new \RuntimeException($reason ?? $url);
-        }
-        if ($reason !== null) {
-            // A warning from a request that was made is not expected, so it
-            // is raised again.
-            trigger_error($reason, E_USER_WARNING);
-        }
-        $lines = stream_get_meta_data($stream)['wrapper_data'] ?? [];
-        $body = (string) stream_get_contents($stream);
-        fclose($stream);
-
-        // The last status line is the answer's own, after any redirect.
-        $status = 0;
-        foreach ((array) $lines as $line) {
-            if (preg_match('~^HTTP/\S+\s+(\d{3})~', (string) $line, $code) === 1) {
-                $status = (int) $code[1];
-            }
-        }
-
-        return ['status' => $status, 'body' => $body];
+        return new CloudRequestEngine($settings);
     }
 
     /**
@@ -420,26 +343,5 @@ class HumanConfidenceWeb
         http_response_code($status);
         header('Content-Type: application/json');
         $output((string) json_encode($body, JSON_INVALID_UTF8_SUBSTITUTE));
-    }
-
-    /**
-     * @param mixed $parent
-     * @param string $name
-     * @return null|string
-     */
-    private static function read($parent, $name)
-    {
-        return is_array($parent) && is_string($parent[$name] ?? null)
-            ? $parent[$name]
-            : null;
-    }
-
-    /**
-     * @param string $text
-     * @return string
-     */
-    private static function trim($text)
-    {
-        return strlen($text) > 200 ? substr($text, 0, 200) : $text;
     }
 }

@@ -44,6 +44,16 @@ class CloudRequestEngine extends Engine
     // Joins license keys in one license key setting.
     private const LICENSE_KEY_SEPARATOR = '|';
 
+    // Written in place of a value no message may hold.
+    private const WITHHELD = '[withheld]';
+
+    // Written in place of the License Key, or any part of it.
+    private const HIDDEN = '(hidden)';
+
+    // The fewest characters in a row from a withheld or hidden value that
+    // are taken as part of it in a message.
+    private const PART_LENGTH = 12;
+
     public string $dataKey = Constants::DATA_KEY;
 
     /**
@@ -101,6 +111,15 @@ class CloudRequestEngine extends Engine
     // Set while the last request for the accessible properties failed.
     private bool $propertiesRequestFailed = false;
     private HttpClient $httpClient;
+    private HumanConfidenceTransactions $humanConfidenceTransactions;
+    /**
+     * The values of the request being processed that no message may hold,
+     * being every humanconfidence it carries, under any key, and the
+     * transaction its call holds.
+     *
+     * @var array<string>
+     */
+    private array $secretsInFlight = [];
 
     /**
      * Warnings to log once the engine is added to a pipeline, which has the
@@ -137,6 +156,11 @@ class CloudRequestEngine extends Engine
      * cloud service, 2 seconds unless set. A given httpClient keeps its own
      * timeout unless the setting is given.
      *
+     * The humanConfidenceTransactions setting keeps the transaction of each
+     * page that asks for Human Confidence, and must be the one the pages
+     * were made with. Unless set, it is one that keeps them in the default
+     * folder.
+     *
      * @param array{
      *     resourceKey?: string,
      *     licenseKey?: string,
@@ -145,7 +169,8 @@ class CloudRequestEngine extends Engine
      *     cloudEndPoint?: string,
      *     cloudRequestOrigin?: string,
      *     discoveryResults?: array<string, mixed>,
-     *     httpClient?: \fiftyone\pipeline\cloudrequestengine\HttpClient
+     *     httpClient?: \fiftyone\pipeline\cloudrequestengine\HttpClient,
+     *     humanConfidenceTransactions?: \fiftyone\pipeline\cloudrequestengine\HumanConfidenceTransactions
      * } $settings
      * @throws \fiftyone\pipeline\cloudrequestengine\CloudRequestException
      *   for a 4xx answer to a discovery request
@@ -167,6 +192,8 @@ class CloudRequestEngine extends Engine
             $this->httpClient->setTimeoutSeconds($timeoutSeconds);
         }
         $this->cloudRequestOrigin = $settings['cloudRequestOrigin'] ?? null;
+        $this->humanConfidenceTransactions = $settings['humanConfidenceTransactions']
+            ?? new HumanConfidenceTransactions();
 
         parent::__construct();
 
@@ -288,26 +315,176 @@ class CloudRequestEngine extends Engine
         // The keys go in the body, the license key never in the URL. They
         // and the list are set after the evidence, so evidence cannot
         // replace them.
-        $fields = $this->getContent($flowData);
+        $sealedResult = SealedHumanConfidence::in($flowData);
+        // Every humanconfidence, under any key, is withheld from messages,
+        // and set now, so the warning about conflicting Evidence withholds
+        // it too.
+        $humanConfidences = SealedHumanConfidence::valuesIn($flowData);
+        $this->secretsInFlight = $humanConfidences;
+        try {
+            $fields = $this->getContent($flowData);
+        } finally {
+            $this->secretsInFlight = [];
+        }
+        $requested = $this->requestedProperties;
+        $transaction = null;
+        $sealedResultSent = false;
+        if ($sealedResult !== null) {
+            $sealedResultSent = $this->redeemFields($flowData, $fields, $requested, $transaction);
+        } elseif (SealedHumanConfidence::elsewhereIn($flowData)) {
+            self::leaveOutUnredeemable($fields);
+        }
         if ($this->resourceKey !== '') {
             $fields[Constants::RESOURCE_PARAMETER] = $this->resourceKey;
         }
         if ($this->licenseKey !== '') {
             $fields[Constants::LICENSE_PARAMETER] = $this->licenseKey;
         }
-        if (count($this->requestedProperties) > 0) {
-            $fields[Constants::VALUES_PARAMETER] = implode(',', $this->requestedProperties);
+        if (count($requested) > 0) {
+            $fields[Constants::VALUES_PARAMETER] = implode(',', $requested);
         }
 
         $content = http_build_query($fields);
 
-        $result = $this->request('POST', $url, $content);
+        $this->secretsInFlight = $transaction === null
+            ? $humanConfidences
+            : array_merge($humanConfidences, [$transaction]);
+        try {
+            $result = $this->request('POST', $url, $content);
+        } finally {
+            $this->secretsInFlight = [];
+        }
 
-        $data = new CloudRequestData($this, $result);
+        $data = new CloudRequestData($this, $result, $sealedResultSent);
 
         $flowData->setElementData($data);
 
+        // The configured list alone, so a name added for a sealed result
+        // is never reported.
         $this->reportPropertiesNotCovered($flowData, $result);
+    }
+
+    /**
+     * A request that carries a sealed Human Confidence result is neither
+     * served from nor stored in the cache, because a sealed result redeems
+     * once. Nor is one that carries a humanconfidence under another key,
+     * which is never sent, so that it's never kept in a cache key either.
+     * Every other request is processed as before.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/caching.md#values-created-for-one-request
+     *
+     * @throws \Exception as processInternal does
+     */
+    public function process(FlowData $flowData): void
+    {
+        if (SealedHumanConfidence::in($flowData) !== null || SealedHumanConfidence::elsewhereIn($flowData)) {
+            $this->processInternal($flowData);
+
+            return;
+        }
+
+        parent::process($flowData);
+    }
+
+    /**
+     * Makes the fields of a call that carries a sealed result into the
+     * fields that redeem it, and says whether the call holds the sealed
+     * result.
+     *
+     * No transaction from the request goes in the call, under either name,
+     * and nor does the page id, which only the package uses. The sealed
+     * result goes in only with a License Key, as the remote server redeems
+     * nothing without one, and only with the transaction kept for the
+     * request's page id, which goes in as transaction. Where no transaction
+     * is kept for the page, as when the request has no page id, an unknown
+     * one, or one whose transaction was taken or has expired, the sealed
+     * result is left out and reads Medium. A call that holds the sealed
+     * result names derived.HumanConfidence.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#redeeming-through-the-json-call
+     *
+     * @param array<string, int|string> $fields The call's fields so far
+     * @param array<string> $requested The requested properties of this call
+     * @param null|string $transaction Set to the transaction the call holds
+     */
+    private function redeemFields(
+        FlowData $flowData,
+        array &$fields,
+        array &$requested,
+        ?string &$transaction
+    ): bool {
+        $transaction = null;
+        // The kept transaction is taken only where it is sent, so a request
+        // without a License Key leaves it for the page.
+        if ($this->licenseKey !== '') {
+            $transaction = $this->takeTransaction(SealedHumanConfidence::pageIn($flowData));
+        }
+        foreach (array_keys($fields) as $name) {
+            $name = (string) $name;
+            if (
+                SealedHumanConfidence::isTransactionField($name) ||
+                strcasecmp($name, SealedHumanConfidence::PAGE_FIELD) === 0 ||
+                ($transaction === null && strcasecmp($name, SealedHumanConfidence::FIELD) === 0)
+            ) {
+                unset($fields[$name]);
+            }
+        }
+        if ($transaction === null) {
+            return false;
+        }
+
+        $fields[SealedHumanConfidence::TRANSACTION_FIELD] = $transaction;
+        foreach ($requested as $name) {
+            if (strcasecmp($name, SealedHumanConfidence::REQUESTED_PROPERTY) === 0) {
+                return true;
+            }
+        }
+        $requested[] = SealedHumanConfidence::REQUESTED_PROPERTY;
+
+        return true;
+    }
+
+    /**
+     * The transaction kept for the page id, taken from the store so it
+     * redeems once, or null where none is kept. The store's take() is
+     * private, so a consumer has no accessor for a transaction, and the
+     * engine calls it in the store's own scope.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
+     */
+    private function takeTransaction(?string $pageId): ?string
+    {
+        $take = \Closure::bind(
+            static fn (HumanConfidenceTransactions $store, ?string $id): ?string => $store->take($id),
+            null,
+            HumanConfidenceTransactions::class
+        );
+
+        return $take($this->humanConfidenceTransactions, $pageId);
+    }
+
+    /**
+     * Leaves humanconfidence, and any transaction or challenge, out of a
+     * call whose request holds a humanconfidence under a key other than
+     * query.humanconfidence. Only that key carries a sealed result, so the
+     * value is never redeemed, and never with a transaction the request
+     * chose.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#redeeming-through-the-json-call
+     *
+     * @param array<string, int|string> $fields The call's fields so far
+     */
+    private static function leaveOutUnredeemable(array &$fields): void
+    {
+        foreach (array_keys($fields) as $name) {
+            $name = (string) $name;
+            if (
+                SealedHumanConfidence::isTransactionField($name) ||
+                strcasecmp($name, SealedHumanConfidence::FIELD) === 0
+            ) {
+                unset($fields[$name]);
+            }
+        }
     }
 
     /**
@@ -443,10 +620,14 @@ class CloudRequestEngine extends Engine
 
                     foreach ($allEvidence as $key => $value) {
                         if (strcasecmp($key, $evidenceKey) !== 0 && stripos($key, $suffix) !== false) {
-                            $conflicts[$key] = $value;
+                            $conflicts[$key] = self::loggable((string) $key, $value);
                         }
                     }
-                    $warningMessage = sprintf(Constants::WARNING_MESSAGE, $evidenceKey, $evidenceValue);
+                    $warningMessage = sprintf(
+                        Constants::WARNING_MESSAGE,
+                        $evidenceKey,
+                        self::loggable((string) $evidenceKey, $evidenceValue)
+                    );
 
                     foreach ($conflicts as $key => $value) {
                         if (!empty($conflictStr)) {
@@ -455,7 +636,11 @@ class CloudRequestEngine extends Engine
                         $conflictStr .= sprintf('%s=>%s', $key, $value);
                     }
                     if (!empty($conflictStr)) {
-                        trigger_error($warningMessage . $conflictStr, E_USER_WARNING);
+                        // An Evidence value can hold the License Key.
+                        trigger_error(
+                            $this->maskLicenseKeys($warningMessage . $conflictStr),
+                            E_USER_WARNING
+                        );
                     }
                 }
 
@@ -467,6 +652,27 @@ class CloudRequestEngine extends Engine
         }
 
         return $queryData;
+    }
+
+    /**
+     * An Evidence value as a warning may show it. The value of a sealed
+     * Human Confidence result, or of a transaction under either name, is
+     * withheld, as no log entry may hold either.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
+     *
+     * @param int|string $value
+     * @return int|string
+     */
+    private static function loggable(string $evidenceKey, $value)
+    {
+        $parts = explode(Constants::EVIDENCE_SEPERATOR, $evidenceKey, 2);
+        $name = (string) end($parts);
+
+        return strcasecmp($name, SealedHumanConfidence::FIELD) === 0 ||
+            SealedHumanConfidence::isTransactionField($name)
+            ? self::WITHHELD
+            : $value;
     }
 
     /**
@@ -816,27 +1022,147 @@ class CloudRequestEngine extends Engine
     }
 
     /**
-     * The text with this engine's license key masked, and then each part
+     * The text with this engine's License Key hidden whole, and each part
      * of the key between vertical bars, so that text naming one of several
-     * joined keys is masked too.
+     * joined keys is hidden too. Every humanconfidence the request carries,
+     * under any key, and the transaction of the call being made are
+     * withheld.
+     *
+     * None of these is ever written in whole or in part, so each is
+     * replaced outright rather than masked to its last characters, as it
+     * is and as it would be sent in a form body or address, or written in
+     * JSON. A key the HTTP client already masked to its last characters, as
+     * it masks a license= value, is hidden the same way. The longest value
+     * is replaced first, and nothing replaced is looked at again, so a
+     * sealed result that is part of the key can't stop the key being
+     * hidden. Then any run of PART_LENGTH or more characters taken from one
+     * of them, such as a cut short copy in a cloud service message, is
+     * replaced too.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
      */
     private function maskLicenseKeys(string $text): string
     {
-        if ($this->licenseKey === '') {
+        $hidden = [];
+        foreach ($this->secretsInFlight as $secret) {
+            foreach (self::writtenForms($secret) as $form) {
+                $hidden[$form] = self::WITHHELD;
+            }
+        }
+        if ($this->licenseKey !== '') {
+            $keys = array_merge(
+                [$this->licenseKey],
+                explode(self::LICENSE_KEY_SEPARATOR, $this->licenseKey)
+            );
+            foreach ($keys as $key) {
+                foreach (self::writtenForms($key) as $form) {
+                    $hidden[$form] = self::HIDDEN;
+                }
+            }
+        }
+        if (count($hidden) === 0) {
             return $text;
         }
-
-        $keys = array_merge(
-            [$this->licenseKey],
-            explode(self::LICENSE_KEY_SEPARATOR, $this->licenseKey)
-        );
-        foreach ($keys as $key) {
-            if ($key !== '') {
-                $text = str_replace($key, LicenseKey::mask($key), $text);
+        // The masked form is mostly asterisks, so it's hidden only whole.
+        $whole = $hidden;
+        if ($this->licenseKey !== '') {
+            $keys = array_merge(
+                [$this->licenseKey],
+                explode(self::LICENSE_KEY_SEPARATOR, $this->licenseKey)
+            );
+            foreach ($keys as $key) {
+                if ($key !== '') {
+                    $whole[LicenseKey::mask($key)] = self::HIDDEN;
+                }
             }
         }
 
-        return $text;
+        // strtr tries the longest value first at each place in the text, and
+        // never looks again at what it has written.
+        return self::hideParts(strtr($text, $whole), $hidden);
+    }
+
+    /**
+     * A value as it is, and as it is written in a form body or an address,
+     * and inside a JSON string, so that a message that echoes it in any of
+     * these forms is caught. Empty for an empty value.
+     *
+     * @return array<string>
+     */
+    private static function writtenForms(string $value): array
+    {
+        if ($value === '') {
+            return [];
+        }
+        $forms = [$value, rawurlencode($value), urlencode($value)];
+        foreach ([0, JSON_UNESCAPED_SLASHES, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE] as $flags) {
+            $json = json_encode($value, $flags);
+            if (is_string($json)) {
+                $forms[] = substr($json, 1, -1);
+            }
+        }
+
+        return array_values(array_unique($forms));
+    }
+
+    /**
+     * The text with each run of characters that holds PART_LENGTH or more
+     * characters in a row from one of the values replaced by that value's
+     * token, so a part of a value is hidden as the whole is. A value
+     * shorter than PART_LENGTH is hidden only whole.
+     *
+     * @param array<string, string> $tokens Each value and its token, the
+     *   License Key's (hidden) taking precedence
+     */
+    private static function hideParts(string $text, array $tokens): string
+    {
+        $windows = [];
+        foreach ([self::WITHHELD, self::HIDDEN] as $token) {
+            foreach ($tokens as $value => $valueToken) {
+                $value = (string) $value;
+                if ($valueToken !== $token || strlen($value) < self::PART_LENGTH) {
+                    continue;
+                }
+                for ($i = 0; $i + self::PART_LENGTH <= strlen($value); ++$i) {
+                    $windows[substr($value, $i, self::PART_LENGTH)] = $token;
+                }
+            }
+        }
+        $length = strlen($text);
+        if (count($windows) === 0 || $length < self::PART_LENGTH) {
+            return $text;
+        }
+
+        // The token covering each character, where one does.
+        $covered = [];
+        for ($i = 0; $i + self::PART_LENGTH <= $length; ++$i) {
+            $token = $windows[substr($text, $i, self::PART_LENGTH)] ?? null;
+            if ($token === null) {
+                continue;
+            }
+            for ($j = $i; $j < $i + self::PART_LENGTH; ++$j) {
+                if (!isset($covered[$j]) || $token === self::HIDDEN) {
+                    $covered[$j] = $token;
+                }
+            }
+        }
+        if (count($covered) === 0) {
+            return $text;
+        }
+
+        $result = '';
+        $last = null;
+        for ($i = 0; $i < $length; ++$i) {
+            $token = $covered[$i] ?? null;
+            if ($token === null) {
+                $result .= $text[$i];
+            } elseif ($token !== $last) {
+                $result .= $token;
+            }
+            $last = $token;
+        }
+
+        return $result;
     }
 
     /**

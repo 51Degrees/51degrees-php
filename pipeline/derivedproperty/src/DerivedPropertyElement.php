@@ -35,7 +35,11 @@ use fiftyone\pipeline\core\Pipeline;
  * Computes one property per script from properties other elements in the
  * pipeline have already produced, and writes them under the element data
  * key `derived`. The element holds no data file, sends no request, keeps
- * nothing between requests and reads no evidence.
+ * nothing between requests and reads no evidence, apart from looking for
+ * a sealed Human Confidence result in query.humanconfidence. On a request
+ * that carries one, a HumanConfidence script gives Medium, and
+ * HumanConfidenceSource is Active, as only the Cloud Request Engine can
+ * redeem it.
  *
  * A script runs where every source property it names can be read, and
  * otherwise has no value, with a message naming every property that could
@@ -55,6 +59,19 @@ class DerivedPropertyElement extends FlowElement
     public const DATA_KEY = 'derived';
 
     private const NOT_PRESENT = 'property not present on this request';
+
+    /** The Evidence that carries a sealed Human Confidence result. */
+    private const SEALED_RESULT_EVIDENCE = 'query.humanconfidence';
+
+    private const HUMAN_CONFIDENCE = 'HumanConfidence';
+
+    private const HUMAN_CONFIDENCE_SOURCE = 'HumanConfidenceSource';
+
+    /** HumanConfidence where a sealed result isn't redeemed. */
+    private const NOT_REDEEMED = 'Medium';
+
+    /** HumanConfidenceSource on every request with a sealed result. */
+    private const ACTIVE = 'Active';
 
     public string $dataKey = self::DATA_KEY;
 
@@ -162,15 +179,44 @@ class DerivedPropertyElement extends FlowElement
             $data = new DerivedPropertyData($this);
             $flowData->setElementData($data);
         }
+        $sealed = self::carriesSealedResult($flowData);
         // Each value is written as soon as it is produced, so a later
         // script can read what an earlier one wrote.
         foreach ($this->scripts as $index => $script) {
+            if ($sealed && strcasecmp($script->outputName(), self::HUMAN_CONFIDENCE) === 0) {
+                $data->setValue($script->outputName(), new AspectPropertyValue(null, self::NOT_REDEEMED));
+                $data->setValue(self::HUMAN_CONFIDENCE_SOURCE, new AspectPropertyValue(null, self::ACTIVE));
+                continue;
+            }
             $slots = [];
             foreach ($script->properties as $property) {
                 $slots[] = $this->readSlot($flowData, $property, $index);
             }
             $data->setValue($script->outputName(), $script->evaluate($slots));
         }
+    }
+
+    /**
+     * Whether the request carries a sealed Human Confidence result, being
+     * a query.humanconfidence, in any letter case, that isn't empty. This
+     * element can't redeem one, so HumanConfidence is then Medium and
+     * HumanConfidenceSource is Active, never a High or Low worked out here.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#where-the-sealed-result-is-not-redeemed
+     */
+    private static function carriesSealedResult(FlowData $flowData): bool
+    {
+        $evidence = method_exists($flowData->evidence, 'getAllIncludingUnaccepted')
+            ? $flowData->evidence->getAllIncludingUnaccepted()
+            : $flowData->evidence->getAll();
+        foreach ($evidence as $key => $value) {
+            if (strcasecmp((string) $key, self::SEALED_RESULT_EVIDENCE) === 0 &&
+                is_scalar($value) && (string) $value !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // -----------------------------------------------------------------

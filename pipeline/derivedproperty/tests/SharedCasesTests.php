@@ -148,7 +148,7 @@ class SharedCasesTests extends TestCase
         }
 
         try {
-            $sources = $this->sources($script, Missing::key($case, 'Properties'));
+            $sources = self::sources($script, Missing::key($case, 'Properties'));
             $produced = $this->produce($script, $sources);
         } catch (\Throwable $e) {
             $failures[] = $prefix . 'raised ' . get_class($e) . ': ' . $e->getMessage();
@@ -274,7 +274,7 @@ class SharedCasesTests extends TestCase
      * @param mixed $properties
      * @return array<StubSourceElement>
      */
-    private function sources(DerivedScript $script, $properties): array
+    public static function sources(DerivedScript $script, $properties): array
     {
         $byKey = [];
         foreach ($script->properties as $property) {

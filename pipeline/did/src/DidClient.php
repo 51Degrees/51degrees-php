@@ -498,8 +498,8 @@ final class DidClient
      *     than any identifier or is not a 51Did, either of which is refused
      *     before the request with the message naming which, or when the
      *     cloud answered 400, carrying the cloud's message.
-     * @throws NotSupportedException when the host does not offer the
-     *     creator context (404).
+     * @throws NotSupportedException when the remote server does not offer
+     *     the creator context (404), with a message naming the redeem URL.
      * @throws CloudException for any other status.
      * @throws RuntimeException when the cloud cannot be reached.
      */
@@ -561,7 +561,8 @@ final class DidClient
             throw new NotSupportedException(
                 $status,
                 $body,
-                'The host does not offer the creator context.'
+                'The remote server at ' . $this->endpoint . 'id/redeem '
+                . 'does not offer the creator context.'
             );
         }
         throw new CloudException(

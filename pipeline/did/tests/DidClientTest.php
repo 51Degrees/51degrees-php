@@ -1928,6 +1928,27 @@ class DidClientTest extends TestCase
         }
     }
 
+    public function testRedeem404NamesTheEndpointWithoutKeys(): void
+    {
+        $this->queue(404, '');
+        try {
+            $this->client()->redeem($this->someId(), 'SEALED', 'C');
+            $this->fail('Expected a NotSupportedException.');
+        } catch (NotSupportedException $exception) {
+            $message = $exception->getMessage();
+            $this->assertStringContainsString(
+                self::ENDPOINT . 'id/redeem',
+                $message
+            );
+            $this->assertStringContainsString(
+                'does not offer the creator context',
+                $message
+            );
+            $this->assertStringNotContainsString(self::RESOURCE, $message);
+            $this->assertStringNotContainsString(self::LICENCE, $message);
+        }
+    }
+
     public function testRedeemOtherStatusThrowsCloudException(): void
     {
         $this->queue(500, 'server error');

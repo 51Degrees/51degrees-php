@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace fiftyone\pipeline\did;
 
+use ArgumentCountError;
 use Closure;
 use Composer\InstalledVersions;
 use DateTimeImmutable;
@@ -44,7 +45,8 @@ use Throwable;
  * 2. Verifies a 51Did's signature offline against that key
  *    ({@see DidClient::verifySignature()}).
  * 3. Verifies a 51Did's signature through the cloud's verify endpoint
- *    ({@see DidClient::verify()}).
+ *    ({@see DidClient::verify()}), or does so and also reads the Human
+ *    Confidence Value the 51Did carries ({@see DidClient::verifyDetailed()}).
  * 4. Redeems a sealed creator context result on the server, with the
  *    licence key, and returns a typed {@see RedeemResult}
  *    ({@see DidClient::redeem()}).
@@ -368,8 +370,9 @@ final class DidClient
      * one. Hosts that recognise both prefer `51did` and keep `owid` as a
      * compatibility alias.
      *
-     * @return bool True for `{ "valid": true }`, false for
-     *     `{ "valid": false }`.
+     * @return bool True for `{ "valid": true }` with a 200, false for
+     *     `{ "valid": false }` and for any 400 that holds `valid`, whatever
+     *     it says.
      *
      * @throws InvalidArgumentException when a string value is far longer
      *     than any identifier or is not a 51Did, either of which is refused
@@ -380,18 +383,58 @@ final class DidClient
      */
     public function verify(FodId|string $fodId): bool
     {
+        return $this->verifyRequest($fodId, false)->valid;
+    }
+
+    /**
+     * The same call as {@see DidClient::verify()}, answering with the
+     * Human Confidence Value the 51Did carries as well as whether it is
+     * valid. The cloud sends the Value for a 51Did whose signature
+     * verifies, and only to a call that presents a License Key valid for
+     * Human Confidence. So where the client holds a licence key, this call
+     * presents it in the `X-51D-License-Key` header, never in the URL.
+     * {@see DidClient::verify()} sends no licence key, as before. Where the
+     * cloud sends no Value,
+     * {@see VerifyResponse::$humanConfidenceNullReason} says why.
+     *
+     * @throws InvalidArgumentException when a string value is far longer
+     *     than any identifier or is not a 51Did, either of which is refused
+     *     before the request with the message naming which, or when the
+     *     cloud answered 400 without `valid`, carrying the cloud's message.
+     * @throws CloudException for any other status.
+     * @throws RuntimeException when the cloud cannot be reached.
+     */
+    public function verifyDetailed(FodId|string $fodId): VerifyResponse
+    {
+        return $this->verifyRequest($fodId, true);
+    }
+
+    /**
+     * The verify call, presenting the licence key in a header where asked
+     * to and the client holds one.
+     */
+    private function verifyRequest(
+        FodId|string $fodId,
+        bool $presentLicence
+    ): VerifyResponse {
         $value = self::wireForm($fodId);
+        $headers = [];
+        if ($presentLicence && $this->licenceKey !== null) {
+            $headers[] = 'X-51D-License-Key: ' . $this->licenceKey;
+        }
         $response = $this->request(
             'GET',
             'id/verify/' . rawurlencode($this->resourceKey),
-            ['51did' => $value, 'owid' => $value]
+            ['51did' => $value, 'owid' => $value],
+            null,
+            $headers
         );
         $status = $response['status'];
         $json = json_decode($response['body'], true);
         if (is_array($json) && array_key_exists('valid', $json)
             && ($status === 200 || $status === 400)
         ) {
-            return $json['valid'] === true;
+            return VerifyResponse::fromResponse($status, $response['body']);
         }
         if ($status === 400) {
             throw new InvalidArgumentException(
@@ -409,39 +452,96 @@ final class DidClient
     /**
      * Redeems a sealed creator context result against the identifier, on
      * the server, with the licence key. Sends `POST {endpoint}id/redeem`
-     * with a form body of `resource`, `51did`, `result`, `challenge` and
-     * `license` (omitted when the client holds no licence key). Counts as
-     * one use, the second of the two a browser-based context check costs.
+     * with a form body of `resource`, `51did`, `sealedResult`, `result`,
+     * `transaction`, `challenge` and `license` (omitted when the client
+     * holds no licence key). Counts as one use, the second of the two a
+     * browser-based context check costs.
+     *
+     * The sealed result goes as both `sealedResult` and `result`, and the
+     * transaction as both `transaction` and `challenge`, with the same
+     * values, so the call works with a service that reads only the older
+     * names. A service that reads both takes the current names and adds an
+     * `obsolete` array to its answer, which the client ignores.
+     *
+     * A call that passes the arguments by position works as before. The
+     * parameters `result` and `challenge` are the obsolete names of
+     * `sealedResult` and `transaction`. They still work when passed by
+     * name, raise an `E_USER_DEPRECATED` naming the replacement, and give
+     * way to the current name when both are passed. For the sealed result,
+     * an empty value counts as not passed, under either name, so an empty
+     * `sealedResult` takes the obsolete one's value. A transaction that is
+     * given, including an empty one, is sent exactly as given, and
+     * `challenge` is used only where `transaction` is not given or is
+     * null, as
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#a-sealed-creator-context-result
+     * requires.
      *
      * @param FodId|string $fodId The identifier the server knows
      *     independently, as a {@see FodId} or a string in either alphabet.
-     * @param string $result The sealed result exactly as the verify endpoint
-     *     returned it to the browser.
-     * @param string $challenge The single-use challenge given to the verify
-     *     endpoint, or an empty string where none was.
+     * @param string|null $sealedResult The sealed result exactly as the
+     *     verify-context or verify-full endpoint returned it to the browser,
+     *     as `sealedResult` or, from a service that predates that name, as
+     *     `result`. Required, under this name or the obsolete one.
+     * @param string|null $transaction The single-use transaction value
+     *     given to the verify endpoint, or an empty string where none was.
+     *     Null, the default, means not given, and is sent as empty unless
+     *     the obsolete `challenge` is passed.
+     * @param string|null $result Obsolete. Use `sealedResult`.
+     * @param string|null $challenge Obsolete. Use `transaction`.
      *
-     * @return RedeemResult For a 200, and for a 503 where the context is
-     *     {@see ContextOutcome::Unconfirmed} and the caller may retry.
+     * @return RedeemResult For a 200, and for a 503 where the status is
+     *     {@see RedeemStatus::Unconfirmed} and the caller may retry.
      *
+     * @throws ArgumentCountError when no sealed result is passed under
+     *     either name, as PHP throws for a missing argument.
      * @throws InvalidArgumentException when a string value is far longer
      *     than any identifier or is not a 51Did, either of which is refused
      *     before the request with the message naming which, or when the
      *     cloud answered 400, carrying the cloud's message.
-     * @throws NotSupportedException when the host does not offer the
-     *     creator context (404).
+     * @throws NotSupportedException when the remote server does not offer
+     *     the creator context (404), with a message naming the redeem URL.
      * @throws CloudException for any other status.
      * @throws RuntimeException when the cloud cannot be reached.
      */
     public function redeem(
         FodId|string $fodId,
-        string $result,
-        string $challenge
+        ?string $sealedResult = null,
+        ?string $transaction = null,
+        ?string $result = null,
+        ?string $challenge = null
     ): RedeemResult {
+        if ($result !== null) {
+            trigger_error(
+                'The result parameter of DidClient::redeem() is obsolete. '
+                . 'Use sealedResult.',
+                E_USER_DEPRECATED
+            );
+            $sealedResult = self::currentOrObsolete($sealedResult, $result);
+        }
+        if ($challenge !== null) {
+            trigger_error(
+                'The challenge parameter of DidClient::redeem() is obsolete. '
+                . 'Use transaction.',
+                E_USER_DEPRECATED
+            );
+            // A given transaction is sent exactly as given, even when
+            // empty, so the obsolete name is used only where none was.
+            $transaction ??= $challenge;
+        }
+        $transaction ??= '';
+        if ($sealedResult === null) {
+            throw new ArgumentCountError(
+                'DidClient::redeem() needs a sealed result, passed as '
+                . 'sealedResult.'
+            );
+        }
         $form = [
             'resource' => $this->resourceKey,
             '51did' => self::wireForm($fodId),
-            'result' => $result,
-            'challenge' => $challenge,
+            'sealedResult' => $sealedResult,
+            'result' => $sealedResult,
+            'transaction' => $transaction,
+            'challenge' => $transaction,
         ];
         if ($this->licenceKey !== null) {
             $form['license'] = $this->licenceKey;
@@ -461,7 +561,8 @@ final class DidClient
             throw new NotSupportedException(
                 $status,
                 $body,
-                'The host does not offer the creator context.'
+                'The remote server at ' . $this->endpoint . 'id/redeem '
+                . 'does not offer the creator context.'
             );
         }
         throw new CloudException(
@@ -469,6 +570,21 @@ final class DidClient
             $body,
             "The redeem endpoint answered {$status}: " . $this->excerpt($body)
         );
+    }
+
+    /**
+     * Picks between a current name and its obsolete one. An empty value
+     * counts as not sent, so the obsolete value is used only where the
+     * current one is null or empty, and the current one wins when both
+     * are non-empty.
+     */
+    private static function currentOrObsolete(
+        ?string $current,
+        ?string $obsolete
+    ): ?string {
+        return ($current === null || $current === '') && $obsolete !== null
+            ? $obsolete
+            : $current;
     }
 
     /**
@@ -853,6 +969,7 @@ final class DidClient
      *
      * @param array<string, string> $query
      * @param array<string, string>|null $form A form body to POST, or null.
+     * @param string[] $extraHeaders Headers to add to the defaults.
      * @return array{status: int, body: string}
      *
      * @throws RuntimeException when the transport fails or answers in the
@@ -862,7 +979,8 @@ final class DidClient
         string $method,
         string $path,
         array $query = [],
-        ?array $form = null
+        ?array $form = null,
+        array $extraHeaders = []
     ): array {
         $url = $this->endpoint . $path;
         if ($query !== []) {
@@ -871,6 +989,7 @@ final class DidClient
         $headers = [
             'User-Agent: ' . self::userAgent(),
             'Accept: application/json',
+            ...$extraHeaders,
         ];
         $body = '';
         if ($form !== null) {

@@ -38,19 +38,34 @@ use DateTimeZone;
  * {@see RedeemResult::$secondsSinceVerified} is how long ago that was by the
  * service's clock, in whole seconds. Both are present on the redeemed and
  * expired outcomes and null otherwise.
+ *
+ * {@see RedeemResult::$status} says what happened to the sealed result,
+ * and on {@see RedeemStatus::Success} the unsealed result is in
+ * {@see RedeemResult::$context}, {@see RedeemResult::$signature} and
+ * {@see RedeemResult::$factors}, with the Human Confidence Value the 51Did
+ * carries in {@see RedeemResult::$humanConfidence}. The cloud still writes
+ * every other status to `context`, so a caller that reads only
+ * {@see RedeemResult::$context} reads it as before.
  */
 final class RedeemResult
 {
     /** The format the cloud writes `verifiedAt` in, ISO 8601 UTC to the second. */
     public const VERIFIED_AT_FORMAT = 'Y-m-d\TH:i:s\Z';
 
-    /** The creator context verdict. */
+    /**
+     * The creator context verdict. On any status other than success it
+     * holds the same word as {@see RedeemResult::$status}, through the
+     * obsolete cases {@see ContextOutcome::Expired},
+     * {@see ContextOutcome::Replayed}, {@see ContextOutcome::Unreadable}
+     * and {@see ContextOutcome::Unconfirmed}.
+     */
     public readonly ContextOutcome $context;
 
     /**
      * The `context` string exactly as the cloud sent it, so a value this
      * build maps to {@see ContextOutcome::Unreadable} because it is not
-     * known is still visible. Empty when the field was absent.
+     * known is still visible. Empty when the field was absent, and
+     * `unconfirmed` on a 503, whose body is not read.
      */
     public readonly string $rawContext;
 
@@ -79,6 +94,43 @@ final class RedeemResult
     public readonly string $raw;
 
     /**
+     * What happened to the sealed result, from the `status` the cloud
+     * sends with every redeem answer. A 503 is always
+     * {@see RedeemStatus::Unconfirmed}, whatever the body says. Where the
+     * service sent no `status`, it's read from `context`, as
+     * {@see RedeemStatus::fromAnswer()} describes. A word this build does
+     * not know reads as {@see RedeemStatus::Unreadable}.
+     */
+    public readonly RedeemStatus $status;
+
+    /**
+     * The Human Confidence Value the 51Did carries, sent on success to a
+     * call that presented a License Key valid for Human Confidence. Null
+     * otherwise, and then {@see RedeemResult::$humanConfidenceNullReason}
+     * says why where the cloud sent a reason.
+     */
+    public readonly ?HumanConfidence $humanConfidence;
+
+    /**
+     * Why the cloud sent no Value, as the cloud worded it, or
+     * {@see HumanConfidence::NOT_RETURNED} on success where the answer
+     * held neither a Value nor a reason. Null otherwise.
+     */
+    public readonly ?string $humanConfidenceNullReason;
+
+    /**
+     * The `humanConfidence` string exactly as the cloud sent it, so a word
+     * this build reads as {@see HumanConfidence::Absent} because it is not
+     * known is still visible. Null when the field was not sent.
+     */
+    public readonly ?string $rawHumanConfidence;
+
+    /**
+     * Takes each value as given. Where no status is given, it's read from
+     * `$rawContext`, as {@see RedeemStatus::fromAnswer()} describes.
+     * {@see RedeemResult::fromResponse()} is the way to read a response,
+     * as it applies what the HTTP status means.
+     *
      * @param array<string, FactorOutcome>|null $factors
      */
     public function __construct(
@@ -89,7 +141,11 @@ final class RedeemResult
         ?DateTimeImmutable $verifiedAt,
         ?int $secondsSinceVerified,
         int $statusCode,
-        string $raw
+        string $raw,
+        ?RedeemStatus $status = null,
+        ?HumanConfidence $humanConfidence = null,
+        ?string $humanConfidenceNullReason = null,
+        ?string $rawHumanConfidence = null
     ) {
         $this->context = $context;
         $this->rawContext = $rawContext;
@@ -99,24 +155,56 @@ final class RedeemResult
         $this->secondsSinceVerified = $secondsSinceVerified;
         $this->statusCode = $statusCode;
         $this->raw = $raw;
+        $this->status = $status ?? RedeemStatus::fromAnswer(null, $rawContext);
+        $this->humanConfidence = $humanConfidence;
+        $this->humanConfidenceNullReason = $humanConfidenceNullReason;
+        $this->rawHumanConfidence = $rawHumanConfidence;
     }
 
     /**
      * Builds the result from a redeem response. A body that is not a JSON
      * object, or one without a `context`, reads as
      * {@see ContextOutcome::Unreadable}, so nothing unexpected passes as a
-     * verdict.
+     * verdict. Where the body holds neither `status` nor `context`, the
+     * status is {@see RedeemStatus::Unreadable} and the signature
+     * {@see SignatureOutcome::Unknown}, whatever `signature` holds. A 503
+     * reads as {@see RedeemStatus::Unconfirmed} and
+     * {@see ContextOutcome::Unconfirmed}, whatever the body says, and
+     * nothing else is read from it. The body is kept in
+     * {@see RedeemResult::$raw} only.
      */
     public static function fromResponse(int $statusCode, string $body): self
     {
+        if ($statusCode === 503) {
+            return new self(
+                ContextOutcome::Unconfirmed,
+                ContextOutcome::Unconfirmed->value,
+                SignatureOutcome::Unknown,
+                null,
+                null,
+                null,
+                $statusCode,
+                $body,
+                RedeemStatus::Unconfirmed
+            );
+        }
+        // Only a JSON object is an answer. A JSON array, a scalar or a body
+        // that isn't JSON at all reads as an empty answer.
         $json = json_decode($body, true);
-        if (!is_array($json)) {
+        if (!is_array($json) || !(json_decode($body) instanceof \stdClass)) {
             $json = [];
         }
         $rawContext = isset($json['context']) && is_string($json['context'])
             ? $json['context']
             : '';
-        $signature = isset($json['signature']) && is_string($json['signature'])
+        // An answer with neither status nor context gives no outcome, so
+        // its signature member is not read, as
+        // https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#a-sealed-creator-context-result
+        // sets out.
+        $holdsAnOutcome = (isset($json['context']) && is_string($json['context']))
+            || (isset($json['status']) && is_string($json['status']));
+        $signature = $holdsAnOutcome
+            && isset($json['signature']) && is_string($json['signature'])
             ? $json['signature']
             : null;
 
@@ -147,6 +235,16 @@ final class RedeemResult
             $seconds = (int) $json['secondsSinceVerified'];
         }
 
+        $status = isset($json['status']) && is_string($json['status'])
+            ? $json['status']
+            : null;
+        $redeemStatus = RedeemStatus::fromAnswer($status, $rawContext);
+        [$humanConfidence, $nullReason, $rawHumanConfidence] =
+            HumanConfidence::fromAnswer(
+                $holdsAnOutcome ? $json : [],
+                $redeemStatus === RedeemStatus::Success
+            );
+
         return new self(
             ContextOutcome::fromCloud($rawContext),
             $rawContext,
@@ -155,7 +253,11 @@ final class RedeemResult
             $verifiedAt,
             $seconds,
             $statusCode,
-            $body
+            $body,
+            $redeemStatus,
+            $humanConfidence,
+            $nullReason,
+            $rawHumanConfidence
         );
     }
 
@@ -163,7 +265,10 @@ final class RedeemResult
      * The result in the cloud's own shape (`signature`, `context`,
      * `factors` when present, `verifiedAt`, `secondsSinceVerified`), for a
      * server that relays a redemption to a page as JSON. Fields the cloud
-     * did not send are left out, as the cloud leaves them out.
+     * did not send are left out, as the cloud leaves them out. `status`
+     * and the Human Confidence fields are not included, so the array is
+     * the same whichever service answered, and a Value read with the
+     * licence key does not reach the page unless the server adds it.
      *
      * @return array<string, mixed>
      */

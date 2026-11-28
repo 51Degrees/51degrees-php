@@ -371,7 +371,8 @@ cloud request engine honours, and falls back to
 slash is accepted. Credentials never travel in a URL. The key list and
 verify calls carry the resource key in the route, and redeem is a POST
 whose form body carries the resource key, the identifier, the sealed
-result, the challenge and the licence key. A fourth constructor argument
+result and the transaction, each under its current and its older name,
+and the licence key. A fourth constructor argument
 takes an HTTP transport callable so tests can run without the network.
 
 ```php
@@ -379,6 +380,7 @@ use fiftyone\pipeline\did\ContextOutcome;
 use fiftyone\pipeline\did\DidClient;
 use fiftyone\pipeline\did\FodId;
 use fiftyone\pipeline\did\NotSupportedException;
+use fiftyone\pipeline\did\RedeemStatus;
 
 $client = new DidClient($resourceKey, $licenceKey);
 
@@ -410,12 +412,34 @@ $outcome = $client->verifySignatureDetailed($fodId);
 // 3. Verify the signature through the cloud (one use, no licence key).
 $valid = $client->verify($fodId);
 
+//    verifyDetailed() makes the same call, presents the licence key in a
+//    header where the client holds one, and also reads the Human
+//    Confidence Value the 51Did carries.
+$verified = $client->verifyDetailed($fodId);
+$verified->valid;                     // bool, as verify() answers
+$verified->humanConfidence;           // HumanConfidence or null
+$verified->humanConfidenceNullReason; // why there is no Value, or null
+//    Only a 200 can be valid, and only a 200 carries the Human Confidence
+//    fields. A 400 is invalid whatever its body says.
+
 // 4. Redeem a sealed creator context result the page relayed (one use).
 try {
-    $redeemed = $client->redeem($fodId, $sealedResult, $challenge);
-    if ($redeemed->context === ContextOutcome::Verified) {
+    $redeemed = $client->redeem(
+        $fodId,
+        sealedResult: $sealedResult,
+        transaction: $transaction
+    );
+    if ($redeemed->status === RedeemStatus::Success
+        && $redeemed->context === ContextOutcome::Verified
+    ) {
         // Presented from the browser and connection it was created on.
     }
+    $redeemed->status;               // RedeemStatus: Success, Expired,
+                                     // Replayed, Unconfirmed or
+                                     // Unreadable
+    $redeemed->humanConfidence;      // HumanConfidence: High, Medium,
+                                     // Low or Absent, or null
+    $redeemed->humanConfidenceNullReason; // why there is no Value, or null
     $redeemed->signature;            // SignatureOutcome
     $redeemed->factors;              // name => FactorOutcome, Verified,
                                      // Mismatch, Misconfigured or
@@ -447,7 +471,7 @@ that fails with the keys it holds, or at the next daily refresh, which
 fetches the whole list.
 `PublicKey::$endsAt` carries the end, or null where the cloud sent none.
 
-`redeem()` returns a `RedeemResult` for a 200 and for a 503 (context
+`redeem()` returns a `RedeemResult` for a 200 and for a 503 (status
 `Unconfirmed`, so retry). It throws `InvalidArgumentException` with the
 cloud's message when the 51Did was malformed (400),
 `NotSupportedException` when the host does not offer the creator context
@@ -457,6 +481,48 @@ status, and `RuntimeException` when the cloud cannot be reached. A
 `ContextOutcome::Unreadable` and the raw value stays on `rawContext`.
 Every cryptographic failure comes back as the one word `unreadable`, by
 design, so the client does not try to distinguish them either.
+
+`status` says what happened to the sealed result: `success`, `expired`,
+`replayed`, `unconfirmed` or `unreadable`. A 503 is always `Unconfirmed`,
+in both `status` and `context`, whatever the body says, and nothing else
+is read from it. A word the package does not know reads as
+`RedeemStatus::Unreadable`. Where the service sends no `status`, it's read
+from `context`. The four failure words give those statuses, any other
+verdict the package knows gives `Success`, and a word it doesn't know, or
+no `context`, gives `Unreadable`. On every status other than `success` the
+cloud still writes the same word to `context`, so `ContextOutcome::Expired`,
+`Replayed`, `Unreadable` and `Unconfirmed` go on being read. They're
+obsolete, so read `status` for those outcomes instead.
+
+`humanConfidence` is the Human Confidence Value the 51Did carries. It's
+`High`, `Medium` or `Low` where the 51Did was made with a Human Confidence
+Value, and `Absent` where it wasn't, which is every 51Did made before the
+cloud carried the Value. The cloud sends it on a successful redeem, and on
+a verify of a 51Did whose signature verifies. It sends it only to a call
+that presents a License Key valid for Human Confidence. Any other call
+gets `humanConfidenceNullReason` instead, saying why, and
+`humanConfidence` is then null. A service from before the Value sends
+neither field, and then `humanConfidenceNullReason` is
+`HumanConfidence::NOT_RETURNED` on a successful redeem and on a verify of
+a valid 51Did, so there's always a reason where there's no Value. A
+`humanConfidence` word the package
+doesn't know reads as `Absent`, never as null, and the word as sent stays
+on `rawHumanConfidence`. `toArray()` leaves
+out `status` and the Human Confidence fields, so a server that relays the
+answer to a page sends what it sent before.
+
+`redeem()` takes the sealed result as `sealedResult` and the transaction as
+`transaction`. It sends each value under both its current name and its
+older name (`result` and `challenge`), so it works with a service that
+reads only the older names. A service that reads both takes the current
+names and adds an `obsolete` array to its answer, which the client
+ignores. A call that passes the arguments by position works as before. `result` and `challenge` are the obsolete
+names of the two parameters. They still work when passed by name, and
+raise an `E_USER_DEPRECATED` naming the replacement. For the sealed
+result, an empty value counts as not passed, so `sealedResult` wins when
+both hold a value, and an empty `sealedResult` takes `result`'s value. A
+transaction that is given, even an empty one, is sent exactly as given,
+so `challenge` is used only where `transaction` isn't given.
 
 `factors` arrives on a mismatch, on a misconfigured result where the
 transport was compared, and whenever any factor is `NotRecorded`, whatever

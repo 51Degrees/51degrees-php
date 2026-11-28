@@ -155,6 +155,32 @@ class HumanConfidenceWebStandInTests extends TestCase
     }
 
     /**
+     * The redeem route reads the sealed result as sealedResult or, from an
+     * older page, as value. An empty value counts as not sent, so
+     * sealedResult wins when both hold a value and value is read when
+     * sealedResult is empty or missing.
+     */
+    public function testRedeemReadsTheSealedResultUnderEitherName()
+    {
+        $this->assertSame('NEW', HumanConfidenceWeb::sealedResultFrom(
+            ['sealedResult' => 'NEW', 'value' => 'OLD']
+        ));
+        $this->assertSame('OLD', HumanConfidenceWeb::sealedResultFrom(
+            ['sealedResult' => '', 'value' => 'OLD']
+        ));
+        $this->assertSame('OLD', HumanConfidenceWeb::sealedResultFrom(
+            ['value' => 'OLD']
+        ));
+        $this->assertSame('NEW', HumanConfidenceWeb::sealedResultFrom(
+            ['sealedResult' => 'NEW', 'value' => '']
+        ));
+        $this->assertSame('OLD', HumanConfidenceWeb::sealedResultFrom(
+            ['sealedResult' => ['NEW'], 'value' => 'OLD']
+        ));
+        $this->assertSame('', HumanConfidenceWeb::sealedResultFrom([]));
+    }
+
+    /**
      * The message of the assertion the function fails.
      */
     private static function failure(callable $assertion): string

@@ -33,6 +33,13 @@ namespace fiftyone\pipeline\did;
  * design, so nothing here distinguishes them either. A string this build
  * does not know maps to {@see ContextOutcome::Unreadable} (fail closed) and
  * the raw value is kept on {@see RedeemResult::$rawContext}.
+ *
+ * The four cases that say what happened to the sealed result rather than
+ * give a verdict, {@see ContextOutcome::Expired},
+ * {@see ContextOutcome::Replayed}, {@see ContextOutcome::Unreadable} and
+ * {@see ContextOutcome::Unconfirmed}, are obsolete. Read
+ * {@see RedeemResult::$status} for those. They keep their values and go on
+ * being read, because the cloud still writes those words to `context`.
  */
 enum ContextOutcome: string
 {
@@ -79,19 +86,36 @@ enum ContextOutcome: string
      */
     case InvalidDate = 'invaliddate';
 
-    /** The sealed result was redeemed outside the service's freshness window. */
+    /**
+     * The sealed result was redeemed outside the service's freshness window.
+     *
+     * @deprecated Use RedeemStatus::Expired, read from RedeemResult::$status.
+     */
     case Expired = 'expired';
 
-    /** The sealed result was already redeemed on this instance. */
+    /**
+     * The sealed result was already redeemed on this instance.
+     *
+     * @deprecated Use RedeemStatus::Replayed, read from RedeemResult::$status.
+     */
     case Replayed = 'replayed';
 
     /**
      * The sealed result could not be read for this identifier under a secret
-     * the service holds.
+     * the service holds. Also the answer for a `context` this build does not
+     * know, so it stays the fail closed value.
+     *
+     * @deprecated Use RedeemStatus::Unreadable, read from
+     *     RedeemResult::$status.
      */
     case Unreadable = 'unreadable';
 
-    /** First use could not be confirmed (503). The caller may retry. */
+    /**
+     * First use could not be confirmed (503). The caller may retry.
+     *
+     * @deprecated Use RedeemStatus::Unconfirmed, read from
+     *     RedeemResult::$status.
+     */
     case Unconfirmed = 'unconfirmed';
 
     /**

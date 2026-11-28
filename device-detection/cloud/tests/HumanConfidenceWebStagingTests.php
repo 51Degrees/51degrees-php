@@ -130,7 +130,10 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 
     /**
      * The cloud service's redeem, asked with the resource key, answers a
-     * value it did not seal as unreadable, with no level.
+     * value it did not seal as unreadable. The value goes as both
+     * sealedResult and value, as the example sends it. A service that
+     * sends status gives Medium beside it, and one that doesn't gives
+     * result and no Value.
      */
     public function testRedeemOfAValueThatWasNotSealedIsUnreadable()
     {
@@ -138,6 +141,7 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 
         $answer = self::postToCloud('hc/redeem', [
             'resource' => self::$key,
+            'sealedResult' => self::NOT_SEALED,
             'value' => self::NOT_SEALED
         ]);
 
@@ -149,8 +153,13 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
         $this->assertSame(200, $answer['status'], $message);
         $json = json_decode($answer['body'], true);
         $this->assertIsArray($json, $message);
-        $this->assertSame('unreadable', $json['result'] ?? null, $message);
-        $this->assertArrayNotHasKey('humanConfidence', $json, $message);
+        if (array_key_exists('status', $json)) {
+            $this->assertSame('unreadable', $json['status'], $message);
+            $this->assertSame('Medium', $json['humanConfidence'] ?? null, $message);
+        } else {
+            $this->assertSame('unreadable', $json['result'] ?? null, $message);
+            $this->assertArrayNotHasKey('humanConfidence', $json, $message);
+        }
     }
 
     /**
@@ -166,7 +175,7 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
         $answer = self::request('/redeem', [
             'method' => 'POST',
             'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-            'content' => http_build_query(['value' => self::NOT_SEALED])
+            'content' => http_build_query(['sealedResult' => self::NOT_SEALED])
         ]);
 
         $this->assertNoFault($answer);

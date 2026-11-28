@@ -38,12 +38,15 @@
  * 2. Active. The page loads the 51Degrees client script, which runs the
  *    browser tests and sends the answers to the cloud. When the script
  *    completes, HumanConfidenceSource is Active and HumanConfidence holds
- *    a sealed value the browser can't read or change.
- * 3. Redeem. The page hands the sealed value to this server, which calls
- *    hc/redeem with it and the account's License Key, and gets the true
- *    level back. A sealed value redeems once, within ten seconds. This
- *    server is the only party holding the License Key, which the browser
- *    never sees.
+ *    a sealed result the browser can't read or change.
+ * 3. Redeem. The page hands the sealed result to this server, which calls
+ *    hc/redeem with it as sealedResult and the account's License Key, and
+ *    gets the Value back. It also sends the sealed result as value, the
+ *    older name, so the redeem works with a cloud service that reads
+ *    either. The answer's status says what happened: success, expired,
+ *    replayed, unconfirmed or unreadable. A sealed result redeems once,
+ *    within ten seconds. This server is the only party holding the
+ *    License Key, which the browser never sees.
  *
  * Environment variables:
  *   _51DEGREES_RESOURCE_KEY    the Resource Key, required

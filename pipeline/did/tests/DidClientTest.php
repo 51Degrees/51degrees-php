@@ -2150,7 +2150,8 @@ class DidClientTest extends TestCase
             'verified' => RedeemStatus::Success,
             'mismatch' => RedeemStatus::Success,
             'nocontext' => RedeemStatus::Success,
-            'notcheckable' => RedeemStatus::Success,
+            // Not one of the five verdicts, so it can't read as a pass.
+            'notcheckable' => RedeemStatus::Unreadable,
             'misconfigured' => RedeemStatus::Success,
             'invaliddate' => RedeemStatus::Success,
             'expired' => RedeemStatus::Expired,
@@ -2166,6 +2167,30 @@ class DidClientTest extends TestCase
             $result = $this->client()->redeem($this->someId(), 'SEALED', 'C');
             $this->assertSame($status, $result->status, $context);
         }
+    }
+
+    public function testWithoutAStatusOnlyTheFiveVerdictsReadAsSuccess(): void
+    {
+        // https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#the-redemption-outcome
+        $verdicts = ['verified', 'mismatch', 'nocontext', 'misconfigured', 'invaliddate'];
+        $reasons = ['expired', 'replayed', 'unreadable', 'unconfirmed'];
+        foreach (ContextOutcome::cases() as $outcome) {
+            $word = $outcome->value;
+            $expected = in_array($word, $verdicts, true)
+                ? RedeemStatus::Success
+                : (in_array($word, $reasons, true)
+                    ? RedeemStatus::from($word)
+                    : RedeemStatus::Unreadable);
+            $this->assertSame(
+                $expected,
+                RedeemStatus::fromAnswer(null, $word),
+                $word
+            );
+        }
+        $this->assertSame(
+            RedeemStatus::Unreadable,
+            RedeemStatus::fromAnswer(null, 'notcheckable')
+        );
     }
 
     public function testRedeemWithNoContextAndNoStatusIsUnreadable(): void

@@ -77,12 +77,12 @@ enum RedeemStatus: string
      * The status of a redeem answer other than a 503, which
      * {@see RedeemResult::fromResponse()} reads as
      * {@see RedeemStatus::Unconfirmed} without reading its body. It's read
-     * from `status` where the service sent one. A service that
-     * sends no `status` writes the failure word to `context`, so the
-     * status is then read from `context`. Any other `context` word this
-     * build knows is a verdict, so the sealed result was redeemed. A word
-     * it doesn't know, or no `context` at all, reads as
-     * {@see RedeemStatus::Unreadable}.
+     * from `status` where the service sent one, and otherwise from
+     * `context`, as
+     * https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md#the-redemption-outcome
+     * sets out. Only the verdicts in {@see RedeemStatus::CONTEXT_VERDICTS}
+     * read as {@see RedeemStatus::Success}, so a word that isn't one of
+     * them, or of the four reasons, never reads as a pass.
      *
      * @internal Used by {@see RedeemResult}.
      */
@@ -91,12 +91,26 @@ enum RedeemStatus: string
         if ($status !== null) {
             return self::tryFrom($status) ?? self::Unreadable;
         }
-        // The four failure words are both context words and status words.
-        // "success" is a status word only, so as a context it's unknown.
-        $verdict = ContextOutcome::tryFrom($context);
-        if ($verdict === null) {
-            return self::Unreadable;
+        if (in_array($context, self::CONTEXT_VERDICTS, true)) {
+            return self::Success;
         }
-        return self::tryFrom($verdict->value) ?? self::Success;
+        // The four reasons are both context words and status words.
+        // "success" is a status word only, so as a context it's unknown.
+        $reason = self::tryFrom($context);
+        return $reason === null || $reason === self::Success
+            ? self::Unreadable
+            : $reason;
     }
+
+    /**
+     * The `context` words that mean the check reached a verdict, so the
+     * sealed result redeemed, where the answer holds no `status`.
+     */
+    private const CONTEXT_VERDICTS = [
+        'verified',
+        'mismatch',
+        'nocontext',
+        'misconfigured',
+        'invaliddate',
+    ];
 }

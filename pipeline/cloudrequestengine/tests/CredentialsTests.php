@@ -46,10 +46,10 @@ class CredentialsTests extends TestCase
     public const failure = 'The request was refused.';
 
     /**
-     * The license key as a message may show it, the last 4 characters
-     * after one * for each other character.
+     * The License Key as a message of the Cloud Request Engine shows it,
+     * hidden whole, as no part of it may be written.
      */
-    public const maskedLicenseKey = '****************7890';
+    public const maskedLicenseKey = '(hidden)';
 
     /** @var array<array{string, string, null|string}> */
     private array $requests = [];
@@ -426,6 +426,7 @@ class CredentialsTests extends TestCase
                 $text
             );
             $this->assertStringNotContainsString(self::licenseKey, $text);
+            $this->assertStringNotContainsString(substr(self::licenseKey, -4), $text);
         }
     }
 

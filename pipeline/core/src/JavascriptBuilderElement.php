@@ -51,8 +51,19 @@ class JavascriptBuilderElement extends FlowElement
      * changes on every page view, so a record holding one could never match.
      * The .NET builder, the reference for this behaviour, excludes the same
      * two.
+     *
+     * A sealed Human Confidence result must never be in the script, so
+     * query.humanconfidence is left out too, with query.humanconfidencepage,
+     * the page id sent with it, which only the Cloud Request Engine uses.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
      */
-    private const EXCLUDED_PARAMETERS = ['query.session-id', 'query.sequence'];
+    private const EXCLUDED_PARAMETERS = [
+        'query.session-id',
+        'query.sequence',
+        'query.humanconfidence',
+        'query.humanconfidencepage'
+    ];
 
     /**
      * Names the object cannot have, in the groups the specification lists.
@@ -548,8 +559,9 @@ class JavascriptBuilderElement extends FlowElement
      * record of a request's inputs is taken from these parameters and a
      * session id that differs on every page view would stop it ever
      * matching, so the cached response would be thrown away and the
-     * snippets would run again on every page. Keys and values are encoded
-     * as the .NET builder encodes them.
+     * snippets would run again on every page. A sealed Human Confidence
+     * result and its page id are left out as well. Keys and values are
+     * encoded as the .NET builder encodes them.
      *
      * Evidence keys ignore letter case and arrive in the letters they were
      * first set with, so each key is lowered before it is matched against

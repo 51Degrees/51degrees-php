@@ -34,6 +34,7 @@
       <file>tests/JavaScriptBuilderMinifyChoicesTests.php</file>
       <file>tests/JavaScriptBuilderMinifyOnceTests.php</file>
       <file>tests/JsonBundlerListTests.php</file>
+      <file>tests/JsonBundlerHumanConfidenceTests.php</file>
       <file>tests/JavaScriptBuilderParametersTests.php</file>
       <file>tests/JavaScriptBuilderObjectNameTests.php</file>
       <file>tests/JavaScriptBuilderSequenceTests.php</file>

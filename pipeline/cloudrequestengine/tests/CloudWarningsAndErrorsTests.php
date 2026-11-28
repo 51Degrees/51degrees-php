@@ -41,7 +41,8 @@ class CloudWarningsAndErrorsTests extends TestCase
 {
     private const URL = 'https://cloud.51degrees.com/api/v4/resource_key.json';
     private const LICENSE_KEY = 'LICENSEKEY1234567890';
-    private const MASKED_LICENSE_KEY = '****************7890';
+    // The engine hides the License Key whole in every message.
+    private const MASKED_LICENSE_KEY = '(hidden)';
 
     /**
      * Each entry of the errors array is kept apart in the exception, which
@@ -218,6 +219,7 @@ class CloudWarningsAndErrorsTests extends TestCase
         $warnings = implode("\n", self::warnings($logger));
         $this->assertStringContainsString('warning about ' . self::MASKED_LICENSE_KEY, $warnings);
         $this->assertStringNotContainsString(self::LICENSE_KEY, $warnings);
+        $this->assertStringNotContainsString('7890', $warnings);
     }
 
     /**

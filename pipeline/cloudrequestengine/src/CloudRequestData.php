@@ -39,12 +39,34 @@ use fiftyone\pipeline\engines\AspectDataDictionary;
  */
 class CloudRequestData extends AspectDataDictionary
 {
-    public function __construct(CloudRequestEngine $engine, string $jsonResponse)
-    {
+    private bool $sealedResultSent;
+
+    /**
+     * @param bool $sealedResultSent Whether the call carried a sealed Human
+     *   Confidence result for the remote server to redeem
+     */
+    public function __construct(
+        CloudRequestEngine $engine,
+        string $jsonResponse,
+        bool $sealedResultSent = false
+    ) {
+        $this->sealedResultSent = $sealedResultSent;
+
         parent::__construct(
             $engine,
             [Constants::JSON_RESPONSE_PROPERTY => $jsonResponse]
         );
+    }
+
+    /**
+     * Whether the call carried a sealed Human Confidence result, so that the
+     * Value in the response answers for it.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#redeeming-through-the-json-call
+     */
+    public function sealedResultSent(): bool
+    {
+        return $this->sealedResultSent;
     }
 
     /**

@@ -190,6 +190,38 @@ class JavaScriptBuilderParametersTests extends TestCase
     }
 
     /**
+     * A sealed Human Confidence result must never reach the script, and
+     * nor does the page id it is sent with, which only the Cloud Request
+     * Engine uses. A transaction in the query is the page's own value and
+     * is still passed. The one the package keeps is never Evidence.
+     */
+    public function testSealedHumanConfidenceAndPageIdAreLeftOutInAnyLetterCase()
+    {
+        $spellings = [
+            ['query.humanconfidence', 'query.humanconfidencepage'],
+            ['Query.HumanConfidence', 'Query.HumanConfidencePage'],
+            ['QUERY.HUMANCONFIDENCE', 'QUERY.HUMANCONFIDENCEPAGE'],
+        ];
+
+        foreach ($spellings as [$sealed, $page]) {
+            $script = $this->render([
+                'header.host' => 'example.com',
+                $sealed => 'SEALED-RESULT',
+                $page => 'PAGE-ID',
+                'query.transaction' => 'kept'
+            ]);
+
+            $this->assertSame(
+                '{"transaction":"kept"}',
+                $this->parameters($script),
+                $sealed
+            );
+            $this->assertStringNotContainsString('SEALED-RESULT', $script, $sealed);
+            $this->assertStringNotContainsString('PAGE-ID', $script, $sealed);
+        }
+    }
+
+    /**
      * The prefix is matched without regard to letter case already, so a
      * query key in other letters still becomes a parameter.
      */

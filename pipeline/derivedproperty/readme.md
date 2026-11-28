@@ -71,6 +71,13 @@ if ($humanConfidence->hasValue) {
 Each value is an `AspectPropertyValue`, and reading `value` where there is
 none raises the no value message, as for any other element.
 
+This element can't redeem a sealed Human Confidence result. On a request
+whose `query.humanconfidence` isn't empty, `HumanConfidence` is `Medium`
+and the element adds `HumanConfidenceSource` as `Active`, whatever the
+script works out. You don't need to add anything for this. To get the
+redeemed value, use the Cloud Request Engine's `DerivedCloudEngine`
+instead, as its readme describes.
+
 ## Example
 
 [examples/DerivedProperty.php](examples/DerivedProperty.php) needs no

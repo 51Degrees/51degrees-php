@@ -62,8 +62,8 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
         return null;
     }
 
-    // None, so the example's redeem sends the cloud service no key, which
-    // it refuses the same way wherever the tests run.
+    // None, so the example's Pipeline can't redeem, and reads Medium the
+    // same way wherever the tests run.
     protected static function licenseKey(): ?string
     {
         return null;
@@ -130,7 +130,11 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 
     /**
      * The cloud service's redeem, asked with the resource key, answers a
-     * value it did not seal as unreadable, with no level.
+     * value it did not seal with the status unreadable and the level
+     * Medium, which it gives whenever the status is not success. It reads
+     * the value as sealedResult and answers in status.
+     *
+     * @see https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#the-redeem-endpoints
      */
     public function testRedeemOfAValueThatWasNotSealedIsUnreadable()
     {
@@ -138,7 +142,7 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
 
         $answer = self::postToCloud('hc/redeem', [
             'resource' => self::$key,
-            'value' => self::NOT_SEALED
+            'sealedResult' => self::NOT_SEALED
         ]);
 
         $message = str_replace(
@@ -149,33 +153,32 @@ class HumanConfidenceWebStagingTests extends HumanConfidenceWebTestCase
         $this->assertSame(200, $answer['status'], $message);
         $json = json_decode($answer['body'], true);
         $this->assertIsArray($json, $message);
-        $this->assertSame('unreadable', $json['result'] ?? null, $message);
-        $this->assertArrayNotHasKey('humanConfidence', $json, $message);
+        $this->assertSame('unreadable', $json['status'] ?? null, $message);
+        $this->assertSame('Medium', $json['humanConfidence'] ?? null, $message);
     }
 
     /**
      * The third step through the example, with no license key and a value
-     * the cloud service did not seal. The example sends the cloud service
-     * no key, so the redeem refuses it, and the example passes the refusal
-     * on with its status rather than an error of its own.
+     * the cloud service did not seal. The Pipeline can't redeem without a
+     * License Key, so the example reads HumanConfidenceSource Active and
+     * HumanConfidence Medium, with no error.
      */
-    public function testExampleRedeemWithoutALicenseKeyPassesOnTheRefusal()
+    public function testExampleReadsMediumForASealedResultItCannotRedeem()
     {
         self::assertIncludesTheProperty(self::$properties);
 
-        $answer = self::request('/redeem', [
+        $answer = self::request('/humanconfidence', [
             'method' => 'POST',
             'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-            'content' => http_build_query(['value' => self::NOT_SEALED])
+            'content' => http_build_query(['humanconfidence' => self::NOT_SEALED])
         ]);
 
         $this->assertNoFault($answer);
-        $this->assertSame(401, $answer['status'], self::printed($answer));
+        $this->assertSame(200, $answer['status'], self::printed($answer));
         $json = json_decode($answer['body'], true);
         $this->assertIsArray($json, self::printed($answer));
-        $this->assertIsArray($json['errors'] ?? null, self::printed($answer));
-        $this->assertNotEmpty($json['errors'], self::printed($answer));
         $this->assertArrayNotHasKey('error', $json, self::printed($answer));
-        $this->assertArrayNotHasKey('humanConfidence', $json, self::printed($answer));
+        $this->assertSame('Active', $json['source'] ?? null, self::printed($answer));
+        $this->assertSame('Medium', $json['humanConfidence'] ?? null, self::printed($answer));
     }
 }

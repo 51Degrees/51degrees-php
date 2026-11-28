@@ -49,6 +49,7 @@ class EveryFlowElementReadOnlyTests extends TestCase
         'CloudEngineBase' => 'pipeline/cloudrequestengine/tests/ReadOnlyTests.php',
         'CloudEngine' => 'pipeline/cloudrequestengine/tests/ReadOnlyTests.php',
         'CloudRequestEngine' => 'pipeline/cloudrequestengine/tests/ReadOnlyTests.php',
+        'DerivedCloudEngine' => 'pipeline/cloudrequestengine/tests/ReadOnlyTests.php',
         'TranslationEngine' => 'pipeline/translation/tests/ReadOnlyTests.php',
         'DerivedPropertyElement' => 'pipeline/derivedproperty/tests/ReadOnlyTests.php',
         'DeviceDetectionCloud' => 'device-detection/cloud/tests/ReadOnlyTests.php',
